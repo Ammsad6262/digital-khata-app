@@ -80,6 +80,22 @@ export async function apiPatch<T>(
   return unwrap<T>(res, path);
 }
 
+/** DELETE with typed response (sends a body for confirmation fields). */
+export async function apiDelete<T>(
+  path: string,
+  body?: unknown,
+): Promise<T> {
+  const res = await fetch(path, {
+    method: "DELETE",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  return unwrap<T>(res, path);
+}
+
 /** Unwrap a fetch response into either data or an ApiError. */
 async function unwrap<T>(res: Response, path: string): Promise<T> {
   let json: ApiResponse<T>;

@@ -9,27 +9,28 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // Brand palette — green = money/positive, red = debt/negative,
-        // slate = neutral UI surfaces.
+        // Brand palette uses CSS variables so themes can override them.
+        // The variables are defined in globals.css with :root (default green)
+        // and [data-theme="leaf"] (Bright Leaf theme).
+        // Values are space-separated RGB channels for alpha support:
+        //   rgb(var(--brand-600) / 0.5)
         brand: {
-          50: "#f0fdf4",
-          100: "#dcfce7",
-          200: "#bbf7d0",
-          300: "#86efac",
-          400: "#4ade80",
-          500: "#22c55e",
-          600: "#16a34a",
-          700: "#15803d",
-          800: "#166534",
-          900: "#14532d",
+          50: "rgb(var(--brand-50) / <alpha-value>)",
+          100: "rgb(var(--brand-100) / <alpha-value>)",
+          200: "rgb(var(--brand-200) / <alpha-value>)",
+          300: "rgb(var(--brand-300) / <alpha-value>)",
+          400: "rgb(var(--brand-400) / <alpha-value>)",
+          500: "rgb(var(--brand-500) / <alpha-value>)",
+          600: "rgb(var(--brand-600) / <alpha-value>)",
+          700: "rgb(var(--brand-700) / <alpha-value>)",
+          800: "rgb(var(--brand-800) / <alpha-value>)",
+          900: "rgb(var(--brand-900) / <alpha-value>)",
         },
       },
       fontFamily: {
         sans: ["var(--font-sans)", "system-ui", "sans-serif"],
         mono: ["ui-monospace", "SFMono-Regular", "Menlo", "monospace"],
       },
-      // Mobile-first: app is constrained to a phone-width container on larger
-      // screens so it feels like a native app even on desktop.
       maxWidth: {
         app: "480px",
       },

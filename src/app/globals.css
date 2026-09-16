@@ -2,10 +2,49 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   THEME SYSTEM
+   Brand colors are defined as CSS variables (space-separated RGB channels).
+   Tailwind references them via rgb(var(--brand-X) / <alpha-value>).
+
+   Two themes:
+     1. Default (green)  — the original palette
+     2. Bright Leaf     — uses #CDFF9B (BRIGHT LEAF) as the accent and
+                          #203D43 (EMERALD GREEN) as the darkest shade
+   ═══════════════════════════════════════════════════════════════════════════ */
+
 @layer base {
   :root {
     --font-sans: "Inter", system-ui, -apple-system, BlinkMacSystemFont,
       "Segoe UI", Roboto, sans-serif;
+
+    /* Default theme: classic green (Tailwind's emerald-ish palette) */
+    --brand-50:  240 253 244;  /* #f0fdf4 */
+    --brand-100: 220 252 231;  /* #dcfce7 */
+    --brand-200: 187 247 208;  /* #bbf7d0 */
+    --brand-300: 134 239 172;  /* #86efac */
+    --brand-400: 74 222 128;   /* #4ade80 */
+    --brand-500: 34 197 94;    /* #22c55e */
+    --brand-600: 22 163 74;    /* #16a34a */
+    --brand-700: 21 128 61;    /* #15803d */
+    --brand-800: 22 101 52;    /* #166534 */
+    --brand-900: 20 83 45;     /* #14532d */
+  }
+
+  /* Bright Leaf theme — user-requested custom palette */
+  /* #CDFF9B = BRIGHT LEAF (used as brand-200/300 — the vibrant accent) */
+  /* #203D43 = EMERALD GREEN (used as brand-900 — the dark anchor) */
+  [data-theme="leaf"] {
+    --brand-50:  247 255 238;  /* very pale leaf */
+    --brand-100: 224 255 210;  /* light leaf */
+    --brand-200: 205 255 155;  /* #CDFF9B — BRIGHT LEAF */
+    --brand-300: 175 240 115;  /* vibrant */
+    --brand-400: 135 210 70;   /* medium */
+    --brand-500: 95 175 40;    /* primary action */
+    --brand-600: 70 140 30;    /* darker for buttons (white text readable) */
+    --brand-700: 50 100 22;    /* deep */
+    --brand-800: 38 75 30;     /* darker */
+    --brand-900: 32 61 67;     /* #203D43 — EMERALD GREEN */
   }
 
   html,
@@ -36,7 +75,6 @@
   }
 
   .app-content {
-    /* Leave space for the fixed bottom nav (64px + safe-area-inset-bottom) */
     @apply flex-1 px-4 pb-24 pt-4;
     padding-bottom: calc(6rem + env(safe-area-inset-bottom));
   }
@@ -46,7 +84,6 @@
     @apply rounded-xl border border-slate-200 bg-white p-4 shadow-sm;
   }
 
-  /* Stat card — for dashboard */
   .stat-card {
     @apply card flex flex-col gap-1;
   }

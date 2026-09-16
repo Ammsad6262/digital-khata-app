@@ -2,11 +2,14 @@
  * Layout root for the app.
  *
  * Wraps every page in:
- *   1. TanStack Query provider (for client-side data fetching)
- *   2. The mobile-first app shell (Screen + BottomNav)
+ *   1. ThemeProvider (manages CSS theme via data-theme attribute on <html>)
+ *   2. TanStack Query provider (for client-side data fetching)
+ *   3. ToastProvider (for success/error feedback)
+ *   4. The mobile-first app shell (Screen + BottomNav)
  *
- * Phase 3 only ships the shell. Actual page content (Dashboard, Khata, etc.)
- * are placeholder pages — they'll be replaced in later phases.
+ * The anti-FOUC script runs BEFORE React hydrates to set the theme
+ * from localStorage — prevents flash of the default green theme
+ * when the user has chosen Bright Leaf.
  */
 
 import type { Metadata, Viewport } from "next";
@@ -14,6 +17,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { QueryProvider } from "@/providers/query-provider";
 import { ToastProvider } from "@/providers/toast-provider";
+import { ThemeProvider } from "@/providers/theme-provider";
 import { Screen } from "@/components/layout/Screen";
 import { BottomNav } from "@/components/layout/BottomNav";
 
@@ -36,22 +40,40 @@ export const viewport: Viewport = {
   themeColor: "#16a34a",
 };
 
+// Inline script — runs before paint to apply the saved theme.
+// Prevents flash of default theme when user has chosen Bright Leaf.
+const themeInitScript = `
+(function() {
+  try {
+    var t = localStorage.getItem('digital-khata-theme');
+    if (t === 'leaf') {
+      document.documentElement.setAttribute('data-theme', 'leaf');
+    }
+  } catch (e) {}
+})();
+`;
+
 export default function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={inter.variable}>
+    <html lang="en" className={inter.variable} suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+      </head>
       <body>
-        <QueryProvider>
-          <ToastProvider>
-            <Screen>
-              {children}
-              <BottomNav />
-            </Screen>
-          </ToastProvider>
-        </QueryProvider>
+        <ThemeProvider>
+          <QueryProvider>
+            <ToastProvider>
+              <Screen>
+                {children}
+                <BottomNav />
+              </Screen>
+            </ToastProvider>
+          </QueryProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

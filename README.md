@@ -2,7 +2,7 @@
 
 A mobile-first web application that replaces paper khata/registers for small wholesale businesses. Tracks customers, credit (udhaar), sales, payments, products, stock, expenses, and gives the owner a clean dashboard with auto-calculated balances.
 
-> **Status:** Phase 12 — Backup & Export (JSON full backup/restore + per-table CSV export)
+> **Status:** Phase 13 — Settings (business info, currency, theme switcher, PIN security, data management)
 
 ---
 
@@ -62,7 +62,8 @@ The canonical Prisma schema: [`prisma/schema.prisma`](./prisma/schema.prisma)
 - [x] Phase 10 — Transaction History (unified feed with date + type filters, custom date range)
 - [x] Phase 11 — Search + UX improvements (sticky form actions, global search, inline quick-add)
 - [x] Phase 12 — Backup & Export (JSON full backup/restore + per-table CSV export)
-- [ ] Phase 13 — TBD (awaiting instructions)
+- [x] Phase 13 — Settings (business info, currency, theme switcher, PIN security, data management)
+- [ ] Phase 14 — TBD (awaiting instructions)
 
 ## 🚀 Quick Start
 

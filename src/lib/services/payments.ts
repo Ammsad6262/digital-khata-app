@@ -3,12 +3,36 @@
  *
  * A payment is money received from a customer. It decreases their balance.
  * Atomic: writes Payment + Transaction row in the same prisma.$transaction.
+ *
+ * OVERPAYMENT POLICY (documented in docs/EDGE_CASES.md):
+ *   Payments that exceed the customer's outstanding balance are ALLOWED.
+ *   The balance goes negative — representing the business's liability to
+ *   the customer (an "advance payment"). The UI shows this as a blue
+ *   "Advance payment" badge everywhere balances are displayed.
+ *
+ *   Validation only blocks:
+ *     - amount <= 0
+ *     - non-existent customer
+ *     - malformed data (failed Zod)
+ *
+ *   It does NOT block:
+ *     - amount > outstanding (allowed → creates advance credit)
+ *     - payment when outstanding is 0 (allowed → creates advance credit)
  */
 
 import { prisma } from "@/lib/db/prisma";
 import { NotFoundError, BadRequestError } from "@/lib/errors";
 import { createPaymentSchema } from "@/lib/schemas/payment";
+import {
+  startOfTodayInTz,
+  startOfWeekInTz,
+  startOfMonthInTz,
+} from "@/lib/utils/date";
 import type { Prisma } from "@prisma/client";
+
+// ────────────────────────────────────────────────────────────────────────────
+// View types
+// ────────────────────────────────────────────────────────────────────────────
 
 export type PaymentView = {
   id: string;
@@ -22,6 +46,30 @@ export type PaymentView = {
   createdAt: Date;
   updatedAt: Date;
 };
+
+export type PaymentListItem = {
+  id: string;
+  customerId: string;
+  customerName: string;
+  customerPhone: string;
+  saleId: string | null;
+  amount: string;
+  method: string;
+  notes: string | null;
+  date: Date;
+  voidedAt: Date | null;
+};
+
+export type PaymentDetail = PaymentView & {
+  customerName: string;
+  customerPhone: string;
+};
+
+export type PaymentFilter = "today" | "week" | "month" | "all";
+
+// ────────────────────────────────────────────────────────────────────────────
+// Mappers
+// ────────────────────────────────────────────────────────────────────────────
 
 function toView(p: Prisma.PaymentGetPayload<{}>): PaymentView {
   return {
@@ -38,6 +86,10 @@ function toView(p: Prisma.PaymentGetPayload<{}>): PaymentView {
   };
 }
 
+// ────────────────────────────────────────────────────────────────────────────
+// List + detail
+// ────────────────────────────────────────────────────────────────────────────
+
 /** List recent payments (default: last 50, active only). */
 export async function listPayments(limit = 50): Promise<PaymentView[]> {
   const payments = await prisma.payment.findMany({
@@ -46,6 +98,59 @@ export async function listPayments(limit = 50): Promise<PaymentView[]> {
     take: limit,
   });
   return payments.map(toView);
+}
+
+/**
+ * List payments (lightweight — no sale join unless needed) with date filtering.
+ * Includes customer name + phone for the Payments list page.
+ *
+ * Filter:
+ *   today → payments where date >= start of today (in business TZ)
+ *   week  → payments where date >= start of week (Monday)
+ *   month → payments where date >= start of month
+ *   all   → no date filter (still excludes voided)
+ */
+export async function listPaymentsFiltered(
+  filter: PaymentFilter = "all",
+  options: {
+    customerId?: string;
+    limit?: number;
+    timezone?: string;
+  } = {},
+): Promise<PaymentListItem[]> {
+  const { customerId, limit = 100, timezone = "Asia/Karachi" } = options;
+  let startDate: Date | undefined;
+
+  switch (filter) {
+    case "today": startDate = startOfTodayInTz(timezone); break;
+    case "week":  startDate = startOfWeekInTz(timezone); break;
+    case "month": startDate = startOfMonthInTz(timezone); break;
+    case "all":   startDate = undefined; break;
+  }
+
+  const payments = await prisma.payment.findMany({
+    where: {
+      voidedAt: null,
+      ...(startDate && { date: { gte: startDate } }),
+      ...(customerId && { customerId }),
+    },
+    include: { customer: true },
+    orderBy: { date: "desc" },
+    take: limit,
+  });
+
+  return payments.map((p) => ({
+    id: p.id,
+    customerId: p.customerId,
+    customerName: p.customer.name,
+    customerPhone: p.customer.phone,
+    saleId: p.saleId,
+    amount: p.amount.toString(),
+    method: p.method,
+    notes: p.notes,
+    date: p.date,
+    voidedAt: p.voidedAt,
+  }));
 }
 
 /** List payments for a specific customer. */
@@ -57,17 +162,36 @@ export async function listPaymentsByCustomer(customerId: string): Promise<Paymen
   return payments.map(toView);
 }
 
-/** Fetch one payment. */
-export async function getPayment(id: string): Promise<PaymentView> {
-  const payment = await prisma.payment.findUnique({ where: { id } });
+/** Fetch one payment WITH customer info. */
+export async function getPayment(id: string): Promise<PaymentDetail> {
+  const payment = await prisma.payment.findUnique({
+    where: { id },
+    include: { customer: true },
+  });
   if (!payment || payment.voidedAt) {
     throw new NotFoundError("Payment", id);
   }
-  return toView(payment);
+  return {
+    ...toView(payment),
+    customerName: payment.customer.name,
+    customerPhone: payment.customer.phone,
+  };
 }
 
-/** Record a payment — atomic with the Transaction ledger row. */
-export async function recordPayment(input: unknown): Promise<PaymentView> {
+// ────────────────────────────────────────────────────────────────────────────
+// Create + void
+// ────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Record a payment — atomic with the Transaction ledger row.
+ *
+ * Throws:
+ *   - NotFoundError if customer doesn't exist
+ *   - BadRequestError if saleId is provided but doesn't belong to the customer
+ *
+ * Does NOT throw on overpayment (allowed by design — see policy above).
+ */
+export async function recordPayment(input: unknown): Promise<PaymentDetail> {
   const data = createPaymentSchema.parse(input);
 
   const payment = await prisma.$transaction(async (tx) => {
@@ -106,7 +230,7 @@ export async function recordPayment(input: unknown): Promise<PaymentView> {
         refId: created.id,
         customerId: data.customerId,
         amount: data.amount,
-        direction: "credit",
+        direction: "credit", // decreases customer balance
         date: created.date,
       },
     });
@@ -114,7 +238,17 @@ export async function recordPayment(input: unknown): Promise<PaymentView> {
     return created;
   });
 
-  return toView(payment);
+  // Re-fetch with customer relation for the response.
+  const withCustomer = await prisma.payment.findUniqueOrThrow({
+    where: { id: payment.id },
+    include: { customer: true },
+  });
+
+  return {
+    ...toView(withCustomer),
+    customerName: withCustomer.customer.name,
+    customerPhone: withCustomer.customer.phone,
+  };
 }
 
 /** Void a payment (sets voidedAt, excludes it from balance calc). */

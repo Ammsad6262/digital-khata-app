@@ -1,17 +1,44 @@
 /**
  * /api/payments
  *
- * GET  → list recent payments
- * POST → record a payment (atomic: Payment + Transaction ledger)
+ * GET  /api/payments                      → recent payments (with customer info)
+ * GET  /api/payments?filter=today|week|month|all → filtered list
+ * GET  /api/payments?filter=...&customerId=X → also filter by customer
+ * POST /api/payments                      → record a payment (atomic)
  */
 
 import { NextRequest } from "next/server";
-import { listPayments, recordPayment } from "@/lib/services/payments";
-import { ok, fail, parseJsonBody } from "@/lib/utils/api";
+import {
+  listPayments,
+  listPaymentsFiltered,
+  recordPayment,
+  type PaymentFilter,
+} from "@/lib/services/payments";
+import { ok, fail, parseJsonBody, getQueryParam } from "@/lib/utils/api";
 
-export async function GET() {
+const VALID_FILTERS: PaymentFilter[] = ["today", "week", "month", "all"];
+
+export async function GET(req: NextRequest) {
   try {
-    const data = await listPayments(50);
+    const filterRaw = getQueryParam(req, "filter");
+
+    // No filter → return recent 50 with customer info.
+    if (!filterRaw) {
+      const data = await listPayments(50);
+      return ok(data);
+    }
+
+    const filter = VALID_FILTERS.includes(filterRaw as PaymentFilter)
+      ? (filterRaw as PaymentFilter)
+      : "all";
+
+    const customerId = getQueryParam(req, "customerId");
+
+    const data = await listPaymentsFiltered(filter, {
+      customerId,
+      limit: 200,
+    });
+
     return ok(data);
   } catch (error) {
     return fail(error);

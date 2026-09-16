@@ -219,11 +219,21 @@ export function rowsToCsv(rows: Array<Record<string, unknown>>): string {
   const escapeCell = (value: unknown): string => {
     if (value === null || value === undefined) return "";
     const str = typeof value === "string" ? value : String(value);
-    // Wrap in quotes if contains comma, quote, or newline; escape quotes by doubling
-    if (str.includes(",") || str.includes('"') || str.includes("\n") || str.includes("\r")) {
-      return `"${str.replace(/"/g, '""')}"`;
+
+    // CSV formula injection defense:
+    // If a cell starts with =, +, -, @, tab, or carriage return, Excel/LibreOffice
+    // will evaluate it as a formula. Prefix with a single quote to neutralize.
+    // (The quote is invisible in Excel — it's treated as a text indicator.)
+    let safe = str;
+    if (safe.length > 0 && /^[=+\-@\t\r]/.test(safe)) {
+      safe = `'${safe}`;
     }
-    return str;
+
+    // Wrap in quotes if contains comma, quote, or newline; escape quotes by doubling
+    if (safe.includes(",") || safe.includes('"') || safe.includes("\n") || safe.includes("\r")) {
+      return `"${safe.replace(/"/g, '""')}"`;
+    }
+    return safe;
   };
 
   const header = keys.map(escapeCell).join(",");

@@ -194,17 +194,24 @@ export async function updateExpense(id: string, input: unknown): Promise<Expense
   return toView(updated);
 }
 
-/** Void an expense (sets voidedAt, excludes it from totals). */
+/** Void an expense — atomic + cleans up the Transaction mirror. */
 export async function voidExpense(id: string): Promise<{ id: string; voidedAt: Date }> {
-  const expense = await prisma.expense.findUnique({ where: { id } });
-  if (!expense) throw new NotFoundError("Expense", id);
-  if (expense.voidedAt) throw new BadRequestError("Expense is already voided.");
+  return await prisma.$transaction(async (tx) => {
+    const expense = await tx.expense.findUnique({ where: { id } });
+    if (!expense) throw new NotFoundError("Expense", id);
+    if (expense.voidedAt) throw new BadRequestError("Expense is already voided.");
 
-  const now = new Date();
-  await prisma.expense.update({
-    where: { id },
-    data: { voidedAt: now },
+    const now = new Date();
+    await tx.expense.update({
+      where: { id },
+      data: { voidedAt: now },
+    });
+
+    // Delete the Transaction ledger row for this expense.
+    await tx.transaction.deleteMany({
+      where: { refType: "Expense", refId: id },
+    });
+
+    return { id, voidedAt: now };
   });
-
-  return { id, voidedAt: now };
 }

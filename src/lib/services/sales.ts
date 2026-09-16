@@ -223,13 +223,16 @@ export async function createSale(input: unknown): Promise<SaleWithItems> {
     }
 
     // 2. Validate all products exist
-    const productIds = data.items.map((i) => i.productId);
+    // Dedupe productIds first — if the same product appears twice in items,
+    // the findMany would return 1 row but productIds would have 2 entries,
+    // causing a misleading "Product not found" error on a duplicate.
+    const uniqueProductIds = Array.from(new Set(data.items.map((i) => i.productId)));
     const products = await tx.product.findMany({
-      where: { id: { in: productIds }, isDeleted: false },
+      where: { id: { in: uniqueProductIds }, isDeleted: false },
     });
-    if (products.length !== productIds.length) {
+    if (products.length !== uniqueProductIds.length) {
       const foundIds = new Set(products.map((p) => p.id));
-      const missing = productIds.filter((id) => !foundIds.has(id));
+      const missing = uniqueProductIds.filter((id) => !foundIds.has(id));
       throw new NotFoundError("Product", missing[0]);
     }
 
@@ -375,12 +378,35 @@ export async function voidSale(id: string): Promise<{ id: string; voidedAt: Date
       data: { voidedAt: now },
     });
 
+    // Collect the IDs of all payments linked to this sale (including already-voided ones
+    // — we want to clean up their Transaction rows too).
+    const allPaymentsForSale = await tx.payment.findMany({
+      where: { saleId: id },
+      select: { id: true },
+    });
+    const paymentIds = allPaymentsForSale.map((p) => p.id);
+
     if (sale.payments.length > 0) {
       await tx.payment.updateMany({
         where: { saleId: id, voidedAt: null },
         data: { voidedAt: now },
       });
     }
+
+    // Delete the Transaction ledger rows for the voided sale + its linked payments.
+    // The Transaction table is a denormalized mirror — voiding the source must
+    // remove its mirror rows, otherwise the dashboard + transaction history
+    // would still show the voided sale as an active money movement.
+    await tx.transaction.deleteMany({
+      where: {
+        OR: [
+          { refType: "Sale", refId: id },
+          ...(paymentIds.length > 0
+            ? [{ refType: "Payment", refId: { in: paymentIds } }]
+            : []),
+        ],
+      },
+    });
 
     return { id, voidedAt: now };
   });

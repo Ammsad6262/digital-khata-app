@@ -18,7 +18,7 @@
 
 import { prisma } from "@/lib/db/prisma";
 import { Decimal, toDecimalOrZero } from "@/lib/utils/decimal";
-import { NotFoundError } from "@/lib/errors";
+import { NotFoundError, BadRequestError } from "@/lib/errors";
 import { createCustomerSchema, updateCustomerSchema } from "@/lib/schemas/customer";
 import type { Prisma } from "@prisma/client";
 
@@ -193,14 +193,18 @@ export async function updateCustomer(id: string, input: unknown): Promise<Custom
 
 /** Soft-delete a customer (V1: just flags; hard delete is blocked in API). */
 export async function deleteCustomer(id: string): Promise<{ id: string; deleted: true }> {
-  // Block soft-delete if customer has any transactions.
-  const [saleCount, paymentCount] = await Promise.all([
-    prisma.sale.count({ where: { customerId: id } }),
-    prisma.payment.count({ where: { customerId: id } }),
+  // Block soft-delete if customer has any ACTIVE (non-voided) transactions.
+  // Voided sales/payments don't count — they don't affect the balance.
+  // Also count CustomerAdjustment (was missing before).
+  const [saleCount, paymentCount, adjustmentCount] = await Promise.all([
+    prisma.sale.count({ where: { customerId: id, voidedAt: null } }),
+    prisma.payment.count({ where: { customerId: id, voidedAt: null } }),
+    prisma.customerAdjustment.count({ where: { customerId: id, voidedAt: null } }),
   ]);
-  if (saleCount > 0 || paymentCount > 0) {
-    throw new Error(
-      `Cannot delete customer with ${saleCount} sales and ${paymentCount} payments. Void or transfer them first.`,
+  const total = saleCount + paymentCount + adjustmentCount;
+  if (total > 0) {
+    throw new BadRequestError(
+      `Cannot delete customer with active transactions (${saleCount} sales, ${paymentCount} payments, ${adjustmentCount} adjustments). Void or transfer them first.`,
     );
   }
 
@@ -419,7 +423,18 @@ export async function getCustomerHistory(customerId: string): Promise<CustomerHi
   }
 
   // Sort chronologically (oldest first) so running balance accumulates correctly.
-  rawTxs.sort((a, b) => a.date.getTime() - b.date.getTime());
+  // IMPORTANT: When sale + payment share the same millisecond (common — they're
+  // created together in createSale), the date-only sort is non-deterministic.
+  // Tiebreaker: sales before payments (so the sale's debit applies first,
+  // then the payment's credit), then by id for full determinism.
+  const TYPE_PRIORITY: Record<string, number> = { sale: 0, payment: 1, adjustment: 2 };
+  rawTxs.sort((a, b) => {
+    const dateDiff = a.date.getTime() - b.date.getTime();
+    if (dateDiff !== 0) return dateDiff;
+    const typeDiff = (TYPE_PRIORITY[a.type] ?? 99) - (TYPE_PRIORITY[b.type] ?? 99);
+    if (typeDiff !== 0) return typeDiff;
+    return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+  });
 
   // Compute running balance.
   // Start at 0, then add openingBalance, then apply each transaction.

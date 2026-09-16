@@ -10,7 +10,7 @@
 
 import { prisma } from "@/lib/db/prisma";
 import { Decimal } from "@/lib/utils/decimal";
-import { NotFoundError } from "@/lib/errors";
+import { NotFoundError, BadRequestError } from "@/lib/errors";
 import { createStockMoveSchema } from "@/lib/schemas/stock";
 import type { Prisma } from "@prisma/client";
 
@@ -83,12 +83,14 @@ export async function addStockMove(input: unknown): Promise<StockMoveView> {
     });
 
     // Compute the "amount" for the transaction ledger.
-    // For purchases with unit cost: amount = quantity * unitCost
-    // For adjustments/returns: amount = abs(quantity) (used purely for display)
+    // Per schema contract: amount is ALWAYS non-negative; direction tells the sign.
+    // For purchases with unit cost: amount = abs(quantity) * unitCost
+    // For adjustments/returns: amount = abs(quantity)
+    const qty = new Decimal(data.quantity);
     const moveAmount =
       data.unitCost !== undefined && data.unitCost !== null
-        ? new Decimal(data.quantity).times(new Decimal(data.unitCost))
-        : new Decimal(data.quantity).abs();
+        ? qty.abs().times(new Decimal(data.unitCost))
+        : qty.abs();
 
     await tx.transaction.create({
       data: {
@@ -110,17 +112,24 @@ export async function addStockMove(input: unknown): Promise<StockMoveView> {
   return toView(move);
 }
 
-/** Void a stock move (sets voidedAt, excludes it from stock calc). */
+/** Void a stock move — atomic + cleans up the Transaction mirror. */
 export async function voidStockMove(id: string): Promise<{ id: string; voidedAt: Date }> {
-  const move = await prisma.stockMove.findUnique({ where: { id } });
-  if (!move) throw new NotFoundError("StockMove", id);
-  if (move.voidedAt) throw new Error("StockMove is already voided.");
+  return await prisma.$transaction(async (tx) => {
+    const move = await tx.stockMove.findUnique({ where: { id } });
+    if (!move) throw new NotFoundError("StockMove", id);
+    if (move.voidedAt) throw new BadRequestError("StockMove is already voided.");
 
-  const now = new Date();
-  await prisma.stockMove.update({
-    where: { id },
-    data: { voidedAt: now },
+    const now = new Date();
+    await tx.stockMove.update({
+      where: { id },
+      data: { voidedAt: now },
+    });
+
+    // Delete the Transaction ledger row for this stock move.
+    await tx.transaction.deleteMany({
+      where: { refType: "StockMove", refId: id },
+    });
+
+    return { id, voidedAt: now };
   });
-
-  return { id, voidedAt: now };
 }

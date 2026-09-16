@@ -23,6 +23,7 @@
 import { prisma } from "@/lib/db/prisma";
 import { NotFoundError, BadRequestError } from "@/lib/errors";
 import { createPaymentSchema } from "@/lib/schemas/payment";
+import { Decimal } from "@/lib/utils/decimal";
 import {
   startOfTodayInTz,
   startOfWeekInTz,
@@ -210,6 +211,18 @@ export async function recordPayment(input: unknown): Promise<PaymentDetail> {
       if (sale.customerId !== data.customerId) {
         throw new BadRequestError("Sale does not belong to this customer.");
       }
+      // Update the sale's denormalized paidAmount/outstanding columns so they
+      // stay consistent with the actual payment records. Without this, the
+      // sale detail page + business summary would show stale numbers.
+      const newPaid = sale.paidAmount.plus(new Decimal(data.amount));
+      const newOutstanding = sale.totalAmount.minus(newPaid);
+      await tx.sale.update({
+        where: { id: sale.id },
+        data: {
+          paidAmount: newPaid,
+          outstanding: newOutstanding.lt(0) ? new Decimal(0) : newOutstanding,
+        },
+      });
     }
 
     const created = await tx.payment.create({
@@ -251,17 +264,45 @@ export async function recordPayment(input: unknown): Promise<PaymentDetail> {
   };
 }
 
-/** Void a payment (sets voidedAt, excludes it from balance calc). */
+/**
+ * Void a payment — atomic + cleans up the Transaction mirror + reverses
+ * the sale's denormalized paidAmount/outstanding if linked.
+ */
 export async function voidPayment(id: string): Promise<{ id: string; voidedAt: Date }> {
-  const payment = await prisma.payment.findUnique({ where: { id } });
-  if (!payment) throw new NotFoundError("Payment", id);
-  if (payment.voidedAt) throw new BadRequestError("Payment is already voided.");
+  return await prisma.$transaction(async (tx) => {
+    const payment = await tx.payment.findUnique({ where: { id } });
+    if (!payment) throw new NotFoundError("Payment", id);
+    if (payment.voidedAt) throw new BadRequestError("Payment is already voided.");
 
-  const now = new Date();
-  await prisma.payment.update({
-    where: { id },
-    data: { voidedAt: now },
+    const now = new Date();
+
+    await tx.payment.update({
+      where: { id },
+      data: { voidedAt: now },
+    });
+
+    // If this payment was linked to a sale, reverse the sale's denormalized
+    // paidAmount/outstanding columns so they stay consistent.
+    if (payment.saleId) {
+      const sale = await tx.sale.findUnique({ where: { id: payment.saleId } });
+      if (sale && !sale.voidedAt) {
+        const newPaid = sale.paidAmount.minus(payment.amount);
+        const newOutstanding = sale.outstanding.plus(payment.amount);
+        await tx.sale.update({
+          where: { id: sale.id },
+          data: {
+            paidAmount: newPaid.lt(0) ? new Decimal(0) : newPaid,
+            outstanding: newOutstanding.lt(0) ? new Decimal(0) : newOutstanding,
+          },
+        });
+      }
+    }
+
+    // Delete the Transaction ledger row for this payment.
+    await tx.transaction.deleteMany({
+      where: { refType: "Payment", refId: id },
+    });
+
+    return { id, voidedAt: now };
   });
-
-  return { id, voidedAt: now };
 }

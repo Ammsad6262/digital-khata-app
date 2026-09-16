@@ -1,14 +1,32 @@
 /**
  * Expense service layer.
  *
- * Expenses are business expenses (transport, electricity, etc.). They do
- * NOT affect any customer's balance — there is no FK from Expense to Customer.
+ * Expenses are business expenses (transport, electricity, packaging, etc.).
+ * They DO NOT affect any customer's balance — there is no FK from Expense
+ * to Customer. This is enforced at the schema level.
+ *
+ * They DO NOT affect stock. (Stock changes happen only via Sale or StockMove.)
+ *
+ * Data-integrity rules:
+ *   - Voiding is preferred over hard-delete (sets voidedAt, preserves audit trail)
+ *   - Editing is allowed in V1 — updates name, amount, category, notes, date
+ *   - Dashboard 'today's expenses' uses SUM(amount WHERE voidedAt IS NULL
+ *     AND date >= start of today in business TZ) — same source of truth
  */
 
 import { prisma } from "@/lib/db/prisma";
 import { NotFoundError, BadRequestError } from "@/lib/errors";
 import { createExpenseSchema } from "@/lib/schemas/expense";
+import {
+  startOfTodayInTz,
+  startOfWeekInTz,
+  startOfMonthInTz,
+} from "@/lib/utils/date";
 import type { Prisma } from "@prisma/client";
+
+// ────────────────────────────────────────────────────────────────────────────
+// View types
+// ────────────────────────────────────────────────────────────────────────────
 
 export type ExpenseView = {
   id: string;
@@ -21,6 +39,12 @@ export type ExpenseView = {
   createdAt: Date;
   updatedAt: Date;
 };
+
+export type ExpenseFilter = "today" | "week" | "month" | "all";
+
+// ────────────────────────────────────────────────────────────────────────────
+// Mappers
+// ────────────────────────────────────────────────────────────────────────────
 
 function toView(e: Prisma.ExpenseGetPayload<{}>): ExpenseView {
   return {
@@ -36,6 +60,10 @@ function toView(e: Prisma.ExpenseGetPayload<{}>): ExpenseView {
   };
 }
 
+// ────────────────────────────────────────────────────────────────────────────
+// List + detail
+// ────────────────────────────────────────────────────────────────────────────
+
 /** List recent expenses (default: last 50, active only). */
 export async function listExpenses(limit = 50): Promise<ExpenseView[]> {
   const expenses = await prisma.expense.findMany({
@@ -45,6 +73,57 @@ export async function listExpenses(limit = 50): Promise<ExpenseView[]> {
   });
   return expenses.map(toView);
 }
+
+/**
+ * List expenses with date filtering.
+ *
+ * Filter:
+ *   today → expenses where date >= start of today (in business TZ)
+ *   week  → expenses where date >= start of week (Monday)
+ *   month → expenses where date >= start of month
+ *   all   → no date filter (still excludes voided)
+ */
+export async function listExpensesFiltered(
+  filter: ExpenseFilter = "all",
+  options: {
+    limit?: number;
+    timezone?: string;
+  } = {},
+): Promise<ExpenseView[]> {
+  const { limit = 200, timezone = "Asia/Karachi" } = options;
+  let startDate: Date | undefined;
+
+  switch (filter) {
+    case "today": startDate = startOfTodayInTz(timezone); break;
+    case "week":  startDate = startOfWeekInTz(timezone); break;
+    case "month": startDate = startOfMonthInTz(timezone); break;
+    case "all":   startDate = undefined; break;
+  }
+
+  const expenses = await prisma.expense.findMany({
+    where: {
+      voidedAt: null,
+      ...(startDate && { date: { gte: startDate } }),
+    },
+    orderBy: { date: "desc" },
+    take: limit,
+  });
+
+  return expenses.map(toView);
+}
+
+/** Fetch one expense. */
+export async function getExpense(id: string): Promise<ExpenseView> {
+  const expense = await prisma.expense.findUnique({ where: { id } });
+  if (!expense || expense.voidedAt) {
+    throw new NotFoundError("Expense", id);
+  }
+  return toView(expense);
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Create + update + void
+// ────────────────────────────────────────────────────────────────────────────
 
 /** Record an expense — atomic with the Transaction ledger row. */
 export async function recordExpense(input: unknown): Promise<ExpenseView> {
@@ -67,7 +146,7 @@ export async function recordExpense(input: unknown): Promise<ExpenseView> {
         refType: "Expense",
         refId: created.id,
         amount: data.amount,
-        direction: "debit", // business cash ↓
+        direction: "debit", // business cash ↓ (no customer link)
         date: created.date,
       },
     });
@@ -78,7 +157,44 @@ export async function recordExpense(input: unknown): Promise<ExpenseView> {
   return toView(expense);
 }
 
-/** Void an expense. */
+/**
+ * Update an expense — name, amount, category, notes, date can all change.
+ * Updates the Transaction ledger row's amount + date to stay in sync.
+ */
+export async function updateExpense(id: string, input: unknown): Promise<ExpenseView> {
+  // Throws 404 if not found / voided.
+  await getExpense(id);
+
+  const data = createExpenseSchema.partial().parse(input);
+
+  const updated = await prisma.$transaction(async (tx) => {
+    const expense = await tx.expense.update({
+      where: { id },
+      data: {
+        ...(data.name !== undefined && { name: data.name }),
+        ...(data.amount !== undefined && { amount: data.amount }),
+        ...(data.category !== undefined && { category: data.category }),
+        ...(data.notes !== undefined && { notes: data.notes }),
+        ...(data.date !== undefined && { date: new Date(data.date) }),
+      },
+    });
+
+    // Keep the Transaction ledger row in sync.
+    await tx.transaction.updateMany({
+      where: { refType: "Expense", refId: id },
+      data: {
+        ...(data.amount !== undefined && { amount: data.amount }),
+        ...(data.date !== undefined && { date: new Date(data.date) }),
+      },
+    });
+
+    return expense;
+  });
+
+  return toView(updated);
+}
+
+/** Void an expense (sets voidedAt, excludes it from totals). */
 export async function voidExpense(id: string): Promise<{ id: string; voidedAt: Date }> {
   const expense = await prisma.expense.findUnique({ where: { id } });
   if (!expense) throw new NotFoundError("Expense", id);

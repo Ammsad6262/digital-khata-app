@@ -34,9 +34,9 @@ const SECTIONS = [
     color: "bg-blue-50 text-blue-700",
   },
   {
-    href: "/more/expenses/new",
-    title: "Add Expense",
-    description: "Record a business expense",
+    href: "/more/expenses",
+    title: "Expenses",
+    description: "Record and track business expenses by category",
     icon: Receipt,
     color: "bg-amber-50 text-amber-700",
   },

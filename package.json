@@ -15,7 +15,8 @@
     "db:reset": "prisma migrate reset --force",
     "db:seed": "tsx scripts/seed-sample-data.ts",
     "test:foundation": "tsx scripts/test-foundation.ts",
-    "test:audit": "tsx scripts/audit-data-integrity.ts"
+    "test:audit": "tsx scripts/audit-data-integrity.ts",
+    "test:e2e": "tsx scripts/test-e2e.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",

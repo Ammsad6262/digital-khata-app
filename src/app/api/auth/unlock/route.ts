@@ -19,7 +19,7 @@ import { getSettings, getOwnerPinHash } from "@/lib/services/settings";
 import { verifyPin } from "@/lib/auth/pin";
 import { createSession } from "@/lib/auth/session";
 import { checkRateLimit, recordFailure, recordSuccess, getClientIp } from "@/lib/auth/rate-limiter";
-import { ok, fail } from "@/lib/utils/api";
+import { fail } from "@/lib/utils/api";
 
 export const dynamic = "force-dynamic";
 

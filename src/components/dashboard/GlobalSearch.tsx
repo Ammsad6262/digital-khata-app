@@ -25,11 +25,10 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useRef, useEffect } from "react";
-import { Search, X, User, Package, ChevronRight, UserPlus, PackagePlus } from "lucide-react";
+import { Search, X, Package, ChevronRight, UserPlus, PackagePlus } from "lucide-react";
 import Link from "next/link";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { apiGet } from "@/lib/utils/api-client";
-import { cn } from "@/lib/utils/cn";
 import { Decimal } from "@/lib/utils/decimal";
 import { formatMoney, formatQuantity } from "@/lib/utils/money";
 

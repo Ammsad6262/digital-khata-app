@@ -13,7 +13,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { AlertCircle, ShoppingCart, TrendingUp } from "lucide-react";
+import { AlertCircle, ShoppingCart } from "lucide-react";
 import { useSalesList } from "@/hooks/use-sales";
 import type { SaleFilter } from "@/lib/services/sales";
 import { EmptyState } from "@/components/shared/EmptyState";

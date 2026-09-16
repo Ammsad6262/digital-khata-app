@@ -27,7 +27,6 @@ import { useMemo, useState } from "react";
 import { Plus, Minus, Package, AlertTriangle } from "lucide-react";
 import { StockProductPicker } from "@/components/stock/StockProductPicker";
 import { StickyFormActions } from "@/components/ui/StickyFormActions";
-import { Money } from "@/components/shared/Money";
 import { useAddStockMove } from "@/hooks/use-stock";
 import { useToast } from "@/providers/toast-provider";
 import { ApiError } from "@/lib/utils/api-client";

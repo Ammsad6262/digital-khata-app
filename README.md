@@ -1,27 +1,41 @@
-# Digital Khata & Wholesale Business App
+# Digital Khata
 
-A mobile-first web application that replaces paper khata/registers for small wholesale businesses. Tracks customers, credit (udhaar), sales, payments, products, stock, expenses, and gives the owner a clean dashboard with auto-calculated balances.
+A mobile-first web app for small wholesale businesses — replaces paper khata
+registers with auto-calculated customer balances, stock, sales, payments,
+and expenses.
 
-> **Status:** Phase 16 — Full E2E test suite complete (64/64 tests passing, 0 bugs found)
+Built for one-handed phone use. No accounting knowledge required.
 
 ---
 
-## 🎯 Core Purpose
+## ✨ Features
 
-Replace the business's paper registers with a digital system that **automatically calculates everything** — customer balances, stock quantities, business totals — so the owner never has to do manual math.
+- **Dashboard** — total receivables, today's sales/payments/expenses, low-stock alerts, recent activity feed
+- **Customer Khata** — per-customer account with running balance, search by name/phone
+- **Sales** — multi-product sale entry, auto stock deduction, partial/full/credit payments
+- **Payments** — fast entry, 6 methods (Cash/Bank/Cheque/JazzCash/EasyPaisa/Other), overpayment creates advance credit
+- **Products + Stock** — current stock derived from movements, low-stock thresholds, write-off adjustments
+- **Expenses** — 7 categories (transport/shop/electricity/packaging/salary/rent/other)
+- **Transaction History** — unified feed with date + type filters + custom date range
+- **Backup & Export** — full JSON backup/restore + per-table CSV export
+- **Settings** — business name, currency (8 presets + custom), theme picker, PIN lock, data management
+- **Themes** — Default Green + Bright Leaf (#CDFF9B + #203D43)
+- **Security** — HMAC-signed session auth, rate-limited PIN unlock (5 attempts / 5 min)
 
-## 🧱 Core Data Relationships (the heart of the app)
+## 🎯 Core data relationships
 
-| Action | Side effects (automatic) |
+| Action | Automatic side effects |
 |---|---|
-| **Sale** | Customer balance ↑ · Stock ↓ · Sale recorded |
-| **Payment** | Customer balance ↓ · Payment recorded |
-| **Stock addition** | Stock ↑ · Stock move recorded |
-| **Expense** | Expense total ↑ · Expense recorded |
+| **Sale** | Customer balance ↑ · Stock ↓ · Linked payment created (if paid) |
+| **Payment** | Customer balance ↓ · Linked sale's paidAmount updated |
+| **Stock addition** | Stock ↑ · Movement recorded |
+| **Stock adjustment** | Stock ± · Reason required (audit trail) |
+| **Expense** | Expense total ↑ · No effect on customer or stock |
 
-> The customer's balance is **always derived from transactions**, never manually edited.
+All balances and stock quantities are **derived from transactions** — never
+manually edited. Voiding (not deleting) preserves the audit trail.
 
-## 📱 V1 Navigation (mobile-first bottom nav)
+## 📱 Navigation
 
 ```
 Dashboard | Khata | Sales | Stock | More
@@ -29,66 +43,90 @@ Dashboard | Khata | Sales | Stock | More
                                   Transactions, Settings
 ```
 
-## 🚫 V1 Exclusions (intentionally NOT built)
-
-- Receipt generator · Payroll · Employee management · Advanced accounting
-- AI features · Loyalty system · Online payments · Multi-business
-- Customer login/accounts · Complex permissions · Advanced analytics
-- Complicated invoicing · Unnecessary notifications
-
-## 📂 Project Documents
-
-See the [`docs/`](./docs) folder for the full architecture proposal:
-
-- [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) — Tech stack, layering, principles
-- [`docs/SCHEMA.md`](./docs/SCHEMA.md) — Database schema overview
-- [`docs/DATA_ARCHITECTURE.md`](./docs/DATA_ARCHITECTURE.md) — **Phase 2:** Entity defs, balance/stock formulas, atomic operations
-- [`docs/PROJECT_STRUCTURE.md`](./docs/PROJECT_STRUCTURE.md) — Planned folder structure
-- [`docs/EDGE_CASES.md`](./docs/EDGE_CASES.md) — Edge cases & decisions
-
-The canonical Prisma schema: [`prisma/schema.prisma`](./prisma/schema.prisma)
-
-## 🛠️ Implementation Status
-
-- [x] Phase 1 — Architecture & planning
-- [x] Phase 2 — Database & data architecture (Prisma schema + design docs)
-- [x] Phase 3 — Foundation built (DB, services, API, app shell, 17 passing tests)
-- [x] Phase 4 — Dashboard built (mobile-first, real data, sample seeder)
-- [x] Phase 5 — Customers/Khata system (list, search, detail, add form)
-- [x] Phase 6 — Sales system (New Sale form with multi-product, list, detail, void, date filters)
-- [x] Phase 7 — Payments system (Add Payment form, list, detail, void, overpayment handling)
-- [x] Phase 8 — Products + Stock Management (list, search, add, edit, detail, stock moves, adjustments)
-- [x] Phase 9 — Expenses system (list, add, edit, detail, void, date filtering)
-- [x] Phase 10 — Transaction History (unified feed with date + type filters, custom date range)
-- [x] Phase 11 — Search + UX improvements (sticky form actions, global search, inline quick-add)
-- [x] Phase 12 — Backup & Export (JSON full backup/restore + per-table CSV export)
-- [x] Phase 13 — Settings (business info, currency, theme switcher, PIN security, data management)
-- [x] Phase 14 — Data Integrity Audit (10 bugs found + fixed, 17/17 audit checks passing)
-- [x] Phase 15 — Security + Validation audit (session auth, rate limiting, PIN unlock screen, 7 issues fixed)
-- [x] Phase 16 — Full E2E test suite (64 tests covering realistic scenario + edge cases)
-- [x] **V1 COMPLETE** 🎉
-
-## 🚀 Quick Start
+## 🚀 Quick start
 
 ```bash
-# Install dependencies
 npm install
-
-# Create the SQLite DB and run migrations
-npm run db:migrate
-
-# (Optional) Load realistic sample data for testing the dashboard
-npm run db:seed
-
-# Run the foundation test suite (17 tests, verifies DB + atomic operations)
-npm run test:foundation
-
-# Start the dev server
-npm run dev
+npm run db:migrate      # create SQLite DB + run migrations
+npm run db:seed         # load realistic sample data (optional)
+npm run dev             # http://localhost:3000
 ```
 
-Visit http://localhost:3000 — the dashboard loads with real data: total receivables, today's sales/payments/expenses, low-stock alerts, recent activity feed, and 4 quick-action buttons.
+Optional test suite:
 
----
+```bash
+npm run test:foundation # 17 atomic-operation tests
+npm run test:audit      # 17 data-integrity tests
+npm run test:e2e        # 64 end-to-end tests (requires dev server running)
+```
 
-**Tech stack (proposed):** Next.js 14 (App Router) · TypeScript · Tailwind CSS · shadcn/ui · Prisma · SQLite (V1) · TanStack Query · React Hook Form + Zod
+## 🧱 Tech stack
+
+- **Next.js 14** (App Router) + TypeScript (strict)
+- **Tailwind CSS** (CSS-variable theming)
+- **Prisma** + SQLite (V1) → Postgres-ready (Supabase-compatible)
+- **TanStack Query** for client data + cache invalidation
+- **React Hook Form** + **Zod** schemas (shared client/server validation)
+- **Web Crypto API** HMAC sessions (Edge-runtime compatible)
+- **bcryptjs** for PIN hashing
+
+## 🗂️ Project layout
+
+```
+src/
+├── app/                # Next.js App Router pages + API routes
+│   ├── api/            # REST endpoints (auth, customers, sales, ...)
+│   └── (routes)/       # /dashboard, /khata, /sales, /stock, /more/*
+├── components/         # UI components by feature
+├── hooks/              # React Query wrappers
+├── lib/
+│   ├── auth/           # session.ts, pin.ts, rate-limiter.ts
+│   ├── db/             # prisma.ts (singleton)
+│   ├── errors/         # AppError hierarchy
+│   ├── schemas/        # Zod schemas (shared client + server)
+│   ├── services/       # business logic (single source of truth)
+│   └── utils/          # money, date, decimal, api client
+├── providers/          # query, toast, theme, auth-gate
+└── middleware.ts       # session enforcement on /api/*
+```
+
+Architecture + schema docs live in [`docs/`](./docs).
+
+## 🚢 Deploying to Vercel / Supabase
+
+The app is built on SQLite for V1, which doesn't work on Vercel's serverless
+runtime (no persistent filesystem). To deploy:
+
+1. **Switch to Postgres** — change `provider = "sqlite"` to `provider = "postgresql"`
+   in `prisma/schema.prisma`, then `npx prisma migrate deploy`.
+2. **Create a Supabase project** at https://supabase.com → grab the connection string.
+3. **Set env vars in Vercel**:
+   - `DATABASE_URL` = `postgresql://...` (from Supabase)
+   - `SESSION_SECRET` = 32+ random chars (`openssl rand -base64 32`)
+4. **Push to GitHub** → import the repo into Vercel → deploy.
+
+The Prisma schema uses `Decimal` types that are Postgres-compatible — no
+schema changes needed beyond the `provider` line.
+
+## 📋 V1 scope
+
+Built intentionally **without**: receipts, payroll, employee management,
+advanced accounting, AI features, loyalty programs, online payments,
+multi-business, customer logins, complex permissions, analytics dashboards,
+or notifications. These are reserved for V2.
+
+## 🔒 Security model (V1)
+
+- **Single owner, single device** — no multi-user, no customer logins
+- **PIN lock** (optional) — 4-6 digits, bcrypt hashed, gates destructive actions
+- **HMAC session cookie** — HttpOnly + SameSite=Strict + Secure (production)
+- **Rate-limited PIN unlock** — 5 failed attempts → 5-minute lockout per IP
+- **All API routes require session** (except `/api/auth/*` and `/api/health`)
+- **All inputs validated server-side** via Zod schemas
+- **All queries use Prisma's parameterized API** — no SQL injection
+- **No `dangerouslySetInnerHTML`** with user input
+- **CSV exports defend against formula injection**
+
+## License
+
+Private — built for a single wholesale business.

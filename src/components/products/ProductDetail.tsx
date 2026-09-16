@@ -31,7 +31,7 @@ import { Money } from "@/components/shared/Money";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { Button } from "@/components/ui/Button";
 import { Decimal } from "@/lib/utils/decimal";
-import { formatQuantity, formatMoney } from "@/lib/utils/money";
+import { formatQuantity } from "@/lib/utils/money";
 import { formatDate, formatTime } from "@/lib/utils/date";
 import { cn } from "@/lib/utils/cn";
 

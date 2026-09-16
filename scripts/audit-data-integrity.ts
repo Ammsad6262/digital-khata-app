@@ -208,7 +208,6 @@ async function main() {
   console.log(`\n${c.cyan}━━━ TEST 4: Void Sale cleans up Transaction mirror ━━━${c.reset}`);
 
   const sale1 = await prisma.sale.findFirstOrThrow({ where: { customerId: customer.id, totalAmount: 100000 } });
-  const txCountBefore = await prisma.transaction.count({ where: { customerId: customer.id } });
 
   // Void the sale (simulating the fixed voidSale logic)
   await prisma.$transaction(async (tx) => {

@@ -19,7 +19,7 @@ import type {
   CustomerHistory,
 } from "@/lib/services/customers";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 // ────────────────────────────────────────────────────────────────────────────
 // Query keys

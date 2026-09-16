@@ -9,10 +9,10 @@
  *   - Tap to select (doesn't auto-add line items — stock ops are 1 product).
  */
 
-import { Search, Package, Check, AlertTriangle } from "lucide-react";
+import { Search, Package, AlertTriangle } from "lucide-react";
 import { useProductSearch } from "@/hooks/use-products";
 import { Decimal } from "@/lib/utils/decimal";
-import { formatQuantity, formatMoney } from "@/lib/utils/money";
+import { formatQuantity } from "@/lib/utils/money";
 import type { ProductSearchResult } from "@/lib/services/products";
 import { cn } from "@/lib/utils/cn";
 

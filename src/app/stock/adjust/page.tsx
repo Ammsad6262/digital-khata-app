@@ -13,7 +13,7 @@
  */
 
 import Link from "next/link";
-import { ArrowLeft, Settings2 } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { AppHeader } from "@/components/layout/AppHeader";
 import { ScreenContent } from "@/components/layout/Screen";
 import { AdjustStockForm } from "@/components/stock/AdjustStockForm";

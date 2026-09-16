@@ -13,7 +13,7 @@
  */
 
 import { prisma } from "@/lib/db/prisma";
-import { Decimal, toDecimalOrZero } from "@/lib/utils/decimal";
+import { Decimal } from "@/lib/utils/decimal";
 import { BadRequestError, NotFoundError } from "@/lib/errors";
 import { createSaleSchema } from "@/lib/schemas/sale";
 import {

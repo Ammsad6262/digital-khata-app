@@ -15,7 +15,7 @@ import { NextRequest } from "next/server";
 import { z } from "zod";
 import { clearAllData, getOwnerPinHash } from "@/lib/services/settings";
 import { verifyPin } from "@/lib/auth/pin";
-import { BadRequestError, UnauthorizedError } from "@/lib/errors";
+import { UnauthorizedError } from "@/lib/errors";
 import { ok, fail, parseJsonBody } from "@/lib/utils/api";
 
 export const dynamic = "force-dynamic";

@@ -28,7 +28,7 @@
 
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import { AlertCircle, Wallet } from "lucide-react";
+import { AlertCircle } from "lucide-react";
 import { CustomerPicker, type SelectedCustomer } from "@/components/sales/CustomerPicker";
 import { StickyFormActions } from "@/components/ui/StickyFormActions";
 import { Money } from "@/components/shared/Money";

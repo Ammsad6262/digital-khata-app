@@ -21,7 +21,7 @@ import { EmptyState } from "@/components/shared/EmptyState";
 import { Button } from "@/components/ui/Button";
 
 export function KhataList() {
-  const { query, setQuery, debouncedQuery, data, isLoading, isError, error, refetch } =
+  const { query, setQuery, data, isLoading, isError, error, refetch } =
     useCustomerSearch();
 
   const isShortQuery = query.trim().length > 0 && query.trim().length < 2;

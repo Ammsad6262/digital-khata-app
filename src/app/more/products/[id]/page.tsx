@@ -10,7 +10,7 @@
  */
 
 import Link from "next/link";
-import { Pencil, ArrowDownToLine, Settings2 } from "lucide-react";
+import { Pencil } from "lucide-react";
 import { AppHeader } from "@/components/layout/AppHeader";
 import { ScreenContent } from "@/components/layout/Screen";
 import { ProductDetail } from "@/components/products/ProductDetail";

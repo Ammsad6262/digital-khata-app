@@ -17,17 +17,16 @@
  */
 
 import { useRouter } from "next/navigation";
-import { useMemo, useState, useEffect } from "react";
-import { Package, ArrowDownToLine } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Package } from "lucide-react";
 import { StockProductPicker } from "@/components/stock/StockProductPicker";
 import { StickyFormActions } from "@/components/ui/StickyFormActions";
-import { EmptyState } from "@/components/shared/EmptyState";
 import { Money } from "@/components/shared/Money";
 import { useAddStockMove } from "@/hooks/use-stock";
 import { useToast } from "@/providers/toast-provider";
 import { ApiError } from "@/lib/utils/api-client";
 import { Decimal } from "@/lib/utils/decimal";
-import { formatQuantity, formatMoney } from "@/lib/utils/money";
+import { formatQuantity } from "@/lib/utils/money";
 import type { ProductSearchResult } from "@/lib/services/products";
 
 function todayIsoLocal(): string {

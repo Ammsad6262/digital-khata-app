@@ -24,7 +24,7 @@ import {
   ArrowDownLeft,
 } from "lucide-react";
 import { Money } from "@/components/shared/Money";
-import { formatRelative, formatTime } from "@/lib/utils/date";
+import { formatRelative } from "@/lib/utils/date";
 import type { RecentTransaction } from "@/lib/services/dashboard";
 import { cn } from "@/lib/utils/cn";
 
@@ -141,7 +141,6 @@ export function RecentTransactions({
           const info = TX_TYPE_INFO[tx.type];
           const Icon = info.icon;
           const amountInfo = getAmountDisplay(tx);
-          const AmountIcon = amountInfo.icon;
           const context = getContext(tx);
 
           return (

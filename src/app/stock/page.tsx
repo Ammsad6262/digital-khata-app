@@ -10,8 +10,6 @@
  *   - Adjust Stock → /stock/adjust (recount/write-off)
  */
 
-import Link from "next/link";
-import { Plus, Package, AlertTriangle, ArrowDownToLine, Settings2 } from "lucide-react";
 import { AppHeader } from "@/components/layout/AppHeader";
 import { ScreenContent } from "@/components/layout/Screen";
 import { StockOverview } from "@/components/stock/StockOverview";

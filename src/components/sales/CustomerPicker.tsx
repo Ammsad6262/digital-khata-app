@@ -15,7 +15,7 @@
  * if they already owe money before recording a new sale.
  */
 
-import { Search, X, User, Phone, ChevronRight, UserPlus, Loader2 } from "lucide-react";
+import { Search, Phone, ChevronRight, UserPlus, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { useCustomerSearch, useCreateCustomer } from "@/hooks/use-customers";
 import { Money } from "@/components/shared/Money";

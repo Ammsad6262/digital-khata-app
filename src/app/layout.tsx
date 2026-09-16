@@ -31,6 +31,11 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "Digital Khata",
   description: "Digital khata & wholesale business management",
+  manifest: "/manifest.json",
+  icons: {
+    icon: "/icon.svg",
+    apple: "/icon.svg",
+  },
 };
 
 export const viewport: Viewport = {

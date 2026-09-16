@@ -29,7 +29,6 @@ import { Trash2, AlertTriangle, ShoppingCart } from "lucide-react";
 import { CustomerPicker, type SelectedCustomer } from "@/components/sales/CustomerPicker";
 import { ProductPicker } from "@/components/sales/ProductPicker";
 import { StickyFormActions } from "@/components/ui/StickyFormActions";
-import { EmptyState } from "@/components/shared/EmptyState";
 import { Money } from "@/components/shared/Money";
 import { useCreateSale } from "@/hooks/use-sales";
 import { useToast } from "@/providers/toast-provider";

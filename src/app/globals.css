@@ -51,6 +51,8 @@
   body {
     @apply bg-slate-100 text-slate-900 antialiased;
     -webkit-tap-highlight-color: transparent;
+    /* Lock body scroll when overlays are open */
+    overscroll-behavior-y: none;
   }
 
   /* Prevent iOS zoom-on-focus by enforcing 16px font on inputs */
@@ -65,6 +67,29 @@
   a {
     @apply select-none;
     touch-action: manipulation;
+  }
+
+  /* Accessible focus styles — visible ring for keyboard users, suppressed for mouse */
+  :focus-visible {
+    outline: 2px solid rgb(var(--brand-600));
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  /* Reduce motion for users who prefer it */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+
+  /* Numerical alignment — money + quantities use tabular figures */
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
   }
 }
 
@@ -87,4 +112,21 @@
   .stat-card {
     @apply card flex flex-col gap-1;
   }
+
+  /* Skeleton shimmer — used in loading states across list pages */
+  .animate-shimmer {
+    background: linear-gradient(
+      90deg,
+      rgb(226 232 240) 0%,
+      rgb(241 245 249) 50%,
+      rgb(226 232 240) 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+  }
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
 }

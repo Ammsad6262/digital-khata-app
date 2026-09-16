@@ -31,8 +31,6 @@ import {
   Receipt,
   Package,
   Scale,
-  ArrowDownLeft,
-  ArrowUpRight,
   Calendar,
 } from "lucide-react";
 import { useTransactionsList } from "@/hooks/use-transactions";
@@ -41,9 +39,7 @@ import type { TransactionListItem } from "@/lib/services/transactions";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { Money } from "@/components/shared/Money";
 import { Button } from "@/components/ui/Button";
-import { Decimal } from "@/lib/utils/decimal";
-import { formatRelative, formatDate, formatTime } from "@/lib/utils/date";
-import { formatMoney } from "@/lib/utils/money";
+import { formatRelative, formatDate } from "@/lib/utils/date";
 import { cn } from "@/lib/utils/cn";
 
 const DATE_FILTERS: Array<{ value: TransactionFilter; label: string }> = [

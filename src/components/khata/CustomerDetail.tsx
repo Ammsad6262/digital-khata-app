@@ -29,11 +29,9 @@ import { useCustomerHistory } from "@/hooks/use-customers";
 import { Money } from "@/components/shared/Money";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { Button } from "@/components/ui/Button";
-import { BalanceBadge } from "@/components/khata/BalanceBadge";
 import { Decimal } from "@/lib/utils/decimal";
 import { formatDate, formatTime } from "@/lib/utils/date";
 import type {
-  CustomerHistory,
   CustomerTransaction,
 } from "@/lib/services/customers";
 import { cn } from "@/lib/utils/cn";

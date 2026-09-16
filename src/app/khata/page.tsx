@@ -9,11 +9,10 @@
  */
 
 import Link from "next/link";
-import { Plus, Search, Users, AlertCircle, UserPlus } from "lucide-react";
+import { Plus } from "lucide-react";
 import { AppHeader } from "@/components/layout/AppHeader";
 import { ScreenContent } from "@/components/layout/Screen";
 import { KhataList } from "@/components/khata/KhataList";
-import { Button } from "@/components/ui/Button";
 
 export const dynamic = "force-dynamic";
 

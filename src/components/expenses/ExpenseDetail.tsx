@@ -25,7 +25,6 @@ import { useExpense, useVoidExpense } from "@/hooks/use-expenses";
 import { Money } from "@/components/shared/Money";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { Button } from "@/components/ui/Button";
-import { formatMoney } from "@/lib/utils/money";
 import { formatDateTime } from "@/lib/utils/date";
 import { cn } from "@/lib/utils/cn";
 

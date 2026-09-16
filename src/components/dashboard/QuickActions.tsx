@@ -1,11 +1,13 @@
 "use client";
 
 /**
- * Quick actions — 4 large tappable buttons.
+ * Quick actions — 4 large tappable buttons for the dashboard.
  *
- * Each button navigates to its respective form route. The routes are
- * placeholders for now (Phase 4 scope is the dashboard itself); the
- * actual forms come in a later phase.
+ * Each button navigates to its respective entry form:
+ *   - New Sale     → /sales/new
+ *   - Add Payment  → /payments/new
+ *   - Add Customer → /more/customers/new
+ *   - Add Expense  → /more/expenses/new
  */
 
 import Link from "next/link";

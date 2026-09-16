@@ -1,17 +1,29 @@
 /**
  * /api/stock/moves
  *
- * GET  → list recent stock moves
- * POST → record a stock move (purchase / adjustment / return)
- *        Atomic: StockMove + Transaction ledger
+ * GET  /api/stock/moves                       → recent stock moves (last 50)
+ * GET  /api/stock/moves?productId=X            → all stock moves for one product
+ * POST /api/stock/moves                       → record a stock move
+ *        (purchase / adjustment / return — atomic with the Transaction ledger)
  */
 
 import { NextRequest } from "next/server";
-import { listStockMoves, addStockMove } from "@/lib/services/stock";
-import { ok, fail, parseJsonBody } from "@/lib/utils/api";
+import {
+  listStockMoves,
+  listStockMovesByProduct,
+  addStockMove,
+} from "@/lib/services/stock";
+import { ok, fail, parseJsonBody, getQueryParam } from "@/lib/utils/api";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
+    const productId = getQueryParam(req, "productId");
+
+    if (productId) {
+      const data = await listStockMovesByProduct(productId);
+      return ok(data);
+    }
+
     const data = await listStockMoves(50);
     return ok(data);
   } catch (error) {

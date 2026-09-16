@@ -1,0 +1,47 @@
+/**
+ * Add Stock page.
+ *
+ * Records a "purchase" stock move — buying new stock from a supplier.
+ * Increases the product's stock by the entered quantity.
+ *
+ * Fields:
+ *   - Product (search by name/SKU)
+ *   - Quantity (positive number)
+ *   - Unit cost (optional — used for V2 profit reports)
+ *   - Reason / note (optional)
+ *   - Date (defaults to today)
+ */
+
+import Link from "next/link";
+import { ArrowLeft, ArrowDownToLine } from "lucide-react";
+import { AppHeader } from "@/components/layout/AppHeader";
+import { ScreenContent } from "@/components/layout/Screen";
+import { AddStockForm } from "@/components/stock/AddStockForm";
+
+export const dynamic = "force-dynamic";
+
+export default function AddStockPage({
+  searchParams,
+}: {
+  searchParams: { productId?: string };
+}) {
+  return (
+    <>
+      <AppHeader
+        title="Add Stock"
+        rightSlot={
+          <Link
+            href="/stock"
+            className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100"
+            aria-label="Back"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </Link>
+        }
+      />
+      <ScreenContent>
+        <AddStockForm initialProductId={searchParams.productId} />
+      </ScreenContent>
+    </>
+  );
+}

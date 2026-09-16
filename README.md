@@ -2,7 +2,7 @@
 
 A mobile-first web application that replaces paper khata/registers for small wholesale businesses. Tracks customers, credit (udhaar), sales, payments, products, stock, expenses, and gives the owner a clean dashboard with auto-calculated balances.
 
-> **Status:** Phase 7 — Payments system built (Add Payment form, list, detail, void, overpayment handling)
+> **Status:** Phase 8 — Products + Stock Management built (list, search, add, edit, detail, stock moves)
 
 ---
 
@@ -57,7 +57,8 @@ The canonical Prisma schema: [`prisma/schema.prisma`](./prisma/schema.prisma)
 - [x] Phase 5 — Customers/Khata system (list, search, detail, add form)
 - [x] Phase 6 — Sales system (New Sale form with multi-product, list, detail, void, date filters)
 - [x] Phase 7 — Payments system (Add Payment form, list, detail, void, overpayment handling)
-- [ ] Phase 8 — TBD (awaiting instructions)
+- [x] Phase 8 — Products + Stock Management (list, search, add, edit, detail, stock moves, adjustments)
+- [ ] Phase 9 — TBD (awaiting instructions)
 
 ## 🚀 Quick Start
 

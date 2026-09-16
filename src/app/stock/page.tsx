@@ -1,20 +1,29 @@
 /**
- * Stock page — placeholder.
+ * Stock overview page.
  *
- * Will list products with current stock, highlight low stock, allow adjustments.
+ * Mobile-first list of all products with their current stock + low-stock alerts.
+ * Each row shows: product name, current stock (color-coded), category.
+ * Tappable → /more/products/[id] (full product detail with movement history).
+ *
+ * Quick actions:
+ *   - + Add Stock → /stock/add (purchase from supplier)
+ *   - Adjust Stock → /stock/adjust (recount/write-off)
  */
 
+import Link from "next/link";
+import { Plus, Package, AlertTriangle, ArrowDownToLine, Settings2 } from "lucide-react";
 import { AppHeader } from "@/components/layout/AppHeader";
 import { ScreenContent } from "@/components/layout/Screen";
+import { StockOverview } from "@/components/stock/StockOverview";
+
+export const dynamic = "force-dynamic";
 
 export default function StockPage() {
   return (
     <>
       <AppHeader title="Stock" />
       <ScreenContent>
-        <p className="rounded-lg border border-dashed border-slate-300 p-6 text-center text-sm text-slate-500">
-          Stock overview — coming in Phase 4.
-        </p>
+        <StockOverview />
       </ScreenContent>
     </>
   );

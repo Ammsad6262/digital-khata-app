@@ -7,10 +7,12 @@
  * - useProductsWithStock → list (with stock + low-stock flag)
  * - useProductSearch  → debounced search by name/SKU (with stock)
  * - useProduct         → single product with stock
+ * - useCreateProduct   → mutation
+ * - useUpdateProduct   → mutation
  */
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiGet, apiPost } from "@/lib/utils/api-client";
+import { apiGet, apiPost, apiPatch, ApiError } from "@/lib/utils/api-client";
 import type {
   ProductView,
   ProductWithStock,
@@ -104,3 +106,29 @@ export function useCreateProduct() {
     },
   });
 }
+
+export function useUpdateProduct(id: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: Partial<{
+      name: string;
+      category: string | null;
+      purchasePrice: number;
+      sellingPrice: number;
+      unit: string;
+      sku: string | null;
+      lowStockThreshold: number;
+    }>) => apiPatch<ProductView>(`/api/products/${id}`, input),
+
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: productKeys.detail(id) });
+      queryClient.invalidateQueries({ queryKey: productKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: productKeys.all });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+    },
+  });
+}
+
+export { ApiError };
+

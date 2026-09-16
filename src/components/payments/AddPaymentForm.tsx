@@ -28,9 +28,9 @@
 
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import { Loader2, Save, AlertCircle, Wallet } from "lucide-react";
+import { AlertCircle, Wallet } from "lucide-react";
 import { CustomerPicker, type SelectedCustomer } from "@/components/sales/CustomerPicker";
-import { Button } from "@/components/ui/Button";
+import { StickyFormActions } from "@/components/ui/StickyFormActions";
 import { Money } from "@/components/shared/Money";
 import { useRecordPayment } from "@/hooks/use-payments";
 import { useCustomerBalance } from "@/hooks/use-customer-balance";
@@ -309,37 +309,14 @@ export function AddPaymentForm() {
         </section>
       ) : null}
 
-      {/* Action buttons */}
-      <div className="flex gap-2 pt-1">
-        <Button
-          type="button"
-          variant="outline"
-          size="lg"
-          className="flex-1"
-          onClick={() => router.back()}
-        >
-          Cancel
-        </Button>
-        <Button
-          type="button"
-          size="lg"
-          className="flex-[2]"
-          disabled={hasErrors || recordPayment.isPending || !customer}
-          onClick={handleSubmit}
-        >
-          {recordPayment.isPending ? (
-            <>
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Saving...
-            </>
-          ) : (
-            <>
-              <Save className="h-4 w-4" />
-              Save Payment
-            </>
-          )}
-        </Button>
-      </div>
+      {/* Sticky action bar */}
+      <StickyFormActions
+        onCancel={() => router.back()}
+        onSave={handleSubmit}
+        saveLabel="Save Payment"
+        saveDisabled={hasErrors || !customer}
+        isPending={recordPayment.isPending}
+      />
     </div>
   );
 }

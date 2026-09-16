@@ -24,10 +24,9 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Loader2, Save } from "lucide-react";
 import { TextField } from "@/components/ui/TextField";
 import { TextArea } from "@/components/ui/TextArea";
-import { Button } from "@/components/ui/Button";
+import { StickyFormActions } from "@/components/ui/StickyFormActions";
 import { useToast } from "@/providers/toast-provider";
 import {
   useCreateProduct,
@@ -302,37 +301,13 @@ export function ProductForm({
         </div>
       ) : null}
 
-      <div className="flex gap-2">
-        <Button
-          type="button"
-          variant="outline"
-          size="lg"
-          className="flex-1"
-          onClick={() => router.back()}
-          disabled={isPending}
-        >
-          Cancel
-        </Button>
-        <Button
-          type="button"
-          size="lg"
-          className="flex-[2]"
-          disabled={hasErrors || isPending}
-          onClick={handleSubmit}
-        >
-          {isPending ? (
-            <>
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Saving...
-            </>
-          ) : (
-            <>
-              <Save className="h-4 w-4" />
-              {mode === "create" ? "Save Product" : "Update Product"}
-            </>
-          )}
-        </Button>
-      </div>
+      <StickyFormActions
+        onCancel={() => router.back()}
+        onSave={handleSubmit}
+        saveLabel={mode === "create" ? "Save Product" : "Update Product"}
+        saveDisabled={hasErrors}
+        isPending={isPending}
+      />
     </div>
   );
 }

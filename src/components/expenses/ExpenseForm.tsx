@@ -19,10 +19,9 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Loader2, Save } from "lucide-react";
 import { TextField } from "@/components/ui/TextField";
 import { TextArea } from "@/components/ui/TextArea";
-import { Button } from "@/components/ui/Button";
+import { StickyFormActions } from "@/components/ui/StickyFormActions";
 import { useToast } from "@/providers/toast-provider";
 import {
   useRecordExpense,
@@ -258,38 +257,14 @@ export function ExpenseForm({
         </div>
       </div>
 
-      {/* Action buttons */}
-      <div className="flex gap-2">
-        <Button
-          type="button"
-          variant="outline"
-          size="lg"
-          className="flex-1"
-          onClick={() => router.back()}
-          disabled={isPending}
-        >
-          Cancel
-        </Button>
-        <Button
-          type="button"
-          size="lg"
-          className="flex-[2]"
-          disabled={hasErrors || isPending}
-          onClick={handleSubmit}
-        >
-          {isPending ? (
-            <>
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Saving...
-            </>
-          ) : (
-            <>
-              <Save className="h-4 w-4" />
-              {mode === "create" ? "Save Expense" : "Update Expense"}
-            </>
-          )}
-        </Button>
-      </div>
+      {/* Sticky action bar */}
+      <StickyFormActions
+        onCancel={() => router.back()}
+        onSave={handleSubmit}
+        saveLabel={mode === "create" ? "Save Expense" : "Update Expense"}
+        saveDisabled={hasErrors}
+        isPending={isPending}
+      />
     </div>
   );
 }

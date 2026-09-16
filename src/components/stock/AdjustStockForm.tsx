@@ -24,9 +24,9 @@
 
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import { Loader2, Save, Plus, Minus, Package, AlertTriangle } from "lucide-react";
+import { Plus, Minus, Package, AlertTriangle } from "lucide-react";
 import { StockProductPicker } from "@/components/stock/StockProductPicker";
-import { Button } from "@/components/ui/Button";
+import { StickyFormActions } from "@/components/ui/StickyFormActions";
 import { Money } from "@/components/shared/Money";
 import { useAddStockMove } from "@/hooks/use-stock";
 import { useToast } from "@/providers/toast-provider";
@@ -330,37 +330,14 @@ export function AdjustStockForm({ initialProductId }: { initialProductId?: strin
         </section>
       ) : null}
 
-      {/* Action buttons */}
-      <div className="flex gap-2 pt-1">
-        <Button
-          type="button"
-          variant="outline"
-          size="lg"
-          className="flex-1"
-          onClick={() => router.back()}
-        >
-          Cancel
-        </Button>
-        <Button
-          type="button"
-          size="lg"
-          className="flex-[2]"
-          disabled={hasErrors || addStockMove.isPending || !selected}
-          onClick={handleSubmit}
-        >
-          {addStockMove.isPending ? (
-            <>
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Saving...
-            </>
-          ) : (
-            <>
-              <Save className="h-4 w-4" />
-              Save Adjustment
-            </>
-          )}
-        </Button>
-      </div>
+      {/* Sticky action bar */}
+      <StickyFormActions
+        onCancel={() => router.back()}
+        onSave={handleSubmit}
+        saveLabel="Save Adjustment"
+        saveDisabled={hasErrors || !selected}
+        isPending={addStockMove.isPending}
+      />
     </div>
   );
 }

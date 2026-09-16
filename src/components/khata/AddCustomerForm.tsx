@@ -19,11 +19,9 @@
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2, Save, UserPlus } from "lucide-react";
 import { TextField } from "@/components/ui/TextField";
 import { TextArea } from "@/components/ui/TextArea";
-import { Button } from "@/components/ui/Button";
-import { EmptyState } from "@/components/shared/EmptyState";
+import { StickyFormActions } from "@/components/ui/StickyFormActions";
 import { useCreateCustomer } from "@/hooks/use-customers";
 import { useToast } from "@/providers/toast-provider";
 import { createCustomerSchema } from "@/lib/schemas/customer";
@@ -67,6 +65,8 @@ export function AddCustomerForm() {
       },
     });
   };
+
+  const hasErrors = Object.keys(form.formState.errors).length > 0;
 
   return (
     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -122,35 +122,13 @@ export function AddCustomerForm() {
         </div>
       </div>
 
-      <div className="flex gap-2">
-        <Button
-          type="button"
-          variant="outline"
-          size="lg"
-          className="flex-1"
-          onClick={() => router.back()}
-        >
-          Cancel
-        </Button>
-        <Button
-          type="submit"
-          size="lg"
-          className="flex-1"
-          disabled={createCustomer.isPending}
-        >
-          {createCustomer.isPending ? (
-            <>
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Saving...
-            </>
-          ) : (
-            <>
-              <Save className="h-4 w-4" />
-              Save Customer
-            </>
-          )}
-        </Button>
-      </div>
+      <StickyFormActions
+        onCancel={() => router.back()}
+        onSave={() => form.handleSubmit(onSubmit)()}
+        saveLabel="Save Customer"
+        saveDisabled={hasErrors}
+        isPending={createCustomer.isPending}
+      />
     </form>
   );
 }

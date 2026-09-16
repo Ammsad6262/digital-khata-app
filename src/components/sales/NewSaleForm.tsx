@@ -25,10 +25,10 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState, useEffect } from "react";
-import { Loader2, Save, Trash2, AlertTriangle, ShoppingCart } from "lucide-react";
+import { Trash2, AlertTriangle, ShoppingCart } from "lucide-react";
 import { CustomerPicker, type SelectedCustomer } from "@/components/sales/CustomerPicker";
 import { ProductPicker } from "@/components/sales/ProductPicker";
-import { Button } from "@/components/ui/Button";
+import { StickyFormActions } from "@/components/ui/StickyFormActions";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { Money } from "@/components/shared/Money";
 import { useCreateSale } from "@/hooks/use-sales";
@@ -454,37 +454,14 @@ export function NewSaleForm() {
         </section>
       ) : null}
 
-      {/* Action buttons */}
-      <div className="flex gap-2 pt-2">
-        <Button
-          type="button"
-          variant="outline"
-          size="lg"
-          className="flex-1"
-          onClick={() => router.back()}
-        >
-          Cancel
-        </Button>
-        <Button
-          type="button"
-          size="lg"
-          className="flex-[2]"
-          disabled={hasBlockingErrors || createSale.isPending || items.length === 0}
-          onClick={handleSubmit}
-        >
-          {createSale.isPending ? (
-            <>
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Saving...
-            </>
-          ) : (
-            <>
-              <Save className="h-4 w-4" />
-              Save Sale
-            </>
-          )}
-        </Button>
-      </div>
+      {/* Sticky action bar — always visible at viewport bottom for one-handed use */}
+      <StickyFormActions
+        onCancel={() => router.back()}
+        onSave={handleSubmit}
+        saveLabel="Save Sale"
+        saveDisabled={hasBlockingErrors || items.length === 0}
+        isPending={createSale.isPending}
+      />
     </div>
   );
 }

@@ -21,6 +21,7 @@ import { QuickActions } from "@/components/dashboard/QuickActions";
 import { LowStockList } from "@/components/dashboard/LowStockList";
 import { RecentTransactions } from "@/components/dashboard/RecentTransactions";
 import { DashboardSkeleton } from "@/components/dashboard/DashboardSkeleton";
+import { GlobalSearch } from "@/components/dashboard/GlobalSearch";
 import {
   ShoppingCart,
   Wallet,
@@ -75,6 +76,9 @@ export function Dashboard() {
 
   return (
     <div className="space-y-4">
+      {/* Global search — always at the very top for fast access */}
+      <GlobalSearch />
+
       {/* Hero — total receivables */}
       <HeroCard
         totalReceivables={data.totalReceivables}

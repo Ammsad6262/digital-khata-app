@@ -1,309 +1,324 @@
 # Database Schema — Digital Khata & Wholesale Business App (V1)
 
-> Prisma schema. SQLite for V1; the schema is Postgres-compatible for easy migration later.
+> Phase 2 — complete data architecture. The canonical Prisma schema lives at [`prisma/schema.prisma`](../prisma/schema.prisma). This document explains the design choices, derived-calculation formulas, and atomic-transaction patterns.
+>
+> See also: [`DATA_ARCHITECTURE.md`](./DATA_ARCHITECTURE.md) for the entity-by-entity spec and atomic-operation walkthroughs.
 
 ---
 
-## Design notes
+## Design principles
 
-1. **Money is always `Decimal(12, 2)`** — never `Float`. Prevents rounding errors.
-2. **Quantities are `Decimal(10, 3)`** — wholesale often sells by weight (kg) or fractional units.
-3. **Customer balance is derived** — not stored on the Customer row.
-4. **Product stock is derived** — not stored on the Product row.
-5. **`paidAmount` on Sale is denormalized** — a cached copy for fast display. The source of truth for "money received" is the `Payment` table.
-6. **`Sale.outstanding` is denormalized** — equals `totalAmount - paidAmount`. Stored for fast filtering of "sales with remaining balance."
-7. **All tables have `createdAt` and `updatedAt`** (where it makes sense) for audit.
-8. **Soft delete is NOT used in V1** — deletions are blocked if there are dependent transactions; the owner uses "void" actions instead.
+1. **Money is always `Decimal(12, 2)`** — never `Float`. Prevents rounding errors in financial calculations.
+2. **Quantities are `Decimal(10, 3)`** — wholesale sells by kg, box, dozen; fractional quantities are common.
+3. **Customer balance is DERIVED** — never manually edited as a stored current value.
+4. **Product stock is DERIVED** — never manually edited as a stored current value.
+5. **`Transaction` is a denormalized unified ledger** — one row per financial movement, written in the same `prisma.$transaction` as the source-of-truth record. Powers the "Transaction History" feed with a single-table query.
+6. **Multi-table mutations are wrapped in `prisma.$transaction`** — if any step fails, all roll back.
+7. **Voiding is preferred over deleting** — `voidedAt` on Sale, Payment, CustomerAdjustment, StockMove, Expense. Voided records are excluded from calculations but preserved for audit.
+8. **`openingBalance` / `openingStock` fields** — set ONCE at migration time from paper khata. Represents the state when the entity entered the digital system.
 
 ---
 
-## Prisma Schema
+## Entities (summary)
 
-```prisma
-// prisma/schema.prisma
+| Entity | Purpose | Source of truth? |
+|---|---|---|
+| **Customer** | A buyer with their own khata | Yes — stores customer info + openingBalance |
+| **Product** | A sellable item | Yes — stores product info + openingStock |
+| **Sale** | One invoice (can have multiple products) | Yes — for customer balance calc |
+| **SaleItem** | One line in a sale | Yes — for stock calc |
+| **Payment** | Money received from a customer | Yes — for customer balance calc |
+| **CustomerAdjustment** | Manual correction to a customer's balance (signed) | Yes — for customer balance calc |
+| **StockMove** | Intentional stock change by owner (purchase, adjustment, return) | Yes — for stock calc |
+| **Expense** | Business expense (does NOT touch customer balance) | Yes — for expense totals |
+| **Transaction** | Denormalized unified ledger | Mirror — for transaction history feed |
+| **Setting** | App configuration (singleton) | Yes |
 
-generator client {
-  provider = "prisma-client-js"
-}
+---
 
-datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL") // e.g. "file:./dev.db"
-}
+## Derived calculations
 
-// ────────────────────────────────────────────────────────────────────────────
-// CUSTOMER
-// ────────────────────────────────────────────────────────────────────────────
+### Customer current balance
 
-model Customer {
-  id        String   @id @default(cuid())
-  name      String
-  phone     String   @unique
-  address   String?
-  notes     String?
-  isDeleted Boolean  @default(false) // soft-delete flag for future use
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  sales    Sale[]
-  payments Payment[]
-
-  @@index([name])
-  @@index([phone])
-}
-
-// ────────────────────────────────────────────────────────────────────────────
-// PRODUCT
-// ────────────────────────────────────────────────────────────────────────────
-
-model Product {
-  id               String   @id @default(cuid())
-  name             String
-  category         String?
-  purchasePrice    Decimal  @db.Decimal(12, 2)
-  sellingPrice     Decimal  @db.Decimal(12, 2)
-  unit             String   @default("piece") // piece, kg, box, dozen, etc.
-  sku              String?  @unique
-  lowStockThreshold Int     @default(5)
-  isDeleted        Boolean  @default(false)
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-
-  saleItems SaleItem[]
-  stockMoves StockMove[]
-
-  @@index([name])
-  @@index([category])
-  @@index([sku])
-}
-
-// ────────────────────────────────────────────────────────────────────────────
-// SALE  (one invoice/transaction)
-// ────────────────────────────────────────────────────────────────────────────
-
-model Sale {
-  id          String   @id @default(cuid())
-  customerId  String
-  customer    Customer @relation(fields: [customerId], references: [id])
-
-  totalAmount Decimal  @db.Decimal(12, 2) // sum of all SaleItem.total
-  paidAmount  Decimal  @db.Decimal(12, 2) @default(0) // money received at sale time
-  outstanding Decimal  @db.Decimal(12, 2) // totalAmount - paidAmount (denormalized)
-
-  notes       String?
-  date        DateTime @default(now()) // the date the sale happened (may be backdated)
-  voidedAt    DateTime? // null = active; set when sale is voided
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  customer  Customer   @relation(fields: [customerId], references: [id])
-  items     SaleItem[]
-  payments  Payment[]  // payments linked specifically to this sale (optional 1:many)
-
-  @@index([customerId])
-  @@index([date])
-  @@index([voidedAt])
-}
-
-// ────────────────────────────────────────────────────────────────────────────
-// SALE ITEM  (one line in a sale)
-// ────────────────────────────────────────────────────────────────────────────
-
-model SaleItem {
-  id        String  @id @default(cuid())
-  saleId    String
-  sale      Sale    @relation(fields: [saleId], references: [id], onDelete: Cascade)
-  productId String
-  product   Product @relation(fields: [productId], references: [id])
-
-  quantity  Decimal @db.Decimal(10, 3)
-  unitPrice Decimal @db.Decimal(12, 2) // price per unit at time of sale
-  total     Decimal @db.Decimal(12, 2) // quantity * unitPrice (denormalized)
-
-  @@index([saleId])
-  @@index([productId])
-}
-
-// ────────────────────────────────────────────────────────────────────────────
-// PAYMENT  (money received from a customer)
-// ────────────────────────────────────────────────────────────────────────────
-
-model Payment {
-  id         String   @id @default(cuid())
-  customerId String
-  customer   Customer @relation(fields: [customerId], references: [id])
-
-  saleId     String? // optional link to a specific Sale (e.g. the sale this payment was for)
-  sale       Sale?    @relation(fields: [saleId], references: [id])
-
-  amount     Decimal  @db.Decimal(12, 2)
-  method     String   // "cash" | "bank" | "cheque" | "jazzcash" | "easypaisa" | "other"
-  notes      String?
-  date       DateTime @default(now())
-  voidedAt   DateTime?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-
-  @@index([customerId])
-  @@index([saleId])
-  @@index([date])
-}
-
-// ────────────────────────────────────────────────────────────────────────────
-// STOCK MOVE  (any intentional stock change by the owner)
-// ────────────────────────────────────────────────────────────────────────────
-
-model StockMove {
-  id        String   @id @default(cuid())
-  productId String
-  product   Product  @relation(fields: [productId], references: [id])
-
-  type      String   // "purchase" (positive) | "adjustment" (signed) | "return" (positive)
-  quantity  Decimal  @db.Decimal(10, 3) // signed: + for additions, - for removals
-  reason    String?
-  unitCost  Decimal? @db.Decimal(12, 2) // optional purchase cost (for "purchase" type)
-  date      DateTime @default(now())
-  createdAt DateTime @default(now())
-
-  @@index([productId])
-  @@index([type])
-  @@index([date])
-}
-
-// ────────────────────────────────────────────────────────────────────────────
-// EXPENSE
-// ────────────────────────────────────────────────────────────────────────────
-
-model Expense {
-  id        String   @id @default(cuid())
-  name      String
-  amount    Decimal  @db.Decimal(12, 2)
-  category  String   // "transport" | "shop" | "electricity" | "packaging" | "salary" | "other"
-  notes     String?
-  date      DateTime @default(now())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([category])
-  @@index([date])
-}
-
-// ────────────────────────────────────────────────────────────────────────────
-// SETTING  (singleton — only one row, id = "singleton")
-// ────────────────────────────────────────────────────────────────────────────
-
-model Setting {
-  id              String  @id @default("singleton") // enforced singleton
-  businessName    String?
-  currency        String  @default("PKR")    // ISO code
-  currencySymbol  String  @default("Rs.")
-  ownerPinHash    String?                     // bcrypt hash of owner's PIN
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-}
+```
+balance = Customer.openingBalance
+        + SUM(sale.totalAmount           WHERE sale.customerId = X AND sale.voidedAt IS NULL)
+        - SUM(payment.amount             WHERE payment.customerId = X AND payment.voidedAt IS NULL)
+        + SUM(adjustment.amount          WHERE adjustment.customerId = X AND adjustment.voidedAt IS NULL)
 ```
 
----
-
-## Derived View Helpers (SQL or service-layer functions)
-
-These are **not** stored columns — they're computed at query time.
-
-### Customer outstanding balance
-
-```ts
-// In lib/services/customers.ts
-async function getCustomerBalance(customerId: string): Promise<Decimal> {
-  const [salesTotal, paymentsTotal] = await Promise.all([
-    prisma.sale.aggregate({
-      _sum: { totalAmount: true },
-      where: { customerId, voidedAt: null },
-    }),
-    prisma.payment.aggregate({
-      _sum: { amount: true },
-      where: { customerId, voidedAt: null },
-    }),
-  ]);
-
-  const sales = salesTotal._sum.totalAmount ?? new Decimal(0);
-  const payments = paymentsTotal._sum.amount ?? new Decimal(0);
-  return sales.minus(payments); // positive = customer owes; negative = advance/credit
-}
-```
+- **Positive balance** → customer owes the business (receivable).
+- **Negative balance** → customer has paid in advance (payable / credit).
+- **Zero balance** → settled.
 
 ### Product current stock
 
-```ts
-// In lib/services/products.ts
-async function getProductStock(productId: string): Promise<Decimal> {
-  const [stockIn, sold] = await Promise.all([
-    prisma.stockMove.aggregate({
-      _sum: { quantity: true },
-      where: { productId },
-    }),
-    prisma.saleItem.aggregate({
-      _sum: { quantity: true },
-      where: {
-        productId,
-        sale: { voidedAt: null }, // exclude voided sales
-      },
-    }),
-  ]);
-
-  const inStock = stockIn._sum.quantity ?? new Decimal(0);
-  const soldQty = sold._sum.quantity ?? new Decimal(0);
-  return inStock.minus(soldQty);
-}
+```
+stock = Product.openingStock
+       + SUM(stockMove.quantity    WHERE stockMove.productId = P AND stockMove.voidedAt IS NULL)
+       - SUM(saleItem.quantity      WHERE saleItem.productId = P AND saleItem.sale.voidedAt IS NULL)
 ```
 
-### Dashboard aggregates
-
-```ts
-// In lib/services/dashboard.ts
-async function getDashboardStats() {
-  const today = startOfToday();
-
-  const [receivables, todaysSales, todaysPayments, todaysExpenses,
-         customerCount, lowStockProducts, recentTransactions] = await Promise.all([
-    // Total receivables = SUM(sale.outstanding) across all customers (where voidedAt is null)
-    prisma.sale.aggregate({ _sum: { outstanding: true }, where: { voidedAt: null } }),
-
-    // Today's sales
-    prisma.sale.aggregate({ _sum: { totalAmount: true }, where: { date: { gte: today } } }),
-
-    // Today's payments
-    prisma.payment.aggregate({ _sum: { amount: true }, where: { date: { gte: today } } }),
-
-    // Today's expenses
-    prisma.expense.aggregate({ _sum: { amount: true }, where: { date: { gte: today } } }),
-
-    // Customer count
-    prisma.customer.count({ where: { isDeleted: false } }),
-
-    // Low stock products — fetched in service layer using getProductStock() per product
-    // (or batched with raw SQL for performance later)
-
-    // Recent transactions — union of recent sales, payments, expenses (limit 10)
-  ]);
-
-  return { receivables, todaysSales, todaysPayments, todaysExpenses,
-           customerCount, lowStockProducts, recentTransactions };
-}
-```
+Notes:
+- `stockMove.quantity` is signed: purchases and returns are positive, write-offs are negative.
+- Items sold via a `Sale` live in `SaleItem`, not in `StockMove`. The formula subtracts both.
+- Selling more than available stock is **allowed** in V1 (warns the owner); stock can go negative.
 
 ---
 
-## Index Strategy
+## Atomic operations
+
+### Recording a sale (the critical multi-table operation)
+
+A sale touches 4 tables: `Sale`, `SaleItem` (N rows), `Payment` (1 row if `paidAmount > 0`), `Transaction` (1–2 rows). All must succeed together or none at all.
+
+Pseudocode:
+
+```ts
+async function createSale(input: CreateSaleInput): Promise<Sale> {
+  return prisma.$transaction(async (tx) => {
+    // 1. Validate customer exists
+    const customer = await tx.customer.findUnique({
+      where: { id: input.customerId, isDeleted: false },
+    });
+    if (!customer) throw new Error("Customer not found");
+
+    // 2. Validate all products exist
+    const productIds = input.items.map(i => i.productId);
+    const products = await tx.product.findMany({
+      where: { id: { in: productIds }, isDeleted: false },
+    });
+    if (products.length !== productIds.length) {
+      throw new Error("One or more products not found");
+    }
+
+    // 3. Compute totals
+    const items = input.items.map(i => ({
+      ...i,
+      total: i.quantity.mul(i.unitPrice),
+    }));
+    const totalAmount = items.reduce((s, i) => s.plus(i.total), new Decimal(0));
+    const paidAmount = input.paidAmount ?? new Decimal(0);
+    if (paidAmount.gt(totalAmount)) {
+      throw new Error("Paid amount cannot exceed sale total");
+    }
+    const outstanding = totalAmount.minus(paidAmount);
+
+    // 4. Create Sale + SaleItems (cascade relation)
+    const sale = await tx.sale.create({
+      data: {
+        customerId: input.customerId,
+        totalAmount,
+        paidAmount,
+        outstanding,
+        notes: input.notes,
+        date: input.date ?? new Date(),
+        items: {
+          create: items.map(i => ({
+            productId: i.productId,
+            quantity: i.quantity,
+            unitPrice: i.unitPrice,
+            total: i.total,
+          })),
+        },
+      },
+      include: { items: true },
+    });
+
+    // 5. If money was paid at sale time, create a linked Payment
+    let paymentId: string | null = null;
+    if (paidAmount.gt(0)) {
+      const payment = await tx.payment.create({
+        data: {
+          customerId: input.customerId,
+          saleId: sale.id,
+          amount: paidAmount,
+          method: input.paymentMethod ?? "cash",
+          date: sale.date,
+        },
+      });
+      paymentId = payment.id;
+    }
+
+    // 6. Write Transaction ledger rows
+    await tx.transaction.create({
+      data: {
+        type: "sale",
+        refType: "Sale",
+        refId: sale.id,
+        customerId: input.customerId,
+        amount: totalAmount,
+        direction: "debit",   // increases customer balance
+        date: sale.date,
+        notes: `Sale ${sale.id}`,
+      },
+    });
+
+    if (paymentId) {
+      await tx.transaction.create({
+        data: {
+          type: "payment",
+          refType: "Payment",
+          refId: paymentId,
+          customerId: input.customerId,
+          amount: paidAmount,
+          direction: "credit", // decreases customer balance
+          date: sale.date,
+        },
+      });
+    }
+
+    // 7. NOTE: Stock is automatically reduced because SaleItem rows exist.
+    //    getProductStock() subtracts SUM(saleItem.quantity). No StockMove needed.
+
+    return sale;
+  });
+}
+```
+
+**Why this is safe:**
+- All 6 steps run inside `prisma.$transaction`. If step 5 (Payment) fails, steps 1–4 are rolled back — Sale and SaleItems disappear.
+- Step 7 is implicit: `SaleItem` rows ARE the stock reduction. If the transaction rolls back, SaleItems vanish and stock is unaffected.
+- Voiding a sale later (separate operation) sets `voidedAt` on the Sale + linked Payment, which excludes them from balance and stock calculations — but the rows remain for audit.
+
+### Recording a standalone payment
+
+```ts
+async function recordPayment(input: PaymentInput): Promise<Payment> {
+  return prisma.$transaction(async (tx) => {
+    const customer = await tx.customer.findUnique({
+      where: { id: input.customerId, isDeleted: false },
+    });
+    if (!customer) throw new Error("Customer not found");
+
+    const payment = await tx.payment.create({
+      data: {
+        customerId: input.customerId,
+        saleId: input.saleId ?? null,
+        amount: input.amount,
+        method: input.method,
+        notes: input.notes,
+        date: input.date ?? new Date(),
+      },
+    });
+
+    await tx.transaction.create({
+      data: {
+        type: "payment",
+        refType: "Payment",
+        refId: payment.id,
+        customerId: input.customerId,
+        amount: input.amount,
+        direction: "credit", // decreases customer balance
+        date: payment.date,
+      },
+    });
+
+    return payment;
+  });
+}
+```
+
+### Adding stock (purchase from supplier)
+
+```ts
+async function addStock(input: StockMoveInput): Promise<StockMove> {
+  return prisma.$transaction(async (tx) => {
+    const product = await tx.product.findUnique({
+      where: { id: input.productId, isDeleted: false },
+    });
+    if (!product) throw new Error("Product not found");
+
+    const move = await tx.stockMove.create({
+      data: {
+        productId: input.productId,
+        type: "purchase",
+        quantity: input.quantity, // positive
+        unitCost: input.unitCost,
+        reason: input.reason,
+        date: input.date ?? new Date(),
+      },
+    });
+
+    await tx.transaction.create({
+      data: {
+        type: "stock_move",
+        refType: "StockMove",
+        refId: move.id,
+        productId: input.productId,
+        amount: input.unitCost
+          ? input.unitCost.mul(input.quantity)
+          : new Decimal(0),
+        direction: "debit", // increases stock
+        date: move.date,
+      },
+    });
+
+    return move;
+  });
+}
+```
+
+### Recording an expense (no customer impact)
+
+```ts
+async function recordExpense(input: ExpenseInput): Promise<Expense> {
+  return prisma.$transaction(async (tx) => {
+    const expense = await tx.expense.create({
+      data: {
+        name: input.name,
+        amount: input.amount,
+        category: input.category,
+        notes: input.notes,
+        date: input.date ?? new Date(),
+      },
+    });
+
+    await tx.transaction.create({
+      data: {
+        type: "expense",
+        refType: "Expense",
+        refId: expense.id,
+        amount: input.amount,
+        direction: "debit", // reduces business cash (no customer link)
+        date: expense.date,
+      },
+    });
+
+    return expense;
+  });
+}
+```
+
+> **Note:** Expense has no `customerId` — it cannot accidentally affect any customer's balance. The schema enforces this: there is no FK from Expense to Customer.
+
+---
+
+## Index strategy
 
 - All foreign-key columns are indexed.
 - `Customer.phone` and `Product.sku` are `@unique` (and indexed).
-- `Sale.date`, `Payment.date`, `Expense.date`, `StockMove.date` are indexed for date-range queries (dashboard, transaction history, summary).
-- `Sale.voidedAt` is indexed so "active sales" queries are fast.
+- All `date` columns are indexed (dashboard, transaction history, summary).
+- `Sale.voidedAt`, `Payment.voidedAt`, `CustomerAdjustment.voidedAt`, `StockMove.voidedAt`, `Expense.voidedAt` are indexed for fast "active records" queries.
+- `Transaction` has indexes on `type`, `customerId`, `productId`, `date`, and `(refType, refId)` for fast reverse-lookups.
 
 ---
 
-## Migration Plan
+## Migration plan
 
-1. Phase 2: `prisma migrate dev --name init` — creates the initial SQLite DB.
-2. Future phases: incremental migrations, never destructive (no `DROP COLUMN` without data backfill).
-3. Backup tool: reads the SQLite file directly + dumps JSON of all tables for cross-engine restore.
+1. **Phase 3 (next):** `prisma migrate dev --name init` to create the initial SQLite database from this schema.
+2. Future phases use incremental migrations — never destructive (`DROP COLUMN`/`DROP TABLE` requires explicit data backfill).
+3. Backup tool reads the SQLite file + dumps JSON of all tables for cross-engine restore.
+
+---
+
+## V2 hooks (kept open in V1 schema)
+
+| Field | Purpose | Used in V1? |
+|---|---|---|
+| `Customer.isDeleted` / `Product.isDeleted` | Soft-delete | Stored now; UI in V2 |
+| `Sale.voidedAt` / `Payment.voidedAt` etc. | Void (audit-friendly delete) | Yes, used in V1 |
+| `StockMove.unitCost` | Future profit reports | Stored now; reports in V2 |
+| `Payment.saleId` | Link payment to specific invoice | Optional in V1; required for invoicing in V2 |
+| `Setting.timezone` | Per-business TZ | Default `Asia/Karachi` in V1 |
+| All tables ready for `businessId` column | Multi-business | Additive column in V2 |

@@ -1,20 +1,36 @@
 /**
- * Sales page — placeholder.
+ * Sales list page.
  *
- * Will list recent sales + provide a "New Sale" entry point.
+ * Shows recent sales with date filter chips (Today / Week / Month / All).
+ * Each row shows customer name + total + outstanding badge.
+ * Tappable → /sales/[id]
  */
 
+import Link from "next/link";
+import { Plus } from "lucide-react";
 import { AppHeader } from "@/components/layout/AppHeader";
 import { ScreenContent } from "@/components/layout/Screen";
+import { SalesList } from "@/components/sales/SalesList";
+
+export const dynamic = "force-dynamic";
 
 export default function SalesPage() {
   return (
     <>
-      <AppHeader title="Sales" />
+      <AppHeader
+        title="Sales"
+        rightSlot={
+          <Link
+            href="/sales/new"
+            className="rounded-lg p-1.5 text-brand-600 hover:bg-brand-50"
+            aria-label="New sale"
+          >
+            <Plus className="h-5 w-5" />
+          </Link>
+        }
+      />
       <ScreenContent>
-        <p className="rounded-lg border border-dashed border-slate-300 p-6 text-center text-sm text-slate-500">
-          Sales list and entry — coming in Phase 4.
-        </p>
+        <SalesList />
       </ScreenContent>
     </>
   );

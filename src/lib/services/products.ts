@@ -105,6 +105,59 @@ export async function getProductWithStock(id: string): Promise<ProductWithStock>
   };
 }
 
+// ────────────────────────────────────────────────────────────────────────────
+// Search — used by the New Sale product picker.
+// ────────────────────────────────────────────────────────────────────────────
+
+export type ProductSearchResult = ProductView & {
+  currentStock: string;
+  isLowStock: boolean;
+};
+
+/**
+ * Search products by name OR SKU (case-insensitive contains).
+ * Returns products with their current stock so the UI can warn if
+ * the owner tries to sell more than available.
+ *
+ * - Empty/null/whitespace query → returns all products (sorted by name)
+ * - Short query (< 2 chars) → returns [] (avoids expensive LIKE scans)
+ */
+export async function searchProducts(
+  query: string | null | undefined,
+): Promise<ProductSearchResult[]> {
+  const q = (query ?? "").trim();
+
+  if (q.length > 0 && q.length < 2) {
+    return [];
+  }
+
+  const products = await prisma.product.findMany({
+    where: {
+      isDeleted: false,
+      ...(q.length > 0 && {
+        OR: [
+          { name: { contains: q } },
+          { sku: { contains: q } },
+        ],
+      }),
+    },
+    orderBy: { name: "asc" },
+    take: 50,
+  });
+
+  // Batch-compute stock for all matching products (avoids N+1).
+  const stockByProduct = await computeStockForAllProducts();
+
+  return products.map((p) => {
+    const stock = stockByProduct.get(p.id) ?? new Decimal(0);
+    return {
+      ...toView(p),
+      currentStock: stock.toString(),
+      isLowStock: stock.lte(p.lowStockThreshold),
+    };
+  });
+}
+
 /** Compute current stock for a single product. */
 export async function getProductStock(productId: string): Promise<Decimal> {
   const [product, movesAgg, soldAgg] = await Promise.all([

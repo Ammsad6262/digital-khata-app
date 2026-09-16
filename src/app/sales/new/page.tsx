@@ -1,16 +1,20 @@
 /**
- * New Sale page — placeholder.
+ * New Sale page.
  *
- * The full sale-entry form comes in a later phase. For now, this page just
- * confirms that the dashboard's quick-action button navigates correctly.
+ * Server component shell — the form is a client component using React Query.
+ *
+ * The form supports an optional ?customerId=... query param so the
+ * "New Sale" button on a customer's khata page can pre-fill the customer.
  */
 
 import Link from "next/link";
-import { ArrowLeft, ShoppingCart } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
+import { Suspense } from "react";
 import { AppHeader } from "@/components/layout/AppHeader";
 import { ScreenContent } from "@/components/layout/Screen";
-import { EmptyState } from "@/components/shared/EmptyState";
-import { Button } from "@/components/ui/Button";
+import { NewSaleForm } from "@/components/sales/NewSaleForm";
+
+export const dynamic = "force-dynamic";
 
 export default function NewSalePage() {
   return (
@@ -18,25 +22,19 @@ export default function NewSalePage() {
       <AppHeader
         title="New Sale"
         rightSlot={
-          <Link href="/dashboard" className="text-slate-500 hover:text-slate-900">
+          <Link
+            href="/sales"
+            className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100"
+            aria-label="Back"
+          >
             <ArrowLeft className="h-5 w-5" />
           </Link>
         }
       />
       <ScreenContent>
-        <EmptyState
-          title="Sale form coming soon"
-          description="The fast sale-entry screen will be built in the next phase. The dashboard and backend are ready."
-          icon={<ShoppingCart className="h-6 w-6" />}
-          action={
-            <Link href="/dashboard">
-              <Button variant="outline" size="sm">
-                <ArrowLeft className="h-4 w-4" />
-                Back to Dashboard
-              </Button>
-            </Link>
-          }
-        />
+        <Suspense fallback={null}>
+          <NewSaleForm />
+        </Suspense>
       </ScreenContent>
     </>
   );

@@ -16,6 +16,11 @@ import { prisma } from "@/lib/db/prisma";
 import { Decimal, toDecimalOrZero } from "@/lib/utils/decimal";
 import { BadRequestError, NotFoundError } from "@/lib/errors";
 import { createSaleSchema } from "@/lib/schemas/sale";
+import {
+  startOfTodayInTz,
+  startOfWeekInTz,
+  startOfMonthInTz,
+} from "@/lib/utils/date";
 import type { Prisma } from "@prisma/client";
 
 export type SaleView = {
@@ -32,10 +37,13 @@ export type SaleView = {
 };
 
 export type SaleWithItems = SaleView & {
+  customerName: string;
+  customerPhone: string;
   items: Array<{
     id: string;
     productId: string;
     productName: string;
+    productUnit: string;
     quantity: string;
     unitPrice: string;
     total: string;
@@ -57,12 +65,13 @@ function toView(s: Prisma.SaleGetPayload<{}>): SaleView {
   };
 }
 
-/** List recent sales (default: last 50, active only). */
+/** List recent sales (default: last 50, active only) — WITH items + customer info. */
 export async function listSales(limit = 50): Promise<SaleWithItems[]> {
   const sales = await prisma.sale.findMany({
     where: { voidedAt: null },
     include: {
       items: { include: { product: true } },
+      customer: true,
     },
     orderBy: { date: "desc" },
     take: limit,
@@ -70,10 +79,13 @@ export async function listSales(limit = 50): Promise<SaleWithItems[]> {
 
   return sales.map((s) => ({
     ...toView(s),
+    customerName: s.customer.name,
+    customerPhone: s.customer.phone,
     items: s.items.map((i) => ({
       id: i.id,
       productId: i.productId,
       productName: i.product.name,
+      productUnit: i.product.unit,
       quantity: i.quantity.toString(),
       unitPrice: i.unitPrice.toString(),
       total: i.total.toString(),
@@ -81,12 +93,87 @@ export async function listSales(limit = 50): Promise<SaleWithItems[]> {
   }));
 }
 
-/** Fetch one sale with items. */
+// ────────────────────────────────────────────────────────────────────────────
+// Lightweight list view (no items) — used by the Sales list page.
+// ────────────────────────────────────────────────────────────────────────────
+
+export type SaleListItem = {
+  id: string;
+  customerId: string;
+  customerName: string;
+  customerPhone: string;
+  totalAmount: string;
+  paidAmount: string;
+  outstanding: string;
+  notes: string | null;
+  date: Date;
+  voidedAt: Date | null;
+};
+
+export type SaleFilter = "today" | "week" | "month" | "all";
+
+/**
+ * List sales (without items — fast for the list view) with date filtering.
+ * Includes customer name + phone for context.
+ *
+ * Filter:
+ *   today → sales where date >= start of today (in business TZ)
+ *   week  → sales where date >= start of week (Monday, business TZ)
+ *   month → sales where date >= start of month
+ *   all   → no date filter (still excludes voided)
+ *
+ * Default limit 100 — the UI paginates / infinite-scrolls if needed.
+ */
+export async function listSalesFiltered(
+  filter: SaleFilter = "all",
+  options: {
+    customerId?: string;
+    limit?: number;
+    timezone?: string;
+  } = {},
+): Promise<SaleListItem[]> {
+  const { customerId, limit = 100, timezone = "Asia/Karachi" } = options;
+  let startDate: Date | undefined;
+
+  switch (filter) {
+    case "today": startDate = startOfTodayInTz(timezone); break;
+    case "week":  startDate = startOfWeekInTz(timezone); break;
+    case "month": startDate = startOfMonthInTz(timezone); break;
+    case "all":   startDate = undefined; break;
+  }
+
+  const sales = await prisma.sale.findMany({
+    where: {
+      voidedAt: null,
+      ...(startDate && { date: { gte: startDate } }),
+      ...(customerId && { customerId }),
+    },
+    include: { customer: true },
+    orderBy: { date: "desc" },
+    take: limit,
+  });
+
+  return sales.map((s) => ({
+    id: s.id,
+    customerId: s.customerId,
+    customerName: s.customer.name,
+    customerPhone: s.customer.phone,
+    totalAmount: s.totalAmount.toString(),
+    paidAmount: s.paidAmount.toString(),
+    outstanding: s.outstanding.toString(),
+    notes: s.notes,
+    date: s.date,
+    voidedAt: s.voidedAt,
+  }));
+}
+
+/** Fetch one sale with items + customer info. */
 export async function getSale(id: string): Promise<SaleWithItems> {
   const sale = await prisma.sale.findUnique({
     where: { id },
     include: {
       items: { include: { product: true } },
+      customer: true,
     },
   });
   if (!sale || sale.voidedAt) {
@@ -94,10 +181,13 @@ export async function getSale(id: string): Promise<SaleWithItems> {
   }
   return {
     ...toView(sale),
+    customerName: sale.customer.name,
+    customerPhone: sale.customer.phone,
     items: sale.items.map((i) => ({
       id: i.id,
       productId: i.productId,
       productName: i.product.name,
+      productUnit: i.product.unit,
       quantity: i.quantity.toString(),
       unitPrice: i.unitPrice.toString(),
       total: i.total.toString(),
@@ -233,12 +323,21 @@ export async function createSale(input: unknown): Promise<SaleWithItems> {
     return sale;
   });
 
+  // Re-fetch with customer relation for the response.
+  const withCustomer = await prisma.sale.findUniqueOrThrow({
+    where: { id: result.id },
+    include: { customer: true },
+  });
+
   return {
     ...toView(result),
+    customerName: withCustomer.customer.name,
+    customerPhone: withCustomer.customer.phone,
     items: result.items.map((i) => ({
       id: i.id,
       productId: i.productId,
       productName: i.product.name,
+      productUnit: i.product.unit,
       quantity: i.quantity.toString(),
       unitPrice: i.unitPrice.toString(),
       total: i.total.toString(),

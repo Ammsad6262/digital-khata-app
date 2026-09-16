@@ -1,17 +1,48 @@
 /**
  * /api/sales
  *
- * GET  → list recent sales (with items)
- * POST → create a sale (atomic: Sale + SaleItems + Payment + Transaction ledger)
+ * GET  /api/sales                      → recent sales (with items + customer)
+ * GET  /api/sales?filter=today|week|month|all → sales list (lightweight, no items) for the Sales page
+ * GET  /api/sales?filter=...&customerId=X → also filter by customer
+ * POST /api/sales                      → create a sale (atomic)
+ *
+ * The `?filter=` param switches to the lightweight list (no items, just customer
+ * + totals) which is faster for the list view.
  */
 
 import { NextRequest } from "next/server";
-import { listSales, createSale } from "@/lib/services/sales";
-import { ok, fail, parseJsonBody } from "@/lib/utils/api";
+import {
+  listSales,
+  listSalesFiltered,
+  createSale,
+  type SaleFilter,
+} from "@/lib/services/sales";
+import { ok, fail, parseJsonBody, getQueryParam } from "@/lib/utils/api";
 
-export async function GET() {
+const VALID_FILTERS: SaleFilter[] = ["today", "week", "month", "all"];
+
+export async function GET(req: NextRequest) {
   try {
-    const data = await listSales(50);
+    const filterRaw = getQueryParam(req, "filter");
+
+    // No filter → return the rich list (with items), recent 50.
+    if (!filterRaw) {
+      const data = await listSales(50);
+      return ok(data);
+    }
+
+    // With filter → use the lightweight listSalesFiltered (no items).
+    const filter = VALID_FILTERS.includes(filterRaw as SaleFilter)
+      ? (filterRaw as SaleFilter)
+      : "all";
+
+    const customerId = getQueryParam(req, "customerId");
+
+    const data = await listSalesFiltered(filter, {
+      customerId,
+      limit: 200,
+    });
+
     return ok(data);
   } catch (error) {
     return fail(error);

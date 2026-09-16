@@ -283,11 +283,15 @@ export async function voidPayment(id: string): Promise<{ id: string; voidedAt: D
 
     // If this payment was linked to a sale, reverse the sale's denormalized
     // paidAmount/outstanding columns so they stay consistent.
+    // IMPORTANT: recompute outstanding from totalAmount - newPaid (the source of truth),
+    // NOT by adding payment.amount back to the current outstanding. The current outstanding
+    // may have been clamped to 0 by a previous overpayment, so arithmetic reversal
+    // would produce a wrong number.
     if (payment.saleId) {
       const sale = await tx.sale.findUnique({ where: { id: payment.saleId } });
       if (sale && !sale.voidedAt) {
         const newPaid = sale.paidAmount.minus(payment.amount);
-        const newOutstanding = sale.outstanding.plus(payment.amount);
+        const newOutstanding = sale.totalAmount.minus(newPaid);
         await tx.sale.update({
           where: { id: sale.id },
           data: {

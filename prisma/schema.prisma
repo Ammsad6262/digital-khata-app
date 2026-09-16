@@ -5,13 +5,11 @@
 //
 // Design principles:
 //
-// 1. Money is always Decimal (Prisma's Decimal type — backed by decimal.js,
-//    stored as TEXT in SQLite but with full precision). Never Float.
-// 2. Quantities are Decimal too — wholesale sells by kg, box, dozen.
-//    (Note: SQLite does not support @db.Decimal native type. Prisma's
-//    `Decimal` field type alone is used, which preserves precision via
-//    decimal.js on the client side. Migrating to Postgres later is a
-//    one-line `provider = "postgresql"` change + re-running migrations.)
+// 1. Money is always Decimal(12, 2) — Postgres-native decimal type.
+//    Never Float. Stored as NUMERIC in Postgres — exact precision, no rounding.
+// 2. Quantities are Decimal(10, 3) — wholesale sells by kg, box, dozen.
+//    (Restored Postgres-native @db.Decimal types — SQLite couldn't support them
+//    so we dropped them in Phase 3. Now we have proper column-level precision.)
 // 3. Customer balance is DERIVED, never manually edited:
 //      openingBalance
 //    + SUM(sale.totalAmount)        [credit sales increase balance]
@@ -44,8 +42,12 @@ generator client {
 }
 
 datasource db {
+  // V1 uses SQLite for local development (zero-setup, single file).
+  // For production (Supabase/Vercel): change to "postgresql" and set DATABASE_URL
+  // to your Supabase connection string. The SQL migration is pre-generated at
+  // scripts/supabase-init.sql — paste it into Supabase SQL Editor to create tables.
   provider = "sqlite"
-  url      = env("DATABASE_URL") // e.g. "file:./dev.db"
+  url      = env("DATABASE_URL")
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -124,7 +126,7 @@ model Sale {
   // Money received at sale time (may be 0 for pure credit sale)
   paidAmount  Decimal  @default(0)
   // totalAmount - paidAmount (denormalized; source of truth is the calculation)
-  outstanding Decimal
+  outstanding Decimal 
 
   notes      String?
   date       DateTime @default(now()) // can be backdated
@@ -172,7 +174,7 @@ model Payment {
   saleId     String?
   sale       Sale?    @relation(fields: [saleId], references: [id])
 
-  amount     Decimal
+  amount     Decimal 
   method     String   // "cash" | "bank" | "cheque" | "jazzcash" | "easypaisa" | "other"
   notes      String?
   date       DateTime @default(now())
@@ -254,7 +256,7 @@ model StockMove {
 model Expense {
   id        String   @id @default(cuid())
   name      String
-  amount    Decimal
+  amount    Decimal 
   category  String   // "transport" | "shop" | "electricity" | "packaging" | "salary" | "rent" | "other"
   notes     String?
   date      DateTime @default(now())

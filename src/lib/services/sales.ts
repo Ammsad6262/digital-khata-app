@@ -1,0 +1,288 @@
+/**
+ * Sale service layer.
+ *
+ * Recording a sale touches up to 4 tables:
+ *   1. Sale        (the invoice header)
+ *   2. SaleItem    (one row per product — implicit stock decrement)
+ *   3. Payment     (only if paidAmount > 0)
+ *   4. Transaction (denormalized ledger mirror — 1 or 2 rows)
+ *
+ * All wrapped in prisma.$transaction — if any step fails, everything rolls back.
+ * Stock reduction is implicit: SaleItem rows ARE the stock decrement, so
+ * voiding a sale (sets voidedAt) automatically restores stock.
+ */
+
+import { prisma } from "@/lib/db/prisma";
+import { Decimal, toDecimalOrZero } from "@/lib/utils/decimal";
+import { BadRequestError, NotFoundError } from "@/lib/errors";
+import { createSaleSchema } from "@/lib/schemas/sale";
+import type { Prisma } from "@prisma/client";
+
+export type SaleView = {
+  id: string;
+  customerId: string;
+  totalAmount: string;
+  paidAmount: string;
+  outstanding: string;
+  notes: string | null;
+  date: Date;
+  voidedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type SaleWithItems = SaleView & {
+  items: Array<{
+    id: string;
+    productId: string;
+    productName: string;
+    quantity: string;
+    unitPrice: string;
+    total: string;
+  }>;
+};
+
+function toView(s: Prisma.SaleGetPayload<{}>): SaleView {
+  return {
+    id: s.id,
+    customerId: s.customerId,
+    totalAmount: s.totalAmount.toString(),
+    paidAmount: s.paidAmount.toString(),
+    outstanding: s.outstanding.toString(),
+    notes: s.notes,
+    date: s.date,
+    voidedAt: s.voidedAt,
+    createdAt: s.createdAt,
+    updatedAt: s.updatedAt,
+  };
+}
+
+/** List recent sales (default: last 50, active only). */
+export async function listSales(limit = 50): Promise<SaleWithItems[]> {
+  const sales = await prisma.sale.findMany({
+    where: { voidedAt: null },
+    include: {
+      items: { include: { product: true } },
+    },
+    orderBy: { date: "desc" },
+    take: limit,
+  });
+
+  return sales.map((s) => ({
+    ...toView(s),
+    items: s.items.map((i) => ({
+      id: i.id,
+      productId: i.productId,
+      productName: i.product.name,
+      quantity: i.quantity.toString(),
+      unitPrice: i.unitPrice.toString(),
+      total: i.total.toString(),
+    })),
+  }));
+}
+
+/** Fetch one sale with items. */
+export async function getSale(id: string): Promise<SaleWithItems> {
+  const sale = await prisma.sale.findUnique({
+    where: { id },
+    include: {
+      items: { include: { product: true } },
+    },
+  });
+  if (!sale || sale.voidedAt) {
+    throw new NotFoundError("Sale", id);
+  }
+  return {
+    ...toView(sale),
+    items: sale.items.map((i) => ({
+      id: i.id,
+      productId: i.productId,
+      productName: i.product.name,
+      quantity: i.quantity.toString(),
+      unitPrice: i.unitPrice.toString(),
+      total: i.total.toString(),
+    })),
+  };
+}
+
+/**
+ * Create a sale — the critical multi-table atomic operation.
+ *
+ * Steps:
+ *  1. Validate customer exists
+ *  2. Validate all products exist
+ *  3. Compute totals (per-item total, totalAmount, outstanding)
+ *  4. Verify paidAmount <= totalAmount
+ *  5. Create Sale + nested SaleItems (atomic in prisma.$transaction)
+ *  6. If paidAmount > 0, create a Payment row linked to the sale
+ *  7. Write 1-2 Transaction ledger rows (sale + optional payment)
+ *
+ *  Stock is automatically reduced because SaleItem rows exist.
+ *  No separate StockMove is needed.
+ */
+export async function createSale(input: unknown): Promise<SaleWithItems> {
+  const data = createSaleSchema.parse(input);
+
+  const result = await prisma.$transaction(async (tx) => {
+    // 1. Validate customer exists
+    const customer = await tx.customer.findUnique({
+      where: { id: data.customerId, isDeleted: false },
+    });
+    if (!customer) {
+      throw new NotFoundError("Customer", data.customerId);
+    }
+
+    // 2. Validate all products exist
+    const productIds = data.items.map((i) => i.productId);
+    const products = await tx.product.findMany({
+      where: { id: { in: productIds }, isDeleted: false },
+    });
+    if (products.length !== productIds.length) {
+      const foundIds = new Set(products.map((p) => p.id));
+      const missing = productIds.filter((id) => !foundIds.has(id));
+      throw new NotFoundError("Product", missing[0]);
+    }
+
+    // 3. Compute totals using Decimal (no float math for money)
+    const items = data.items.map((i) => ({
+      productId: i.productId,
+      quantity: new Decimal(i.quantity),
+      unitPrice: new Decimal(i.unitPrice),
+      total: new Decimal(i.quantity).times(new Decimal(i.unitPrice)),
+    }));
+    const totalAmount = items.reduce(
+      (sum, i) => sum.plus(i.total),
+      new Decimal(0),
+    );
+    const paidAmount = new Decimal(data.paidAmount);
+
+    // 4. Verify paidAmount <= totalAmount
+    if (paidAmount.gt(totalAmount)) {
+      throw new BadRequestError(
+        `Paid amount (${paidAmount}) cannot exceed sale total (${totalAmount}).`,
+      );
+    }
+
+    const outstanding = totalAmount.minus(paidAmount);
+    const saleDate = data.date ? new Date(data.date) : new Date();
+
+    // 5. Create Sale + nested SaleItems in one call
+    const sale = await tx.sale.create({
+      data: {
+        customerId: data.customerId,
+        totalAmount,
+        paidAmount,
+        outstanding,
+        notes: data.notes ?? null,
+        date: saleDate,
+        items: {
+          create: items.map((i) => ({
+            productId: i.productId,
+            quantity: i.quantity,
+            unitPrice: i.unitPrice,
+            total: i.total,
+          })),
+        },
+      },
+      include: { items: { include: { product: true } } },
+    });
+
+    // 6. If money was paid at sale time, create a linked Payment
+    let paymentId: string | null = null;
+    if (paidAmount.gt(0)) {
+      const payment = await tx.payment.create({
+        data: {
+          customerId: data.customerId,
+          saleId: sale.id,
+          amount: paidAmount,
+          method: data.paymentMethod ?? "cash",
+          date: saleDate,
+        },
+      });
+      paymentId = payment.id;
+    }
+
+    // 7. Write Transaction ledger rows
+    await tx.transaction.create({
+      data: {
+        type: "sale",
+        refType: "Sale",
+        refId: sale.id,
+        customerId: data.customerId,
+        amount: totalAmount,
+        direction: "debit", // increases customer balance
+        date: saleDate,
+        notes: `Sale ${sale.id}`,
+      },
+    });
+
+    if (paymentId) {
+      await tx.transaction.create({
+        data: {
+          type: "payment",
+          refType: "Payment",
+          refId: paymentId,
+          customerId: data.customerId,
+          amount: paidAmount,
+          direction: "credit", // decreases customer balance
+          date: saleDate,
+        },
+      });
+    }
+
+    return sale;
+  });
+
+  return {
+    ...toView(result),
+    items: result.items.map((i) => ({
+      id: i.id,
+      productId: i.productId,
+      productName: i.product.name,
+      quantity: i.quantity.toString(),
+      unitPrice: i.unitPrice.toString(),
+      total: i.total.toString(),
+    })),
+  };
+}
+
+/**
+ * Void a sale (preferred over deleting). Sets voidedAt on:
+ *   - the Sale
+ *   - any Payments explicitly linked to that sale
+ *
+ * After voiding:
+ *   - sale.totalAmount excluded from customer balance → balance drops by totalAmount
+ *   - linked payments excluded from customer balance → balance rises by paidAmount
+ *   - SaleItem rows excluded from stock calc → stock restored
+ *
+ * Net effect on customer balance: (paidAmount - totalAmount).
+ */
+export async function voidSale(id: string): Promise<{ id: string; voidedAt: Date }> {
+  return await prisma.$transaction(async (tx) => {
+    const sale = await tx.sale.findUnique({
+      where: { id },
+      include: { payments: { where: { voidedAt: null } } },
+    });
+    if (!sale) throw new NotFoundError("Sale", id);
+    if (sale.voidedAt) {
+      throw new BadRequestError("Sale is already voided.");
+    }
+
+    const now = new Date();
+
+    await tx.sale.update({
+      where: { id },
+      data: { voidedAt: now },
+    });
+
+    if (sale.payments.length > 0) {
+      await tx.payment.updateMany({
+        where: { saleId: id, voidedAt: null },
+        data: { voidedAt: now },
+      });
+    }
+
+    return { id, voidedAt: now };
+  });
+}

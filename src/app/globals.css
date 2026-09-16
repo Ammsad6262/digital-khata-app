@@ -1,0 +1,53 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --font-sans: "Inter", system-ui, -apple-system, BlinkMacSystemFont,
+      "Segoe UI", Roboto, sans-serif;
+  }
+
+  html,
+  body {
+    @apply bg-slate-100 text-slate-900 antialiased;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Prevent iOS zoom-on-focus by enforcing 16px font on inputs */
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+
+  /* Larger touch targets on mobile */
+  button,
+  a {
+    @apply select-none;
+    touch-action: manipulation;
+  }
+}
+
+@layer components {
+  /* Mobile-first app shell: constrain content to phone width on larger screens */
+  .app-shell {
+    @apply mx-auto flex min-h-[100dvh] w-full max-w-app flex-col bg-slate-50 shadow-sm;
+  }
+
+  .app-content {
+    /* Leave space for the fixed bottom nav (64px + safe-area-inset-bottom) */
+    @apply flex-1 px-4 pb-24 pt-4;
+    padding-bottom: calc(6rem + env(safe-area-inset-bottom));
+  }
+
+  /* Card primitive — used everywhere for grouped content */
+  .card {
+    @apply rounded-xl border border-slate-200 bg-white p-4 shadow-sm;
+  }
+
+  /* Stat card — for dashboard */
+  .stat-card {
+    @apply card flex flex-col gap-1;
+  }
+}

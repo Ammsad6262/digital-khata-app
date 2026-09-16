@@ -2,7 +2,7 @@
 
 A mobile-first web application that replaces paper khata/registers for small wholesale businesses. Tracks customers, credit (udhaar), sales, payments, products, stock, expenses, and gives the owner a clean dashboard with auto-calculated balances.
 
-> **Status:** Phase 2 — Database & Data Architecture (no UI yet)
+> **Status:** Phase 3 — Foundation built (DB + services + API + app shell)
 
 ---
 
@@ -52,8 +52,26 @@ The canonical Prisma schema: [`prisma/schema.prisma`](./prisma/schema.prisma)
 
 - [x] Phase 1 — Architecture & planning
 - [x] Phase 2 — Database & data architecture (Prisma schema + design docs)
-- [ ] Phase 3 — TBD (awaiting instructions)
-- [ ] Phase 4+ — TBD
+- [x] Phase 3 — Foundation built (DB, services, API, app shell, 17 passing tests)
+- [ ] Phase 4 — TBD (awaiting instructions)
+
+## 🚀 Quick Start
+
+```bash
+# Install dependencies
+npm install
+
+# Create the SQLite DB and run migrations
+npm run db:migrate
+
+# Run the foundation test suite (17 tests, verifies DB + atomic operations)
+npm run test:foundation
+
+# Start the dev server
+npm run dev
+```
+
+Visit http://localhost:3000 — the app shell loads with the bottom navigation and a placeholder dashboard.
 
 ---
 

@@ -1,9 +1,17 @@
 /**
  * /api/customers
  *
- * GET    /api/customers           → list customers (active only)
+ * GET    /api/customers              → list ALL customers (without balance) — fast
+ * GET    /api/customers?withBalances=1 → list ALL customers WITH current balance
+ * GET    /api/customers?q=<query>    → search by name OR phone (with balance)
  * GET    /api/customers?outstanding=1 → list customers who owe money, sorted by balance
- * POST   /api/customers           → create a customer
+ * POST   /api/customers              → create a customer
+ *
+ * Note on performance:
+ *   - `?withBalances=1` computes balances for every customer (N+1-ish, runs 3
+ *     aggregates per customer in parallel). For V1 with hundreds of customers
+ *     this is fine. For V2 scale we'll denormalize into a CustomerBalance view.
+ *   - Search uses Prisma's `contains` (LIKE %q%) on name + phone.
  */
 
 import { NextRequest } from "next/server";
@@ -11,19 +19,35 @@ import {
   listCustomers,
   listOutstandingCustomers,
   createCustomer,
+  searchCustomers,
+  listAllCustomersWithBalance,
 } from "@/lib/services/customers";
-import { ok, fail, parseJsonBody } from "@/lib/utils/api";
+import { ok, fail, parseJsonBody, getQueryParam } from "@/lib/utils/api";
 
 export async function GET(req: NextRequest) {
   try {
     const url = new URL(req.url);
+    const queryParam = getQueryParam(req, "q");
+    const withBalances = url.searchParams.get("withBalances") === "1";
     const outstandingOnly = url.searchParams.get("outstanding") === "1";
+
+    // Search takes precedence (and always returns balances).
+    if (queryParam !== undefined && queryParam !== null) {
+      const data = await searchCustomers(queryParam);
+      return ok(data);
+    }
 
     if (outstandingOnly) {
       const data = await listOutstandingCustomers();
       return ok(data);
     }
 
+    if (withBalances) {
+      const data = await listAllCustomersWithBalance();
+      return ok(data);
+    }
+
+    // Default: list customers without balance (fastest path).
     const data = await listCustomers();
     return ok(data);
   } catch (error) {

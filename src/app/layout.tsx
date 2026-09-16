@@ -13,6 +13,7 @@ import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { QueryProvider } from "@/providers/query-provider";
+import { ToastProvider } from "@/providers/toast-provider";
 import { Screen } from "@/components/layout/Screen";
 import { BottomNav } from "@/components/layout/BottomNav";
 
@@ -44,10 +45,12 @@ export default function RootLayout({
     <html lang="en" className={inter.variable}>
       <body>
         <QueryProvider>
-          <Screen>
-            {children}
-            <BottomNav />
-          </Screen>
+          <ToastProvider>
+            <Screen>
+              {children}
+              <BottomNav />
+            </Screen>
+          </ToastProvider>
         </QueryProvider>
       </body>
     </html>

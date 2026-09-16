@@ -1,24 +1,33 @@
 /**
- * Transactions page — placeholder.
+ * Transactions page (/more/transactions).
  *
- * Will show the full transaction history with filters (today/week/month/all).
+ * The unified Transaction History screen.
+ *
+ * Shows all financial movements across the business:
+ *   - Sales, payments, expenses, stock moves, balance adjustments
+ *
+ * Filters:
+ *   - Date range: Today / This Week / This Month / All / Custom
+ *   - Type: All / Sales / Payments / Expenses / Stock / Adjustments
+ *
+ * Each row is tappable and navigates to the appropriate detail page
+ * (sale detail, payment detail, expense detail, product detail, customer khata).
+ *
+ * Mobile-first: filter chips scroll horizontally, rows are compact.
  */
 
 import { AppHeader } from "@/components/layout/AppHeader";
 import { ScreenContent } from "@/components/layout/Screen";
-import { EmptyState } from "@/components/shared/EmptyState";
-import { Receipt } from "lucide-react";
+import { TransactionsList } from "@/components/transactions/TransactionsList";
+
+export const dynamic = "force-dynamic";
 
 export default function TransactionsPage() {
   return (
     <>
       <AppHeader title="Transactions" />
       <ScreenContent>
-        <EmptyState
-          title="Transaction history coming soon"
-          description="The full transaction feed with date filters will be built in a later phase."
-          icon={<Receipt className="h-6 w-6" />}
-        />
+        <TransactionsList />
       </ScreenContent>
     </>
   );

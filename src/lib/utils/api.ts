@@ -80,15 +80,21 @@ export function fail(error: unknown): NextResponse<ApiError> {
   );
 }
 
-/** Parse a JSON body safely. Returns null on parse failure. */
+/** Maximum request body size (1 MB). Prevents DoS via huge payloads. */
+const MAX_BODY_SIZE = 1024 * 1024;
+
+/** Parse a JSON body safely. Returns null on parse failure. Rejects bodies > 1MB. */
 export async function parseJsonBody<T>(
   req: Request,
 ): Promise<{ data: T | null; error: string | null }> {
   try {
     const text = await req.text();
     if (!text) return { data: null, error: null };
+    if (text.length > MAX_BODY_SIZE) {
+      return { data: null, error: `Request body too large (max ${MAX_BODY_SIZE / 1024}KB).` };
+    }
     return { data: JSON.parse(text) as T, error: null };
-  } catch (e) {
+  } catch {
     return { data: null, error: "Invalid JSON body." };
   }
 }

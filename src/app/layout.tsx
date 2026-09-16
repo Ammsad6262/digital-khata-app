@@ -18,6 +18,7 @@ import "./globals.css";
 import { QueryProvider } from "@/providers/query-provider";
 import { ToastProvider } from "@/providers/toast-provider";
 import { ThemeProvider } from "@/providers/theme-provider";
+import { AuthGate } from "@/providers/auth-gate";
 import { Screen } from "@/components/layout/Screen";
 import { BottomNav } from "@/components/layout/BottomNav";
 
@@ -67,10 +68,12 @@ export default function RootLayout({
         <ThemeProvider>
           <QueryProvider>
             <ToastProvider>
-              <Screen>
-                {children}
-                <BottomNav />
-              </Screen>
+              <AuthGate>
+                <Screen>
+                  {children}
+                  <BottomNav />
+                </Screen>
+              </AuthGate>
             </ToastProvider>
           </QueryProvider>
         </ThemeProvider>

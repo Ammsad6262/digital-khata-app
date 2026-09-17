@@ -32,7 +32,7 @@ const PUBLIC_ROUTES = [
   "/api/health",
 ];
 
-export async function middleware(req: NextRequest) {
+export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   // Only protect /api/* routes (not page routes — those show error states on 401)

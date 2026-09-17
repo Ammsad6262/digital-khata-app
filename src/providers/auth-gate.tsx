@@ -9,6 +9,9 @@
  *   3. If !unlocked && hasPin → show PinUnlockScreen
  *   4. If !unlocked && !hasPin → auto-unlock by calling POST /api/auth/unlock
  *      then set status to unlocked WITHOUT reloading (prevents infinite loop)
+ *
+ * If any step fails, shows the ACTUAL error message from the server
+ * (not just "Network error") so we can debug connection issues.
  */
 
 import { useEffect, useState, type ReactNode } from "react";
@@ -31,11 +34,25 @@ export function AuthGate({ children }: { children: ReactNode }) {
       try {
         // 1. Check if we need a PIN
         const statusRes = await fetch("/api/auth/status", { cache: "no-store" });
+
+        if (!statusRes.ok) {
+          // Try to read the error from the response body
+          let errorMsg = `Server returned ${statusRes.status} ${statusRes.statusText}`;
+          try {
+            const errorJson = await statusRes.json();
+            if (errorJson?.error?.message) {
+              errorMsg = errorJson.error.message;
+            }
+          } catch {}
+          if (mounted) setError(errorMsg);
+          return;
+        }
+
         const statusJson = await statusRes.json();
         if (!mounted) return;
 
         if (!statusJson.ok) {
-          setError("Failed to check auth status.");
+          setError(statusJson.error?.message || "Failed to check auth status.");
           return;
         }
 
@@ -48,21 +65,36 @@ export function AuthGate({ children }: { children: ReactNode }) {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ pin: "" }),
           });
-          const unlockJson = await unlockRes.json();
-          if (mounted && unlockJson.ok) {
-            // DON'T reload — just update state to unlocked
-            // This prevents the infinite reload loop
-            setStatus({ hasPin: false, unlocked: true, businessName: s.businessName });
+
+          if (!mounted) return;
+
+          if (unlockRes.ok) {
+            const unlockJson = await unlockRes.json();
+            if (unlockJson.ok) {
+              setStatus({ hasPin: false, unlocked: true, businessName: s.businessName });
+              return;
+            }
+            setError(unlockJson.error?.message || "Auto-unlock failed.");
             return;
           }
-          // If unlock failed, show the status as-is (will show PIN screen if hasPin)
-          setStatus(s);
+
+          // Show the actual server error
+          let errorMsg = `Unlock failed (${unlockRes.status})`;
+          try {
+            const errorJson = await unlockRes.json();
+            if (errorJson?.error?.message) errorMsg = errorJson.error.message;
+          } catch {}
+          setError(errorMsg);
           return;
         }
 
         setStatus(s);
-      } catch {
-        if (mounted) setError("Network error — can't reach server.");
+      } catch (err) {
+        if (mounted) {
+          // Show the ACTUAL error, not just "Network error"
+          const msg = err instanceof Error ? err.message : String(err);
+          setError(`Connection error: ${msg}`);
+        }
       }
     }
 
@@ -83,8 +115,12 @@ export function AuthGate({ children }: { children: ReactNode }) {
   if (error) {
     return (
       <div className="flex min-h-[100dvh] items-center justify-center bg-slate-50 p-6">
-        <div className="text-center">
+        <div className="max-w-sm text-center">
           <p className="text-sm font-medium text-slate-900">{error}</p>
+          <p className="mt-2 text-xs text-slate-500">
+            If this is a database error, check that DATABASE_URL is set correctly
+            in Vercel Environment Variables.
+          </p>
           <button
             type="button"
             onClick={() => window.location.reload()}
@@ -108,7 +144,6 @@ export function AuthGate({ children }: { children: ReactNode }) {
       hasPin={status!.hasPin}
       businessName={status!.businessName}
       onUnlocked={() => {
-        // Update state directly instead of reloading
         setStatus((prev) => prev ? { ...prev, unlocked: true } : null);
       }}
     />

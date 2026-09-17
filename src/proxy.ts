@@ -1,5 +1,8 @@
 /**
- * Next.js middleware — enforces session auth on all /api/* routes.
+ * Next.js proxy (formerly middleware) — enforces session auth on all /api/* routes.
+ *
+ * In Next.js 16, the "middleware" convention was renamed to "proxy".
+ * This file was previously called middleware.ts.
  *
  * Whitelist (no session required):
  *   - /api/auth/*     (unlock, lock, status — needed to GET a session)

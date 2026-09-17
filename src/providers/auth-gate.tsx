@@ -6,10 +6,9 @@
  * Flow:
  *   1. On mount, calls GET /api/auth/status
  *   2. If unlocked → render children (the app)
- *   3. If !unlocked → show PinUnlockScreen
- *
- * The PinUnlockScreen handles the PIN entry + POST /api/auth/unlock flow.
- * On successful unlock, the page reloads to pick up the new session cookie.
+ *   3. If !unlocked && hasPin → show PinUnlockScreen
+ *   4. If !unlocked && !hasPin → auto-unlock by calling POST /api/auth/unlock
+ *      then set status to unlocked WITHOUT reloading (prevents infinite loop)
  */
 
 import { useEffect, useState, type ReactNode } from "react";
@@ -41,9 +40,8 @@ export function AuthGate({ children }: { children: ReactNode }) {
         }
 
         const s = statusJson.data as AuthStatus;
-        setStatus(s);
 
-        // 2. If no PIN is set, auto-unlock (the app is unprotected by user's choice)
+        // 2. If no PIN is set and not unlocked, auto-unlock
         if (!s.hasPin && !s.unlocked) {
           const unlockRes = await fetch("/api/auth/unlock", {
             method: "POST",
@@ -52,10 +50,17 @@ export function AuthGate({ children }: { children: ReactNode }) {
           });
           const unlockJson = await unlockRes.json();
           if (mounted && unlockJson.ok) {
-            // Reload to pick up the session cookie
-            window.location.reload();
+            // DON'T reload — just update state to unlocked
+            // This prevents the infinite reload loop
+            setStatus({ hasPin: false, unlocked: true, businessName: s.businessName });
+            return;
           }
+          // If unlock failed, show the status as-is (will show PIN screen if hasPin)
+          setStatus(s);
+          return;
         }
+
+        setStatus(s);
       } catch {
         if (mounted) setError("Network error — can't reach server.");
       }
@@ -103,8 +108,8 @@ export function AuthGate({ children }: { children: ReactNode }) {
       hasPin={status!.hasPin}
       businessName={status!.businessName}
       onUnlocked={() => {
-        // Reload the page to pick up the session cookie
-        window.location.reload();
+        // Update state directly instead of reloading
+        setStatus((prev) => prev ? { ...prev, unlocked: true } : null);
       }}
     />
   );

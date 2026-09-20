@@ -39,9 +39,42 @@ interface ApiFailure {
 
 type ApiResponse<T> = ApiSuccess<T> | ApiFailure;
 
+/** Client-side request timeout (15 seconds). Prevents hanging if the server
+ *  is slow/unreachable. The circuit breaker on the server side handles DB
+ *  timeouts, but network latency between browser ↔ Vercel needs this. */
+const REQUEST_TIMEOUT_MS = 15_000;
+
+/** Fetch wrapper with AbortController timeout. */
+async function fetchWithTimeout(
+  path: string,
+  options: RequestInit = {},
+): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+  try {
+    const res = await fetch(path, {
+      ...options,
+      signal: controller.signal,
+    });
+    return res;
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") {
+      throw new ApiError(
+        `Request timed out after ${REQUEST_TIMEOUT_MS / 1000}s. Please retry.`,
+        "TIMEOUT",
+        408,
+      );
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
 /** GET with typed response. */
 export async function apiGet<T>(path: string): Promise<T> {
-  const res = await fetch(path, {
+  const res = await fetchWithTimeout(path, {
     headers: { Accept: "application/json" },
     cache: "no-store",
   });
@@ -53,7 +86,7 @@ export async function apiPost<T>(
   path: string,
   body: unknown,
 ): Promise<T> {
-  const res = await fetch(path, {
+  const res = await fetchWithTimeout(path, {
     method: "POST",
     headers: {
       Accept: "application/json",
@@ -69,7 +102,7 @@ export async function apiPatch<T>(
   path: string,
   body: unknown,
 ): Promise<T> {
-  const res = await fetch(path, {
+  const res = await fetchWithTimeout(path, {
     method: "PATCH",
     headers: {
       Accept: "application/json",
@@ -85,7 +118,7 @@ export async function apiDelete<T>(
   path: string,
   body?: unknown,
 ): Promise<T> {
-  const res = await fetch(path, {
+  const res = await fetchWithTimeout(path, {
     method: "DELETE",
     headers: {
       Accept: "application/json",

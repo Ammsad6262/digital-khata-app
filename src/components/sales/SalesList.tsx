@@ -23,17 +23,19 @@ import { Decimal } from "@/lib/utils/decimal";
 import { formatDate, formatTime } from "@/lib/utils/date";
 import { formatMoney } from "@/lib/utils/money";
 import { cn } from "@/lib/utils/cn";
+import { useLanguage } from "@/providers/language-provider";
 
-const FILTERS: Array<{ value: SaleFilter; label: string }> = [
-  { value: "today", label: "Today" },
-  { value: "week", label: "This Week" },
-  { value: "month", label: "This Month" },
-  { value: "all", label: "All" },
+const FILTERS: Array<{ value: SaleFilter; labelKey: "transactions.today" | "transactions.thisWeek" | "transactions.thisMonth" | "transactions.all" }> = [
+  { value: "today", labelKey: "transactions.today" },
+  { value: "week", labelKey: "transactions.thisWeek" },
+  { value: "month", labelKey: "transactions.thisMonth" },
+  { value: "all", labelKey: "transactions.all" },
 ];
 
 export function SalesList() {
   const [filter, setFilter] = useState<SaleFilter>("today");
   const { data, isLoading, isError, error, refetch } = useSalesList(filter);
+  const { t } = useLanguage();
 
   // Compute summary stats for the selected filter.
   const summary = (() => {
@@ -63,7 +65,7 @@ export function SalesList() {
                 : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50",
             )}
           >
-            {f.label}
+            {t(f.labelKey)}
           </button>
         ))}
       </div>
@@ -73,15 +75,15 @@ export function SalesList() {
         <div className="rounded-xl border border-slate-200 bg-white p-3">
           <div className="flex items-center justify-between text-xs">
             <span className="text-slate-500">
-              {summary.count} {summary.count === 1 ? "sale" : "sales"}
+              {summary.count} {t("transactions.sales")}
             </span>
             <span className="font-medium text-slate-700">
-              Total: <Money value={summary.total.toString()} />
+              {t("expense.total")} <Money value={summary.total.toString()} />
             </span>
           </div>
           {summary.outstanding.gt(0) ? (
             <div className="mt-1 flex items-center justify-between border-t border-slate-100 pt-1 text-xs">
-              <span className="text-slate-500">Outstanding</span>
+              <span className="text-slate-500">{t("customer.outstandingBalance")}</span>
               <span className="font-medium text-red-600">
                 <Money value={summary.outstanding.toString()} />
               </span>
@@ -95,29 +97,29 @@ export function SalesList() {
         <SalesListSkeleton />
       ) : isError ? (
         <EmptyState
-          title="Couldn't load sales"
-          description={error instanceof Error ? error.message : "Something went wrong."}
+          title={t("common.couldntLoad")}
+          description={error instanceof Error ? error.message : t("common.networkError")}
           icon={<AlertCircle className="h-6 w-6" />}
           action={
             <Button onClick={() => refetch()} variant="outline" size="sm">
-              Retry
+              {t("common.retry")}
             </Button>
           }
         />
       ) : !data || data.length === 0 ? (
         <EmptyState
-          title={`No sales ${filter === "all" ? "yet" : "in this period"}`}
+          title={filter === "all" ? t("sale.noSales") : t("sale.noSalesPeriod")}
           description={
             filter === "all"
-              ? "Record your first sale using the + button above. Sales automatically update customer balances and stock."
-              : "Try a different time range, or record a new sale."
+              ? t("sale.noSalesDesc")
+              : t("sale.noSalesPeriodDesc")
           }
           icon={<ShoppingCart className="h-6 w-6" />}
           action={
             <Link href="/sales/new">
               <Button size="sm">
                 <ShoppingCart className="h-4 w-4" />
-                New Sale
+                {t("action.newSale")}
               </Button>
             </Link>
           }
@@ -149,6 +151,7 @@ function SaleRow({
   };
   isFirst: boolean;
 }) {
+  const { t } = useLanguage();
   const outstanding = new Decimal(sale.outstanding);
   const hasOutstanding = outstanding.gt(0);
 
@@ -179,10 +182,10 @@ function SaleRow({
         </p>
         {hasOutstanding ? (
           <p className="text-[11px] font-medium text-red-600">
-            <Money value={outstanding.toString()} /> due
+            <Money value={outstanding.toString()} /> {t("sale.due")}
           </p>
         ) : (
-          <p className="text-[11px] font-medium text-brand-600">Paid</p>
+          <p className="text-[11px] font-medium text-brand-600">{t("sale.paid")}</p>
         )}
       </div>
     </Link>

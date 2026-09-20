@@ -1,3 +1,5 @@
+"use client";
+
 /**
  * Sale detail page.
  *
@@ -8,6 +10,7 @@
 import { AppHeader } from "@/components/layout/AppHeader";
 import { ScreenContent } from "@/components/layout/Screen";
 import { SaleDetail } from "@/components/sales/SaleDetail";
+import { useLanguage } from "@/providers/language-provider";
 
 export const dynamic = "force-dynamic";
 
@@ -16,9 +19,10 @@ export default function SaleDetailPage({
 }: {
   params: { id: string };
 }) {
+  const { t } = useLanguage();
   return (
     <>
-      <AppHeader title="Sale Detail" />
+      <AppHeader title={t("sale.saleDetail")} />
       <ScreenContent>
         <SaleDetail saleId={params.id} />
       </ScreenContent>

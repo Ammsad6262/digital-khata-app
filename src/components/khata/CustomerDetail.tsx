@@ -35,9 +35,11 @@ import type {
   CustomerTransaction,
 } from "@/lib/services/customers";
 import { cn } from "@/lib/utils/cn";
+import { useLanguage } from "@/providers/language-provider";
 
 export function CustomerDetail({ customerId }: { customerId: string }) {
   const { data, isLoading, isError, error, refetch } = useCustomerHistory(customerId);
+  const { t } = useLanguage();
 
   if (isLoading) {
     return <CustomerDetailSkeleton />;
@@ -46,16 +48,16 @@ export function CustomerDetail({ customerId }: { customerId: string }) {
   if (isError) {
     return (
       <EmptyState
-        title="Couldn't load customer"
+        title={t("customer.couldntLoadCustomer")}
         description={
           error instanceof Error
             ? error.message
-            : "Something went wrong."
+            : t("common.networkError")
         }
         icon={<AlertCircle className="h-6 w-6" />}
         action={
           <Button onClick={() => refetch()} variant="outline" size="sm">
-            Retry
+            {t("common.retry")}
           </Button>
         }
       />
@@ -65,14 +67,14 @@ export function CustomerDetail({ customerId }: { customerId: string }) {
   if (!data) {
     return (
       <EmptyState
-        title="Customer not found"
-        description="This customer may have been deleted."
+        title={t("customer.notFound")}
+        description={t("customer.notFoundDesc")}
         icon={<AlertCircle className="h-6 w-6" />}
         action={
           <Link href="/khata">
             <Button variant="outline" size="sm">
               <ArrowLeft className="h-4 w-4" />
-              Back to Khata
+              {t("common.back")}
             </Button>
           </Link>
         }
@@ -98,7 +100,7 @@ export function CustomerDetail({ customerId }: { customerId: string }) {
           )}
         >
           <p className="text-xs font-medium uppercase tracking-wider opacity-80">
-            {isOwed ? "Outstanding balance" : currentBalance.lt(0) ? "Advance payment" : "Settled"}
+            {isOwed ? t("customer.outstandingBalance") : currentBalance.lt(0) ? t("customer.advancePayment") : t("customer.settled")}
           </p>
           <p className="mt-1 text-3xl font-bold tracking-tight">
             <Money value={currentBalance.abs().toString()} />
@@ -137,19 +139,19 @@ export function CustomerDetail({ customerId }: { customerId: string }) {
       {/* Balance summary — 3 stat tiles */}
       <div className="grid grid-cols-3 gap-2">
         <SummaryTile
-          label="Purchases"
+          label={t("customer.purchases")}
           value={customer.totalPurchases}
           icon={<TrendingUp className="h-3 w-3" />}
           tone="red"
         />
         <SummaryTile
-          label="Payments"
+          label={t("customer.payments")}
           value={customer.totalPayments}
           icon={<TrendingDown className="h-3 w-3" />}
           tone="green"
         />
         <SummaryTile
-          label="Opening"
+          label={t("customer.opening")}
           value={customer.openingBalance}
           icon={<Scale className="h-3 w-3" />}
           tone="slate"
@@ -161,13 +163,13 @@ export function CustomerDetail({ customerId }: { customerId: string }) {
         <Link href={`/sales/new?customerId=${customer.id}`}>
           <Button className="w-full" variant="primary" size="md">
             <ShoppingCart className="h-4 w-4" />
-            New Sale
+            {t("action.newSale")}
           </Button>
         </Link>
         <Link href={`/payments/new?customerId=${customer.id}`}>
           <Button className="w-full" variant="outline" size="md">
             <Wallet className="h-4 w-4" />
-            Add Payment
+            {t("action.addPayment")}
           </Button>
         </Link>
       </div>
@@ -176,17 +178,17 @@ export function CustomerDetail({ customerId }: { customerId: string }) {
       <section className="space-y-2">
         <div className="flex items-center justify-between px-1">
           <h3 className="text-sm font-semibold text-slate-700">
-            Transaction History
+            {t("customer.transactionHistory")}
           </h3>
           <span className="text-xs text-slate-500">
-            {transactions.length} {transactions.length === 1 ? "entry" : "entries"}
+            {transactions.length} {transactions.length === 1 ? t("customer.entry") : t("customer.entries")}
           </span>
         </div>
 
         {transactions.length === 0 ? (
           <EmptyState
-            title="No transactions yet"
-            description="Record a sale or payment to start this customer's khata."
+            title={t("customer.noTransactions")}
+            description={t("customer.noTransactionsDesc")}
             icon={<Scale className="h-6 w-6" />}
           />
         ) : (

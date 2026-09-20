@@ -23,6 +23,7 @@ import { Decimal } from "@/lib/utils/decimal";
 import { useToast } from "@/providers/toast-provider";
 import { ApiError } from "@/lib/utils/api-client";
 import type { CustomerSearchResult } from "@/lib/services/customers";
+import { useLanguage } from "@/providers/language-provider";
 
 export type SelectedCustomer = CustomerSearchResult;
 
@@ -37,6 +38,7 @@ export function CustomerPicker({
 }) {
   const { query, setQuery, data, isLoading, isError } = useCustomerSearch();
   const [showQuickAdd, setShowQuickAdd] = useState(false);
+  const { t } = useLanguage();
 
   // Already selected → show the selected card.
   if (selected) {
@@ -55,24 +57,24 @@ export function CustomerPicker({
             </p>
             <p className="flex items-center gap-1 text-xs text-slate-500">
               <Phone className="h-3 w-3" />
-              {selected.phone || "No phone"}
+              {selected.phone || t("customer.noMatch")}
             </p>
             {owes ? (
               <p className="mt-1 text-xs">
-                <span className="text-slate-500">Current balance: </span>
+                <span className="text-slate-500">{t("customer.currentBalance")}: </span>
                 <span className="font-semibold text-red-600">
-                  <Money value={balance.toString()} /> owed
+                  <Money value={balance.toString()} /> {t("customer.owes")}
                 </span>
               </p>
             ) : balance.lt(0) ? (
               <p className="mt-1 text-xs">
-                <span className="text-slate-500">Advance payment: </span>
+                <span className="text-slate-500">{t("customer.advancePayment")}: </span>
                 <span className="font-semibold text-blue-600">
                   <Money value={balance.abs().toString()} />
                 </span>
               </p>
             ) : (
-              <p className="mt-1 text-xs text-slate-500">No outstanding balance</p>
+              <p className="mt-1 text-xs text-slate-500">{t("customer.noBalance")}</p>
             )}
           </div>
           <button
@@ -83,7 +85,7 @@ export function CustomerPicker({
             }}
             className="shrink-0 rounded-lg px-2 py-1 text-xs font-medium text-brand-600 hover:bg-brand-50"
           >
-            Change
+            {t("common.change")}
           </button>
         </div>
       </div>
@@ -118,13 +120,13 @@ export function CustomerPicker({
           inputMode="search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search customer by name or phone..."
+          placeholder={t("sale.searchCustomer")}
           className={`w-full rounded-lg border bg-white py-2.5 pl-9 pr-3 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 ${
             error
               ? "border-red-300 focus:border-red-500 focus:ring-red-500/30"
               : "border-slate-300 focus:border-brand-500 focus:ring-brand-500/30"
           }`}
-          aria-label="Search customer"
+          aria-label={t("common.searchCustomerAria")}
           aria-invalid={!!error}
           autoFocus
         />
@@ -137,9 +139,9 @@ export function CustomerPicker({
       {/* Results */}
       <div className="space-y-1">
         {isLoading ? (
-          <p className="px-2 py-3 text-xs text-slate-400">Searching...</p>
+          <p className="px-2 py-3 text-xs text-slate-400">{t("common.loading")}</p>
         ) : isError ? (
-          <p className="px-2 py-3 text-xs text-red-600">Failed to load customers.</p>
+          <p className="px-2 py-3 text-xs text-red-600">{t("customer.couldntLoad")}</p>
         ) : !data || data.length === 0 ? (
           query.trim() ? (
             <button
@@ -152,17 +154,17 @@ export function CustomerPicker({
               </div>
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium text-brand-700">
-                  Add &ldquo;{query.trim()}&rdquo; as new customer
+                  {t("action.addCustomer")} &ldquo;{query.trim()}&rdquo; {t("customer.asNew")}
                 </p>
                 <p className="text-[11px] text-slate-500">
-                  Tap to create with this name
+                  {t("common.tapToCreate")}
                 </p>
               </div>
               <ChevronRight className="h-4 w-4 shrink-0 text-brand-400" />
             </button>
           ) : (
             <p className="px-2 py-3 text-xs text-slate-400">
-              Start typing to search...
+              {t("sale.startTypingCustomer")}
             </p>
           )
         ) : (
@@ -195,7 +197,7 @@ export function CustomerPicker({
             ))}
             {data.length > 5 ? (
               <p className="border-t border-slate-100 px-3 py-1.5 text-center text-[11px] text-slate-400">
-                {data.length} matches — refine your search to see more
+                {data.length} {t("common.refineSearch")}
               </p>
             ) : null}
           </div>
@@ -221,6 +223,7 @@ function QuickAddCustomer({
 }) {
   const toast = useToast();
   const createCustomer = useCreateCustomer();
+  const { t } = useLanguage();
   const [name, setName] = useState(initialName);
   const [phone, setPhone] = useState("");
 
@@ -236,7 +239,7 @@ function QuickAddCustomer({
       },
       {
         onSuccess: (customer) => {
-          toast.success(`Customer "${customer.name}" added`);
+          toast.success(t("customer.customerAdded"));
           onCreated({
             id: customer.id,
             name: customer.name,
@@ -246,9 +249,9 @@ function QuickAddCustomer({
         },
         onError: (error) => {
           if (error instanceof ApiError && error.code === "CONFLICT") {
-            toast.error("A customer with this phone already exists.");
+            toast.error(t("customer.phoneAlreadyExists"));
           } else {
-            toast.error(error instanceof Error ? error.message : "Failed to add customer.");
+            toast.error(error instanceof Error ? error.message : t("common.failed"));
           }
         },
       },
@@ -259,11 +262,11 @@ function QuickAddCustomer({
     <div className="rounded-xl border-2 border-brand-300 bg-white p-3 space-y-3">
       <div className="flex items-center gap-2 text-sm font-semibold text-brand-700">
         <UserPlus className="h-4 w-4" />
-        Quick add customer
+        {t("action.addCustomer")}
       </div>
 
       <div>
-        <label className="mb-1 block text-xs font-medium text-slate-600">Name</label>
+        <label className="mb-1 block text-xs font-medium text-slate-600">{t("customer.name")}</label>
         <input
           type="text"
           value={name}
@@ -275,14 +278,14 @@ function QuickAddCustomer({
 
       <div>
         <label className="mb-1 block text-xs font-medium text-slate-600">
-          Phone <span className="text-red-600">*</span>
+          {t("customer.phone")} <span className="text-red-600">*</span>
         </label>
         <input
           type="tel"
           inputMode="tel"
           value={phone}
           onChange={(e) => setPhone(e.target.value)}
-          placeholder="03001234567"
+          placeholder={t("customer.phonePlaceholder")}
           className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
         />
       </div>
@@ -293,7 +296,7 @@ function QuickAddCustomer({
           onClick={onCancel}
           className="flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50"
         >
-          Cancel
+          {t("common.cancel")}
         </button>
         <button
           type="button"
@@ -304,12 +307,12 @@ function QuickAddCustomer({
           {createCustomer.isPending ? (
             <>
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              Adding...
+              {t("common.saving")}
             </>
           ) : (
             <>
               <UserPlus className="h-3.5 w-3.5" />
-              Add &amp; Select
+              {t("common.save")}
             </>
           )}
         </button>

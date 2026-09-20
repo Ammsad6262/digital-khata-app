@@ -1,3 +1,5 @@
+"use client";
+
 /**
  * Customer detail (khata) page.
  *
@@ -8,6 +10,7 @@
 import { AppHeader } from "@/components/layout/AppHeader";
 import { ScreenContent } from "@/components/layout/Screen";
 import { CustomerDetail } from "@/components/khata/CustomerDetail";
+import { useLanguage } from "@/providers/language-provider";
 
 export const dynamic = "force-dynamic";
 
@@ -16,9 +19,10 @@ export default function CustomerDetailPage({
 }: {
   params: { id: string };
 }) {
+  const { t } = useLanguage();
   return (
     <>
-      <AppHeader title="Customer Khata" />
+      <AppHeader title={t("customer.customerKhata")} />
       <ScreenContent>
         <CustomerDetail customerId={params.id} />
       </ScreenContent>

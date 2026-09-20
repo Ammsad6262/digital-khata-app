@@ -13,35 +13,37 @@
 import Link from "next/link";
 import { ShoppingCart, Wallet, UserPlus, Receipt } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
+import { useLanguage } from "@/providers/language-provider";
 
 const ACTIONS = [
   {
     href: "/sales/new",
-    label: "New Sale",
+    labelKey: "action.newSale",
     icon: ShoppingCart,
     tone: "bg-brand-600 text-white hover:bg-brand-700",
   },
   {
     href: "/payments/new",
-    label: "Add Payment",
+    labelKey: "action.addPayment",
     icon: Wallet,
     tone: "bg-blue-600 text-white hover:bg-blue-700",
   },
   {
     href: "/more/customers/new",
-    label: "Add Customer",
+    labelKey: "action.addCustomer",
     icon: UserPlus,
     tone: "bg-slate-900 text-white hover:bg-slate-800",
   },
   {
     href: "/more/expenses/new",
-    label: "Add Expense",
+    labelKey: "action.addExpense",
     icon: Receipt,
     tone: "bg-amber-500 text-white hover:bg-amber-600",
   },
 ] as const;
 
 export function QuickActions() {
+  const { t } = useLanguage();
   return (
     <div className="grid grid-cols-2 gap-2.5">
       {ACTIONS.map((action) => {
@@ -56,7 +58,7 @@ export function QuickActions() {
             )}
           >
             <Icon className="h-5 w-5 shrink-0" />
-            <span className="truncate">{action.label}</span>
+            <span className="truncate">{t(action.labelKey)}</span>
           </Link>
         );
       })}

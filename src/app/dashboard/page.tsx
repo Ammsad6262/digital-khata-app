@@ -1,3 +1,5 @@
+"use client";
+
 /**
  * Dashboard page — the home screen of the app.
  *
@@ -9,6 +11,7 @@
 import dynamic from "next/dynamic";
 import { AppHeader } from "@/components/layout/AppHeader";
 import { ScreenContent } from "@/components/layout/Screen";
+import { useLanguage } from "@/providers/language-provider";
 
 const Dashboard = dynamic(
   () => import("@/components/dashboard/Dashboard").then((m) => m.Dashboard),
@@ -29,9 +32,10 @@ const Dashboard = dynamic(
 );
 
 export default function DashboardPage() {
+  const { t } = useLanguage();
   return (
     <>
-      <AppHeader title="Digital Khata" />
+      <AppHeader title={t("app.name")} />
       <ScreenContent>
         <Dashboard />
       </ScreenContent>

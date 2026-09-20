@@ -13,17 +13,19 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LayoutDashboard, BookOpen, ShoppingCart, Package, Menu } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
+import { useLanguage } from "@/providers/language-provider";
 
 const TABS = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/khata", label: "Khata", icon: BookOpen },
-  { href: "/sales", label: "Sales", icon: ShoppingCart },
-  { href: "/stock", label: "Stock", icon: Package },
-  { href: "/more", label: "More", icon: Menu },
+  { href: "/dashboard", labelKey: "nav.dashboard", icon: LayoutDashboard },
+  { href: "/khata", labelKey: "nav.khata", icon: BookOpen },
+  { href: "/sales", labelKey: "nav.sales", icon: ShoppingCart },
+  { href: "/stock", labelKey: "nav.stock", icon: Package },
+  { href: "/more", labelKey: "nav.more", icon: Menu },
 ] as const;
 
 export function BottomNav() {
   const pathname = usePathname();
+  const { t } = useLanguage();
 
   return (
     <nav
@@ -54,7 +56,7 @@ export function BottomNav() {
             aria-current={isActive ? "page" : undefined}
           >
             <Icon className="h-5 w-5" />
-            <span>{tab.label}</span>
+            <span>{t(tab.labelKey)}</span>
           </Link>
         );
       })}

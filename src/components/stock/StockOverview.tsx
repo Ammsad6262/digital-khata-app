@@ -22,11 +22,13 @@ import { EmptyState } from "@/components/shared/EmptyState";
 import { Decimal } from "@/lib/utils/decimal";
 import { formatQuantity } from "@/lib/utils/money";
 import { cn } from "@/lib/utils/cn";
+import { useLanguage } from "@/providers/language-provider";
 
 export function StockOverview() {
   const { query, setQuery, data: searchData } = useProductSearch();
   const { data: allProducts, isLoading, isError, error } = useProductsWithStock();
   const [showLowOnly, setShowLowOnly] = useState(false);
+  const { t } = useLanguage();
 
   // Combine search results (if query) with all products list.
   const products = useMemo(() => {
@@ -56,16 +58,16 @@ export function StockOverview() {
           inputMode="search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search product by name or SKU..."
+          placeholder={t("stock.searchPlaceholder")}
           className="w-full rounded-lg border border-slate-300 bg-white py-2.5 pl-9 pr-9 text-sm text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
-          aria-label="Search products"
+          aria-label={t("common.searchProductsAria")}
         />
         {query ? (
           <button
             type="button"
             onClick={() => setQuery("")}
             className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-slate-400 hover:text-slate-700"
-            aria-label="Clear search"
+            aria-label={t("common.clearSearchAria")}
           >
             <X className="h-4 w-4" />
           </button>
@@ -85,7 +87,7 @@ export function StockOverview() {
           )}
         >
           <AlertTriangle className="h-3.5 w-3.5" />
-          Low stock
+          {t("dashboard.lowStock")}
           {lowStockCount > 0 ? (
             <span className={cn(
               "rounded-full px-1.5 text-[10px] font-bold",
@@ -101,7 +103,7 @@ export function StockOverview() {
           className="flex items-center gap-1.5 rounded-full bg-brand-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-700"
         >
           <ArrowDownToLine className="h-3.5 w-3.5" />
-          Add Stock
+          {t("stock.addStock")}
         </Link>
       </div>
 
@@ -110,33 +112,33 @@ export function StockOverview() {
         <StockListSkeleton />
       ) : isError ? (
         <EmptyState
-          title="Couldn't load products"
-          description={error instanceof Error ? error.message : "Something went wrong."}
+          title={t("common.couldntLoad")}
+          description={error instanceof Error ? error.message : t("common.networkError")}
           icon={<Package className="h-6 w-6" />}
         />
       ) : !filtered || filtered.length === 0 ? (
         query.trim() ? (
           <EmptyState
-            title="No products match"
-            description={`No products found for "${query.trim()}". Try a different name or SKU.`}
+            title={t("product.noProductsMatch")}
+            description={`${t("stock.noProductsForQueryPrefix")} "${query.trim()}". ${t("stock.noProductsForQuerySuffix")}`}
             icon={<Search className="h-6 w-6" />}
           />
         ) : showLowOnly ? (
           <EmptyState
-            title="No low-stock items"
-            description="All products are above their low-stock thresholds."
+            title={t("stock.noLowStock")}
+            description={t("stock.noLowStockDesc")}
             icon={<Package className="h-6 w-6" />}
           />
         ) : (
           <EmptyState
-            title="No products yet"
-            description="Add your first product to start tracking stock. Products are needed to record sales."
+            title={t("stock.noProducts")}
+            description={t("stock.noProductsDesc")}
             icon={<Package className="h-6 w-6" />}
             action={
               <Link href="/more/products/new">
                 <span className="inline-flex items-center gap-1.5 rounded-lg bg-brand-600 px-3 py-2 text-xs font-medium text-white hover:bg-brand-700">
                   <Plus className="h-4 w-4" />
-                  Add product
+                  {t("stock.addProduct")}
                 </span>
               </Link>
             }
@@ -157,7 +159,7 @@ export function StockOverview() {
           className="flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
         >
           <Settings2 className="h-3.5 w-3.5" />
-          Adjust stock (recount / write-off)
+          {t("stock.adjustStock")}
         </Link>
       ) : null}
     </div>
@@ -171,6 +173,7 @@ function ProductStockRow({
   product: ProductWithStock;
   isFirst: boolean;
 }) {
+  const { t } = useLanguage();
   const stock = new Decimal(product.currentStock);
   const isLow = stock.lte(product.lowStockThreshold);
   const isNegative = stock.lt(0);
@@ -208,7 +211,7 @@ function ProductStockRow({
           {product.name}
         </p>
         <p className="text-[11px] text-slate-500">
-          {product.category ?? "Uncategorized"} · {product.unit}
+          {product.category ?? t("stock.uncategorized")} · {product.unit}
         </p>
       </div>
 
@@ -227,7 +230,7 @@ function ProductStockRow({
         </p>
         {isLow ? (
           <p className="text-[10px] font-medium text-amber-600">
-            {isNegative ? "below zero" : "low"}
+            {isNegative ? t("stock.belowZero") : t("stock.low")}
           </p>
         ) : null}
       </div>

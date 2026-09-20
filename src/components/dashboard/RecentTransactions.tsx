@@ -27,9 +27,15 @@ import { Money } from "@/components/shared/Money";
 import { formatRelative } from "@/lib/utils/date";
 import type { RecentTransaction } from "@/lib/services/dashboard";
 import { cn } from "@/lib/utils/cn";
+import { useLanguage } from "@/providers/language-provider";
 
 type TxTypeInfo = {
-  label: string;
+  labelKey:
+    | "transactions.sales"
+    | "transactions.payments"
+    | "transactions.expenses"
+    | "transactions.stock"
+    | "transactions.adjustments";
   icon: typeof ShoppingCart;
   iconBg: string;
   iconColor: string;
@@ -37,31 +43,31 @@ type TxTypeInfo = {
 
 const TX_TYPE_INFO: Record<RecentTransaction["type"], TxTypeInfo> = {
   sale: {
-    label: "Sale",
+    labelKey: "transactions.sales",
     icon: ShoppingCart,
     iconBg: "bg-brand-100",
     iconColor: "text-brand-700",
   },
   payment: {
-    label: "Payment",
+    labelKey: "transactions.payments",
     icon: Wallet,
     iconBg: "bg-blue-100",
     iconColor: "text-blue-700",
   },
   expense: {
-    label: "Expense",
+    labelKey: "transactions.expenses",
     icon: Receipt,
     iconBg: "bg-amber-100",
     iconColor: "text-amber-700",
   },
   stock_move: {
-    label: "Stock",
+    labelKey: "transactions.stock",
     icon: Package,
     iconBg: "bg-purple-100",
     iconColor: "text-purple-700",
   },
   balance_adjustment: {
-    label: "Adjustment",
+    labelKey: "transactions.adjustments",
     icon: Scale,
     iconBg: "bg-slate-200",
     iconColor: "text-slate-700",
@@ -122,17 +128,18 @@ export function RecentTransactions({
 }: {
   transactions: RecentTransaction[];
 }) {
+  const { t } = useLanguage();
   if (transactions.length === 0) return null;
 
   return (
     <section className="space-y-2">
       <div className="flex items-center justify-between px-1">
-        <h2 className="text-sm font-semibold text-slate-700">Recent Activity</h2>
+        <h2 className="text-sm font-semibold text-slate-700">{t("dashboard.recentActivity")}</h2>
         <Link
           href="/more/transactions"
           className="text-xs font-medium text-brand-600 hover:text-brand-700"
         >
-          View all
+          {t("dashboard.viewAll")}
         </Link>
       </div>
 
@@ -163,7 +170,7 @@ export function RecentTransactions({
               <div className="min-w-0 flex-1">
                 <div className="flex items-baseline justify-between gap-2">
                   <p className="truncate text-sm font-medium text-slate-900">
-                    {info.label}
+                    {t(info.labelKey)}
                   </p>
                   <p className={cn("text-sm font-bold tabular-nums", amountInfo.color)}>
                     <Money value={amountInfo.text.replace(/^[+-]/, "")} />

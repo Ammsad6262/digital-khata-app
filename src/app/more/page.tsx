@@ -1,3 +1,5 @@
+"use client";
+
 /**
  * More page — index of secondary sections.
  *
@@ -17,49 +19,66 @@ import {
 } from "lucide-react";
 import { AppHeader } from "@/components/layout/AppHeader";
 import { ScreenContent } from "@/components/layout/Screen";
+import { useLanguage } from "@/providers/language-provider";
 
-const SECTIONS = [
+type SectionKey =
+  | "more.addCustomer"
+  | "more.products"
+  | "more.expenses"
+  | "more.transactions"
+  | "more.settings";
+
+type Section = {
+  href: string;
+  titleKey: SectionKey;
+  descKey: string;
+  icon: typeof Users;
+  color: string;
+};
+
+const SECTIONS: Section[] = [
   {
     href: "/more/customers/new",
-    title: "Add Customer",
-    description: "Add a new customer to the khata",
+    titleKey: "more.addCustomer",
+    descKey: "more.addCustomerDesc",
     icon: Users,
     color: "bg-brand-50 text-brand-700",
   },
   {
     href: "/more/products",
-    title: "Products",
-    description: "Manage your products, prices, and stock thresholds",
+    titleKey: "more.products",
+    descKey: "more.productsDesc",
     icon: Package,
     color: "bg-blue-50 text-blue-700",
   },
   {
     href: "/more/expenses",
-    title: "Expenses",
-    description: "Record and track business expenses by category",
+    titleKey: "more.expenses",
+    descKey: "more.expensesDesc",
     icon: Receipt,
     color: "bg-amber-50 text-amber-700",
   },
   {
     href: "/more/transactions",
-    title: "Transactions",
-    description: "Full transaction history with date filters",
+    titleKey: "more.transactions",
+    descKey: "more.transactionsDesc",
     icon: ListTree,
     color: "bg-purple-50 text-purple-700",
   },
   {
     href: "/more/settings",
-    title: "Settings",
-    description: "Business name, currency, backup, PIN",
+    titleKey: "more.settings",
+    descKey: "more.settingsDesc",
     icon: Settings,
     color: "bg-slate-100 text-slate-700",
   },
-] as const;
+];
 
 export default function MorePage() {
+  const { t } = useLanguage();
   return (
     <>
-      <AppHeader title="More" />
+      <AppHeader title={t("nav.more")} />
       <ScreenContent>
         <div className="space-y-2">
           {SECTIONS.map((section) => {
@@ -77,10 +96,10 @@ export default function MorePage() {
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium text-slate-900">
-                    {section.title}
+                    {t(section.titleKey)}
                   </p>
                   <p className="text-[11px] text-slate-500">
-                    {section.description}
+                    {t(section.descKey as any)}
                   </p>
                 </div>
                 <ChevronRight className="h-4 w-4 shrink-0 text-slate-300" />

@@ -23,26 +23,30 @@ import { Decimal } from "@/lib/utils/decimal";
 import { formatDate, formatTime } from "@/lib/utils/date";
 import { formatMoney } from "@/lib/utils/money";
 import { cn } from "@/lib/utils/cn";
+import { useLanguage } from "@/providers/language-provider";
 
-const FILTERS: Array<{ value: PaymentFilter; label: string }> = [
-  { value: "today", label: "Today" },
-  { value: "week", label: "This Week" },
-  { value: "month", label: "This Month" },
-  { value: "all", label: "All" },
+type PaymentFilterKey = "transactions.today" | "transactions.thisWeek" | "transactions.thisMonth" | "transactions.all";
+const FILTERS: Array<{ value: PaymentFilter; labelKey: PaymentFilterKey }> = [
+  { value: "today", labelKey: "transactions.today" },
+  { value: "week", labelKey: "transactions.thisWeek" },
+  { value: "month", labelKey: "transactions.thisMonth" },
+  { value: "all", labelKey: "transactions.all" },
 ];
 
-const METHOD_BADGES: Record<string, { label: string; bg: string; text: string }> = {
-  cash:      { label: "Cash",      bg: "bg-brand-50",  text: "text-brand-700" },
-  bank:      { label: "Bank",      bg: "bg-blue-50",   text: "text-blue-700" },
-  cheque:    { label: "Cheque",    bg: "bg-purple-50", text: "text-purple-700" },
-  jazzcash:  { label: "JazzCash",  bg: "bg-orange-50", text: "text-orange-700" },
-  easypaisa: { label: "EasyPaisa", bg: "bg-green-50",  text: "text-green-700" },
-  other:     { label: "Other",     bg: "bg-slate-100", text: "text-slate-700" },
+type MethodLabelKey = "payment.cash" | "payment.bank" | "payment.cheque" | "payment.jazzcash" | "payment.easypaisa" | "payment.other";
+const METHOD_BADGES: Record<string, { labelKey: MethodLabelKey; bg: string; text: string }> = {
+  cash:      { labelKey: "payment.cash",      bg: "bg-brand-50",  text: "text-brand-700" },
+  bank:      { labelKey: "payment.bank",      bg: "bg-blue-50",   text: "text-blue-700" },
+  cheque:    { labelKey: "payment.cheque",    bg: "bg-purple-50", text: "text-purple-700" },
+  jazzcash:  { labelKey: "payment.jazzcash",  bg: "bg-orange-50", text: "text-orange-700" },
+  easypaisa: { labelKey: "payment.easypaisa", bg: "bg-green-50",  text: "text-green-700" },
+  other:     { labelKey: "payment.other",     bg: "bg-slate-100", text: "text-slate-700" },
 };
 
 export function PaymentsList() {
   const [filter, setFilter] = useState<PaymentFilter>("today");
   const { data, isLoading, isError, error, refetch } = usePaymentsList(filter);
+  const { t } = useLanguage();
 
   // Compute summary stats for the selected filter.
   const summary = (() => {
@@ -70,7 +74,7 @@ export function PaymentsList() {
                 : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50",
             )}
           >
-            {f.label}
+            {t(f.labelKey)}
           </button>
         ))}
       </div>
@@ -80,10 +84,10 @@ export function PaymentsList() {
         <div className="rounded-xl border border-slate-200 bg-white p-3">
           <div className="flex items-center justify-between text-xs">
             <span className="text-slate-500">
-              {summary.count} {summary.count === 1 ? "payment" : "payments"}
+              {summary.count} {t("transactions.payments")}
             </span>
             <span className="font-medium text-slate-700">
-              Total received: <Money value={summary.total.toString()} />
+              {t("payment.totalReceived")} <Money value={summary.total.toString()} />
             </span>
           </div>
         </div>
@@ -94,29 +98,29 @@ export function PaymentsList() {
         <PaymentsListSkeleton />
       ) : isError ? (
         <EmptyState
-          title="Couldn't load payments"
-          description={error instanceof Error ? error.message : "Something went wrong."}
+          title={t("common.couldntLoad")}
+          description={error instanceof Error ? error.message : t("common.networkError")}
           icon={<AlertCircle className="h-6 w-6" />}
           action={
             <Button onClick={() => refetch()} variant="outline" size="sm">
-              Retry
+              {t("common.retry")}
             </Button>
           }
         />
       ) : !data || data.length === 0 ? (
         <EmptyState
-          title={`No payments ${filter === "all" ? "yet" : "in this period"}`}
+          title={filter === "all" ? t("payment.noPayments") : t("payment.noPaymentsPeriod")}
           description={
             filter === "all"
-              ? "Record your first payment using the + button above. Payments automatically reduce customer balances."
-              : "Try a different time range, or record a new payment."
+              ? t("payment.noPaymentsDesc")
+              : t("payment.noPaymentsPeriodDesc")
           }
           icon={<Wallet className="h-6 w-6" />}
           action={
             <Link href="/payments/new">
               <Button size="sm">
                 <Wallet className="h-4 w-4" />
-                Add Payment
+                {t("action.addPayment")}
               </Button>
             </Link>
           }
@@ -148,11 +152,9 @@ function PaymentRow({
   };
   isFirst: boolean;
 }) {
-  const methodBadge = METHOD_BADGES[payment.method] ?? METHOD_BADGES.other ?? {
-    label: "Other",
-    bg: "bg-slate-100",
-    text: "text-slate-700",
-  };
+  const { t } = useLanguage();
+  const fallbackBadge = { labelKey: "payment.other" as MethodLabelKey, bg: "bg-slate-100", text: "text-slate-700" };
+  const methodBadge = METHOD_BADGES[payment.method] ?? METHOD_BADGES.other ?? fallbackBadge;
 
   return (
     <Link
@@ -178,7 +180,7 @@ function PaymentRow({
               methodBadge.text,
             )}
           >
-            {methodBadge.label}
+            {t(methodBadge.labelKey)}
           </span>
           <span>·</span>
           <span>

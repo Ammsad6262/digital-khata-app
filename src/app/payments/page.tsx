@@ -1,3 +1,5 @@
+"use client";
+
 /**
  * Payments list page.
  *
@@ -11,18 +13,20 @@ import { Plus } from "lucide-react";
 import { AppHeader } from "@/components/layout/AppHeader";
 import { ScreenContent } from "@/components/layout/Screen";
 import { PaymentsList } from "@/components/payments/PaymentsList";
+import { useLanguage } from "@/providers/language-provider";
 
 
 export default function PaymentsPage() {
+  const { t } = useLanguage();
   return (
     <>
       <AppHeader
-        title="Payments"
+        title={t("dashboard.todaysPayments")}
         rightSlot={
           <Link
             href="/payments/new"
             className="rounded-lg p-1.5 text-brand-600 hover:bg-brand-50"
-            aria-label="Add payment"
+            aria-label={t("action.addPayment")}
           >
             <Plus className="h-5 w-5" />
           </Link>

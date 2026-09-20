@@ -1,3 +1,5 @@
+"use client";
+
 /**
  * New Sale page.
  *
@@ -12,6 +14,7 @@ import { ArrowLeft } from "lucide-react";
 import { Suspense } from "react";
 import { AppHeader } from "@/components/layout/AppHeader";
 import { ScreenContent } from "@/components/layout/Screen";
+import { useLanguage } from "@/providers/language-provider";
 
 const NewSaleForm = dynamic(
   () => import("@/components/sales/NewSaleForm").then((m) => m.NewSaleForm),
@@ -26,15 +29,16 @@ const NewSaleForm = dynamic(
 );
 
 export default function NewSalePage() {
+  const { t } = useLanguage();
   return (
     <>
       <AppHeader
-        title="New Sale"
+        title={t("action.newSale")}
         rightSlot={
           <Link
             href="/sales"
             className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100"
-            aria-label="Back"
+            aria-label={t("common.back")}
           >
             <ArrowLeft className="h-5 w-5" />
           </Link>

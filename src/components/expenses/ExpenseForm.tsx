@@ -30,19 +30,21 @@ import {
 } from "@/hooks/use-expenses";
 import { ApiError } from "@/lib/utils/api-client";
 import { cn } from "@/lib/utils/cn";
+import { useLanguage } from "@/providers/language-provider";
 
+type CategoryLabelKey = "expense.transport" | "expense.shop" | "expense.electricity" | "expense.packaging" | "expense.salary" | "expense.rent" | "payment.other";
 const CATEGORIES: Array<{
   value: "transport" | "shop" | "electricity" | "packaging" | "salary" | "rent" | "other";
-  label: string;
+  labelKey: CategoryLabelKey;
   icon: string;
 }> = [
-  { value: "transport",   label: "Transport",   icon: "🚚" },
-  { value: "shop",        label: "Shop",         icon: "🏪" },
-  { value: "electricity", label: "Electricity",  icon: "💡" },
-  { value: "packaging",   label: "Packaging",    icon: "📦" },
-  { value: "salary",      label: "Salary",       icon: "👷" },
-  { value: "rent",        label: "Rent",         icon: "🏠" },
-  { value: "other",       label: "Other",        icon: "•" },
+  { value: "transport",   labelKey: "expense.transport",   icon: "🚚" },
+  { value: "shop",        labelKey: "expense.shop",         icon: "🏪" },
+  { value: "electricity", labelKey: "expense.electricity",  icon: "💡" },
+  { value: "packaging",   labelKey: "expense.packaging",    icon: "📦" },
+  { value: "salary",      labelKey: "expense.salary",       icon: "👷" },
+  { value: "rent",        labelKey: "expense.rent",         icon: "🏠" },
+  { value: "other",       labelKey: "payment.other",        icon: "•" },
 ];
 
 type Category = typeof CATEGORIES[number]["value"];
@@ -63,6 +65,7 @@ export function ExpenseForm({
 }) {
   const router = useRouter();
   const toast = useToast();
+  const { t } = useLanguage();
 
   // In edit mode, fetch existing expense to pre-fill.
   const { data: existing } = useExpense(mode === "edit" ? expenseId : null);
@@ -131,24 +134,24 @@ export function ExpenseForm({
     if (mode === "create") {
       recordExpense.mutate(payload, {
         onSuccess: (expense) => {
-          toast.success(`Expense "${expense.name}" recorded`);
+          toast.success(t("expense.expenseRecorded"));
           router.push(`/more/expenses/${expense.id}`);
         },
         onError: (error) => {
-          toast.error(error instanceof Error ? error.message : "Failed to record expense.");
+          toast.error(error instanceof Error ? error.message : t("common.failed"));
         },
       });
     } else {
       updateExpense.mutate(payload, {
         onSuccess: (expense) => {
-          toast.success(`Expense "${expense.name}" updated`);
+          toast.success(t("expense.expenseUpdated"));
           router.push(`/more/expenses/${expense.id}`);
         },
         onError: (error) => {
           if (error instanceof ApiError && error.code === "NOT_FOUND") {
             toast.error("Expense not found.");
           } else {
-            toast.error(error instanceof Error ? error.message : "Failed to update expense.");
+            toast.error(error instanceof Error ? error.message : t("common.failed"));
           }
         },
       });
@@ -163,10 +166,10 @@ export function ExpenseForm({
         <div className="space-y-3">
           {/* Name */}
           <TextField
-            label="Expense name"
+            label={t("expense.expenseName")}
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="e.g. Diesel for delivery van"
+            placeholder={t("expense.expenseNamePlaceholder")}
             autoComplete="off"
             error={errors.name ?? null}
           />
@@ -174,7 +177,7 @@ export function ExpenseForm({
           {/* Amount */}
           <div>
             <label className="mb-1 block text-sm font-medium text-slate-700">
-              Amount
+              {t("expense.amount")}
             </label>
             <div className="relative">
               <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-medium text-slate-500">
@@ -205,7 +208,7 @@ export function ExpenseForm({
           {/* Category */}
           <div>
             <label className="mb-1.5 block text-sm font-medium text-slate-700">
-              Category
+              {t("expense.expenseCategory")}
             </label>
             <div className="grid grid-cols-4 gap-1.5">
               {CATEGORIES.map((cat) => (
@@ -221,7 +224,7 @@ export function ExpenseForm({
                   )}
                 >
                   <span className="text-base leading-none">{cat.icon}</span>
-                  {cat.label}
+                  {t(cat.labelKey)}
                 </button>
               ))}
             </div>
@@ -230,7 +233,7 @@ export function ExpenseForm({
           {/* Date */}
           <div>
             <label className="mb-1 block text-sm font-medium text-slate-700">
-              Date
+              {t("payment.date")}
             </label>
             <input
               type="date"
@@ -248,10 +251,10 @@ export function ExpenseForm({
 
           {/* Notes */}
           <TextArea
-            label="Notes (optional)"
+            label={t("expense.expenseNotes")}
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            placeholder="Any additional details about this expense..."
+            placeholder={t("expense.expenseNotesPlaceholder")}
             rows={2}
           />
         </div>
@@ -261,7 +264,7 @@ export function ExpenseForm({
       <StickyFormActions
         onCancel={() => router.back()}
         onSave={handleSubmit}
-        saveLabel={mode === "create" ? "Save Expense" : "Update Expense"}
+        saveLabel={mode === "create" ? t("expense.saveExpense") : t("expense.updateExpense")}
         saveDisabled={hasErrors}
         isPending={isPending}
       />

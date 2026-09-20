@@ -27,6 +27,7 @@ import { useToast } from "@/providers/toast-provider";
 import { createCustomerSchema } from "@/lib/schemas/customer";
 import { ApiError } from "@/lib/utils/api-client";
 import type { z } from "zod";
+import { useLanguage } from "@/providers/language-provider";
 
 type FormValues = z.infer<typeof createCustomerSchema>;
 
@@ -34,6 +35,7 @@ export function AddCustomerForm() {
   const router = useRouter();
   const toast = useToast();
   const createCustomer = useCreateCustomer();
+  const { t } = useLanguage();
 
   const form = useForm<FormValues>({
     resolver: zodResolver(createCustomerSchema),
@@ -49,18 +51,18 @@ export function AddCustomerForm() {
   const onSubmit = (values: FormValues) => {
     createCustomer.mutate(values, {
       onSuccess: (customer) => {
-        toast.success(`Customer "${customer.name}" added`);
+        toast.success(t("customer.customerAdded"));
         router.push(`/khata/${customer.id}`);
       },
       onError: (error) => {
         if (error instanceof ApiError && error.code === "CONFLICT") {
           form.setError("phone", {
             type: "manual",
-            message: "A customer with this phone already exists.",
+            message: t("customer.phoneAlreadyExists"),
           });
-          toast.error("This phone number is already in use.");
+          toast.error(t("customer.phoneInUse"));
         } else {
-          toast.error(error instanceof Error ? error.message : "Failed to add customer");
+          toast.error(error instanceof Error ? error.message : t("common.failed"));
         }
       },
     });
@@ -73,49 +75,49 @@ export function AddCustomerForm() {
       <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
         <div className="space-y-3">
           <TextField
-            label="Name"
-            placeholder="e.g. Ahmed Khan"
+            label={t("customer.name")}
+            placeholder={t("customer.namePlaceholder")}
             autoComplete="off"
             {...form.register("name")}
             error={form.formState.errors.name?.message ?? null}
           />
 
           <TextField
-            label="Phone"
+            label={t("customer.phone")}
             type="tel"
             inputMode="tel"
-            placeholder="e.g. 03001234567"
+            placeholder={t("customer.phonePlaceholder")}
             autoComplete="off"
             leftIcon={<span className="text-sm">📞</span>}
             {...form.register("phone")}
             error={form.formState.errors.phone?.message ?? null}
-            hint="Used as the unique identifier — search by phone is fast."
+            hint={t("customer.phoneHint")}
           />
 
           <TextField
-            label="Address"
-            placeholder="Optional — shop or home location"
+            label={t("customer.address")}
+            placeholder={t("customer.addressPlaceholder")}
             autoComplete="off"
             {...form.register("address")}
             error={form.formState.errors.address?.message ?? null}
           />
 
           <TextArea
-            label="Notes"
-            placeholder="Optional — anything you want to remember about this customer"
+            label={t("customer.notes")}
+            placeholder={t("customer.notesPlaceholder")}
             rows={3}
             {...form.register("notes")}
             error={form.formState.errors.notes?.message ?? null}
           />
 
           <TextField
-            label="Opening balance"
+            label={t("customer.openingBalance")}
             type="number"
             inputMode="decimal"
             step="0.01"
             min="0"
             placeholder="0"
-            hint="Set this when migrating from paper khata. Leave 0 for new customers."
+            hint={t("customer.openingBalanceHint")}
             {...form.register("openingBalance", { valueAsNumber: true })}
             error={form.formState.errors.openingBalance?.message ?? null}
           />
@@ -125,7 +127,7 @@ export function AddCustomerForm() {
       <StickyFormActions
         onCancel={() => router.back()}
         onSave={() => form.handleSubmit(onSubmit)()}
-        saveLabel="Save Customer"
+        saveLabel={t("customer.saveCustomer")}
         saveDisabled={hasErrors}
         isPending={createCustomer.isPending}
       />

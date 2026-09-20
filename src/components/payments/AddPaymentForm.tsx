@@ -39,16 +39,18 @@ import { ApiError } from "@/lib/utils/api-client";
 import { Decimal } from "@/lib/utils/decimal";
 import { formatMoney } from "@/lib/utils/money";
 import { cn } from "@/lib/utils/cn";
+import { useLanguage } from "@/providers/language-provider";
 
 type Method = "cash" | "bank" | "cheque" | "jazzcash" | "easypaisa" | "other";
 
-const METHODS: Array<{ value: Method; label: string; icon: string }> = [
-  { value: "cash",      label: "Cash",      icon: "💵" },
-  { value: "bank",      label: "Bank",      icon: "🏦" },
-  { value: "cheque",    label: "Cheque",    icon: "📝" },
-  { value: "jazzcash",  label: "JazzCash",  icon: "📱" },
-  { value: "easypaisa", label: "EasyPaisa", icon: "📱" },
-  { value: "other",     label: "Other",     icon: "•" },
+type MethodLabelKey = "payment.cash" | "payment.bank" | "payment.cheque" | "payment.jazzcash" | "payment.easypaisa" | "payment.other";
+const METHODS: Array<{ value: Method; labelKey: MethodLabelKey; icon: string }> = [
+  { value: "cash",      labelKey: "payment.cash",      icon: "💵" },
+  { value: "bank",      labelKey: "payment.bank",      icon: "🏦" },
+  { value: "cheque",    labelKey: "payment.cheque",    icon: "📝" },
+  { value: "jazzcash",  labelKey: "payment.jazzcash",  icon: "📱" },
+  { value: "easypaisa", labelKey: "payment.easypaisa", icon: "📱" },
+  { value: "other",     labelKey: "payment.other",     icon: "•" },
 ];
 
 function todayIsoLocal(): string {
@@ -63,6 +65,7 @@ export function AddPaymentForm() {
   const router = useRouter();
   const toast = useToast();
   const recordPayment = useRecordPayment();
+  const { t } = useLanguage();
 
   const [customer, setCustomer] = useState<SelectedCustomer | null>(null);
   const [amount, setAmount] = useState<string>("");
@@ -87,7 +90,7 @@ export function AddPaymentForm() {
       // Customer has no outstanding balance (already settled or in advance).
       return {
         type: "info" as const,
-        message: `Customer has no outstanding balance (current: ${formatMoney(currentBalance)}). This payment will be recorded as an advance credit.`,
+        message: `${t("payment.noBalancePrefix")} ${formatMoney(currentBalance)}${t("payment.noBalanceSuffix")}`,
       };
     }
 
@@ -96,7 +99,7 @@ export function AddPaymentForm() {
       const overpay = enteredAmount.minus(currentBalance);
       return {
         type: "warning" as const,
-        message: `Customer owes ${formatMoney(currentBalance)}. This payment of ${formatMoney(enteredAmount)} will create an advance credit of ${formatMoney(overpay)} on their account.`,
+        message: `${t("payment.overpayPrefix")} ${formatMoney(currentBalance)}. ${t("payment.overpayMiddle")} ${formatMoney(enteredAmount)} ${t("payment.overpayCreate")} ${formatMoney(overpay)} ${t("payment.overpaySuffix")}`,
       };
     }
 
@@ -108,16 +111,16 @@ export function AddPaymentForm() {
     const errors: { customer?: string; amount?: string; date?: string } = {};
 
     if (!customer) {
-      errors.customer = "Please select a customer.";
+      errors.customer = t("sale.selectCustomer");
     }
 
     const amt = parseDecimalSafe(amount);
     if (!amount || amt.lte(0) || !amt.isFinite()) {
-      errors.amount = "Amount must be greater than 0.";
+      errors.amount = t("payment.amountGtZero");
     }
 
     if (!date) {
-      errors.date = "Date is required.";
+      errors.date = t("payment.dateRequired");
     }
 
     return errors;
@@ -128,13 +131,13 @@ export function AddPaymentForm() {
   // ── Submit ───────────────────────────────────────────────────────────
   const handleSubmit = () => {
     if (!customer) {
-      setCustomerError("Please select a customer first.");
+      setCustomerError(t("sale.selectCustomerFirst"));
       return;
     }
     setCustomerError(null);
 
     if (hasErrors) {
-      toast.error("Please fix the errors before saving.");
+      toast.error(t("common.fixErrorsBeforeSaving"));
       return;
     }
 
@@ -151,7 +154,7 @@ export function AddPaymentForm() {
       },
       {
         onSuccess: (payment) => {
-          toast.success(`Payment of ${formatMoney(payment.amount)} recorded`);
+          toast.success(t("payment.paymentRecorded"));
           router.push(`/payments/${payment.id}`);
         },
         onError: (error) => {
@@ -160,7 +163,7 @@ export function AddPaymentForm() {
               ? error.message
               : error instanceof Error
                 ? error.message
-                : "Failed to record payment.";
+                : t("common.failed");
           toast.error(message);
         },
       },
@@ -172,7 +175,7 @@ export function AddPaymentForm() {
       {/* Customer section */}
       <section className="space-y-2">
         <h2 className="px-1 text-sm font-semibold text-slate-700">
-          1. Customer
+          1. {t("sale.customer")}
         </h2>
         <CustomerPicker
           selected={customer}
@@ -185,14 +188,14 @@ export function AddPaymentForm() {
       {customer ? (
         <section className="space-y-3">
           <h2 className="px-1 text-sm font-semibold text-slate-700">
-            2. Payment Details
+            2. {t("payment.paymentMethod")}
           </h2>
 
           <div className="rounded-xl border border-slate-200 bg-white p-3 space-y-3">
             {/* Amount */}
             <div>
               <label className="mb-1 block text-xs font-medium text-slate-600">
-                Amount received
+                {t("payment.amountReceived")}
               </label>
               <div className="relative">
                 <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-medium text-slate-500">
@@ -223,7 +226,7 @@ export function AddPaymentForm() {
             {/* Method */}
             <div>
               <label className="mb-1.5 block text-xs font-medium text-slate-600">
-                Payment method
+                {t("payment.paymentMethod")}
               </label>
               <div className="grid grid-cols-3 gap-1.5">
                 {METHODS.map((m) => (
@@ -239,7 +242,7 @@ export function AddPaymentForm() {
                     )}
                   >
                     <span className="text-base leading-none">{m.icon}</span>
-                    {m.label}
+                    {t(m.labelKey)}
                   </button>
                 ))}
               </div>
@@ -248,7 +251,7 @@ export function AddPaymentForm() {
             {/* Date */}
             <div>
               <label className="mb-1 block text-xs font-medium text-slate-600">
-                Date
+                {t("payment.date")}
               </label>
               <input
                 type="date"
@@ -270,12 +273,12 @@ export function AddPaymentForm() {
             {/* Notes */}
             <div>
               <label className="mb-1 block text-xs font-medium text-slate-600">
-                Notes (optional)
+                {t("payment.paymentNotes")}
               </label>
               <textarea
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                placeholder="e.g. Partial payment for last invoice"
+                placeholder={t("payment.paymentNotesPlaceholder")}
                 rows={2}
                 className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
               />
@@ -300,7 +303,7 @@ export function AddPaymentForm() {
           {/* Current balance summary */}
           {balanceQuery.data ? (
             <div className="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600">
-              Customer&apos;s current balance:{" "}
+              {t("customer.currentBalance")}:{" "}
               <span className="font-semibold text-slate-900">
                 <Money value={balanceQuery.data.balance} />
               </span>
@@ -313,7 +316,7 @@ export function AddPaymentForm() {
       <StickyFormActions
         onCancel={() => router.back()}
         onSave={handleSubmit}
-        saveLabel="Save Payment"
+        saveLabel={t("payment.savePayment")}
         saveDisabled={hasErrors || !customer}
         isPending={recordPayment.isPending}
       />

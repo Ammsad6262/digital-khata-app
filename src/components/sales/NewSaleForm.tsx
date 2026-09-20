@@ -36,6 +36,7 @@ import { ApiError } from "@/lib/utils/api-client";
 import { Decimal } from "@/lib/utils/decimal";
 import { formatQuantity, formatMoney } from "@/lib/utils/money";
 import type { ProductSearchResult } from "@/lib/services/products";
+import { useLanguage } from "@/providers/language-provider";
 
 type LineItem = {
   productId: string;
@@ -52,6 +53,7 @@ export function NewSaleForm() {
   const searchParams = useSearchParams();
   const toast = useToast();
   const createSale = useCreateSale();
+  const { t } = useLanguage();
 
   const [customer, setCustomer] = useState<SelectedCustomer | null>(null);
   const [items, setItems] = useState<LineItem[]>([]);
@@ -135,11 +137,11 @@ export function NewSaleForm() {
     } = { itemErrors: [] };
 
     if (!customer) {
-      errors.customer = "Please select a customer.";
+      errors.customer = t("sale.selectCustomer");
     }
 
     if (items.length === 0) {
-      errors.items = "Add at least one product.";
+      errors.items = t("sale.addOneProduct");
     }
 
     items.forEach((item, idx) => {
@@ -149,17 +151,17 @@ export function NewSaleForm() {
       const stock = parseDecimalSafe(item.currentStock);
 
       if (!item.quantity || qty.lte(0) || !qty.isFinite()) {
-        itemErrors.quantity = "Quantity must be greater than 0.";
+        itemErrors.quantity = t("sale.quantityGtZero");
       }
 
       if (!item.unitPrice || price.lt(0) || !price.isFinite()) {
-        itemErrors.unitPrice = "Price cannot be negative.";
+        itemErrors.unitPrice = t("sale.priceNotNegative");
       }
 
       // Stock warning — NOT a hard error (policy: warn but allow).
       // We surface it as a separate non-blocking warning.
       if (qty.gt(stock) && stock.gte(0)) {
-        itemErrors.stock = `Selling ${formatQuantity(qty, item.productUnit)} but only ${formatQuantity(stock, item.productUnit)} in stock. Proceed anyway?`;
+        itemErrors.stock = `${t("sale.selling")} ${formatQuantity(qty, item.productUnit)} ${t("sale.butOnly")} ${formatQuantity(stock, item.productUnit)} ${t("stock.inStock")}. ${t("sale.proceedAnyway")}`;
       }
 
       errors.itemErrors[idx] = itemErrors;
@@ -167,9 +169,9 @@ export function NewSaleForm() {
 
     const paid = parseDecimalSafe(paidAmount || "0");
     if (paid.lt(0) || !paid.isFinite()) {
-      errors.paidAmount = "Paid amount cannot be negative.";
+      errors.paidAmount = t("sale.paidNotNegative");
     } else if (paid.gt(totals.grandTotal)) {
-      errors.paidAmount = "Paid amount cannot exceed total sale.";
+      errors.paidAmount = t("sale.paidExceedsTotal");
     }
 
     return errors;
@@ -186,13 +188,13 @@ export function NewSaleForm() {
   // ── Submit ──────────────────────────────────────────────────────────
   const handleSubmit = () => {
     if (!customer) {
-      setCustomerError("Please select a customer first.");
+      setCustomerError(t("sale.selectCustomerFirst"));
       return;
     }
     setCustomerError(null);
 
     if (hasBlockingErrors) {
-      toast.error("Please fix the errors before saving.");
+      toast.error(t("common.fixErrorsBeforeSaving"));
       return;
     }
 
@@ -210,7 +212,7 @@ export function NewSaleForm() {
       },
       {
         onSuccess: (sale) => {
-          toast.success(`Sale of ${formatMoney(sale.totalAmount)} recorded`);
+          toast.success(t("sale.saleRecorded"));
           router.push(`/sales/${sale.id}`);
         },
         onError: (error) => {
@@ -219,7 +221,7 @@ export function NewSaleForm() {
               ? error.message
               : error instanceof Error
                 ? error.message
-                : "Failed to save sale.";
+                : t("common.failed");
           toast.error(message);
         },
       },
@@ -232,7 +234,7 @@ export function NewSaleForm() {
       {/* Customer section */}
       <section className="space-y-2">
         <h2 className="px-1 text-sm font-semibold text-slate-700">
-          1. Customer
+          1. {t("sale.customer")}
         </h2>
         <CustomerPicker
           selected={customer}
@@ -244,7 +246,7 @@ export function NewSaleForm() {
       {/* Line items section */}
       <section className="space-y-2">
         <h2 className="px-1 text-sm font-semibold text-slate-700">
-          2. Products
+          2. {t("sale.products")}
         </h2>
         <ProductPicker
           alreadyAddedProductIds={addedProductIds}
@@ -272,14 +274,14 @@ export function NewSaleForm() {
                         {item.productName}
                       </p>
                       <p className="text-[11px] text-slate-500">
-                        Stock: {formatQuantity(item.currentStock, item.productUnit)}
+                        {formatQuantity(item.currentStock, item.productUnit)} {t("stock.inStock")}
                       </p>
                     </div>
                     <button
                       type="button"
                       onClick={() => handleRemoveItem(idx)}
                       className="shrink-0 rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600"
-                      aria-label="Remove item"
+                      aria-label={t("sale.removeItem")}
                     >
                       <Trash2 className="h-4 w-4" />
                     </button>
@@ -288,7 +290,7 @@ export function NewSaleForm() {
                   <div className="mt-2 grid grid-cols-2 gap-2">
                     <div>
                       <label className="mb-0.5 block text-[11px] font-medium text-slate-600">
-                        Quantity
+                        {t("sale.quantity")}
                       </label>
                       <input
                         type="number"
@@ -309,7 +311,7 @@ export function NewSaleForm() {
                     </div>
                     <div>
                       <label className="mb-0.5 block text-[11px] font-medium text-slate-600">
-                        Unit Price ({item.productUnit})
+                        {t("sale.unitPrice")} ({item.productUnit})
                       </label>
                       <input
                         type="number"
@@ -331,7 +333,7 @@ export function NewSaleForm() {
                   </div>
 
                   <div className="mt-2 flex items-center justify-between border-t border-slate-100 pt-2">
-                    <span className="text-[11px] text-slate-500">Line total</span>
+                    <span className="text-[11px] text-slate-500">{t("sale.lineTotal")}</span>
                     <span className="text-sm font-semibold tabular-nums text-slate-900">
                       <Money value={lineTotal.toString()} />
                     </span>
@@ -351,7 +353,7 @@ export function NewSaleForm() {
           <div className="rounded-lg border border-dashed border-slate-300 px-3 py-4 text-center">
             <ShoppingCart className="mx-auto h-5 w-5 text-slate-300" />
             <p className="mt-1 text-xs text-slate-500">
-              No products added yet. Search above to add items.
+              {t("sale.noProductsAdded")}
             </p>
           </div>
         )}
@@ -365,13 +367,13 @@ export function NewSaleForm() {
       {items.length > 0 ? (
         <section className="space-y-2">
           <h2 className="px-1 text-sm font-semibold text-slate-700">
-            3. Payment
+            3. {t("sale.payment")}
           </h2>
 
           <div className="rounded-xl border border-slate-200 bg-white p-3">
             <div className="space-y-1.5 text-sm">
               <div className="flex items-center justify-between">
-                <span className="text-slate-600">Total</span>
+                <span className="text-slate-600">{t("sale.total")}</span>
                 <span className="font-bold tabular-nums text-slate-900">
                   <Money value={totals.grandTotal.toString()} />
                 </span>
@@ -379,7 +381,7 @@ export function NewSaleForm() {
 
               <div>
                 <label className="mb-1 block text-xs font-medium text-slate-600">
-                  Amount paid now
+                  {t("sale.amountPaidNow")}
                 </label>
                 <input
                   type="number"
@@ -404,20 +406,20 @@ export function NewSaleForm() {
                     onClick={() => setPaidAmount(totals.grandTotal.toString())}
                     className="rounded-md bg-brand-50 px-2 py-1 text-[11px] font-medium text-brand-700 hover:bg-brand-100"
                   >
-                    Full payment
+                    {t("sale.fullPayment")}
                   </button>
                   <button
                     type="button"
                     onClick={() => setPaidAmount("0")}
                     className="rounded-md bg-slate-100 px-2 py-1 text-[11px] font-medium text-slate-700 hover:bg-slate-200"
                   >
-                    Credit only
+                    {t("sale.creditOnly")}
                   </button>
                 </div>
               </div>
 
               <div className="flex items-center justify-between border-t border-slate-100 pt-1.5">
-                <span className="text-slate-600">Outstanding (added to khata)</span>
+                <span className="text-slate-600">{t("sale.outstanding")}</span>
                 <span className="font-bold tabular-nums text-red-600">
                   <Money value={totals.outstanding.toString()} />
                 </span>
@@ -428,12 +430,12 @@ export function NewSaleForm() {
           {/* Notes */}
           <div>
             <label className="mb-1 block px-1 text-xs font-medium text-slate-600">
-              Notes (optional)
+              {t("sale.saleNotes")}
             </label>
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="e.g. Delivery scheduled for tomorrow"
+              placeholder={t("sale.saleNotesPlaceholder")}
               rows={2}
               className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
             />
@@ -444,9 +446,7 @@ export function NewSaleForm() {
             <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
               <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
               <span>
-                You&apos;re selling more than current stock for some items. The sale will still
-                be saved — stock will go negative and you can add the missing stock later
-                via the Stock screen.
+                {t("sale.overSellingBanner")}
               </span>
             </div>
           ) : null}
@@ -457,7 +457,7 @@ export function NewSaleForm() {
       <StickyFormActions
         onCancel={() => router.back()}
         onSave={handleSubmit}
-        saveLabel="Save Sale"
+        saveLabel={t("sale.saveSale")}
         saveDisabled={hasBlockingErrors || items.length === 0}
         isPending={createSale.isPending}
       />

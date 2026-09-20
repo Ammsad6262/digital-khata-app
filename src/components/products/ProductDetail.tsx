@@ -34,10 +34,12 @@ import { Decimal } from "@/lib/utils/decimal";
 import { formatQuantity } from "@/lib/utils/money";
 import { formatDate, formatTime } from "@/lib/utils/date";
 import { cn } from "@/lib/utils/cn";
+import { useLanguage } from "@/providers/language-provider";
 
 export function ProductDetail({ productId }: { productId: string }) {
   const { data: product, isLoading, isError, error, refetch } = useProduct(productId);
   const { data: moves, isLoading: movesLoading } = useStockMovesByProduct(productId);
+  const { t } = useLanguage();
 
   if (isLoading) {
     return <ProductDetailSkeleton />;
@@ -46,12 +48,12 @@ export function ProductDetail({ productId }: { productId: string }) {
   if (isError) {
     return (
       <EmptyState
-        title="Couldn't load product"
-        description={error instanceof Error ? error.message : "Something went wrong."}
+        title={t("common.couldntLoad")}
+        description={error instanceof Error ? error.message : t("common.networkError")}
         icon={<AlertCircle className="h-6 w-6" />}
         action={
           <Button onClick={() => refetch()} variant="outline" size="sm">
-            Retry
+            {t("common.retry")}
           </Button>
         }
       />
@@ -86,7 +88,7 @@ export function ProductDetail({ productId }: { productId: string }) {
         )}
       >
         <p className="text-xs font-medium uppercase tracking-wider opacity-80">
-          {isNegative ? "Below zero" : isLow ? "Low stock" : "Current stock"}
+          {isNegative ? t("stock.belowZero") : isLow ? t("dashboard.lowStock") : t("stock.currentStock")}
         </p>
         <p className="mt-1 text-3xl font-bold tracking-tight">
           {formatQuantity(stock, product.unit)}
@@ -100,19 +102,19 @@ export function ProductDetail({ productId }: { productId: string }) {
       <div className="rounded-xl border border-slate-200 bg-white p-3">
         <h2 className="text-base font-semibold text-slate-900">{product.name}</h2>
         <div className="mt-1 space-y-0.5 text-xs text-slate-500">
-          <p>{product.category ?? "Uncategorized"} · {product.unit}</p>
+          <p>{product.category ?? t("stock.uncategorized")} · {product.unit}</p>
           {product.sku ? <p>SKU: {product.sku}</p> : null}
         </div>
 
         <div className="mt-3 grid grid-cols-2 gap-2 border-t border-slate-100 pt-3">
           <div>
-            <p className="text-[10px] uppercase tracking-wide text-slate-500">Selling price</p>
+            <p className="text-[10px] uppercase tracking-wide text-slate-500">{t("product.sellingPrice")}</p>
             <p className="text-sm font-bold text-slate-900">
               <Money value={product.sellingPrice} />
             </p>
           </div>
           <div>
-            <p className="text-[10px] uppercase tracking-wide text-slate-500">Purchase price</p>
+            <p className="text-[10px] uppercase tracking-wide text-slate-500">{t("product.purchasePrice")}</p>
             <p className="text-sm font-bold text-slate-700">
               <Money value={product.purchasePrice} />
             </p>
@@ -125,19 +127,19 @@ export function ProductDetail({ productId }: { productId: string }) {
         <Link href={`/stock/add?productId=${product.id}`}>
           <Button className="w-full" variant="primary" size="md">
             <ArrowDownToLine className="h-4 w-4" />
-            Add
+            {t("stock.addStockType")}
           </Button>
         </Link>
         <Link href={`/stock/adjust?productId=${product.id}`}>
           <Button className="w-full" variant="outline" size="md">
             <Settings2 className="h-4 w-4" />
-            Adjust
+            {t("stock.adjustmentType")}
           </Button>
         </Link>
         <Link href={`/more/products/${product.id}/edit`}>
           <Button className="w-full" variant="outline" size="md">
             <Pencil className="h-4 w-4" />
-            Edit
+            {t("common.edit")}
           </Button>
         </Link>
       </div>
@@ -145,7 +147,7 @@ export function ProductDetail({ productId }: { productId: string }) {
       {/* Stock movement history */}
       <section className="space-y-2">
         <h3 className="px-1 text-sm font-semibold text-slate-700">
-          Stock History
+          {t("stock.stockHistory")}
         </h3>
 
         {movesLoading ? (
@@ -156,8 +158,8 @@ export function ProductDetail({ productId }: { productId: string }) {
           </div>
         ) : !moves || moves.length === 0 ? (
           <EmptyState
-            title="No stock movements yet"
-            description="Stock purchases and adjustments will appear here. Sale-based stock reductions are visible on the Sales page."
+            title={t("stock.noStockMovements")}
+            description={t("stock.noStockMovementsDesc")}
             icon={<Package className="h-6 w-6" />}
           />
         ) : (
@@ -166,7 +168,7 @@ export function ProductDetail({ productId }: { productId: string }) {
             {new Decimal(product.openingStock).gt(0) ? (
               <MovementRow
                 type="opening"
-                label="Opening stock"
+                label={t("product.openingStock")}
                 quantity={product.openingStock}
                 unit={product.unit}
                 date={product.createdAt.toISOString()}

@@ -15,9 +15,11 @@ import { Button } from "@/components/ui/Button";
 import { Decimal } from "@/lib/utils/decimal";
 import { formatQuantity, formatMoney } from "@/lib/utils/money";
 import { cn } from "@/lib/utils/cn";
+import { useLanguage } from "@/providers/language-provider";
 
 export function ProductsList() {
   const { query, setQuery, data, isLoading, isError, error, refetch } = useProductSearch();
+  const { t } = useLanguage();
 
   const isShortQuery = query.trim().length > 0 && query.trim().length < 2;
   const isEmpty = !data || data.length === 0;
@@ -36,7 +38,7 @@ export function ProductsList() {
             inputMode="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search by name or SKU..."
+            placeholder={t("stock.searchPlaceholder")}
             className="w-full rounded-lg border border-slate-300 bg-white py-2.5 pl-9 pr-9 text-sm text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
             aria-label="Search products"
           />
@@ -53,7 +55,7 @@ export function ProductsList() {
         </div>
         {isShortQuery ? (
           <p className="mt-1 pl-1 text-xs text-slate-500">
-            Keep typing — search needs at least 2 characters.
+            {t("customer.keepTyping")}
           </p>
         ) : null}
       </div>
@@ -63,38 +65,38 @@ export function ProductsList() {
         <ProductsListSkeleton />
       ) : isError ? (
         <EmptyState
-          title="Couldn't load products"
-          description={error instanceof Error ? error.message : "Something went wrong."}
+          title={t("common.couldntLoad")}
+          description={error instanceof Error ? error.message : t("common.networkError")}
           icon={<Package className="h-6 w-6" />}
           action={
             <Button onClick={() => refetch()} variant="outline" size="sm">
-              Retry
+              {t("common.retry")}
             </Button>
           }
         />
       ) : isEmpty ? (
         query.trim() ? (
           <EmptyState
-            title="No products match"
+            title={t("product.noProductsMatch")}
             description={`No products found for "${query.trim()}".`}
             icon={<Search className="h-6 w-6" />}
             action={
               <Link href="/more/products/new">
                 <Button size="sm" variant="outline">
-                  Add &ldquo;{query.trim()}&rdquo; as new product
+                  {t("stock.addProduct")} &ldquo;{query.trim()}&rdquo;
                 </Button>
               </Link>
             }
           />
         ) : (
           <EmptyState
-            title="No products yet"
-            description="Add your first product to start tracking stock and recording sales."
+            title={t("product.noProducts")}
+            description={t("product.noProductsDesc")}
             icon={<Package className="h-6 w-6" />}
             action={
               <Link href="/more/products/new">
                 <Button size="sm">
-                  Add your first product
+                  {t("stock.addProduct")}
                 </Button>
               </Link>
             }
@@ -106,11 +108,11 @@ export function ProductsList() {
             <p className="text-xs text-slate-500">
               {query.trim() ? (
                 <>
-                  {data?.length} {data?.length === 1 ? "result" : "results"} for &ldquo;{query.trim()}&rdquo;
+                  {data?.length} {data?.length === 1 ? t("customer.result") : t("customer.results")} {t("customer.for")} &ldquo;{query.trim()}&rdquo;
                 </>
               ) : (
                 <>
-                  {data?.length} {data?.length === 1 ? "product" : "products"} total
+                  {data?.length} {data?.length === 1 ? t("product.productName") : t("more.products")} {t("customer.total")}
                 </>
               )}
             </p>
@@ -153,7 +155,7 @@ export function ProductsList() {
                     {product.name}
                   </p>
                   <p className="text-[11px] text-slate-500">
-                    {product.category ?? "Uncategorized"} · {formatMoney(product.sellingPrice)} / {product.unit}
+                    {product.category ?? t("stock.uncategorized")} · {formatMoney(product.sellingPrice)} / {product.unit}
                   </p>
                 </div>
 
@@ -170,7 +172,7 @@ export function ProductsList() {
                   >
                     {formatQuantity(product.currentStock, product.unit)}
                   </p>
-                  <p className="text-[10px] text-slate-400">in stock</p>
+                  <p className="text-[10px] text-slate-400">{t("stock.inStock")}</p>
                 </div>
               </Link>
             ))}

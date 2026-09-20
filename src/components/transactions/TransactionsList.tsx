@@ -41,26 +41,29 @@ import { Money } from "@/components/shared/Money";
 import { Button } from "@/components/ui/Button";
 import { formatRelative, formatDate } from "@/lib/utils/date";
 import { cn } from "@/lib/utils/cn";
+import { useLanguage } from "@/providers/language-provider";
 
-const DATE_FILTERS: Array<{ value: TransactionFilter; label: string }> = [
-  { value: "today", label: "Today" },
-  { value: "week", label: "This Week" },
-  { value: "month", label: "This Month" },
-  { value: "all", label: "All" },
-  { value: "custom", label: "Custom" },
+type DateFilterKey = "transactions.today" | "transactions.thisWeek" | "transactions.thisMonth" | "transactions.all" | "transactions.custom";
+const DATE_FILTERS: Array<{ value: TransactionFilter; labelKey: DateFilterKey }> = [
+  { value: "today", labelKey: "transactions.today" },
+  { value: "week", labelKey: "transactions.thisWeek" },
+  { value: "month", labelKey: "transactions.thisMonth" },
+  { value: "all", labelKey: "transactions.all" },
+  { value: "custom", labelKey: "transactions.custom" },
 ];
 
-const TYPE_FILTERS: Array<{ value: TransactionType | "all"; label: string }> = [
-  { value: "all", label: "All" },
-  { value: "sale", label: "Sales" },
-  { value: "payment", label: "Payments" },
-  { value: "expense", label: "Expenses" },
-  { value: "stock_move", label: "Stock" },
-  { value: "balance_adjustment", label: "Adjustments" },
+type TypeFilterKey = "transactions.allTypes" | "transactions.sales" | "transactions.payments" | "transactions.expenses" | "transactions.stock" | "transactions.adjustments";
+const TYPE_FILTERS: Array<{ value: TransactionType | "all"; labelKey: TypeFilterKey }> = [
+  { value: "all", labelKey: "transactions.allTypes" },
+  { value: "sale", labelKey: "transactions.sales" },
+  { value: "payment", labelKey: "transactions.payments" },
+  { value: "expense", labelKey: "transactions.expenses" },
+  { value: "stock_move", labelKey: "transactions.stock" },
+  { value: "balance_adjustment", labelKey: "transactions.adjustments" },
 ];
 
 type TxTypeInfo = {
-  label: string;
+  labelKey: TypeFilterKey;
   icon: typeof ShoppingCart;
   iconBg: string;
   iconColor: string;
@@ -69,35 +72,35 @@ type TxTypeInfo = {
 
 const TX_TYPE_INFO: Record<string, TxTypeInfo> = {
   sale: {
-    label: "Sale",
+    labelKey: "transactions.sales",
     icon: ShoppingCart,
     iconBg: "bg-brand-50",
     iconColor: "text-brand-700",
     href: (tx) => `/sales/${tx.refId}`,
   },
   payment: {
-    label: "Payment",
+    labelKey: "transactions.payments",
     icon: Wallet,
     iconBg: "bg-blue-50",
     iconColor: "text-blue-700",
     href: (tx) => `/payments/${tx.refId}`,
   },
   expense: {
-    label: "Expense",
+    labelKey: "transactions.expenses",
     icon: Receipt,
     iconBg: "bg-amber-50",
     iconColor: "text-amber-700",
     href: (tx) => `/more/expenses/${tx.refId}`,
   },
   stock_move: {
-    label: "Stock",
+    labelKey: "transactions.stock",
     icon: Package,
     iconBg: "bg-purple-50",
     iconColor: "text-purple-700",
     href: (tx) => tx.productId ? `/more/products/${tx.productId}` : "/stock",
   },
   balance_adjustment: {
-    label: "Adjustment",
+    labelKey: "transactions.adjustments",
     icon: Scale,
     iconBg: "bg-slate-100",
     iconColor: "text-slate-700",
@@ -125,6 +128,7 @@ export function TransactionsList() {
   const [typeFilter, setTypeFilter] = useState<TransactionType | "all">("all");
   const [from, setFrom] = useState<string>(daysAgoIsoLocal(7));
   const [to, setTo] = useState<string>(todayIsoLocal());
+  const { t } = useLanguage();
 
   // Only enable custom range inputs when filter='custom'
   const showCustomRange = filter === "custom";
@@ -157,7 +161,7 @@ export function TransactionsList() {
                 : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50",
             )}
           >
-            {f.label}
+            {t(f.labelKey)}
           </button>
         ))}
       </div>
@@ -167,12 +171,12 @@ export function TransactionsList() {
         <div className="rounded-xl border border-slate-200 bg-white p-3 space-y-2">
           <div className="flex items-center gap-1.5 text-xs font-medium text-slate-600">
             <Calendar className="h-3.5 w-3.5" />
-            Custom date range
+            {t("transactions.customDateRange")}
           </div>
           <div className="grid grid-cols-2 gap-2">
             <div>
               <label className="mb-0.5 block text-[10px] uppercase tracking-wide text-slate-500">
-                From
+                {t("transactions.from")}
               </label>
               <input
                 type="date"
@@ -184,7 +188,7 @@ export function TransactionsList() {
             </div>
             <div>
               <label className="mb-0.5 block text-[10px] uppercase tracking-wide text-slate-500">
-                To
+                {t("transactions.to")}
               </label>
               <input
                 type="date"
@@ -201,19 +205,19 @@ export function TransactionsList() {
 
       {/* Type filter chips */}
       <div className="flex gap-1.5 overflow-x-auto pb-1">
-        {TYPE_FILTERS.map((t) => (
+        {TYPE_FILTERS.map((tf) => (
           <button
-            key={t.value}
+            key={tf.value}
             type="button"
-            onClick={() => setTypeFilter(t.value)}
+            onClick={() => setTypeFilter(tf.value)}
             className={cn(
               "shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors",
-              typeFilter === t.value
+              typeFilter === tf.value
                 ? "bg-slate-900 text-white"
                 : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50",
             )}
           >
-            {t.label}
+            {t(tf.labelKey)}
           </button>
         ))}
       </div>
@@ -223,18 +227,18 @@ export function TransactionsList() {
         <div className="rounded-xl border border-slate-200 bg-white p-3">
           <div className="flex items-center justify-between text-xs">
             <span className="text-slate-500">
-              {summary.count} {summary.count === 1 ? "transaction" : "transactions"}
+              {summary.count} {summary.count === 1 ? t("transactions.transaction") : t("transactions.transactions")}
             </span>
           </div>
           <div className="mt-1.5 grid grid-cols-2 gap-2">
             <div className="rounded-lg bg-brand-50 px-2 py-1.5">
-              <p className="text-[10px] uppercase tracking-wide text-brand-700">Money in</p>
+              <p className="text-[10px] uppercase tracking-wide text-brand-700">{t("transactions.moneyIn")}</p>
               <p className="text-sm font-bold tabular-nums text-brand-700">
                 <Money value={summary.totalIn} />
               </p>
             </div>
             <div className="rounded-lg bg-red-50 px-2 py-1.5">
-              <p className="text-[10px] uppercase tracking-wide text-red-700">Money out</p>
+              <p className="text-[10px] uppercase tracking-wide text-red-700">{t("transactions.moneyOut")}</p>
               <p className="text-sm font-bold tabular-nums text-red-700">
                 <Money value={summary.totalOut} />
               </p>
@@ -248,18 +252,18 @@ export function TransactionsList() {
         <TransactionsListSkeleton />
       ) : isError ? (
         <EmptyState
-          title="Couldn't load transactions"
-          description={error instanceof Error ? error.message : "Something went wrong."}
+          title={t("common.couldntLoad")}
+          description={error instanceof Error ? error.message : t("common.networkError")}
           icon={<AlertCircle className="h-6 w-6" />}
           action={
             <Button onClick={() => refetch()} variant="outline" size="sm">
-              Retry
+              {t("common.retry")}
             </Button>
           }
         />
       ) : transactions.length === 0 ? (
         <EmptyState
-          title="No transactions in this range"
+          title={t("transactions.noTransactions")}
           description={
             filter === "custom"
               ? `No transactions between ${formatDate(new Date(from))} and ${formatDate(new Date(to))}.`
@@ -285,13 +289,15 @@ function TransactionRow({
   tx: TransactionListItem;
   isFirst: boolean;
 }) {
-  const info = TX_TYPE_INFO[tx.type] ?? TX_TYPE_INFO.balance_adjustment ?? {
-    label: "Transaction",
+  const { t } = useLanguage();
+  const fallbackInfo: TxTypeInfo = {
+    labelKey: "transactions.adjustments",
     icon: Scale,
     iconBg: "bg-slate-100",
     iconColor: "text-slate-700",
     href: () => "/more/transactions" as string,
   };
+  const info = TX_TYPE_INFO[tx.type] ?? TX_TYPE_INFO.balance_adjustment ?? fallbackInfo;
   const Icon = info.icon;
 
   // Determine the display amount + color
@@ -319,7 +325,7 @@ function TransactionRow({
   })();
 
   // Description (most relevant context for the user)
-  const description = tx.customerName ?? tx.productName ?? tx.notes ?? info.label;
+  const description = tx.customerName ?? tx.productName ?? tx.notes ?? t(info.labelKey);
 
   return (
     <Link
@@ -344,7 +350,7 @@ function TransactionRow({
         </div>
         <div className="flex items-center justify-between gap-2">
           <p className="truncate text-[11px] text-slate-500">
-            <span className="font-medium text-slate-600">{info.label}</span>
+            <span className="font-medium text-slate-600">{t(info.labelKey)}</span>
             {tx.productName ? <span> · {tx.productName}</span> : null}
           </p>
           <p className="shrink-0 text-[11px] text-slate-400">

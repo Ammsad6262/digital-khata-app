@@ -11,8 +11,10 @@ import Link from "next/link";
 import { AlertTriangle, Package } from "lucide-react";
 import { formatQuantity } from "@/lib/utils/money";
 import type { LowStockProduct } from "@/lib/services/dashboard";
+import { useLanguage } from "@/providers/language-provider";
 
 export function LowStockList({ products }: { products: LowStockProduct[] }) {
+  const { t } = useLanguage();
   if (products.length === 0) return null;
 
   return (
@@ -21,14 +23,14 @@ export function LowStockList({ products }: { products: LowStockProduct[] }) {
         <div className="flex items-center gap-1.5">
           <AlertTriangle className="h-4 w-4 text-amber-600" />
           <h2 className="text-sm font-semibold text-slate-700">
-            Low Stock ({products.length})
+            {t("dashboard.lowStock")} ({products.length})
           </h2>
         </div>
         <Link
           href="/stock"
           className="text-xs font-medium text-brand-600 hover:text-brand-700"
         >
-          View all
+          {t("dashboard.viewAll")}
         </Link>
       </div>
 

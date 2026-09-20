@@ -27,6 +27,7 @@ import { formatQuantity, formatMoney } from "@/lib/utils/money";
 import { useToast } from "@/providers/toast-provider";
 import { ApiError } from "@/lib/utils/api-client";
 import type { ProductSearchResult } from "@/lib/services/products";
+import { useLanguage } from "@/providers/language-provider";
 
 const UNITS = ["piece", "kg", "box", "dozen", "litre", "pack", "bag", "bottle", "carton"];
 
@@ -39,6 +40,7 @@ export function ProductPicker({
 }) {
   const { query, setQuery, data, isLoading, isError } = useProductSearch();
   const [showQuickAdd, setShowQuickAdd] = useState(false);
+  const { t } = useLanguage();
 
   // Inline quick-add form
   if (showQuickAdd) {
@@ -67,18 +69,18 @@ export function ProductPicker({
           inputMode="search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search product by name or SKU..."
+          placeholder={t("sale.searchProduct")}
           className="w-full rounded-lg border border-slate-300 bg-white py-2.5 pl-9 pr-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
-          aria-label="Search product"
+          aria-label={t("common.searchProductAria")}
           autoFocus
         />
       </div>
 
       <div className="space-y-1">
         {isLoading ? (
-          <p className="px-2 py-3 text-xs text-slate-400">Searching...</p>
+          <p className="px-2 py-3 text-xs text-slate-400">{t("common.loading")}</p>
         ) : isError ? (
-          <p className="px-2 py-3 text-xs text-red-600">Failed to load products.</p>
+          <p className="px-2 py-3 text-xs text-red-600">{t("common.couldntLoad")}</p>
         ) : !data || data.length === 0 ? (
           query.trim() ? (
             <button
@@ -91,17 +93,17 @@ export function ProductPicker({
               </div>
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium text-blue-700">
-                  Add &ldquo;{query.trim()}&rdquo; as new product
+                  {t("stock.addProduct")} &ldquo;{query.trim()}&rdquo;
                 </p>
                 <p className="text-[11px] text-slate-500">
-                  Tap to create with this name
+                  {t("common.tapToCreate")}
                 </p>
               </div>
               <ChevronRight className="h-4 w-4 shrink-0 text-blue-400" />
             </button>
           ) : (
             <p className="px-2 py-3 text-xs text-slate-400">
-              Start typing to search products...
+              {t("sale.startTypingProduct")}
             </p>
           )
         ) : (
@@ -142,10 +144,10 @@ export function ProductPicker({
                         {isNegative ? (
                           <span className="inline-flex items-center gap-0.5">
                             <AlertTriangle className="h-3 w-3" />
-                            {formatQuantity(stock, product.unit)} (negative)
+                            {formatQuantity(stock, product.unit)} ({t("stock.belowZero")})
                           </span>
                         ) : (
-                          <span>Stock: {formatQuantity(stock, product.unit)}</span>
+                          <span>{formatQuantity(stock, product.unit)} {t("stock.inStock")}</span>
                         )}
                       </span>
                       {product.sku ? (
@@ -157,7 +159,7 @@ export function ProductPicker({
                     <p className="text-xs font-medium text-slate-700">
                       {formatMoney(product.sellingPrice)}
                     </p>
-                    <p className="text-[10px] text-slate-400">per {product.unit}</p>
+                    <p className="text-[10px] text-slate-400">{t("product.per")} {product.unit}</p>
                   </div>
                   <div className="shrink-0">
                     {alreadyAdded ? (
@@ -192,6 +194,7 @@ function QuickAddProduct({
 }) {
   const toast = useToast();
   const createProduct = useCreateProduct();
+  const { t } = useLanguage();
   const [name, setName] = useState(initialName);
   const [sellingPrice, setSellingPrice] = useState("");
   const [unit, setUnit] = useState("piece");
@@ -212,7 +215,7 @@ function QuickAddProduct({
       },
       {
         onSuccess: (product) => {
-          toast.success(`Product "${product.name}" added`);
+          toast.success(t("product.productAdded"));
           onCreated({
             id: product.id,
             name: product.name,
@@ -231,9 +234,9 @@ function QuickAddProduct({
         },
         onError: (error) => {
           if (error instanceof ApiError && error.code === "CONFLICT") {
-            toast.error("A product with this SKU already exists.");
+            toast.error(t("product.skuExists"));
           } else {
-            toast.error(error instanceof Error ? error.message : "Failed to add product.");
+            toast.error(error instanceof Error ? error.message : t("common.failed"));
           }
         },
       },
@@ -244,11 +247,11 @@ function QuickAddProduct({
     <div className="rounded-xl border-2 border-blue-300 bg-white p-3 space-y-3">
       <div className="flex items-center gap-2 text-sm font-semibold text-blue-700">
         <Plus className="h-4 w-4" />
-        Quick add product
+        {t("stock.addProduct")}
       </div>
 
       <div>
-        <label className="mb-1 block text-xs font-medium text-slate-600">Name</label>
+        <label className="mb-1 block text-xs font-medium text-slate-600">{t("product.productName")}</label>
         <input
           type="text"
           value={name}
@@ -260,7 +263,7 @@ function QuickAddProduct({
 
       <div className="grid grid-cols-2 gap-2">
         <div>
-          <label className="mb-1 block text-xs font-medium text-slate-600">Selling price</label>
+          <label className="mb-1 block text-xs font-medium text-slate-600">{t("product.sellingPrice")}</label>
           <div className="relative">
             <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-xs text-slate-500">Rs.</span>
             <input
@@ -276,7 +279,7 @@ function QuickAddProduct({
           </div>
         </div>
         <div>
-          <label className="mb-1 block text-xs font-medium text-slate-600">Unit</label>
+          <label className="mb-1 block text-xs font-medium text-slate-600">{t("product.unit")}</label>
           <select
             value={unit}
             onChange={(e) => setUnit(e.target.value)}
@@ -295,7 +298,7 @@ function QuickAddProduct({
           onClick={onCancel}
           className="flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50"
         >
-          Cancel
+          {t("common.cancel")}
         </button>
         <button
           type="button"
@@ -306,12 +309,12 @@ function QuickAddProduct({
           {createProduct.isPending ? (
             <>
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              Adding...
+              {t("common.saving")}
             </>
           ) : (
             <>
               <Plus className="h-3.5 w-3.5" />
-              Add &amp; Select
+              {t("common.save")}
             </>
           )}
         </button>

@@ -34,6 +34,7 @@ import { Decimal } from "@/lib/utils/decimal";
 import { formatQuantity } from "@/lib/utils/money";
 import type { ProductSearchResult } from "@/lib/services/products";
 import { cn } from "@/lib/utils/cn";
+import { useLanguage } from "@/providers/language-provider";
 
 function todayIsoLocal(): string {
   const now = new Date();
@@ -48,6 +49,7 @@ export function AdjustStockForm({ initialProductId }: { initialProductId?: strin
   const router = useRouter();
   const toast = useToast();
   const addStockMove = useAddStockMove();
+  const { t } = useLanguage();
 
   const [selected, setSelected] = useState<ProductSearchResult | null>(null);
   const [adjustType, setAdjustType] = useState<AdjustType>("remove");
@@ -69,14 +71,14 @@ export function AdjustStockForm({ initialProductId }: { initialProductId?: strin
   const validation = useMemo(() => {
     const errors: { product?: string; quantity?: string; reason?: string } = {};
     if (!selected) {
-      errors.product = "Please select a product.";
+      errors.product = t("stock.selectProduct");
     }
     const qty = parseDecimalSafe(quantity);
     if (!quantity || qty.lte(0) || !qty.isFinite()) {
-      errors.quantity = "Quantity must be greater than 0.";
+      errors.quantity = t("stock.quantityGtZero");
     }
     if (!reason.trim()) {
-      errors.reason = "Reason is required for adjustments.";
+      errors.reason = t("stock.reasonRequiredForAdjustments");
     }
     return errors;
   }, [selected, quantity, reason]);
@@ -88,11 +90,11 @@ export function AdjustStockForm({ initialProductId }: { initialProductId?: strin
 
   const handleSubmit = () => {
     if (!selected) {
-      toast.error("Please select a product first.");
+      toast.error(t("stock.selectProductFirst"));
       return;
     }
     if (hasErrors) {
-      toast.error("Please fix the errors before saving.");
+      toast.error(t("common.fixErrorsBeforeSaving"));
       return;
     }
 
@@ -108,9 +110,7 @@ export function AdjustStockForm({ initialProductId }: { initialProductId?: strin
       },
       {
         onSuccess: () => {
-          toast.success(
-            `Stock adjusted: ${adjustType === "remove" ? "−" : "+"}${formatQuantity(parseDecimalSafe(quantity), selected.unit)} of ${selected.name}`,
-          );
+          toast.success(t("stock.stockAdjusted"));
           router.push(`/more/products/${selected.id}`);
         },
         onError: (error) => {
@@ -119,7 +119,7 @@ export function AdjustStockForm({ initialProductId }: { initialProductId?: strin
               ? error.message
               : error instanceof Error
                 ? error.message
-                : "Failed to adjust stock.";
+                : t("common.failed");
           toast.error(message);
         },
       },
@@ -131,7 +131,7 @@ export function AdjustStockForm({ initialProductId }: { initialProductId?: strin
       {/* Product selection */}
       <section className="space-y-2">
         <h2 className="px-1 text-sm font-semibold text-slate-700">
-          1. Product
+          1. {t("sale.products")}
         </h2>
 
         {selected ? (
@@ -145,10 +145,10 @@ export function AdjustStockForm({ initialProductId }: { initialProductId?: strin
                   {selected.name}
                 </p>
                 <p className="text-xs text-slate-500">
-                  {selected.category ?? "Uncategorized"} · {selected.unit}
+                  {selected.category ?? t("stock.uncategorized")} · {selected.unit}
                 </p>
                 <p className="mt-1 text-xs">
-                  <span className="text-slate-500">Current stock: </span>
+                  <span className="text-slate-500">{t("stock.currentStock")}: </span>
                   <span className="font-semibold text-slate-900">
                     {formatQuantity(selected.currentStock, selected.unit)}
                   </span>
@@ -159,7 +159,7 @@ export function AdjustStockForm({ initialProductId }: { initialProductId?: strin
                 onClick={() => setSelected(null)}
                 className="shrink-0 rounded-lg px-2 py-1 text-xs font-medium text-brand-600 hover:bg-brand-50"
               >
-                Change
+                {t("common.change")}
               </button>
             </div>
           </div>
@@ -175,14 +175,14 @@ export function AdjustStockForm({ initialProductId }: { initialProductId?: strin
       {selected ? (
         <section className="space-y-3">
           <h2 className="px-1 text-sm font-semibold text-slate-700">
-            2. Adjustment
+            2. {t("stock.adjustmentType")}
           </h2>
 
           <div className="rounded-xl border border-slate-200 bg-white p-3 space-y-3">
             {/* Type toggle */}
             <div>
               <label className="mb-1.5 block text-xs font-medium text-slate-600">
-                Adjustment type
+                {t("stock.adjustmentType")}
               </label>
               <div className="grid grid-cols-2 gap-1.5">
                 <button
@@ -196,7 +196,7 @@ export function AdjustStockForm({ initialProductId }: { initialProductId?: strin
                   )}
                 >
                   <Plus className="h-4 w-4" />
-                  Add stock
+                  {t("stock.addStockType")}
                 </button>
                 <button
                   type="button"
@@ -209,20 +209,20 @@ export function AdjustStockForm({ initialProductId }: { initialProductId?: strin
                   )}
                 >
                   <Minus className="h-4 w-4" />
-                  Remove stock
+                  {t("stock.removeStockType")}
                 </button>
               </div>
               <p className="mt-1 text-[11px] text-slate-500">
                 {adjustType === "add"
-                  ? "Use this for: found stock, customer returns, recount upward."
-                  : "Use this for: damage, write-off, theft, recount downward."}
+                  ? t("stock.addStockDesc")
+                  : t("stock.removeStockDesc")}
               </p>
             </div>
 
             {/* Quantity */}
             <div>
               <label className="mb-1 block text-xs font-medium text-slate-600">
-                Quantity to {adjustType === "add" ? "add" : "remove"}
+                {adjustType === "add" ? t("stock.quantityToAdd") : t("stock.quantityToRemove")}
               </label>
               <input
                 type="number"
@@ -247,15 +247,15 @@ export function AdjustStockForm({ initialProductId }: { initialProductId?: strin
             {/* Reason (REQUIRED) */}
             <div>
               <label className="mb-1 block text-xs font-medium text-slate-600">
-                Reason <span className="text-red-600">*</span>
+                {t("stock.reasonRequired")} <span className="text-red-600">*</span>
               </label>
               <textarea
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
                 placeholder={
                   adjustType === "remove"
-                    ? "e.g. 3 boxes damaged by water"
-                    : "e.g. Found 5 units in storage"
+                    ? t("stock.removeReasonPlaceholder")
+                    : t("stock.addReasonPlaceholder")
                 }
                 rows={2}
                 className={`w-full rounded-lg border bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 ${
@@ -272,7 +272,7 @@ export function AdjustStockForm({ initialProductId }: { initialProductId?: strin
             {/* Date */}
             <div>
               <label className="mb-1 block text-xs font-medium text-slate-600">
-                Date
+                {t("payment.date")}
               </label>
               <input
                 type="date"
@@ -288,13 +288,13 @@ export function AdjustStockForm({ initialProductId }: { initialProductId?: strin
           {quantity && parseDecimalSafe(quantity).gt(0) ? (
             <div className="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600 space-y-1">
               <div className="flex items-center justify-between">
-                <span>Current stock</span>
+                <span>{t("stock.currentStock")}</span>
                 <span className="font-medium text-slate-900">
                   {formatQuantity(selected.currentStock, selected.unit)}
                 </span>
               </div>
               <div className="flex items-center justify-between">
-                <span>{adjustType === "add" ? "Adding" : "Removing"}</span>
+                <span>{adjustType === "add" ? t("stock.addStockType") : t("stock.removeStockType")}</span>
                 <span className={cn(
                   "font-medium",
                   adjustType === "add" ? "text-brand-700" : "text-red-600",
@@ -304,7 +304,7 @@ export function AdjustStockForm({ initialProductId }: { initialProductId?: strin
                 </span>
               </div>
               <div className="flex items-center justify-between border-t border-slate-200 pt-1">
-                <span>New stock will be</span>
+                <span>{t("stock.newStockWillBe")}</span>
                 <span className={cn(
                   "font-bold",
                   willGoNegative ? "text-red-600" : "text-slate-900",
@@ -320,9 +320,7 @@ export function AdjustStockForm({ initialProductId }: { initialProductId?: strin
             <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
               <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
               <span>
-                This adjustment will make the stock go negative (below zero).
-                This is allowed but should only happen if you&apos;re sure —
-                the stock likely wasn&apos;t recorded properly earlier.
+                {t("stock.negativeStockWarning")}
               </span>
             </div>
           ) : null}
@@ -333,7 +331,7 @@ export function AdjustStockForm({ initialProductId }: { initialProductId?: strin
       <StickyFormActions
         onCancel={() => router.back()}
         onSave={handleSubmit}
-        saveLabel="Save Adjustment"
+        saveLabel={t("stock.saveAdjustment")}
         saveDisabled={hasErrors || !selected}
         isPending={addStockMove.isPending}
       />

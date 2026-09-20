@@ -15,6 +15,7 @@ import { Decimal } from "@/lib/utils/decimal";
 import { formatQuantity } from "@/lib/utils/money";
 import type { ProductSearchResult } from "@/lib/services/products";
 import { cn } from "@/lib/utils/cn";
+import { useLanguage } from "@/providers/language-provider";
 
 export function StockProductPicker({
   selectedId,
@@ -24,6 +25,7 @@ export function StockProductPicker({
   onSelect: (product: ProductSearchResult) => void;
 }) {
   const { query, setQuery, data, isLoading, isError } = useProductSearch();
+  const { t } = useLanguage();
 
   return (
     <div className="space-y-2">
@@ -39,26 +41,26 @@ export function StockProductPicker({
               inputMode="search"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search product by name or SKU..."
+              placeholder={t("stock.searchPlaceholder")}
               className="w-full rounded-lg border border-slate-300 bg-white py-2.5 pl-9 pr-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
-              aria-label="Search product"
+              aria-label={t("common.searchProductAria")}
               autoFocus
             />
           </div>
 
           <div className="space-y-1">
             {isLoading ? (
-              <p className="px-2 py-3 text-xs text-slate-400">Searching...</p>
+              <p className="px-2 py-3 text-xs text-slate-400">{t("common.loading")}</p>
             ) : isError ? (
-              <p className="px-2 py-3 text-xs text-red-600">Failed to load products.</p>
+              <p className="px-2 py-3 text-xs text-red-600">{t("common.couldntLoad")}</p>
             ) : !data || data.length === 0 ? (
               query.trim() ? (
                 <p className="px-2 py-3 text-xs text-slate-400">
-                  No products match &ldquo;{query.trim()}&rdquo;.
+                  {t("product.noProductsMatch")} &ldquo;{query.trim()}&rdquo;.
                 </p>
               ) : (
                 <p className="px-2 py-3 text-xs text-slate-400">
-                  Start typing to search products...
+                  {t("sale.startTypingProduct")}
                 </p>
               )
             ) : (
@@ -103,7 +105,7 @@ export function StockProductPicker({
                           {product.name}
                         </p>
                         <p className="text-[11px] text-slate-500">
-                          {product.category ?? "Uncategorized"} · {product.unit}
+                          {product.category ?? t("stock.uncategorized")} · {product.unit}
                           {product.sku ? ` · ${product.sku}` : ""}
                         </p>
                       </div>

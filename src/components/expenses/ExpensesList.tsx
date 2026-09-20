@@ -23,27 +23,31 @@ import { Decimal } from "@/lib/utils/decimal";
 import { formatDate, formatTime } from "@/lib/utils/date";
 import { formatMoney } from "@/lib/utils/money";
 import { cn } from "@/lib/utils/cn";
+import { useLanguage } from "@/providers/language-provider";
 
-const FILTERS: Array<{ value: ExpenseFilter; label: string }> = [
-  { value: "today", label: "Today" },
-  { value: "week", label: "This Week" },
-  { value: "month", label: "This Month" },
-  { value: "all", label: "All" },
+type ExpenseFilterKey = "transactions.today" | "transactions.thisWeek" | "transactions.thisMonth" | "transactions.all";
+const FILTERS: Array<{ value: ExpenseFilter; labelKey: ExpenseFilterKey }> = [
+  { value: "today", labelKey: "transactions.today" },
+  { value: "week", labelKey: "transactions.thisWeek" },
+  { value: "month", labelKey: "transactions.thisMonth" },
+  { value: "all", labelKey: "transactions.all" },
 ];
 
-const CATEGORY_BADGES: Record<string, { label: string; bg: string; text: string; icon: string }> = {
-  transport:   { label: "Transport",   bg: "bg-blue-50",   text: "text-blue-700",   icon: "🚚" },
-  shop:        { label: "Shop",        bg: "bg-purple-50", text: "text-purple-700", icon: "🏪" },
-  electricity: { label: "Electricity", bg: "bg-amber-50",  text: "text-amber-700",  icon: "💡" },
-  packaging:   { label: "Packaging",   bg: "bg-orange-50", text: "text-orange-700", icon: "📦" },
-  salary:      { label: "Salary",      bg: "bg-green-50",  text: "text-green-700",  icon: "👷" },
-  rent:        { label: "Rent",         bg: "bg-red-50",    text: "text-red-700",    icon: "🏠" },
-  other:       { label: "Other",        bg: "bg-slate-100", text: "text-slate-700", icon: "•" },
+type CategoryKey = "expense.transport" | "expense.shop" | "expense.electricity" | "expense.packaging" | "expense.salary" | "expense.rent" | "payment.other";
+const CATEGORY_BADGES: Record<string, { labelKey: CategoryKey; bg: string; text: string; icon: string }> = {
+  transport:   { labelKey: "expense.transport",   bg: "bg-blue-50",   text: "text-blue-700",   icon: "🚚" },
+  shop:        { labelKey: "expense.shop",        bg: "bg-purple-50", text: "text-purple-700", icon: "🏪" },
+  electricity: { labelKey: "expense.electricity", bg: "bg-amber-50",  text: "text-amber-700",  icon: "💡" },
+  packaging:   { labelKey: "expense.packaging",   bg: "bg-orange-50", text: "text-orange-700", icon: "📦" },
+  salary:      { labelKey: "expense.salary",      bg: "bg-green-50",  text: "text-green-700",  icon: "👷" },
+  rent:        { labelKey: "expense.rent",         bg: "bg-red-50",    text: "text-red-700",    icon: "🏠" },
+  other:       { labelKey: "payment.other",        bg: "bg-slate-100", text: "text-slate-700", icon: "•" },
 };
 
 export function ExpensesList() {
   const [filter, setFilter] = useState<ExpenseFilter>("today");
   const { data, isLoading, isError, error, refetch } = useExpensesList(filter);
+  const { t } = useLanguage();
 
   // Compute summary stats for the selected filter.
   const summary = (() => {
@@ -71,7 +75,7 @@ export function ExpensesList() {
                 : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50",
             )}
           >
-            {f.label}
+            {t(f.labelKey)}
           </button>
         ))}
       </div>
@@ -81,10 +85,10 @@ export function ExpensesList() {
         <div className="rounded-xl border border-slate-200 bg-white p-3">
           <div className="flex items-center justify-between text-xs">
             <span className="text-slate-500">
-              {summary.count} {summary.count === 1 ? "expense" : "expenses"}
+              {summary.count} {t("transactions.expenses")}
             </span>
             <span className="font-medium text-slate-700">
-              Total: <Money value={summary.total.toString()} />
+              {t("expense.total")} <Money value={summary.total.toString()} />
             </span>
           </div>
         </div>
@@ -95,21 +99,21 @@ export function ExpensesList() {
         <ExpensesListSkeleton />
       ) : isError ? (
         <EmptyState
-          title="Couldn't load expenses"
-          description={error instanceof Error ? error.message : "Something went wrong."}
+          title={t("common.couldntLoad")}
+          description={error instanceof Error ? error.message : t("common.networkError")}
           icon={<AlertCircle className="h-6 w-6" />}
           action={
             <Button onClick={() => refetch()} variant="outline" size="sm">
-              Retry
+              {t("common.retry")}
             </Button>
           }
         />
       ) : !data || data.length === 0 ? (
         <EmptyState
-          title={`No expenses ${filter === "all" ? "yet" : "in this period"}`}
+          title={filter === "all" ? t("expense.noExpenses") : t("expense.noExpensesPeriod")}
           description={
             filter === "all"
-              ? "Record your first expense using the + button above."
+              ? t("expense.noExpensesDesc")
               : "Try a different time range, or record a new expense."
           }
           icon={<Receipt className="h-6 w-6" />}
@@ -117,7 +121,7 @@ export function ExpensesList() {
             <Link href="/more/expenses/new">
               <Button size="sm">
                 <Receipt className="h-4 w-4" />
-                Add Expense
+                {t("action.addExpense")}
               </Button>
             </Link>
           }
@@ -147,9 +151,9 @@ function ExpenseRow({
   };
   isFirst: boolean;
 }) {
-  const badge = CATEGORY_BADGES[expense.category] ?? CATEGORY_BADGES.other ?? {
-    label: "Other", bg: "bg-slate-100", text: "text-slate-700", icon: "•",
-  };
+  const { t } = useLanguage();
+  const fallbackBadge = { labelKey: "payment.other" as CategoryKey, bg: "bg-slate-100", text: "text-slate-700", icon: "•" };
+  const badge = CATEGORY_BADGES[expense.category] ?? CATEGORY_BADGES.other ?? fallbackBadge;
 
   return (
     <Link
@@ -180,7 +184,7 @@ function ExpenseRow({
               badge.text,
             )}
           >
-            {badge.label}
+            {t(badge.labelKey)}
           </span>
           <span>·</span>
           <span>

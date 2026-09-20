@@ -1,3 +1,5 @@
+"use client";
+
 /**
  * Add Stock page.
  *
@@ -17,6 +19,7 @@ import { ArrowLeft } from "lucide-react";
 import { AppHeader } from "@/components/layout/AppHeader";
 import { ScreenContent } from "@/components/layout/Screen";
 import { AddStockForm } from "@/components/stock/AddStockForm";
+import { useLanguage } from "@/providers/language-provider";
 
 
 export default function AddStockPage({
@@ -24,15 +27,16 @@ export default function AddStockPage({
 }: {
   searchParams: { productId?: string };
 }) {
+  const { t } = useLanguage();
   return (
     <>
       <AppHeader
-        title="Add Stock"
+        title={t("stock.addStock")}
         rightSlot={
           <Link
             href="/stock"
             className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100"
-            aria-label="Back"
+            aria-label={t("common.back")}
           >
             <ArrowLeft className="h-5 w-5" />
           </Link>

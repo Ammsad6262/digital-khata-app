@@ -28,6 +28,7 @@ import { ApiError } from "@/lib/utils/api-client";
 import { Decimal } from "@/lib/utils/decimal";
 import { formatQuantity } from "@/lib/utils/money";
 import type { ProductSearchResult } from "@/lib/services/products";
+import { useLanguage } from "@/providers/language-provider";
 
 function todayIsoLocal(): string {
   const now = new Date();
@@ -40,6 +41,7 @@ export function AddStockForm({ initialProductId }: { initialProductId?: string }
   const router = useRouter();
   const toast = useToast();
   const addStockMove = useAddStockMove();
+  const { t } = useLanguage();
 
   const [selected, setSelected] = useState<ProductSearchResult | null>(null);
   const [quantity, setQuantity] = useState<string>("");
@@ -59,11 +61,11 @@ export function AddStockForm({ initialProductId }: { initialProductId?: string }
   const validation = useMemo(() => {
     const errors: { product?: string; quantity?: string } = {};
     if (!selected) {
-      errors.product = "Please select a product.";
+      errors.product = t("stock.selectProduct");
     }
     const qty = parseDecimalSafe(quantity);
     if (!quantity || qty.lte(0) || !qty.isFinite()) {
-      errors.quantity = "Quantity must be greater than 0.";
+      errors.quantity = t("stock.quantityGtZero");
     }
     return errors;
   }, [selected, quantity]);
@@ -72,11 +74,11 @@ export function AddStockForm({ initialProductId }: { initialProductId?: string }
 
   const handleSubmit = () => {
     if (!selected) {
-      toast.error("Please select a product first.");
+      toast.error(t("stock.selectProductFirst"));
       return;
     }
     if (hasErrors) {
-      toast.error("Please fix the errors before saving.");
+      toast.error(t("common.fixErrorsBeforeSaving"));
       return;
     }
 
@@ -93,7 +95,7 @@ export function AddStockForm({ initialProductId }: { initialProductId?: string }
       },
       {
         onSuccess: (move) => {
-          toast.success(`Stock added: ${formatQuantity(move.quantity, selected.unit)} of ${selected.name}`);
+          toast.success(t("stock.stockAdded"));
           router.push(`/more/products/${selected.id}`);
         },
         onError: (error) => {
@@ -102,7 +104,7 @@ export function AddStockForm({ initialProductId }: { initialProductId?: string }
               ? error.message
               : error instanceof Error
                 ? error.message
-                : "Failed to add stock.";
+                : t("common.failed");
           toast.error(message);
         },
       },
@@ -114,7 +116,7 @@ export function AddStockForm({ initialProductId }: { initialProductId?: string }
       {/* Product selection */}
       <section className="space-y-2">
         <h2 className="px-1 text-sm font-semibold text-slate-700">
-          1. Product
+          1. {t("sale.products")}
         </h2>
 
         {selected ? (
@@ -128,10 +130,10 @@ export function AddStockForm({ initialProductId }: { initialProductId?: string }
                   {selected.name}
                 </p>
                 <p className="text-xs text-slate-500">
-                  {selected.category ?? "Uncategorized"} · {selected.unit}
+                  {selected.category ?? t("stock.uncategorized")} · {selected.unit}
                 </p>
                 <p className="mt-1 text-xs">
-                  <span className="text-slate-500">Current stock: </span>
+                  <span className="text-slate-500">{t("stock.currentStock")}: </span>
                   <span className="font-semibold text-slate-900">
                     {formatQuantity(selected.currentStock, selected.unit)}
                   </span>
@@ -142,7 +144,7 @@ export function AddStockForm({ initialProductId }: { initialProductId?: string }
                 onClick={() => setSelected(null)}
                 className="shrink-0 rounded-lg px-2 py-1 text-xs font-medium text-brand-600 hover:bg-brand-50"
               >
-                Change
+                {t("common.change")}
               </button>
             </div>
           </div>
@@ -158,14 +160,14 @@ export function AddStockForm({ initialProductId }: { initialProductId?: string }
       {selected ? (
         <section className="space-y-3">
           <h2 className="px-1 text-sm font-semibold text-slate-700">
-            2. Purchase Details
+            2. {t("stock.addStock")}
           </h2>
 
           <div className="rounded-xl border border-slate-200 bg-white p-3 space-y-3">
             {/* Quantity */}
             <div>
               <label className="mb-1 block text-xs font-medium text-slate-600">
-                Quantity added
+                {t("stock.quantityAdded")}
               </label>
               <input
                 type="number"
@@ -190,7 +192,7 @@ export function AddStockForm({ initialProductId }: { initialProductId?: string }
             {/* Unit cost (optional) */}
             <div>
               <label className="mb-1 block text-xs font-medium text-slate-600">
-                Unit cost (optional)
+                {t("stock.unitCost")}
               </label>
               <div className="relative">
                 <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-medium text-slate-500">
@@ -208,14 +210,14 @@ export function AddStockForm({ initialProductId }: { initialProductId?: string }
                 />
               </div>
               <p className="mt-1 text-[11px] text-slate-500">
-                Purchase price per {selected.unit}. Used for profit reports later.
+                {t("stock.unitCostHint")}
               </p>
             </div>
 
             {/* Date */}
             <div>
               <label className="mb-1 block text-xs font-medium text-slate-600">
-                Date
+                {t("payment.date")}
               </label>
               <input
                 type="date"
@@ -229,12 +231,12 @@ export function AddStockForm({ initialProductId }: { initialProductId?: string }
             {/* Reason (optional) */}
             <div>
               <label className="mb-1 block text-xs font-medium text-slate-600">
-                Reason / note (optional)
+                {t("stock.reason")}
               </label>
               <textarea
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
-                placeholder="e.g. Supplier delivery, monthly restock"
+                placeholder={t("stock.reasonPlaceholder")}
                 rows={2}
                 className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
               />
@@ -245,21 +247,21 @@ export function AddStockForm({ initialProductId }: { initialProductId?: string }
           {quantity && parseDecimalSafe(quantity).gt(0) ? (
             <div className="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600 space-y-1">
               <div className="flex items-center justify-between">
-                <span>Adding</span>
+                <span>{t("stock.quantityAdded")}</span>
                 <span className="font-semibold text-slate-900">
                   {formatQuantity(parseDecimalSafe(quantity), selected.unit)}
                 </span>
               </div>
               {unitCost && parseDecimalSafe(unitCost).gt(0) ? (
                 <div className="flex items-center justify-between">
-                  <span>Total cost</span>
+                  <span>{t("expense.total")}</span>
                   <span className="font-semibold text-slate-900">
                     <Money value={totalCost.toString()} />
                   </span>
                 </div>
               ) : null}
               <div className="flex items-center justify-between border-t border-slate-200 pt-1">
-                <span>New stock will be</span>
+                <span>{t("stock.newStockWillBe")}</span>
                 <span className="font-bold text-brand-700">
                   {formatQuantity(
                     new Decimal(selected.currentStock).plus(parseDecimalSafe(quantity)),
@@ -276,7 +278,7 @@ export function AddStockForm({ initialProductId }: { initialProductId?: string }
       <StickyFormActions
         onCancel={() => router.back()}
         onSave={handleSubmit}
-        saveLabel="Add Stock"
+        saveLabel={t("stock.addStock")}
         saveDisabled={hasErrors || !selected}
         isPending={addStockMove.isPending}
       />

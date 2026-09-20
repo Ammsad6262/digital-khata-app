@@ -28,20 +28,23 @@ import { Button } from "@/components/ui/Button";
 import { formatMoney } from "@/lib/utils/money";
 import { formatDateTime } from "@/lib/utils/date";
 import { cn } from "@/lib/utils/cn";
+import { useLanguage } from "@/providers/language-provider";
 
-const METHOD_LABELS: Record<string, string> = {
-  cash: "Cash",
-  bank: "Bank Transfer",
-  cheque: "Cheque",
-  jazzcash: "JazzCash",
-  easypaisa: "EasyPaisa",
-  other: "Other",
+type MethodLabelKey = "payment.cash" | "payment.bank" | "payment.cheque" | "payment.jazzcash" | "payment.easypaisa" | "payment.other";
+const METHOD_LABELS: Record<string, MethodLabelKey> = {
+  cash: "payment.cash",
+  bank: "payment.bank",
+  cheque: "payment.cheque",
+  jazzcash: "payment.jazzcash",
+  easypaisa: "payment.easypaisa",
+  other: "payment.other",
 };
 
 export function PaymentDetail({ paymentId }: { paymentId: string }) {
   const { data: payment, isLoading, isError, error, refetch } = usePayment(paymentId);
   const voidPayment = useVoidPayment();
   const [confirmVoid, setConfirmVoid] = useState(false);
+  const { t } = useLanguage();
 
   if (isLoading) {
     return <PaymentDetailSkeleton />;
@@ -50,12 +53,12 @@ export function PaymentDetail({ paymentId }: { paymentId: string }) {
   if (isError) {
     return (
       <EmptyState
-        title="Couldn't load payment"
-        description={error instanceof Error ? error.message : "Something went wrong."}
+        title={t("payment.couldntLoadPayment")}
+        description={error instanceof Error ? error.message : t("common.networkError")}
         icon={<AlertCircle className="h-6 w-6" />}
         action={
           <Button onClick={() => refetch()} variant="outline" size="sm">
-            Retry
+            {t("common.retry")}
           </Button>
         }
       />
@@ -65,14 +68,14 @@ export function PaymentDetail({ paymentId }: { paymentId: string }) {
   if (!payment) {
     return (
       <EmptyState
-        title="Payment not found"
-        description="This payment may have been deleted."
+        title={t("payment.paymentNotFound")}
+        description={t("payment.paymentNotFoundDesc")}
         icon={<AlertCircle className="h-6 w-6" />}
         action={
           <Link href="/payments">
             <Button variant="outline" size="sm">
               <ArrowLeft className="h-4 w-4" />
-              Back to Payments
+              {t("common.back")}
             </Button>
           </Link>
         }
@@ -103,10 +106,10 @@ export function PaymentDetail({ paymentId }: { paymentId: string }) {
                 )}
               >
                 {isVoided ? <Ban className="h-3 w-3" /> : <CheckCircle2 className="h-3 w-3" />}
-                {isVoided ? "Voided" : "Received"}
+                {isVoided ? t("sale.voided") : t("payment.received")}
               </span>
               <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-medium text-slate-600">
-                {METHOD_LABELS[payment.method] ?? payment.method}
+                {METHOD_LABELS[payment.method] ? t(METHOD_LABELS[payment.method] as any) : payment.method}
               </span>
             </div>
             <p className="mt-2 text-3xl font-bold tabular-nums text-brand-700">
@@ -140,14 +143,14 @@ export function PaymentDetail({ paymentId }: { paymentId: string }) {
               {payment.customerPhone}
             </p>
           </div>
-          <span className="text-xs text-brand-600">View khata →</span>
+          <span className="text-xs text-brand-600">{t("common.viewKhata")} →</span>
         </div>
       </Link>
 
       {/* Notes */}
       {payment.notes ? (
         <div className="rounded-xl border border-slate-200 bg-white p-3">
-          <p className="text-xs font-medium text-slate-500">Notes</p>
+          <p className="text-xs font-medium text-slate-500">{t("customer.notes")}</p>
           <p className="mt-1 text-sm text-slate-900">{payment.notes}</p>
         </div>
       ) : null}
@@ -159,8 +162,8 @@ export function PaymentDetail({ paymentId }: { paymentId: string }) {
           className="block rounded-xl border border-slate-200 bg-white p-3 hover:bg-slate-50"
         >
           <div className="flex items-center justify-between text-sm">
-            <span className="text-slate-500">Linked to sale</span>
-            <span className="font-medium text-brand-600">View sale →</span>
+            <span className="text-slate-500">{t("payment.linkedToSale")}</span>
+            <span className="font-medium text-brand-600">{t("common.viewSale")} →</span>
           </div>
         </Link>
       ) : null}
@@ -169,17 +172,16 @@ export function PaymentDetail({ paymentId }: { paymentId: string }) {
       {isVoided ? (
         <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-center">
           <p className="text-xs text-slate-500">
-            This payment was voided{payment.voidedAt ? ` on ${formatDateTime(new Date(payment.voidedAt))}` : ""}.
-            It does not affect the customer&apos;s balance.
+            {t("payment.voidedOnPrefix")}{payment.voidedAt ? ` ${formatDateTime(new Date(payment.voidedAt))}` : ""}. {t("payment.voidedOnSuffix")}
           </p>
         </div>
       ) : confirmVoid ? (
         <div className="rounded-xl border border-red-200 bg-red-50 p-3 space-y-3">
           <div>
-            <p className="text-sm font-semibold text-red-900">Void this payment?</p>
+            <p className="text-sm font-semibold text-red-900">{t("payment.voidConfirm")}</p>
             <p className="mt-1 text-xs text-red-700">
-              The customer&apos;s balance will increase by {formatMoney(payment.amount)}
-              (since the payment no longer reduces their balance). This cannot be undone.
+              {t("payment.voidDesc")} {formatMoney(payment.amount)}
+              {t("payment.thisCannotBeUndone")}
             </p>
           </div>
           <div className="flex gap-2">
@@ -191,7 +193,7 @@ export function PaymentDetail({ paymentId }: { paymentId: string }) {
               onClick={() => setConfirmVoid(false)}
               disabled={voidPayment.isPending}
             >
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button
               type="button"
@@ -211,12 +213,12 @@ export function PaymentDetail({ paymentId }: { paymentId: string }) {
               {voidPayment.isPending ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  Voiding...
+                  {t("sale.voiding")}
                 </>
               ) : (
                 <>
                   <Ban className="h-4 w-4" />
-                  Confirm Void
+                  {t("payment.confirmVoid")}
                 </>
               )}
             </Button>
@@ -228,7 +230,7 @@ export function PaymentDetail({ paymentId }: { paymentId: string }) {
           onClick={() => setConfirmVoid(true)}
           className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-medium text-red-600 hover:bg-red-50"
         >
-          Void this payment
+          {t("payment.voidPayment")}
         </button>
       )}
     </div>

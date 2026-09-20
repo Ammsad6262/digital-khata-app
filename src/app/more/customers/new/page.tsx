@@ -1,3 +1,5 @@
+"use client";
+
 /**
  * Add Customer page.
  *
@@ -11,6 +13,7 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { AppHeader } from "@/components/layout/AppHeader";
 import { ScreenContent } from "@/components/layout/Screen";
+import { useLanguage } from "@/providers/language-provider";
 
 const AddCustomerForm = dynamic(
   () => import("@/components/khata/AddCustomerForm").then((m) => m.AddCustomerForm),
@@ -26,15 +29,16 @@ const AddCustomerForm = dynamic(
 );
 
 export default function AddCustomerPage() {
+  const { t } = useLanguage();
   return (
     <>
       <AppHeader
-        title="Add Customer"
+        title={t("action.addCustomer")}
         rightSlot={
           <Link
             href="/khata"
             className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100"
-            aria-label="Back"
+            aria-label={t("common.back")}
           >
             <ArrowLeft className="h-5 w-5" />
           </Link>

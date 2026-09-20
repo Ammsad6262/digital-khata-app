@@ -38,6 +38,7 @@ import {
   type BackupFile,
 } from "@/lib/services/backup";
 import { cn } from "@/lib/utils/cn";
+import { useLanguage } from "@/providers/language-provider";
 
 export function BackupPage() {
   const [uploadedFile, setUploadedFile] = useState<{ name: string; content: string; preview: BackupFile | null; error: string | null } | null>(null);
@@ -47,6 +48,7 @@ export function BackupPage() {
   const exportBackup = useExportBackup();
   const exportCsv = useExportCsv();
   const importBackup = useImportBackup();
+  const { t } = useLanguage();
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -72,7 +74,7 @@ export function BackupPage() {
       }
       setUploadedFile({ name: file.name, content, preview: parsed, error: null });
     } catch {
-      setUploadedFile({ name: file.name, content, preview: null, error: "File is not valid JSON." });
+      setUploadedFile({ name: file.name, content, preview: null, error: t("backup.importError") });
     }
   };
 
@@ -99,10 +101,9 @@ export function BackupPage() {
             <Database className="h-5 w-5 text-brand-700" />
           </div>
           <div className="min-w-0 flex-1">
-            <h2 className="text-sm font-semibold text-slate-900">Full Backup (JSON)</h2>
+            <h2 className="text-sm font-semibold text-slate-900">{t("backup.fullBackup")}</h2>
             <p className="mt-0.5 text-xs text-slate-500">
-              Download everything — customers, products, sales, payments, stock, expenses.
-              Can be restored later. Preserves all relationships.
+              {t("backup.fullBackupDesc")}
             </p>
             <Button
               type="button"
@@ -115,12 +116,12 @@ export function BackupPage() {
               {exportBackup.isPending ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  Exporting...
+                  {t("backup.exporting")}
                 </>
               ) : (
                 <>
                   <Download className="h-4 w-4" />
-                  Download Backup
+                  {t("backup.downloadBackup")}
                 </>
               )}
             </Button>
@@ -135,18 +136,17 @@ export function BackupPage() {
             <FileSpreadsheet className="h-5 w-5 text-blue-700" />
           </div>
           <div className="min-w-0 flex-1">
-            <h2 className="text-sm font-semibold text-slate-900">Export CSV (per table)</h2>
+            <h2 className="text-sm font-semibold text-slate-900">{t("backup.exportCsv")}</h2>
             <p className="mt-0.5 text-xs text-slate-500">
-              Download individual tables as CSV files for opening in Excel/Google Sheets.
-              Useful for reports or sharing with an accountant.
+              {t("backup.exportCsvDesc")}
             </p>
             <div className="mt-3 grid grid-cols-2 gap-2">
-              {EXPORTABLE_TABLES.map((t) => (
+              {EXPORTABLE_TABLES.map((tbl) => (
                 <button
-                  key={t.value}
+                  key={tbl.value}
                   type="button"
                   disabled={exportCsv.isPending}
-                  onClick={() => exportCsv.mutate(t.value)}
+                  onClick={() => exportCsv.mutate(tbl.value)}
                   className={cn(
                     "flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-left text-xs",
                     "hover:bg-slate-50 active:bg-slate-100",
@@ -155,8 +155,8 @@ export function BackupPage() {
                 >
                   <FileSpreadsheet className="h-3.5 w-3.5 shrink-0 text-blue-600" />
                   <div className="min-w-0">
-                    <p className="truncate font-medium text-slate-900">{t.label}</p>
-                    <p className="truncate text-[10px] text-slate-500">{t.description}</p>
+                    <p className="truncate font-medium text-slate-900">{tbl.label}</p>
+                    <p className="truncate text-[10px] text-slate-500">{tbl.description}</p>
                   </div>
                 </button>
               ))}
@@ -172,11 +172,11 @@ export function BackupPage() {
             <Upload className="h-5 w-5 text-amber-700" />
           </div>
           <div className="min-w-0 flex-1">
-            <h2 className="text-sm font-semibold text-slate-900">Import / Restore</h2>
+            <h2 className="text-sm font-semibold text-slate-900">{t("backup.importRestore")}</h2>
             <p className="mt-0.5 text-xs text-slate-500">
-              Restore from a previously-downloaded JSON backup.{" "}
+              {t("backup.importDesc")}{" "}
               <span className="font-semibold text-red-700">
-                This replaces ALL current data.
+                {t("backup.replaceWarning")}
               </span>
             </p>
 
@@ -198,7 +198,7 @@ export function BackupPage() {
                   <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-800">
                     <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                     <div>
-                      <p className="font-semibold">Cannot import this file</p>
+                      <p className="font-semibold">{t("backup.importError")}</p>
                       <p className="mt-0.5">{uploadedFile.error}</p>
                     </div>
                   </div>
@@ -224,12 +224,12 @@ export function BackupPage() {
 
       {/* ── Help text ─────────────────────────────────────────────────── */}
       <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-xs text-slate-600">
-        <p className="font-semibold text-slate-700">Tips</p>
+        <p className="font-semibold text-slate-700">{t("backup.tips")}</p>
         <ul className="mt-1.5 space-y-1">
-          <li>• Download a JSON backup weekly for safety. Store it somewhere safe.</li>
-          <li>• CSV exports are for viewing in Excel — they cannot be re-imported.</li>
-          <li>• Importing replaces ALL data. Use it only for restores or moving to a new device.</li>
-          <li>• All imports are atomic — if any record fails, nothing is changed.</li>
+          <li>• {t("backup.tip1")}</li>
+          <li>• {t("backup.tip2")}</li>
+          <li>• {t("backup.tip3")}</li>
+          <li>• {t("backup.tip4")}</li>
         </ul>
       </div>
     </div>
@@ -255,6 +255,7 @@ function FilePreview({
   isPending: boolean;
   onCancel: () => void;
 }) {
+  const { t } = useLanguage();
   const c = file.preview.counts;
   const total = c.customers + c.products + c.sales + c.saleItems + c.payments + c.customerAdjustments + c.stockMoves + c.expenses + c.transactions;
 
@@ -292,11 +293,9 @@ function FilePreview({
           <div className="flex items-start gap-2 rounded-lg border-2 border-red-200 bg-red-50 px-3 py-2.5 text-xs text-red-900">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
             <div>
-              <p className="font-semibold">This will replace ALL current data.</p>
+              <p className="font-semibold">{t("backup.replaceAllWarning")}</p>
               <p className="mt-0.5">
-                Every customer, sale, payment, product, and expense currently in the app
-                will be deleted and replaced with the contents of this backup file.
-                This cannot be undone.
+                {t("backup.replaceAllDesc")}
               </p>
             </div>
           </div>
@@ -308,7 +307,7 @@ function FilePreview({
               className="flex-1"
               onClick={onCancel}
             >
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button
               type="button"
@@ -317,7 +316,7 @@ function FilePreview({
               className="flex-1"
               onClick={onConfirm}
             >
-              I understand — proceed
+              {t("backup.understand")}
             </Button>
           </div>
         </div>
@@ -327,10 +326,9 @@ function FilePreview({
           <div className="flex items-start gap-2 rounded-lg border-2 border-red-300 bg-red-100 px-3 py-2.5 text-xs text-red-900">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
             <div>
-              <p className="font-bold">Final confirmation</p>
+              <p className="font-bold">{t("backup.finalConfirm")}</p>
               <p className="mt-0.5">
-                Are you absolutely sure? The restore will begin immediately.
-                All existing data will be lost.
+                {t("backup.finalConfirmDesc")}
               </p>
             </div>
           </div>
@@ -343,7 +341,7 @@ function FilePreview({
               onClick={onCancel}
               disabled={isPending}
             >
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button
               type="button"
@@ -356,12 +354,12 @@ function FilePreview({
               {isPending ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  Restoring...
+                  {t("backup.restoring")}
                 </>
               ) : (
                 <>
                   <CheckCircle2 className="h-4 w-4" />
-                  Yes, replace all data
+                  {t("backup.yesReplace")}
                 </>
               )}
             </Button>

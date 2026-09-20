@@ -56,26 +56,27 @@ const CURRENCIES = [
 
 const THEMES: Array<{
   id: Theme;
-  name: string;
-  description: string;
+  nameKey: "settings.defaultGreen" | "settings.brightLeaf";
+  descriptionKey: "settings.defaultGreenDesc" | "settings.brightLeafDesc";
   preview: { bg: string; accent: string; dark: string };
 }> = [
   {
     id: "default",
-    name: "Default Green",
-    description: "Classic emerald green",
+    nameKey: "settings.defaultGreen",
+    descriptionKey: "settings.defaultGreenDesc",
     preview: { bg: "#f0fdf4", accent: "#16a34a", dark: "#14532d" },
   },
   {
     id: "leaf",
-    name: "Bright Leaf",
-    description: "#CDFF9B accent + #203D43 dark",
+    nameKey: "settings.brightLeaf",
+    descriptionKey: "settings.brightLeafDesc",
     preview: { bg: "#f7ffee", accent: "#CDFF9B", dark: "#203D43" },
   },
 ];
 
 export function SettingsPage() {
   const { data: settings, isLoading, isError, error } = useSettings();
+  const { t } = useLanguage();
 
   if (isLoading) {
     return (
@@ -90,8 +91,8 @@ export function SettingsPage() {
   if (isError || !settings) {
     return (
       <EmptyState
-        title="Couldn't load settings"
-        description={error instanceof Error ? error.message : "Something went wrong."}
+        title={t("common.couldntLoad")}
+        description={error instanceof Error ? error.message : t("common.networkError")}
         icon={<AlertTriangle className="h-6 w-6" />}
       />
     );
@@ -121,6 +122,7 @@ function BusinessInfoSection({
 }) {
   const toast = useToast();
   const updateSettings = useUpdateSettings();
+  const { t } = useLanguage();
   const [businessName, setBusinessName] = useState(initial.businessName ?? "");
   const [editing, setEditing] = useState(false);
 
@@ -129,10 +131,10 @@ function BusinessInfoSection({
       { businessName: businessName.trim() || null },
       {
         onSuccess: () => {
-          toast.success("Business name updated");
+          toast.success(t("settings.businessNameUpdated"));
           setEditing(false);
         },
-        onError: (e) => toast.error(e instanceof Error ? e.message : "Failed to update."),
+        onError: (e) => toast.error(e instanceof Error ? e.message : t("common.failed")),
       },
     );
   };
@@ -141,7 +143,7 @@ function BusinessInfoSection({
     <section className="rounded-xl border border-slate-200 bg-white p-4">
       <div className="flex items-center gap-2 mb-3">
         <Building2 className="h-4 w-4 text-slate-500" />
-        <h2 className="text-sm font-semibold text-slate-900">Business Info</h2>
+        <h2 className="text-sm font-semibold text-slate-900">{t("settings.businessInfo")}</h2>
       </div>
 
       {!editing ? (
@@ -150,19 +152,19 @@ function BusinessInfoSection({
             <p className="text-sm font-medium text-slate-900">
               {initial.businessName || "Not set"}
             </p>
-            <p className="text-xs text-slate-500">Business name</p>
+            <p className="text-xs text-slate-500">{t("settings.businessName")}</p>
           </div>
           <Button variant="outline" size="sm" onClick={() => setEditing(true)}>
-            Edit
+            {t("common.edit")}
           </Button>
         </div>
       ) : (
         <div className="space-y-3">
           <TextField
-            label="Business name"
+            label={t("settings.businessName")}
             value={businessName}
             onChange={(e) => setBusinessName(e.target.value)}
-            placeholder="e.g. Zafar Wholesale Trader"
+            placeholder={t("settings.businessNamePlaceholder")}
             autoComplete="off"
             autoFocus
           />
@@ -177,7 +179,7 @@ function BusinessInfoSection({
               }}
               disabled={updateSettings.isPending}
             >
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button
               size="sm"
@@ -188,7 +190,7 @@ function BusinessInfoSection({
               {updateSettings.isPending ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
-                "Save"
+                t("common.save")
               )}
             </Button>
           </div>
@@ -209,6 +211,7 @@ function CurrencySection({
 }) {
   const toast = useToast();
   const updateSettings = useUpdateSettings();
+  const { t } = useLanguage();
   const [selectedCurrency, setSelectedCurrency] = useState(initial.currency);
   const [customSymbol, setCustomSymbol] = useState(initial.currencySymbol);
 
@@ -218,8 +221,8 @@ function CurrencySection({
     updateSettings.mutate(
       { currency: code, currencySymbol: symbol },
       {
-        onSuccess: () => toast.success(`Currency set to ${code} (${symbol})`),
-        onError: (e) => toast.error(e instanceof Error ? e.message : "Failed to update."),
+        onSuccess: () => toast.success(`${t("settings.currencySet")} ${code} (${symbol})`),
+        onError: (e) => toast.error(e instanceof Error ? e.message : t("common.failed")),
       },
     );
   };
@@ -232,8 +235,8 @@ function CurrencySection({
     updateSettings.mutate(
       { currencySymbol: customSymbol.trim() },
       {
-        onSuccess: () => toast.success("Currency symbol updated"),
-        onError: (e) => toast.error(e instanceof Error ? e.message : "Failed to update."),
+        onSuccess: () => toast.success(t("settings.currencyUpdated")),
+        onError: (e) => toast.error(e instanceof Error ? e.message : t("common.failed")),
       },
     );
   };
@@ -242,28 +245,28 @@ function CurrencySection({
     <section className="rounded-xl border border-slate-200 bg-white p-4">
       <div className="flex items-center gap-2 mb-3">
         <Globe className="h-4 w-4 text-slate-500" />
-        <h2 className="text-sm font-semibold text-slate-900">Currency</h2>
+        <h2 className="text-sm font-semibold text-slate-900">{t("settings.currency")}</h2>
       </div>
 
       <div className="grid grid-cols-2 gap-2">
-        {CURRENCIES.map((c) => (
+        {CURRENCIES.map((cur) => (
           <button
-            key={c.code}
+            key={cur.code}
             type="button"
-            onClick={() => handleSelectCurrency(c.code, c.symbol)}
+            onClick={() => handleSelectCurrency(cur.code, cur.symbol)}
             className={cn(
               "flex items-center gap-2 rounded-lg border px-3 py-2 text-left text-sm transition-colors",
-              selectedCurrency === c.code
+              selectedCurrency === cur.code
                 ? "border-brand-500 bg-brand-50 text-brand-700"
                 : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50",
             )}
           >
-            <span className="text-base font-bold w-6 text-center">{c.symbol}</span>
+            <span className="text-base font-bold w-6 text-center">{cur.symbol}</span>
             <div className="min-w-0">
-              <p className="truncate text-xs font-medium">{c.code}</p>
-              <p className="truncate text-[10px] text-slate-500">{c.label}</p>
+              <p className="truncate text-xs font-medium">{cur.code}</p>
+              <p className="truncate text-[10px] text-slate-500">{cur.label}</p>
             </div>
-            {selectedCurrency === c.code ? (
+            {selectedCurrency === cur.code ? (
               <Check className="ml-auto h-3.5 w-3.5 shrink-0 text-brand-600" />
             ) : null}
           </button>
@@ -272,7 +275,7 @@ function CurrencySection({
 
       <div className="mt-3 border-t border-slate-100 pt-3">
         <label className="mb-1 block text-xs font-medium text-slate-600">
-          Custom symbol
+          {t("settings.customSymbol")}
         </label>
         <div className="flex gap-2">
           <input
@@ -287,11 +290,11 @@ function CurrencySection({
             onClick={handleSaveCustomSymbol}
             disabled={updateSettings.isPending}
           >
-            {updateSettings.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save"}
+            {updateSettings.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : t("common.save")}
           </Button>
         </div>
         <p className="mt-1 text-[11px] text-slate-500">
-          Used everywhere money is displayed (e.g. &ldquo;{customSymbol} 1,234.50&rdquo;)
+          {t("settings.currencySymbolHint")}
         </p>
       </div>
     </section>
@@ -375,23 +378,24 @@ function LanguageSection() {
 
 function ThemeSection() {
   const { theme, setTheme } = useTheme();
+  const { t } = useLanguage();
 
   return (
     <section className="rounded-xl border border-slate-200 bg-white p-4">
       <div className="flex items-center gap-2 mb-3">
         <Palette className="h-4 w-4 text-slate-500" />
-        <h2 className="text-sm font-semibold text-slate-900">Theme</h2>
+        <h2 className="text-sm font-semibold text-slate-900">{t("settings.theme")}</h2>
       </div>
 
       <div className="space-y-2">
-        {THEMES.map((t) => (
+        {THEMES.map((themeOpt) => (
           <button
-            key={t.id}
+            key={themeOpt.id}
             type="button"
-            onClick={() => setTheme(t.id)}
+            onClick={() => setTheme(themeOpt.id)}
             className={cn(
               "flex items-center gap-3 rounded-xl border-2 p-3 text-left transition-all w-full",
-              theme === t.id
+              theme === themeOpt.id
                 ? "border-brand-500 bg-brand-50"
                 : "border-slate-200 bg-white hover:bg-slate-50",
             )}
@@ -399,27 +403,27 @@ function ThemeSection() {
             <div className="flex shrink-0 gap-1">
               <div
                 className="h-8 w-8 rounded-lg border border-slate-200"
-                style={{ backgroundColor: t.preview.bg }}
+                style={{ backgroundColor: themeOpt.preview.bg }}
                 title="Background"
               />
               <div
                 className="h-8 w-8 rounded-lg border border-slate-200"
-                style={{ backgroundColor: t.preview.accent }}
+                style={{ backgroundColor: themeOpt.preview.accent }}
                 title="Accent"
               />
               <div
                 className="h-8 w-8 rounded-lg border border-slate-200"
-                style={{ backgroundColor: t.preview.dark }}
+                style={{ backgroundColor: themeOpt.preview.dark }}
                 title="Dark"
               />
             </div>
 
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium text-slate-900">{t.name}</p>
-              <p className="text-[11px] text-slate-500">{t.description}</p>
+              <p className="text-sm font-medium text-slate-900">{t(themeOpt.nameKey)}</p>
+              <p className="text-[11px] text-slate-500">{t(themeOpt.descriptionKey)}</p>
             </div>
 
-            {theme === t.id ? (
+            {theme === themeOpt.id ? (
               <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand-600">
                 <Check className="h-3.5 w-3.5 text-white" />
               </div>
@@ -429,9 +433,7 @@ function ThemeSection() {
       </div>
 
       <p className="mt-2 text-[11px] text-slate-500">
-        Theme is saved on this device. The Bright Leaf theme uses your custom colors:
-        <span className="font-mono text-slate-700"> #CDFF9B</span> (accent) and
-        <span className="font-mono text-slate-700"> #203D43</span> (dark).
+        {t("settings.themeSaved")}
       </p>
     </section>
   );
@@ -445,6 +447,7 @@ function SecuritySection({ hasPin }: { hasPin: boolean }) {
   const toast = useToast();
   const setPin = useSetPin();
   const removePin = useRemovePin();
+  const { t } = useLanguage();
 
   const [showPinForm, setShowPinForm] = useState(false);
   const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
@@ -462,13 +465,13 @@ function SecuritySection({ hasPin }: { hasPin: boolean }) {
       { pin: newPin, currentPin: hasPin ? currentPin : undefined },
       {
         onSuccess: () => {
-          toast.success(hasPin ? "PIN changed" : "PIN set");
+          toast.success(hasPin ? t("settings.pinChanged") : t("settings.pinSet"));
           setShowPinForm(false);
           setNewPin("");
           setCurrentPin("");
         },
         onError: (e) => {
-          const msg = e instanceof ApiError ? e.message : "Failed to set PIN.";
+          const msg = e instanceof ApiError ? e.message : t("common.failed");
           toast.error(msg);
         },
       },
@@ -480,12 +483,12 @@ function SecuritySection({ hasPin }: { hasPin: boolean }) {
       { currentPin: removePinInput },
       {
         onSuccess: () => {
-          toast.success("PIN lock removed");
+          toast.success(t("settings.pinRemoved"));
           setShowRemoveConfirm(false);
           setRemovePinInput("");
         },
         onError: (e) => {
-          const msg = e instanceof ApiError ? e.message : "Failed to remove PIN.";
+          const msg = e instanceof ApiError ? e.message : t("common.failed");
           toast.error(msg);
         },
       },
@@ -496,18 +499,16 @@ function SecuritySection({ hasPin }: { hasPin: boolean }) {
     <section className="rounded-xl border border-slate-200 bg-white p-4">
       <div className="flex items-center gap-2 mb-3">
         <Lock className="h-4 w-4 text-slate-500" />
-        <h2 className="text-sm font-semibold text-slate-900">Security</h2>
+        <h2 className="text-sm font-semibold text-slate-900">{t("settings.security")}</h2>
       </div>
 
       <div className="flex items-center justify-between">
         <div>
           <p className="text-sm font-medium text-slate-900">
-            PIN Lock {hasPin ? "enabled" : "disabled"}
+            {t("settings.pinEnabled")} {hasPin ? "✓" : ""}
           </p>
           <p className="text-xs text-slate-500">
-            {hasPin
-              ? "PIN is required for destructive actions (clear data, etc.)"
-              : "Set a PIN to protect destructive actions"}
+            {hasPin ? t("settings.pinDesc") : t("settings.pinDescOff")}
           </p>
         </div>
         {!showPinForm ? (
@@ -516,7 +517,7 @@ function SecuritySection({ hasPin }: { hasPin: boolean }) {
             size="sm"
             onClick={() => setShowPinForm(true)}
           >
-            {hasPin ? "Change PIN" : "Set PIN"}
+            {hasPin ? t("settings.changePin") : t("settings.setPin")}
           </Button>
         ) : null}
       </div>
@@ -525,7 +526,7 @@ function SecuritySection({ hasPin }: { hasPin: boolean }) {
         <div className="mt-3 space-y-3 border-t border-slate-100 pt-3">
           {hasPin ? (
             <TextField
-              label="Current PIN"
+              label={t("settings.currentPin")}
               type="password"
               inputMode="numeric"
               value={currentPin}
@@ -536,7 +537,7 @@ function SecuritySection({ hasPin }: { hasPin: boolean }) {
             />
           ) : null}
           <TextField
-            label={hasPin ? "New PIN" : "Set a PIN (4-6 digits)"}
+            label={hasPin ? t("settings.newPin") : t("settings.setPinLabel")}
             type="password"
             inputMode="numeric"
             value={newPin}
@@ -545,7 +546,7 @@ function SecuritySection({ hasPin }: { hasPin: boolean }) {
             maxLength={6}
             autoComplete="off"
             autoFocus
-            hint="4-6 digits. Used to confirm destructive actions."
+            hint={t("settings.pinHint")}
           />
           <div className="flex gap-2">
             <Button
@@ -559,7 +560,7 @@ function SecuritySection({ hasPin }: { hasPin: boolean }) {
               }}
               disabled={setPin.isPending}
             >
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button
               size="sm"
@@ -567,7 +568,7 @@ function SecuritySection({ hasPin }: { hasPin: boolean }) {
               onClick={handleSetPin}
               disabled={setPin.isPending || newPin.length < 4}
             >
-              {setPin.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save PIN"}
+              {setPin.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : t("settings.savePin")}
             </Button>
           </div>
         </div>
@@ -581,12 +582,12 @@ function SecuritySection({ hasPin }: { hasPin: boolean }) {
               onClick={() => setShowRemoveConfirm(true)}
               className="text-xs font-medium text-red-600 hover:text-red-700"
             >
-              Remove PIN lock
+              {t("settings.removePin")}
             </button>
           ) : (
             <div className="space-y-2">
               <TextField
-                label="Enter current PIN to remove"
+                label={t("settings.removePinConfirm")}
                 type="password"
                 inputMode="numeric"
                 value={removePinInput}
@@ -607,7 +608,7 @@ function SecuritySection({ hasPin }: { hasPin: boolean }) {
                   }}
                   disabled={removePin.isPending}
                 >
-                  Cancel
+                  {t("common.cancel")}
                 </Button>
                 <Button
                   variant="danger"
@@ -616,7 +617,7 @@ function SecuritySection({ hasPin }: { hasPin: boolean }) {
                   onClick={handleRemovePin}
                   disabled={removePin.isPending || removePinInput.length < 4}
                 >
-                  {removePin.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Remove"}
+                  {removePin.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : t("settings.remove")}
                 </Button>
               </div>
             </div>
@@ -634,6 +635,7 @@ function SecuritySection({ hasPin }: { hasPin: boolean }) {
 function DataManagementSection({ hasPin }: { hasPin: boolean }) {
   const toast = useToast();
   const clearAllData = useClearAllData();
+  const { t } = useLanguage();
   const [showConfirm, setShowConfirm] = useState(false);
   const [confirmPin, setConfirmPin] = useState("");
 
@@ -644,12 +646,12 @@ function DataManagementSection({ hasPin }: { hasPin: boolean }) {
         onSuccess: (data) => {
           const d = data.deleted;
           const total = Object.values(d).reduce((s, n) => s + n, 0);
-          toast.success(`Cleared ${total} records. App is now empty.`);
+          toast.success(`${total} ${t("settings.cleared")}`);
           setShowConfirm(false);
           setConfirmPin("");
         },
         onError: (e) => {
-          const msg = e instanceof ApiError ? e.message : "Failed to clear data.";
+          const msg = e instanceof ApiError ? e.message : t("common.failed");
           toast.error(msg);
         },
       },
@@ -660,12 +662,11 @@ function DataManagementSection({ hasPin }: { hasPin: boolean }) {
     <section className="rounded-xl border border-red-200 bg-red-50/30 p-4">
       <div className="flex items-center gap-2 mb-3">
         <AlertTriangle className="h-4 w-4 text-red-600" />
-        <h2 className="text-sm font-semibold text-red-900">Danger Zone</h2>
+        <h2 className="text-sm font-semibold text-red-900">{t("settings.dangerZone")}</h2>
       </div>
 
       <p className="text-xs text-red-700 mb-3">
-        Clear all business data — customers, products, sales, payments, expenses, stock.
-        Settings (business name, currency, PIN) are preserved. This cannot be undone.
+        {t("settings.clearAllDesc")}
       </p>
 
       {!showConfirm ? (
@@ -675,21 +676,20 @@ function DataManagementSection({ hasPin }: { hasPin: boolean }) {
           onClick={() => setShowConfirm(true)}
         >
           <Trash2 className="h-4 w-4" />
-          Clear All Data
+          {t("settings.clearAllData")}
         </Button>
       ) : (
         <div className="space-y-3 rounded-lg border-2 border-red-300 bg-white p-3">
           <div className="flex items-start gap-2">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-red-600" />
             <p className="text-xs text-red-800">
-              Are you absolutely sure? Every customer, sale, and payment will be
-              permanently deleted. Download a backup first if you might need this data.
+              {t("settings.clearConfirm")}
             </p>
           </div>
 
           {hasPin ? (
             <TextField
-              label="Enter PIN to confirm"
+              label={t("settings.enterPinConfirm")}
               type="password"
               inputMode="numeric"
               value={confirmPin}
@@ -712,7 +712,7 @@ function DataManagementSection({ hasPin }: { hasPin: boolean }) {
               }}
               disabled={clearAllData.isPending}
             >
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button
               variant="danger"
@@ -724,12 +724,12 @@ function DataManagementSection({ hasPin }: { hasPin: boolean }) {
               {clearAllData.isPending ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  Clearing...
+                  {t("settings.clearing")}
                 </>
               ) : (
                 <>
                   <Trash2 className="h-4 w-4" />
-                  Yes, delete everything
+                  {t("settings.yesDelete")}
                 </>
               )}
             </Button>
@@ -745,6 +745,7 @@ function DataManagementSection({ hasPin }: { hasPin: boolean }) {
 // ────────────────────────────────────────────────────────────────────────────
 
 function BackupSection() {
+  const { t } = useLanguage();
   return (
     <Link
       href="/more/backup"
@@ -755,9 +756,9 @@ function BackupSection() {
           <Database className="h-5 w-5 text-brand-700" />
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-medium text-slate-900">Backup & Export</p>
+          <p className="text-sm font-medium text-slate-900">{t("settings.backupExport")}</p>
           <p className="text-[11px] text-slate-500">
-            Download full backup (JSON) or export tables as CSV
+            {t("settings.backupDesc")}
           </p>
         </div>
         <ChevronRight className="h-4 w-4 shrink-0 text-slate-300" />

@@ -1,3 +1,5 @@
+"use client";
+
 /**
  * Add Payment page.
  *
@@ -13,19 +15,21 @@ import { Suspense } from "react";
 import { AppHeader } from "@/components/layout/AppHeader";
 import { ScreenContent } from "@/components/layout/Screen";
 import { AddPaymentForm } from "@/components/payments/AddPaymentForm";
+import { useLanguage } from "@/providers/language-provider";
 
 export const dynamic = "force-dynamic";
 
 export default function NewPaymentPage() {
+  const { t } = useLanguage();
   return (
     <>
       <AppHeader
-        title="Add Payment"
+        title={t("action.addPayment")}
         rightSlot={
           <Link
             href="/payments"
             className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100"
-            aria-label="Back"
+            aria-label={t("common.back")}
           >
             <ArrowLeft className="h-5 w-5" />
           </Link>

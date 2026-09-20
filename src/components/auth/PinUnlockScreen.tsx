@@ -17,6 +17,7 @@
 
 import { useState, useEffect } from "react";
 import { Delete, Lock, Loader2, AlertCircle } from "lucide-react";
+import { useLanguage } from "@/providers/language-provider";
 
 export function PinUnlockScreen({
   hasPin,
@@ -31,6 +32,7 @@ export function PinUnlockScreen({
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [retryAfter, setRetryAfter] = useState(0);
+  const { t } = useLanguage();
 
   // Lockout countdown
   useEffect(() => {
@@ -70,13 +72,13 @@ export function PinUnlockScreen({
         const match = json.error.message.match(/(\d+) seconds/);
         const seconds = match ? parseInt(match[1], 10) : 300;
         setRetryAfter(seconds);
-        setError(`Locked out. Try again in ${seconds}s.`);
+        setError(`${t("common.lockedOut")} ${seconds}s.`);
       } else {
-        setError(json.error?.message || "Incorrect PIN.");
+        setError(json.error?.message || t("common.incorrectPin"));
       }
       setPin("");
     } catch {
-      setError("Network error. Please try again.");
+      setError(t("common.networkError"));
       setPin("");
     } finally {
       setIsSubmitting(false);
@@ -107,10 +109,10 @@ export function PinUnlockScreen({
           <Lock className="h-7 w-7" />
         </div>
         <h1 className="text-lg font-bold">
-          {businessName || "Digital Khata"}
+          {businessName || t("app.name")}
         </h1>
         <p className="mt-0.5 text-xs text-brand-100">
-          Enter your PIN to unlock
+          {t("common.enterPin")}
         </p>
       </div>
 

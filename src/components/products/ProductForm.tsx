@@ -34,6 +34,7 @@ import {
 } from "@/hooks/use-products";
 import { ApiError } from "@/lib/utils/api-client";
 import { Decimal } from "@/lib/utils/decimal";
+import { useLanguage } from "@/providers/language-provider";
 
 const UNITS = ["piece", "kg", "box", "dozen", "litre", "metre", "pack", "bag", "bottle", "carton"];
 
@@ -46,6 +47,7 @@ export function ProductForm({
 }) {
   const router = useRouter();
   const toast = useToast();
+  const { t } = useLanguage();
 
   // In edit mode, fetch the existing product to pre-fill.
   const { data: existing } = useProduct(mode === "edit" ? productId : null);
@@ -142,14 +144,14 @@ export function ProductForm({
         },
         {
           onSuccess: (product) => {
-            toast.success(`Product "${product.name}" added`);
+            toast.success(t("product.productAdded"));
             router.push(`/more/products/${product.id}`);
           },
           onError: (error) => {
             if (error instanceof ApiError && error.code === "CONFLICT") {
               toast.error("A product with this SKU already exists.");
             } else {
-              toast.error(error instanceof Error ? error.message : "Failed to add product.");
+              toast.error(error instanceof Error ? error.message : t("common.failed"));
             }
           },
         },
@@ -167,14 +169,14 @@ export function ProductForm({
         },
         {
           onSuccess: (product) => {
-            toast.success(`Product "${product.name}" updated`);
+            toast.success(t("product.productUpdated"));
             router.push(`/more/products/${product.id}`);
           },
           onError: (error) => {
             if (error instanceof ApiError && error.code === "CONFLICT") {
               toast.error("Another product already uses this SKU.");
             } else {
-              toast.error(error instanceof Error ? error.message : "Failed to update product.");
+              toast.error(error instanceof Error ? error.message : t("common.failed"));
             }
           },
         },
@@ -189,25 +191,25 @@ export function ProductForm({
       <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
         <div className="space-y-3">
           <TextField
-            label="Product name"
+            label={t("product.productName")}
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="e.g. Basmati Rice 25kg"
+            placeholder={t("product.productNamePlaceholder")}
             autoComplete="off"
             error={errors.name ?? null}
           />
 
           <TextField
-            label="Category (optional)"
+            label={t("product.category")}
             value={category}
             onChange={(e) => setCategory(e.target.value)}
-            placeholder="e.g. Grocery"
+            placeholder={t("product.categoryPlaceholder")}
             autoComplete="off"
           />
 
           <div className="grid grid-cols-2 gap-3">
             <TextField
-              label="Purchase price"
+              label={t("product.purchasePrice")}
               type="number"
               inputMode="decimal"
               step="any"
@@ -219,7 +221,7 @@ export function ProductForm({
               hint={`per ${unit || "unit"}`}
             />
             <TextField
-              label="Selling price"
+              label={t("product.sellingPrice")}
               type="number"
               inputMode="decimal"
               step="any"
@@ -234,7 +236,7 @@ export function ProductForm({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="mb-1 block text-sm font-medium text-slate-700">
-                Unit
+                {t("product.unit")}
               </label>
               <select
                 value={unit}
@@ -251,17 +253,17 @@ export function ProductForm({
             </div>
 
             <TextField
-              label="SKU / code (optional)"
+              label={t("product.sku")}
               value={sku}
               onChange={(e) => setSku(e.target.value)}
-              placeholder="e.g. RICE-25"
+              placeholder={t("product.skuPlaceholder")}
               autoComplete="off"
             />
           </div>
 
           {mode === "create" ? (
             <TextField
-              label="Opening stock"
+              label={t("product.openingStock")}
               type="number"
               inputMode="decimal"
               step="any"
@@ -275,13 +277,13 @@ export function ProductForm({
           ) : null}
 
           <TextField
-            label="Low-stock threshold"
+            label={t("product.lowStockThreshold")}
             type="number"
             inputMode="numeric"
             min="0"
             value={lowStockThreshold}
             onChange={(e) => setLowStockThreshold(e.target.value)}
-            hint={`Alert when stock reaches this number of ${unit || "units"}.`}
+            hint={t("product.lowStockHint")}
             error={errors.lowStockThreshold ?? null}
           />
         </div>
@@ -290,12 +292,10 @@ export function ProductForm({
       {mode === "edit" ? (
         <div className="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600">
           <p>
-            <strong>Opening stock cannot be edited.</strong> To correct an
-            opening balance, use a{" "}
+            <strong>{t("product.openingStockEdit")}</strong>{" "}
             <a href="/stock/adjust" className="font-medium text-brand-600 hover:underline">
-              stock adjustment
+              {t("stock.adjustStock")}
             </a>{" "}
-            instead.
           </p>
         </div>
       ) : null}
@@ -303,7 +303,7 @@ export function ProductForm({
       <StickyFormActions
         onCancel={() => router.back()}
         onSave={handleSubmit}
-        saveLabel={mode === "create" ? "Save Product" : "Update Product"}
+        saveLabel={mode === "create" ? t("product.saveProduct") : t("product.updateProduct")}
         saveDisabled={hasErrors}
         isPending={isPending}
       />

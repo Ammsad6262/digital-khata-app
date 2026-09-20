@@ -30,9 +30,11 @@ import {
   Package,
   TrendingUp,
 } from "lucide-react";
+import { useLanguage } from "@/providers/language-provider";
 
 export function Dashboard() {
   const { data, isLoading, isError, error, refetch, isFetching } = useDashboard();
+  const { t } = useLanguage();
 
   if (isLoading) {
     return <DashboardSkeleton />;
@@ -42,17 +44,17 @@ export function Dashboard() {
     return (
       <div className="space-y-4">
         <EmptyState
-          title="Couldn't load dashboard"
+          title={t("common.couldntLoad")}
           description={
             error instanceof Error
               ? error.message
-              : "Something went wrong. Please try again."
+              : t("common.networkError")
           }
           icon={<AlertCircle className="h-6 w-6" />}
           action={
             <Button onClick={() => refetch()} variant="outline" size="sm">
               <RefreshCw className="h-4 w-4" />
-              Retry
+              {t("common.retry")}
             </Button>
           }
         />
@@ -63,8 +65,8 @@ export function Dashboard() {
   if (!data) {
     return (
       <EmptyState
-        title="No data yet"
-        description="Add your first customer or product to get started."
+        title={t("dashboard.welcomeTitle")}
+        description={t("dashboard.welcomeDesc")}
         icon={<Package className="h-6 w-6" />}
       />
     );
@@ -91,35 +93,35 @@ export function Dashboard() {
       {/* Today's stats — 2×2 grid */}
       <section className="space-y-2">
         <div className="flex items-center justify-between px-1">
-          <h2 className="text-sm font-semibold text-slate-700">Today</h2>
+          <h2 className="text-sm font-semibold text-slate-700">{t("dashboard.today")}</h2>
           {isFetching ? (
             <span className="flex items-center gap-1 text-[11px] text-slate-400">
               <RefreshCw className="h-3 w-3 animate-spin" />
-              Updating
+              {t("dashboard.updating")}
             </span>
           ) : null}
         </div>
         <div className="grid grid-cols-2 gap-2.5">
           <StatCard
-            label="Sales"
+            label={t("dashboard.todaysSales")}
             value={<Money value={data.todaysSales} />}
             icon={ShoppingCart}
             tone="green"
           />
           <StatCard
-            label="Payments"
+            label={t("dashboard.todaysPayments")}
             value={<Money value={data.todaysPayments} />}
             icon={Wallet}
             tone="blue"
           />
           <StatCard
-            label="Expenses"
+            label={t("dashboard.todaysExpenses")}
             value={<Money value={data.todaysExpenses} />}
             icon={Receipt}
             tone="amber"
           />
           <StatCard
-            label="Customers"
+            label={t("dashboard.customers")}
             value={String(data.customerCount)}
             icon={Users}
             tone="slate"
@@ -135,8 +137,8 @@ export function Dashboard() {
         <RecentTransactions transactions={data.recentTransactions} />
       ) : isEmpty ? (
         <EmptyState
-          title="Welcome to Digital Khata"
-          description="Record your first sale, payment, or expense using the quick actions above. Your dashboard will come alive with real-time business numbers."
+          title={t("dashboard.welcomeTitle")}
+          description={t("dashboard.welcomeDesc")}
           icon={<TrendingUp className="h-6 w-6" />}
         />
       ) : null}

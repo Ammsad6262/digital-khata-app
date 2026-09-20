@@ -31,6 +31,7 @@ import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { apiGet } from "@/lib/utils/api-client";
 import { Decimal } from "@/lib/utils/decimal";
 import { formatMoney, formatQuantity } from "@/lib/utils/money";
+import { useLanguage } from "@/providers/language-provider";
 
 type CustomerHit = {
   id: string;
@@ -55,6 +56,7 @@ type SearchResult = {
 
 export function GlobalSearch() {
   const router = useRouter();
+  const { t } = useLanguage();
   const [query, setQuery] = useState("");
   const [isOpen, setIsOpen] = useState(false);
   const [results, setResults] = useState<SearchResult | null>(null);
@@ -133,7 +135,7 @@ export function GlobalSearch() {
               handleNavigate(`/khata/${results.customers[0]!.id}`);
             }
           }}
-          placeholder="Search customers, products..."
+          placeholder={t("dashboard.searchPlaceholder")}
           className="w-full rounded-xl border border-slate-300 bg-white py-3 pl-10 pr-9 text-sm text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
           aria-label="Global search"
           aria-expanded={isOpen}
@@ -175,7 +177,7 @@ export function GlobalSearch() {
                   className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-brand-50 px-2 py-2 text-xs font-medium text-brand-700 hover:bg-brand-100"
                 >
                   <UserPlus className="h-3.5 w-3.5" />
-                  Add customer
+                  {t("action.addCustomer")}
                 </Link>
                 <Link
                   href={`/more/products/new`}
@@ -183,7 +185,7 @@ export function GlobalSearch() {
                   className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-blue-50 px-2 py-2 text-xs font-medium text-blue-700 hover:bg-blue-100"
                 >
                   <PackagePlus className="h-3.5 w-3.5" />
-                  Add product
+                  {t("stock.addProduct")}
                 </Link>
               </div>
             </div>
@@ -193,7 +195,7 @@ export function GlobalSearch() {
               {results!.customers.length > 0 ? (
                 <div>
                   <p className="border-b border-slate-100 bg-slate-50 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-                    Customers ({results!.customers.length})
+                    {t("dashboard.customers")} ({results!.customers.length})
                   </p>
                   {results!.customers.map((c) => {
                     const balance = new Decimal(c.balance);
@@ -232,7 +234,7 @@ export function GlobalSearch() {
               {results!.products.length > 0 ? (
                 <div className={results!.customers.length > 0 ? "border-t border-slate-100" : ""}>
                   <p className="border-b border-slate-100 bg-slate-50 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-                    Products ({results!.products.length})
+                    {t("more.products")} ({results!.products.length})
                   </p>
                   {results!.products.map((p) => {
                     const stock = new Decimal(p.currentStock);

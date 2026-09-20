@@ -9,6 +9,7 @@
 
 import { Users } from "lucide-react";
 import { Money } from "@/components/shared/Money";
+import { useLanguage } from "@/providers/language-provider";
 
 export function HeroCard({
   totalReceivables,
@@ -17,12 +18,13 @@ export function HeroCard({
   totalReceivables: string;
   customersWithBalance: number;
 }) {
+  const { t } = useLanguage();
   return (
     <div className="overflow-hidden rounded-2xl bg-gradient-to-br from-brand-600 to-brand-700 p-5 text-white shadow-lg shadow-brand-600/20">
       <div className="flex items-start justify-between">
         <div>
           <p className="text-xs font-medium uppercase tracking-wider text-brand-100">
-            Total Receivables
+            {t("dashboard.totalReceivables")}
           </p>
           <p className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">
             <Money value={totalReceivables} />
@@ -34,7 +36,9 @@ export function HeroCard({
       </div>
       <p className="mt-3 text-xs text-brand-100">
         <span className="font-semibold text-white">{customersWithBalance}</span>{" "}
-        {customersWithBalance === 1 ? "customer owes" : "customers owe"} money
+        {customersWithBalance === 1
+          ? t("dashboard.customerOwes")
+          : t("dashboard.customersOwe")}
       </p>
     </div>
   );

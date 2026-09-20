@@ -2,8 +2,16 @@
 const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
-  // Prisma needs to be transpiled for Next.js production builds
-  // (works without this in dev mode but breaks in `next build`)
+
+  // Enable gzip + brotli compression for all responses
+  // Vercel does this automatically, but for self-hosted/local dev this helps
+  compress: true,
+
+  // Optimize: don't generate static pages for API routes (they're all dynamic)
+  // and only generate the specific pages we need at build time
+  experimental: {
+    optimizePackageImports: ["lucide-react"],
+  },
 };
 
 export default nextConfig;

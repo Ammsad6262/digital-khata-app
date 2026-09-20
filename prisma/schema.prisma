@@ -44,7 +44,7 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -61,7 +61,7 @@ model Customer {
   // Opening balance — set ONCE when the customer is migrated from paper khata
   // to the app. Represents the outstanding amount the customer already owed
   // before any digital transactions were recorded. Default 0 for new customers.
-  openingBalance Decimal  @default(0) @db.Decimal(12, 2) 
+  openingBalance Decimal @db.Decimal(12, 2)  @default(0)
 
   isDeleted      Boolean  @default(false) // soft-delete flag (used in V2; V1 blocks hard delete)
   createdAt      DateTime @default(now())
@@ -85,15 +85,15 @@ model Product {
   name      String
   category  String?
 
-  purchasePrice Decimal @db.Decimal(12, 2)  // cost price (for future profit reports)
-  sellingPrice  Decimal @db.Decimal(12, 2)  // default selling price
+  purchasePrice Decimal   // cost price (for future profit reports)
+  sellingPrice  Decimal   // default selling price
   unit          String  @default("piece") // piece, kg, box, dozen, etc.
   sku           String? @unique           // optional product code
 
   // Opening stock — set ONCE when the product is migrated from paper register.
   // Represents the stock count at the moment the product was added to the app.
   // Default 0 for new products added after go-live.
-  openingStock   Decimal @default(0) @db.Decimal(10, 3) 
+  openingStock   Decimal @db.Decimal(12, 2) @default(0)
 
   lowStockThreshold Int   @default(5)
   isDeleted         Boolean @default(false)
@@ -119,11 +119,11 @@ model Sale {
   customer   Customer @relation(fields: [customerId], references: [id])
 
   // Total of all SaleItem.total — denormalized for fast display
-  totalAmount Decimal @db.Decimal(12, 2)
+  totalAmount Decimal
   // Money received at sale time (may be 0 for pure credit sale)
-  paidAmount  Decimal  @default(0) @db.Decimal(12, 2)
+  paidAmount  Decimal @db.Decimal(12, 2)  @default(0)
   // totalAmount - paidAmount (denormalized; source of truth is the calculation)
-  outstanding Decimal  @db.Decimal(12, 2)
+  outstanding Decimal
 
   notes      String?
   date       DateTime @default(now()) // can be backdated
@@ -150,9 +150,9 @@ model SaleItem {
   productId String
   product   Product @relation(fields: [productId], references: [id])
 
-  quantity  Decimal @db.Decimal(10, 3)
-  unitPrice Decimal @db.Decimal(12, 2)  // price per unit at time of sale (snapshot)
-  total     Decimal @db.Decimal(12, 2)  // quantity * unitPrice (denormalized)
+  quantity  Decimal
+  unitPrice Decimal   // price per unit at time of sale (snapshot)
+  total     Decimal   // quantity * unitPrice (denormalized)
 
   @@index([saleId])
   @@index([productId])
@@ -171,7 +171,7 @@ model Payment {
   saleId     String?
   sale       Sale?    @relation(fields: [saleId], references: [id])
 
-  amount     Decimal  @db.Decimal(12, 2)
+  amount     Decimal
   method     String   // "cash" | "bank" | "cheque" | "jazzcash" | "easypaisa" | "other"
   notes      String?
   date       DateTime @default(now())
@@ -203,7 +203,7 @@ model CustomerAdjustment {
   customerId String
   customer   Customer @relation(fields: [customerId], references: [id])
 
-  amount     Decimal  @db.Decimal(12, 2) // signed: + increases balance, - decreases
+  amount     Decimal   // signed: + increases balance, - decreases
   reason     String   // required — must explain why the adjustment was made
   notes      String?
   date       DateTime @default(now())
@@ -234,9 +234,9 @@ model StockMove {
   product   Product  @relation(fields: [productId], references: [id])
 
   type      String   // "purchase" | "adjustment" | "return"
-  quantity  Decimal  @db.Decimal(10, 3) // signed
+  quantity  Decimal   // signed
   reason    String?
-  unitCost  Decimal? @db.Decimal(12, 2) // optional purchase cost (for V2 profit reports)
+  unitCost  Decimal?  // optional purchase cost (for V2 profit reports)
   date      DateTime @default(now())
   voidedAt  DateTime?
   createdAt DateTime @default(now())
@@ -253,7 +253,7 @@ model StockMove {
 model Expense {
   id        String   @id @default(cuid())
   name      String
-  amount    Decimal  @db.Decimal(12, 2)
+  amount    Decimal
   category  String   // "transport" | "shop" | "electricity" | "packaging" | "salary" | "rent" | "other"
   notes     String?
   date      DateTime @default(now())
@@ -300,7 +300,7 @@ model Transaction {
   productId  String?  // set if transaction involves a product (stock moves)
   product    Product?  @relation(fields: [productId], references: [id])
 
-  amount     Decimal  @db.Decimal(12, 2) // always positive; direction tells you sign
+  amount     Decimal   // always positive; direction tells you sign
   direction  String   // "debit" | "credit" — semantic per type, see docs
   date       DateTime @default(now())
   notes      String?

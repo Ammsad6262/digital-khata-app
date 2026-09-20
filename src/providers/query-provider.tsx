@@ -4,15 +4,16 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState, type ReactNode } from "react";
 
 /**
- * TanStack Query provider.
+ * TanStack Query provider with performance-optimized defaults.
  *
- * All client-side data fetching goes through React Query — the hooks layer
- * (src/hooks/use-*.ts — to be added in a later phase) wraps these queries.
- *
- * Default config:
- *   - staleTime 30s — fresh enough for daily use, doesn't hammer the API
- *   - retry 1 — one retry on failure, not the default 3
- *   - refetchOnWindowFocus false — too aggressive for a single-user app
+ * Performance tuning:
+ *   - staleTime 5 minutes — data stays fresh for 5 min, no refetching on
+ *     every component mount. This is the #1 cause of "slow" feeling.
+ *   - gcTime 10 minutes — keep cache in memory for 10 min for instant back-navigation
+ *   - retry 1 — one retry on failure (not the default 3 which feels slow on errors)
+ *   - refetchOnWindowFocus false — don't refetch when user switches tabs
+ *   - refetchOnMount false — don't refetch if we have cached data
+ *   - refetchOnReconnect false — don't refetch when network reconnects
  */
 export function QueryProvider({ children }: { children: ReactNode }) {
   const [client] = useState(
@@ -20,9 +21,15 @@ export function QueryProvider({ children }: { children: ReactNode }) {
       new QueryClient({
         defaultOptions: {
           queries: {
-            staleTime: 30 * 1000,
+            staleTime: 5 * 60 * 1000, // 5 minutes
+            gcTime: 10 * 60 * 1000,   // 10 minutes (formerly cacheTime)
             retry: 1,
             refetchOnWindowFocus: false,
+            refetchOnMount: false,
+            refetchOnReconnect: false,
+          },
+          mutations: {
+            retry: 0,
           },
         },
       }),

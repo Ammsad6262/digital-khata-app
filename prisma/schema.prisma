@@ -61,7 +61,7 @@ model Customer {
   // Opening balance — set ONCE when the customer is migrated from paper khata
   // to the app. Represents the outstanding amount the customer already owed
   // before any digital transactions were recorded. Default 0 for new customers.
-  openingBalance Decimal @db.Decimal(12, 2)  @default(0)
+  openingBalance Decimal @db.Decimal(12, 2)   @default(0)
 
   isDeleted      Boolean  @default(false) // soft-delete flag (used in V2; V1 blocks hard delete)
   createdAt      DateTime @default(now())
@@ -93,7 +93,7 @@ model Product {
   // Opening stock — set ONCE when the product is migrated from paper register.
   // Represents the stock count at the moment the product was added to the app.
   // Default 0 for new products added after go-live.
-  openingStock   Decimal @db.Decimal(12, 2) @default(0)
+  openingStock   Decimal @db.Decimal(12, 2)  @default(0)
 
   lowStockThreshold Int   @default(5)
   isDeleted         Boolean @default(false)
@@ -121,7 +121,7 @@ model Sale {
   // Total of all SaleItem.total — denormalized for fast display
   totalAmount Decimal
   // Money received at sale time (may be 0 for pure credit sale)
-  paidAmount  Decimal @db.Decimal(12, 2)  @default(0)
+  paidAmount  Decimal @db.Decimal(12, 2)   @default(0)
   // totalAmount - paidAmount (denormalized; source of truth is the calculation)
   outstanding Decimal
 

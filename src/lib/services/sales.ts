@@ -295,33 +295,41 @@ export async function createSale(input: unknown): Promise<SaleWithItems> {
       paymentId = payment.id;
     }
 
-    // 7. Write Transaction ledger rows
-    await tx.transaction.create({
-      data: {
-        type: "sale",
-        refType: "Sale",
-        refId: sale.id,
-        customerId: data.customerId,
-        amount: totalAmount,
-        direction: "debit", // increases customer balance
-        date: saleDate,
-        notes: `Sale ${sale.id}`,
-      },
-    });
+    // 7. Write Transaction ledger rows (batched — 1 createMany instead of 2 creates)
+    const txRows: Array<{
+      type: string;
+      refType: string;
+      refId: string;
+      customerId: string;
+      amount: typeof totalAmount;
+      direction: string;
+      date: Date;
+      notes: string | null;
+    }> = [{
+      type: "sale",
+      refType: "Sale",
+      refId: sale.id,
+      customerId: data.customerId,
+      amount: totalAmount,
+      direction: "debit",
+      date: saleDate,
+      notes: `Sale ${sale.id}`,
+    }];
 
     if (paymentId) {
-      await tx.transaction.create({
-        data: {
-          type: "payment",
-          refType: "Payment",
-          refId: paymentId,
-          customerId: data.customerId,
-          amount: paidAmount,
-          direction: "credit", // decreases customer balance
-          date: saleDate,
-        },
+      txRows.push({
+        type: "payment",
+        refType: "Payment",
+        refId: paymentId,
+        customerId: data.customerId,
+        amount: paidAmount,
+        direction: "credit",
+        date: saleDate,
+        notes: null,
       });
     }
+
+    await tx.transaction.createMany({ data: txRows });
 
     return sale;
   });

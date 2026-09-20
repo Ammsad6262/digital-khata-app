@@ -10,22 +10,22 @@
 
 import bcrypt from "bcryptjs";
 
+// Parse BCRYPT_ROUNDS once at module load (not per call)
 const DEFAULT_ROUNDS = 10;
-
-function getRounds(): number {
+const BCRYPT_ROUNDS = (() => {
   const raw = process.env.BCRYPT_ROUNDS;
   const parsed = raw ? parseInt(raw, 10) : DEFAULT_ROUNDS;
   return Number.isFinite(parsed) && parsed >= 4 && parsed <= 31
     ? parsed
     : DEFAULT_ROUNDS;
-}
+})();
 
 /** Hash a plaintext PIN (4-6 digits expected, but we don't enforce length here). */
 export async function hashPin(plaintext: string): Promise<string> {
   if (!plaintext || plaintext.length < 4) {
     throw new Error("PIN must be at least 4 characters.");
   }
-  return bcrypt.hash(plaintext, getRounds());
+  return bcrypt.hash(plaintext, BCRYPT_ROUNDS);
 }
 
 /** Verify a plaintext PIN against a stored bcrypt hash. */

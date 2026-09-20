@@ -98,12 +98,10 @@ export async function apiDelete<T>(
 
 /** Unwrap a fetch response into either data or an ApiError. */
 async function unwrap<T>(res: Response, path: string): Promise<T> {
-  // Handle 401 — session expired. Reload to trigger AuthGate → PIN screen.
-  if (res.status === 401 && typeof window !== "undefined") {
-    // Avoid infinite reload loop if we're already on a page that doesn't need auth
-    if (!window.location.pathname.startsWith("/api/")) {
-      window.location.reload();
-    }
+  // Handle 401 — session expired.
+  // DON'T reload — that causes an infinite loop. Just throw an error.
+  // The AuthGate will handle showing the PIN screen if needed.
+  if (res.status === 401) {
     throw new ApiError("Session expired. Please unlock the app.", "UNAUTHORIZED", 401);
   }
 

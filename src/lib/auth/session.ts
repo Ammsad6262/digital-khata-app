@@ -80,7 +80,10 @@ export async function createSession(): Promise<{ token: string; cookie: string }
   const cookie = [
     `${SESSION_COOKIE}=${token}`,
     "HttpOnly",
-    "SameSite=Strict",
+    // Use Lax instead of Strict — Strict blocks cookies on navigation
+    // from external sites. Lax allows top-level GETs but blocks POSTs
+    // from other sites (still CSRF-safe).
+    "SameSite=Lax",
     `Path=/`,
     `Max-Age=${getTtl()}`,
     isProduction ? "Secure" : "",
@@ -95,7 +98,7 @@ export function clearSessionCookie(): string {
   return [
     `${SESSION_COOKIE}=`,
     "HttpOnly",
-    "SameSite=Strict",
+    "SameSite=Lax",
     "Path=/",
     "Max-Age=0",
     isProduction ? "Secure" : "",

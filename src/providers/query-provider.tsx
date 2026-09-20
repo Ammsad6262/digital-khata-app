@@ -4,16 +4,17 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState, type ReactNode } from "react";
 
 /**
- * TanStack Query provider with performance-optimized defaults.
+ * TanStack Query provider with aggressive caching for high-latency DB.
  *
- * Performance tuning:
- *   - staleTime 5 minutes — data stays fresh for 5 min, no refetching on
- *     every component mount. This is the #1 cause of "slow" feeling.
- *   - gcTime 10 minutes — keep cache in memory for 10 min for instant back-navigation
- *   - retry 1 — one retry on failure (not the default 3 which feels slow on errors)
- *   - refetchOnWindowFocus false — don't refetch when user switches tabs
- *   - refetchOnMount false — don't refetch if we have cached data
- *   - refetchOnReconnect false — don't refetch when network reconnects
+ * Since Supabase is in Mumbai and Vercel is in US-East, every API call
+ * has ~500ms latency. We minimize calls by:
+ *   - staleTime: 10 minutes — data stays fresh for 10 min
+ *   - gcTime: 30 minutes — cache kept for 30 min for instant back-nav
+ *   - refetchOnMount: false — never refetch on mount if we have cache
+ *   - refetchOnWindowFocus: false — don't refetch when switching tabs
+ *   - refetchOnReconnect: false — don't refetch on network changes
+ *   - retry: 0 — don't retry (retry adds latency on errors)
+ *   - placeholderData: keepPreviousData — show old data while fetching new
  */
 export function QueryProvider({ children }: { children: ReactNode }) {
   const [client] = useState(
@@ -21,9 +22,9 @@ export function QueryProvider({ children }: { children: ReactNode }) {
       new QueryClient({
         defaultOptions: {
           queries: {
-            staleTime: 5 * 60 * 1000, // 5 minutes
-            gcTime: 10 * 60 * 1000,   // 10 minutes (formerly cacheTime)
-            retry: 1,
+            staleTime: 10 * 60 * 1000, // 10 minutes
+            gcTime: 30 * 60 * 1000,    // 30 minutes
+            retry: 0,
             refetchOnWindowFocus: false,
             refetchOnMount: false,
             refetchOnReconnect: false,

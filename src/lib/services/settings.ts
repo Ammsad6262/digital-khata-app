@@ -30,11 +30,14 @@ function toView(s: Prisma.SettingGetPayload<{}>): SettingView {
 
 /** Get the current settings. Lazily creates the singleton row if missing. */
 export async function getSettings(): Promise<SettingView> {
-  const setting = await prisma.setting.upsert({
-    where: { id: SINGLETON_ID },
-    create: { id: SINGLETON_ID },
-    update: {},
-  });
+  // Use findUnique (read-only) instead of upsert (write).
+  // upsert does an INSERT-or-UPDATE on every call — slow on high-latency DBs.
+  const setting = await prisma.setting.findUnique({ where: { id: SINGLETON_ID } });
+  if (!setting) {
+    // Only create if missing (first run)
+    const created = await prisma.setting.create({ data: { id: SINGLETON_ID } });
+    return toView(created);
+  }
   return toView(setting);
 }
 

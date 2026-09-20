@@ -105,7 +105,8 @@
   @media (min-width: 768px) {
     .app-shell {
       max-width: 1024px;
-      border-x border-slate-200;
+      border-left: 1px solid rgb(226 232 240);
+      border-right: 1px solid rgb(226 232 240);
     }
   }
 

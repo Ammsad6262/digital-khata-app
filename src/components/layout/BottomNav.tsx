@@ -27,8 +27,11 @@ export function BottomNav() {
 
   return (
     <nav
-      className="fixed inset-x-0 bottom-0 z-30 mx-auto flex h-16 w-full max-w-app items-stretch border-t border-slate-200 bg-white"
-      style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+      className="fixed inset-x-0 bottom-0 z-30 mx-auto flex h-16 w-full items-stretch border-t border-slate-200 bg-white"
+      style={{
+        paddingBottom: "env(safe-area-inset-bottom)",
+        maxWidth: "1024px",
+      }}
       aria-label="Main navigation"
     >
       {TABS.map((tab) => {

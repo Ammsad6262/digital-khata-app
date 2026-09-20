@@ -94,14 +94,30 @@
 }
 
 @layer components {
-  /* Mobile-first app shell: constrain content to phone width on larger screens */
+  /* App shell: mobile-first, but expands on larger screens (tablet/desktop)
+     instead of staying locked to 480px. On desktop, content centers with
+     a max-width of 1024px (lg breakpoint) for readability. */
   .app-shell {
-    @apply mx-auto flex min-h-[100dvh] w-full max-w-app flex-col bg-slate-50 shadow-sm;
+    @apply mx-auto flex min-h-[100dvh] w-full flex-col bg-slate-50 shadow-sm;
+    max-width: 100%;
+  }
+
+  @media (min-width: 768px) {
+    .app-shell {
+      max-width: 1024px;
+      border-x border-slate-200;
+    }
   }
 
   .app-content {
     @apply flex-1 px-4 pb-24 pt-4;
     padding-bottom: calc(6rem + env(safe-area-inset-bottom));
+  }
+
+  @media (min-width: 768px) {
+    .app-content {
+      @apply px-6 pb-28;
+    }
   }
 
   /* Card primitive — used everywhere for grouped content */

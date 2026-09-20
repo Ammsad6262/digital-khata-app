@@ -12,7 +12,6 @@ import { AppHeader } from "@/components/layout/AppHeader";
 import { ScreenContent } from "@/components/layout/Screen";
 import { ProductsList } from "@/components/products/ProductsList";
 
-export const dynamic = "force-dynamic";
 
 export default function ProductsPage() {
   return (

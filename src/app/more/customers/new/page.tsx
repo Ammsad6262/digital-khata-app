@@ -11,7 +11,6 @@ import { AppHeader } from "@/components/layout/AppHeader";
 import { ScreenContent } from "@/components/layout/Screen";
 import { AddCustomerForm } from "@/components/khata/AddCustomerForm";
 
-export const dynamic = "force-dynamic";
 
 export default function AddCustomerPage() {
   return (

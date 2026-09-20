@@ -14,7 +14,6 @@ import { AppHeader } from "@/components/layout/AppHeader";
 import { ScreenContent } from "@/components/layout/Screen";
 import { StockOverview } from "@/components/stock/StockOverview";
 
-export const dynamic = "force-dynamic";
 
 export default function StockPage() {
   return (

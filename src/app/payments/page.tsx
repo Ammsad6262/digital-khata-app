@@ -12,7 +12,6 @@ import { AppHeader } from "@/components/layout/AppHeader";
 import { ScreenContent } from "@/components/layout/Screen";
 import { PaymentsList } from "@/components/payments/PaymentsList";
 
-export const dynamic = "force-dynamic";
 
 export default function PaymentsPage() {
   return (

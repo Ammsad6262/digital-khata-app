@@ -18,7 +18,6 @@ import { AppHeader } from "@/components/layout/AppHeader";
 import { ScreenContent } from "@/components/layout/Screen";
 import { AdjustStockForm } from "@/components/stock/AdjustStockForm";
 
-export const dynamic = "force-dynamic";
 
 export default function AdjustStockPage({
   searchParams,

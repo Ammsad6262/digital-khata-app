@@ -12,7 +12,6 @@ import { AppHeader } from "@/components/layout/AppHeader";
 import { ScreenContent } from "@/components/layout/Screen";
 import { Dashboard } from "@/components/dashboard/Dashboard";
 
-export const dynamic = "force-dynamic";
 
 export default function DashboardPage() {
   return (

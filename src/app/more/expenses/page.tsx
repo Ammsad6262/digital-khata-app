@@ -12,7 +12,6 @@ import { AppHeader } from "@/components/layout/AppHeader";
 import { ScreenContent } from "@/components/layout/Screen";
 import { ExpensesList } from "@/components/expenses/ExpensesList";
 
-export const dynamic = "force-dynamic";
 
 export default function ExpensesPage() {
   return (

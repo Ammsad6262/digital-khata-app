@@ -12,7 +12,6 @@ import { AppHeader } from "@/components/layout/AppHeader";
 import { ScreenContent } from "@/components/layout/Screen";
 import { SalesList } from "@/components/sales/SalesList";
 
-export const dynamic = "force-dynamic";
 
 export default function SalesPage() {
   return (

@@ -10,7 +10,6 @@ import { AppHeader } from "@/components/layout/AppHeader";
 import { ScreenContent } from "@/components/layout/Screen";
 import { BackupPage } from "@/components/backup/BackupPage";
 
-export const dynamic = "force-dynamic";
 
 export default function BackupRoutePage() {
   return (

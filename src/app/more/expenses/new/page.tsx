@@ -10,7 +10,6 @@ import { AppHeader } from "@/components/layout/AppHeader";
 import { ScreenContent } from "@/components/layout/Screen";
 import { ExpenseForm } from "@/components/expenses/ExpenseForm";
 
-export const dynamic = "force-dynamic";
 
 export default function NewExpensePage() {
   return (

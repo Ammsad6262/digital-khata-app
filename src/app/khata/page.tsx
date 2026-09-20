@@ -14,7 +14,6 @@ import { AppHeader } from "@/components/layout/AppHeader";
 import { ScreenContent } from "@/components/layout/Screen";
 import { KhataList } from "@/components/khata/KhataList";
 
-export const dynamic = "force-dynamic";
 
 export default function KhataPage() {
   return (

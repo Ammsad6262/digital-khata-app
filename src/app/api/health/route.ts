@@ -54,13 +54,20 @@ export async function GET(): Promise<NextResponse> {
       );
     }
 
-    return NextResponse.json({
-      ok: true,
-      data: {
-        status: "healthy",
-        database: "connected",
+    return NextResponse.json(
+      {
+        ok: true,
+        data: {
+          status: "healthy",
+          database: "connected",
+        },
       },
-    });
+      {
+        headers: {
+          "Cache-Control": "public, max-age=30, stale-while-revalidate=60",
+        },
+      },
+    );
   } catch (error) {
     console.error("[health] DB connection failed:", error);
     return NextResponse.json(

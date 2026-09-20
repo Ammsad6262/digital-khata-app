@@ -10,7 +10,6 @@ import { AppHeader } from "@/components/layout/AppHeader";
 import { ScreenContent } from "@/components/layout/Screen";
 import { ProductForm } from "@/components/products/ProductForm";
 
-export const dynamic = "force-dynamic";
 
 export default function AddProductPage() {
   return (

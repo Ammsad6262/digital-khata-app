@@ -23,14 +23,21 @@ export async function GET(req: NextRequest) {
     const sessionCookie = req.cookies.get(SESSION_COOKIE_NAME)?.value;
     const unlocked = !settings.hasPin || await verifySession(sessionCookie);
 
-    return NextResponse.json({
-      ok: true,
-      data: {
-        hasPin: settings.hasPin,
-        unlocked,
-        businessName: settings.businessName,
+    return NextResponse.json(
+      {
+        ok: true,
+        data: {
+          hasPin: settings.hasPin,
+          unlocked,
+          businessName: settings.businessName,
+        },
       },
-    });
+      {
+        headers: {
+          "Cache-Control": "no-store",
+        },
+      },
+    );
   } catch (error) {
     // Return the ACTUAL error message so the user can see what's wrong
     const message = error instanceof Error ? error.message : "Unknown error";

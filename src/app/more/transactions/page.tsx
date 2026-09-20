@@ -20,7 +20,6 @@ import { AppHeader } from "@/components/layout/AppHeader";
 import { ScreenContent } from "@/components/layout/Screen";
 import { TransactionsList } from "@/components/transactions/TransactionsList";
 
-export const dynamic = "force-dynamic";
 
 export default function TransactionsPage() {
   return (

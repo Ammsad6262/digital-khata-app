@@ -9,7 +9,6 @@ import { AppHeader } from "@/components/layout/AppHeader";
 import { ScreenContent } from "@/components/layout/Screen";
 import { SettingsPage } from "@/components/settings/SettingsPage";
 
-export const dynamic = "force-dynamic";
 
 export default function SettingsRoutePage() {
   return (

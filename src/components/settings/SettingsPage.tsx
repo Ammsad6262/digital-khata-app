@@ -16,6 +16,7 @@ import { useState } from "react";
 import {
   Building2,
   Globe,
+  Languages,
   Palette,
   Lock,
   Database,
@@ -27,6 +28,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
+import { useLanguage } from "@/providers/language-provider";
 import { TextField } from "@/components/ui/TextField";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { useTheme, type Theme } from "@/providers/theme-provider";
@@ -99,6 +101,7 @@ export function SettingsPage() {
     <div className="space-y-4">
       <BusinessInfoSection initial={settings} />
       <CurrencySection initial={settings} />
+      <LanguageSection />
       <ThemeSection />
       <SecuritySection hasPin={settings.hasPin} />
       <DataManagementSection hasPin={settings.hasPin} />
@@ -296,7 +299,78 @@ function CurrencySection({
 }
 
 // ────────────────────────────────────────────────────────────────────────────
-// 3. Theme
+// 3. Language
+// ────────────────────────────────────────────────────────────────────────────
+
+function LanguageSection() {
+  const { lang, setLang } = useLanguage();
+
+  return (
+    <section className="rounded-xl border border-slate-200 bg-white p-4">
+      <div className="flex items-center gap-2 mb-3">
+        <Languages className="h-4 w-4 text-slate-500" />
+        <h2 className="text-sm font-semibold text-slate-900">Language / زبان</h2>
+      </div>
+
+      <div className="space-y-2">
+        <button
+          type="button"
+          onClick={() => setLang("en")}
+          className={cn(
+            "flex items-center gap-3 rounded-xl border-2 p-3 text-left transition-all w-full",
+            lang === "en"
+              ? "border-brand-500 bg-brand-50"
+              : "border-slate-200 bg-white hover:bg-slate-50",
+          )}
+        >
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-100 text-sm font-bold text-blue-700">
+            EN
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium text-slate-900">English</p>
+            <p className="text-[11px] text-slate-500">Left-to-right layout</p>
+          </div>
+          {lang === "en" ? (
+            <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand-600">
+              <Check className="h-3.5 w-3.5 text-white" />
+            </div>
+          ) : null}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setLang("ur")}
+          className={cn(
+            "flex items-center gap-3 rounded-xl border-2 p-3 text-left transition-all w-full",
+            lang === "ur"
+              ? "border-brand-500 bg-brand-50"
+              : "border-slate-200 bg-white hover:bg-slate-50",
+          )}
+        >
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-green-100 text-sm font-bold text-green-700">
+            اردو
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium text-slate-900">اردو</p>
+            <p className="text-[11px] text-slate-500">نستعلیق خط، دائیں سے بائیں</p>
+          </div>
+          {lang === "ur" ? (
+            <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand-600">
+              <Check className="h-3.5 w-3.5 text-white" />
+            </div>
+          ) : null}
+        </button>
+      </div>
+
+      <p className="mt-2 text-[11px] text-slate-500">
+        Language changes the entire app interface. Noto Nastaliq Urdu font is used for Urdu text.
+      </p>
+    </section>
+  );
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// 4. Theme
 // ────────────────────────────────────────────────────────────────────────────
 
 function ThemeSection() {

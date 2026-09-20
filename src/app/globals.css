@@ -51,9 +51,60 @@
   body {
     @apply bg-slate-100 text-slate-900 antialiased;
     -webkit-tap-highlight-color: transparent;
-    /* Lock body scroll when overlays are open */
     overscroll-behavior-y: none;
   }
+
+  /* Urdu language: switch to Noto Nastaliq Urdu font
+     Applied when <html lang="ur"> is set by LanguageProvider */
+  html[lang="ur"] body,
+  html[lang="ur"] input,
+  html[lang="ur"] select,
+  html[lang="ur"] textarea,
+  html[lang="ur"] button,
+  html[lang="ur"] a,
+  html[lang="ur"] p,
+  html[lang="ur"] span,
+  html[lang="ur"] h1,
+  html[lang="ur"] h2,
+  html[lang="ur"] h3,
+  html[lang="ur"] label,
+  html[lang="ur"] div {
+    font-family: var(--font-urdu), "Noto Nastaliq Urdu", serif;
+    line-height: 2.2; /* Nastaliq needs more vertical space */
+  }
+
+  /* RTL: flip text alignment and spacing */
+  html[dir="rtl"] .text-left { text-align: right; }
+  html[dir="rtl"] .text-right { text-align: left; }
+  html[dir="rtl"] .float-left { float: right; }
+  html[dir="rtl"] .float-right { float: left; }
+
+  /* RTL: flip margin/padding direction */
+  html[dir="rtl"] .ml-1 { margin-right: 0.25rem; margin-left: 0; }
+  html[dir="rtl"] .ml-2 { margin-right: 0.5rem; margin-left: 0; }
+  html[dir="rtl"] .ml-3 { margin-right: 0.75rem; margin-left: 0; }
+  html[dir="rtl"] .ml-auto { margin-right: auto; margin-left: 0; }
+  html[dir="rtl"] .mr-1 { margin-left: 0.25rem; margin-right: 0; }
+  html[dir="rtl"] .mr-2 { margin-left: 0.5rem; margin-right: 0; }
+  html[dir="rtl"] .mr-3 { margin-left: 0.75rem; margin-right: 0; }
+  html[dir="rtl"] .pl-1 { padding-right: 0.25rem; padding-left: 0; }
+  html[dir="rtl"] .pl-2 { padding-right: 0.5rem; padding-left: 0; }
+  html[dir="rtl"] .pl-3 { padding-right: 0.75rem; padding-left: 0; }
+  html[dir="rtl"] .pl-9 { padding-right: 2.25rem; padding-left: 0; }
+  html[dir="rtl"] .pl-10 { padding-right: 2.5rem; padding-left: 0; }
+  html[dir="rtl"] .pr-1 { padding-left: 0.25rem; padding-right: 0; }
+  html[dir="rtl"] .pr-2 { padding-left: 0.5rem; padding-right: 0; }
+  html[dir="rtl"] .pr-3 { padding-left: 0.75rem; padding-right: 0; }
+  html[dir="rtl"] .pr-9 { padding-left: 2.25rem; padding-right: 0; }
+
+  /* RTL: flip absolute positioning */
+  html[dir="rtl"] .left-3 { right: 0.75rem; left: auto; }
+  html[dir="rtl"] .right-2 { left: 0.5rem; right: auto; }
+  html[dir="rtl"] .right-3 { left: 0.75rem; right: auto; }
+
+  /* RTL: flip border radius (rounded-l → rounded-r) */
+  html[dir="rtl"] .rounded-l-lg { border-radius: 0 0.5rem 0.5rem 0; }
+  html[dir="rtl"] .rounded-r-lg { border-radius: 0.5rem 0 0 0.5rem; }
 
   /* Prevent iOS zoom-on-focus by enforcing 16px font on inputs */
   input,

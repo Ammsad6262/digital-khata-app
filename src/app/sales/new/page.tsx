@@ -1,20 +1,29 @@
 /**
  * New Sale page.
  *
- * Server component shell — the form is a client component using React Query.
- *
- * The form supports an optional ?customerId=... query param so the
- * "New Sale" button on a customer's khata page can pre-fill the customer.
+ * Lazy-loads the sale form to keep the initial bundle small.
+ * The form + React Hook Form + Zod is only loaded when the user
+ * navigates to create a sale.
  */
 
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { Suspense } from "react";
 import { AppHeader } from "@/components/layout/AppHeader";
 import { ScreenContent } from "@/components/layout/Screen";
-import { NewSaleForm } from "@/components/sales/NewSaleForm";
 
-export const dynamic = "force-dynamic";
+const NewSaleForm = dynamic(
+  () => import("@/components/sales/NewSaleForm").then((m) => m.NewSaleForm),
+  {
+    loading: () => (
+      <div className="space-y-4">
+        <div className="h-16 animate-pulse rounded-xl bg-slate-200" />
+        <div className="h-20 animate-pulse rounded-xl bg-slate-200" />
+      </div>
+    ),
+  },
+);
 
 export default function NewSalePage() {
   return (

@@ -1,14 +1,26 @@
 /**
- * Settings page (/more/settings).
+ * Settings page.
  *
- * Full settings: business info, currency, theme, security (PIN),
- * data management (danger zone), backup & export link.
+ * Lazy-loads the SettingsPage component (which includes currency picker,
+ * theme picker, PIN forms, backup section) to keep the initial bundle small.
  */
 
+import dynamic from "next/dynamic";
 import { AppHeader } from "@/components/layout/AppHeader";
 import { ScreenContent } from "@/components/layout/Screen";
-import { SettingsPage } from "@/components/settings/SettingsPage";
 
+const SettingsPage = dynamic(
+  () => import("@/components/settings/SettingsPage").then((m) => m.SettingsPage),
+  {
+    loading: () => (
+      <div className="space-y-3">
+        {[0, 1, 2, 3, 4].map((i) => (
+          <div key={i} className="h-20 animate-pulse rounded-xl bg-slate-200" />
+        ))}
+      </div>
+    ),
+  },
+);
 
 export default function SettingsRoutePage() {
   return (

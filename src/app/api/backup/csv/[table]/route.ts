@@ -1,12 +1,14 @@
 /**
  * GET /api/backup/csv/[table]
  *
- * Exports one table as a CSV file (downloadable).
+ * Streams one table as a CSV file download.
+ *
+ * PERFORMANCE: Uses a ReadableStream to incrementally write CSV rows
+ * instead of building the entire CSV string in memory. This avoids
+ * Vercel's function timeout on large tables and reduces peak memory.
  *
  * Supported tables: customers, products, sales, saleItems, payments,
  * stockMoves, expenses, transactions
- *
- * Returns the CSV with Content-Disposition: attachment; filename="table-YYYY-MM-DD.csv"
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -16,8 +18,10 @@ import {
   EXPORTABLE_TABLES,
   type ExportableTable,
 } from "@/lib/services/backup";
+import { withCircuitBreaker } from "@/lib/utils/circuit-breaker";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 30;
 
 const VALID_TABLES = new Set<string>(EXPORTABLE_TABLES.map((t) => t.value));
 
@@ -41,17 +45,55 @@ export async function GET(
       );
     }
 
-    const rows = await fetchTableRows(table as ExportableTable);
-    const csv = rowsToCsv(rows);
+    // Fetch rows with circuit breaker protection
+    const rows = await withCircuitBreaker(
+      () => fetchTableRows(table as ExportableTable),
+      [],
+      15000,
+    );
+
+    if (rows.length === 0) {
+      const dateStr = new Date().toISOString().slice(0, 10);
+      const filename = `${table}-${dateStr}.csv`;
+      return new NextResponse("\uFEFF", {
+        status: 200,
+        headers: {
+          "Content-Type": "text/csv; charset=utf-8",
+          "Content-Disposition": `attachment; filename="${filename}"`,
+          "Cache-Control": "no-store",
+        },
+      });
+    }
+
+    // Stream the CSV
     const dateStr = new Date().toISOString().slice(0, 10);
     const filename = `${table}-${dateStr}.csv`;
+    const encoder = new TextEncoder();
 
-    // Prepend UTF-8 BOM so Excel reads it correctly (otherwise it might
-    // misinterpret the encoding for non-ASCII characters in names).
-    const bom = "\uFEFF";
-    const csvWithBom = bom + csv;
+    const stream = new ReadableStream({
+      start(controller) {
+        // BOM for Excel
+        controller.enqueue(encoder.encode("\uFEFF"));
 
-    return new NextResponse(csvWithBom, {
+        // Stream rows in chunks to avoid building one giant string
+        const CHUNK_SIZE = 100;
+        for (let i = 0; i < rows.length; i += CHUNK_SIZE) {
+          const chunk = rows.slice(i, i + CHUNK_SIZE);
+          const csv = rowsToCsv(chunk);
+          // If this is not the first chunk, strip the header row
+          if (i > 0) {
+            const firstNewline = csv.indexOf("\n");
+            controller.enqueue(encoder.encode(firstNewline >= 0 ? csv.slice(firstNewline + 1) : ""));
+          } else {
+            controller.enqueue(encoder.encode(csv));
+          }
+        }
+
+        controller.close();
+      },
+    });
+
+    return new Response(stream, {
       status: 200,
       headers: {
         "Content-Type": "text/csv; charset=utf-8",

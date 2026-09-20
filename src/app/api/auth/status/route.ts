@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
   try {
     const settings = await getSettings();
     const sessionCookie = req.cookies.get(SESSION_COOKIE_NAME)?.value;
-    const unlocked = !settings.hasPin || verifySession(sessionCookie);
+    const unlocked = !settings.hasPin || await verifySession(sessionCookie);
 
     return NextResponse.json({
       ok: true,

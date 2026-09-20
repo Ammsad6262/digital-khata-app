@@ -63,7 +63,7 @@ export async function GET() {
           const table = tables[i]!;
           controller.enqueue(encoder.encode(`    "${table}": `));
           // Stringify one table at a time (not the whole object)
-          controller.enqueue(encoder.encode(JSON.stringify(backup.data[table], null, 2).replace(/^/gm, "    ").trim()));
+          controller.enqueue(encoder.encode(JSON.stringify((backup.data as Record<string, unknown[]>)[table], null, 2).replace(/^/gm, "    ").trim()));
           if (i < tables.length - 1) {
             controller.enqueue(encoder.encode(",\n"));
           } else {

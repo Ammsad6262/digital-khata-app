@@ -112,12 +112,17 @@
 
   .app-content {
     @apply flex-1 px-4 pb-24 pt-4;
-    padding-bottom: calc(6rem + env(safe-area-inset-bottom));
+    /* Reserve space for the fixed BottomNav (h-16 = 4rem) + safe area */
+    /* This prevents content from being hidden behind the nav AND prevents
+       layout shift when the nav renders */
+    padding-bottom: calc(4rem + 2rem + env(safe-area-inset-bottom));
+    min-height: calc(100dvh - 4rem);
   }
 
   @media (min-width: 768px) {
     .app-content {
-      @apply px-6 pb-28;
+      @apply px-6;
+      padding-bottom: calc(4rem + 3rem + env(safe-area-inset-bottom));
     }
   }
 

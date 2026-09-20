@@ -74,11 +74,11 @@ export function AuthGate({ children }: { children: ReactNode }) {
     return () => { mounted = false; };
   }, []);
 
-  // Loading
+  // Loading — invisible (bg matches app bg, no layout shift when app renders)
   if (!status && !error) {
     return (
-      <div className="flex min-h-[100dvh] items-center justify-center bg-slate-50">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-slate-300 border-t-brand-600" />
+      <div className="min-h-[100dvh] bg-slate-50" aria-hidden="true">
+        {/* Prevent FOUC: same bg as app shell, no spinner that causes layout shift */}
       </div>
     );
   }

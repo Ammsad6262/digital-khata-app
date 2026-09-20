@@ -26,6 +26,13 @@ const inter = Inter({
   subsets: ["latin"],
   variable: "--font-sans",
   display: "swap",
+  // Preload the font to prevent FOIT (Flash of Invisible Text)
+  // and reduce CLS from font loading
+  preload: true,
+  // Use fallback font that's similar to Inter to minimize reflow
+  fallback: ["system-ui", "-apple-system", "BlinkMacSystemFont", "Segoe UI", "Roboto", "sans-serif"],
+  // Adjust the fallback font metrics to match Inter's metrics
+  adjustFontFallback: true,
 });
 
 export const metadata: Metadata = {

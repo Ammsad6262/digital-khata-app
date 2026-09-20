@@ -3,26 +3,22 @@
 /**
  * Dashboard skeleton — shimmer loading state shown while data is fetching.
  *
- * Mimics the actual layout so there's no visual jump when data arrives.
+ * IMPORTANT: The skeleton MUST match the real dashboard's layout dimensions
+ * to prevent Cumulative Layout Shift (CLS). Every element in the skeleton
+ * has the same height/width as its real counterpart so there's no visual
+ * jump when data arrives.
  */
 
 export function DashboardSkeleton() {
   return (
     <div className="space-y-4">
-      {/* Hero card skeleton */}
+      {/* Global search bar skeleton — matches the real search bar height (py-3 = h-12) */}
+      <div className="h-12 animate-pulse rounded-xl border border-slate-200 bg-slate-100" />
+
+      {/* Hero card skeleton — matches the real HeroCard (p-5 + content = h-28) */}
       <div className="h-28 animate-pulse rounded-2xl bg-slate-200" />
 
-      {/* 4 stat cards skeleton */}
-      <div className="grid grid-cols-2 gap-3">
-        {[0, 1, 2, 3].map((i) => (
-          <div
-            key={i}
-            className="h-20 animate-pulse rounded-xl bg-slate-200"
-          />
-        ))}
-      </div>
-
-      {/* Quick actions skeleton */}
+      {/* Quick actions skeleton — matches QuickActions grid (h-14 per button) */}
       <div className="grid grid-cols-2 gap-2.5">
         {[0, 1, 2, 3].map((i) => (
           <div
@@ -32,7 +28,22 @@ export function DashboardSkeleton() {
         ))}
       </div>
 
-      {/* Recent activity skeleton */}
+      {/* Section title skeleton */}
+      <div className="flex items-center justify-between px-1">
+        <div className="h-4 w-16 animate-pulse rounded bg-slate-200" />
+      </div>
+
+      {/* 4 stat cards skeleton — matches StatCard (p-3 + content = h-20) */}
+      <div className="grid grid-cols-2 gap-3">
+        {[0, 1, 2, 3].map((i) => (
+          <div
+            key={i}
+            className="h-20 animate-pulse rounded-xl bg-slate-200"
+          />
+        ))}
+      </div>
+
+      {/* Recent activity skeleton — matches section title + list */}
       <div className="space-y-2">
         <div className="h-4 w-32 animate-pulse rounded bg-slate-200" />
         <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">

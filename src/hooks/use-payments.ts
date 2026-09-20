@@ -85,11 +85,7 @@ export type RecordPaymentInput = {
 };
 
 /**
- * Record a payment (atomic — Payment + Transaction ledger row).
- *
- * On success: invalidates payment lists, the specific customer's history,
- * customer lists (balance changed), dashboard (today's payments + receivables
- * may have changed), and the transactions feed.
+ * Record a payment — optimistic: updates customer balance + payment list immediately.
  */
 export function useRecordPayment() {
   const queryClient = useQueryClient();
@@ -98,21 +94,45 @@ export function useRecordPayment() {
     mutationFn: (input: RecordPaymentInput) =>
       apiPost<PaymentDetail>("/api/payments", input),
 
+    // Optimistic: update the customer's balance in the list immediately
+    onMutate: async (input) => {
+      await queryClient.cancelQueries({ queryKey: ["customers"] });
+      await queryClient.cancelQueries({ queryKey: paymentKeys.lists() });
+
+      // Snapshot customer list for rollback
+      const prevCustomers = queryClient.getQueryData<unknown[]>(["customers", "list", { withBalances: true }]);
+
+      // Optimistically decrease the customer's balance in the list
+      if (prevCustomers && Array.isArray(prevCustomers)) {
+        const updated = prevCustomers.map((c: any) => {
+          if (c.id === input.customerId) {
+            const newBalance = parseFloat(c.balance) - parseFloat(String(input.amount));
+            return { ...c, balance: String(newBalance) };
+          }
+          return c;
+        });
+        queryClient.setQueryData(["customers", "list", { withBalances: true }], updated);
+      }
+
+      return { prevCustomers };
+    },
+
+    onError: (_err, _input, context) => {
+      if (context?.prevCustomers) {
+        queryClient.setQueryData(["customers", "list", { withBalances: true }], context.prevCustomers);
+      }
+    },
+
     onSuccess: (_data, variables) => {
-      // Payment lists (all filters — they all need refresh).
       queryClient.invalidateQueries({ queryKey: paymentKeys.lists() });
-      // The specific customer's history + balance.
       queryClient.invalidateQueries({
         queryKey: ["customers", "detail", variables.customerId],
       });
       queryClient.invalidateQueries({
         queryKey: ["customers", "detail", variables.customerId, "history"],
       });
-      // Customer lists (balance changed).
       queryClient.invalidateQueries({ queryKey: ["customers"] });
-      // Dashboard (today's payments / receivables may have changed).
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
-      // Transactions feed.
       queryClient.invalidateQueries({ queryKey: ["transactions"] });
     },
   });

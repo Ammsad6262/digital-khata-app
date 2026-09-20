@@ -100,6 +100,41 @@ export function useCreateProduct() {
       lowStockThreshold?: number;
     }) => apiPost<ProductView>("/api/products", input),
 
+    onMutate: async (input) => {
+      await queryClient.cancelQueries({ queryKey: productKeys.lists() });
+
+      const prevList = queryClient.getQueryData<ProductWithStock[]>(productKeys.list(true));
+
+      // Create temp product for optimistic display
+      const tempProduct: ProductWithStock = {
+        id: `temp-${Date.now()}`,
+        name: input.name,
+        category: input.category ?? null,
+        purchasePrice: String(input.purchasePrice),
+        sellingPrice: String(input.sellingPrice),
+        unit: input.unit ?? "piece",
+        sku: input.sku ?? null,
+        openingStock: String(input.openingStock ?? 0),
+        lowStockThreshold: input.lowStockThreshold ?? 5,
+        currentStock: String(input.openingStock ?? 0),
+        isLowStock: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      if (prevList) {
+        queryClient.setQueryData<ProductWithStock[]>(productKeys.list(true), [...prevList, tempProduct]);
+      }
+
+      return { prevList };
+    },
+
+    onError: (_err, _input, context) => {
+      if (context?.prevList) {
+        queryClient.setQueryData(productKeys.list(true), context.prevList);
+      }
+    },
+
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: productKeys.all });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });

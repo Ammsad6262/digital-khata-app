@@ -121,11 +121,7 @@ export function useCustomerHistory(id: string | null | undefined) {
 // ────────────────────────────────────────────────────────────────────────────
 
 /**
- * Create a customer.
- *
- * On success:
- *   - Invalidates the customer list + search caches so they refetch.
- *   - The caller can then redirect to the new customer's detail page.
+ * Create a customer — optimistic: adds to the list immediately, rolls back on error.
  */
 export function useCreateCustomer() {
   const queryClient = useQueryClient();
@@ -140,10 +136,45 @@ export function useCreateCustomer() {
     }) =>
       apiPost<CustomerView>("/api/customers", input),
 
+    // Optimistic update: add the customer to the list immediately
+    onMutate: async (input) => {
+      // Cancel outgoing refetches so they don't overwrite our optimistic update
+      await queryClient.cancelQueries({ queryKey: customerKeys.lists() });
+
+      // Snapshot the previous value for rollback
+      const prevList = queryClient.getQueryData<CustomerSearchResult[]>(
+        customerKeys.list(true),
+      );
+
+      // Create a temporary customer object
+      const tempCustomer: CustomerSearchResult = {
+        id: `temp-${Date.now()}`,
+        name: input.name,
+        phone: input.phone,
+        balance: String(input.openingBalance ?? 0),
+      };
+
+      // Optimistically add to the list
+      if (prevList) {
+        queryClient.setQueryData<CustomerSearchResult[]>(
+          customerKeys.list(true),
+          [...prevList, tempCustomer],
+        );
+      }
+
+      return { prevList };
+    },
+
+    onError: (_err, _input, context) => {
+      // Roll back to the snapshot
+      if (context?.prevList) {
+        queryClient.setQueryData(customerKeys.list(true), context.prevList);
+      }
+    },
+
     onSuccess: () => {
-      // Refetch all customer lists/searches.
+      // Refetch all customer lists + dashboard
       queryClient.invalidateQueries({ queryKey: customerKeys.all });
-      // Dashboard counts also depend on customers.
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
     },
   });

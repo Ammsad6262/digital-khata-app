@@ -77,7 +77,7 @@ export type RecordExpenseInput = {
 
 export type UpdateExpenseInput = Partial<RecordExpenseInput>;
 
-/** Record an expense (atomic — Expense + Transaction ledger row). */
+/** Record an expense — optimistic: adds to the list immediately. */
 export function useRecordExpense() {
   const queryClient = useQueryClient();
 
@@ -85,12 +85,40 @@ export function useRecordExpense() {
     mutationFn: (input: RecordExpenseInput) =>
       apiPost<ExpenseView>("/api/expenses", input),
 
+    onMutate: async (input) => {
+      await queryClient.cancelQueries({ queryKey: expenseKeys.lists() });
+
+      const prevList = queryClient.getQueryData<ExpenseView[]>(expenseKeys.list("all"));
+
+      // Create temp expense for optimistic display
+      const tempExpense: ExpenseView = {
+        id: `temp-${Date.now()}`,
+        name: input.name,
+        amount: String(input.amount),
+        category: input.category,
+        notes: input.notes ?? null,
+        date: input.date ? new Date(input.date) : new Date(),
+        voidedAt: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      if (prevList) {
+        queryClient.setQueryData<ExpenseView[]>(expenseKeys.list("all"), [tempExpense, ...prevList]);
+      }
+
+      return { prevList };
+    },
+
+    onError: (_err, _input, context) => {
+      if (context?.prevList) {
+        queryClient.setQueryData(expenseKeys.list("all"), context.prevList);
+      }
+    },
+
     onSuccess: () => {
-      // All expense lists (all filters — they all need refresh).
       queryClient.invalidateQueries({ queryKey: expenseKeys.lists() });
-      // Dashboard (today's expenses / receivables may have changed).
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
-      // Transactions feed.
       queryClient.invalidateQueries({ queryKey: ["transactions"] });
     },
   });

@@ -9,6 +9,10 @@
  * - useProduct         → single product with stock
  * - useCreateProduct   → mutation
  * - useUpdateProduct   → mutation
+ *
+ * IMPORTANT: useProductSearch with empty query shares the SAME cache key
+ * as useProductsWithStock — so navigating between Stock page and Products
+ * page doesn't cause a separate API call.
  */
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -36,6 +40,8 @@ export function useProducts() {
   return useQuery<ProductView[]>({
     queryKey: productKeys.list(false),
     queryFn: () => apiGet<ProductView[]>("/api/products"),
+    // Short staleTime for product lists — new products should appear quickly
+    staleTime: 60 * 1000, // 1 minute
   });
 }
 
@@ -44,24 +50,31 @@ export function useProductsWithStock() {
   return useQuery<ProductWithStock[]>({
     queryKey: productKeys.list(true),
     queryFn: () => apiGet<ProductWithStock[]>("/api/products?withStock=1"),
+    staleTime: 60 * 1000, // 1 minute
   });
 }
 
 /**
  * Debounced product search by name/SKU.
- * Returns products WITH stock so the UI can warn if selling more than available.
+ *
+ * When query is empty, uses the SAME cache key as useProductsWithStock
+ * so the data is shared between Stock page and Products page.
  */
 export function useProductSearch() {
   const [query, setQuery] = useState("");
   const debouncedQuery = useDebouncedValue(query, 200);
 
   const result = useQuery<ProductSearchResult[]>({
-    queryKey: productKeys.search(debouncedQuery),
+    // Empty query → use the same key as useProductsWithStock
+    queryKey: debouncedQuery.trim() === ""
+      ? productKeys.list(true)  // shares cache with useProductsWithStock
+      : productKeys.search(debouncedQuery),
     queryFn: () => {
       const q = debouncedQuery.trim();
       const url = q ? `/api/products?q=${encodeURIComponent(q)}` : "/api/products?withStock=1";
       return apiGet<ProductSearchResult[]>(url);
     },
+    staleTime: 60 * 1000, // 1 minute
   });
 
   return {
@@ -78,6 +91,7 @@ export function useProduct(id: string | null | undefined) {
     queryKey: id ? productKeys.detail(id) : ["products", "detail", "disabled"],
     queryFn: () => apiGet<ProductWithStock>(`/api/products/${id}`),
     enabled: !!id,
+    staleTime: 60 * 1000,
   });
 }
 
@@ -105,7 +119,6 @@ export function useCreateProduct() {
 
       const prevList = queryClient.getQueryData<ProductWithStock[]>(productKeys.list(true));
 
-      // Create temp product for optimistic display
       const tempProduct: ProductWithStock = {
         id: `temp-${Date.now()}`,
         name: input.name,
@@ -136,7 +149,8 @@ export function useCreateProduct() {
     },
 
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: productKeys.all });
+      // Force refetch — set staleTime to 0 for this key
+      queryClient.invalidateQueries({ queryKey: productKeys.all, refetchType: "active" });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
     },
   });
@@ -157,13 +171,11 @@ export function useUpdateProduct(id: string) {
     }>) => apiPatch<ProductView>(`/api/products/${id}`, input),
 
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: productKeys.detail(id) });
-      queryClient.invalidateQueries({ queryKey: productKeys.lists() });
-      queryClient.invalidateQueries({ queryKey: productKeys.all });
+      queryClient.invalidateQueries({ queryKey: productKeys.detail(id), refetchType: "active" });
+      queryClient.invalidateQueries({ queryKey: productKeys.lists(), refetchType: "active" });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
     },
   });
 }
 
 export { ApiError };
-

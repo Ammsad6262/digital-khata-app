@@ -55,6 +55,7 @@ export function useCustomersWithBalance() {
     queryKey: customerKeys.list(true),
     queryFn: () =>
       apiGet<CustomerSearchResult[]>("/api/customers?withBalances=1"),
+    staleTime: 60 * 1000, // 1 minute
   });
 }
 
@@ -73,14 +74,16 @@ export function useCustomerSearch() {
   const debouncedQuery = useDebouncedValue(query, 250);
 
   const result = useQuery<CustomerSearchResult[]>({
-    queryKey: customerKeys.search(debouncedQuery),
+    // Empty query → use the same key as list(true) so cache is shared
+    queryKey: debouncedQuery.trim() === ""
+      ? customerKeys.list(true)
+      : customerKeys.search(debouncedQuery),
     queryFn: () => {
-      // Empty query → server returns all customers.
-      // Short query → server returns [].
       const q = debouncedQuery.trim();
       const url = q ? `/api/customers?q=${encodeURIComponent(q)}` : "/api/customers?withBalances=1";
       return apiGet<CustomerSearchResult[]>(url);
     },
+    staleTime: 60 * 1000, // 1 minute — new customers should appear quickly
   });
 
   return {

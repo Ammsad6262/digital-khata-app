@@ -11,6 +11,11 @@ const nextConfig = {
   // and only generate the specific pages we need at build time
   experimental: {
     optimizePackageImports: ["lucide-react"],
+    // Enable instrumentation hook (src/instrumentation.ts) — runs once on server
+    // startup before any request. We use it to force-load .env values into
+    // process.env, overriding any stale parent-shell env vars.
+    // NOTE: In Next.js 15+ this is stable and enabled by default.
+    instrumentationHook: true,
   },
 };
 

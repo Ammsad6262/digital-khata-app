@@ -21,6 +21,46 @@
  */
 
 import { PrismaClient } from "@prisma/client";
+import { loadEnvConfig } from "@next/env";
+import * as fs from "fs";
+import * as path from "path";
+
+// ── Force-load .env, overriding any stale parent-shell env vars ──────────────
+//
+// Background: Prisma's `env("DATABASE_URL")` reads from process.env. If the
+// parent shell has `DATABASE_URL=file:/old/sqlite/path` set (e.g. from a
+// previous development setup), that value takes precedence over the .env file,
+// and Prisma fails with "URL must start with postgresql://" because the schema
+// declares provider="postgresql".
+//
+// @next/env's loadEnvConfig loads .env files but does NOT override existing
+// process.env values. So we manually parse .env and force-assign.
+const projectRoot = process.cwd();
+const envPaths = [
+  path.join(projectRoot, ".env"),
+  path.join(projectRoot, ".env.local"),
+  path.join(projectRoot, ".env.development"),
+  path.join(projectRoot, ".env.production"),
+];
+for (const p of envPaths) {
+  if (!fs.existsSync(p)) continue;
+  const content = fs.readFileSync(p, "utf8");
+  for (const line of content.split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    const eqIdx = trimmed.indexOf("=");
+    if (eqIdx <= 0) continue;
+    const key = trimmed.substring(0, eqIdx).trim();
+    let value = trimmed.substring(eqIdx + 1).trim();
+    // Strip surrounding quotes if present
+    if ((value.startsWith('"') && value.endsWith('"')) ||
+        (value.startsWith("'") && value.endsWith("'"))) {
+      value = value.substring(1, value.length - 1);
+    }
+    // Force-override (don't skip if already set — that's the whole point)
+    process.env[key] = value;
+  }
+}
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
@@ -33,12 +73,6 @@ const rawPrisma =
       process.env.NODE_ENV === "development"
         ? ["warn", "error"]
         : ["error"],
-    // Connection pool settings for Supabase
-    datasources: {
-      db: {
-        url: process.env.DATABASE_URL,
-      },
-    },
   });
 
 if (process.env.NODE_ENV !== "production") {

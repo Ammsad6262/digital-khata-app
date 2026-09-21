@@ -28,6 +28,7 @@ import { useMemo, useState, useEffect } from "react";
 import { Trash2, AlertTriangle, ShoppingCart } from "lucide-react";
 import { CustomerPicker, type SelectedCustomer } from "@/components/sales/CustomerPicker";
 import { ProductPicker } from "@/components/sales/ProductPicker";
+import { BatchPicker } from "@/components/sales/BatchPicker";
 import { StickyFormActions } from "@/components/ui/StickyFormActions";
 import { Money } from "@/components/shared/Money";
 import { useCreateSale } from "@/hooks/use-sales";
@@ -46,6 +47,7 @@ type LineItem = {
   sellingPrice: string;
   quantity: string;
   unitPrice: string;
+  batchId: string | null;  // which purchase batch to sell from (null = opening stock)
 };
 
 export function NewSaleForm() {
@@ -113,6 +115,7 @@ export function NewSaleForm() {
         sellingPrice: product.sellingPrice,
         quantity: "1", // default quantity = 1
         unitPrice: product.sellingPrice, // default to product's selling price
+        batchId: null, // will be auto-set by BatchPicker's useEffect to oldest batch (FIFO)
       },
     ]);
   };
@@ -205,6 +208,7 @@ export function NewSaleForm() {
           productId: i.productId,
           quantity: i.quantity,
           unitPrice: i.unitPrice,
+          batchId: i.batchId,
         })),
         paidAmount: paidAmount || "0",
         paymentMethod: "cash",
@@ -330,6 +334,19 @@ export function NewSaleForm() {
                         <p className="mt-0.5 text-[10px] text-red-600">{itemErr.unitPrice}</p>
                       ) : null}
                     </div>
+                  </div>
+
+                  {/* Batch picker — which purchase batch to sell from.
+                      Shows available batches with their buy price + remaining qty.
+                      Defaults to oldest (FIFO). Lets user pick a different one. */}
+                  <div className="mt-2">
+                    <BatchPicker
+                      productId={item.productId}
+                      productUnit={item.productUnit}
+                      selectedBatchId={item.batchId}
+                      onChange={(batchId) => updateItem(idx, { batchId })}
+                      requestedQuantity={item.quantity}
+                    />
                   </div>
 
                   <div className="mt-2 flex items-center justify-between border-t border-slate-100 pt-2">

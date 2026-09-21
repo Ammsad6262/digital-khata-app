@@ -7,6 +7,7 @@
  * - useProductsWithStock → list (with stock + low-stock flag)
  * - useProductSearch  → debounced search by name/SKU (with stock)
  * - useProduct         → single product with stock
+ * - useProductBatches → list of purchase batches for ONE product (with remaining qty)
  * - useCreateProduct   → mutation
  * - useUpdateProduct   → mutation
  *
@@ -22,6 +23,7 @@ import type {
   ProductWithStock,
   ProductSearchResult,
 } from "@/lib/services/products";
+import type { ProductBatch } from "@/lib/services/stock";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useState } from "react";
 
@@ -33,6 +35,8 @@ export const productKeys = {
   search: (query: string) => [...productKeys.all, "search", query] as const,
   details: () => [...productKeys.all, "detail"] as const,
   detail: (id: string) => [...productKeys.details(), id] as const,
+  batches: (productId: string) =>
+    [...productKeys.detail(productId), "batches"] as const,
 };
 
 /** List all products (without stock — fastest). */
@@ -92,6 +96,30 @@ export function useProduct(id: string | null | undefined) {
     queryFn: () => apiGet<ProductWithStock>(`/api/products/${id}`),
     enabled: !!id,
     staleTime: 60 * 1000,
+  });
+}
+
+/**
+ * Fetch all available purchase batches for ONE product, sorted oldest first.
+ *
+ * Used by the New Sale form's batch picker — when the shopkeeper picks a
+ * product, this fetches all purchase batches with remaining stock so they
+ * can choose which batch to sell from (FIFO default, but user can override).
+ *
+ * Cache policy: staleTime=0 + refetchOnMount=true. Batch remaining quantities
+ * change on every sale, so we always want fresh data when the picker opens.
+ * (If the same product is added twice in the same sale, the second picker
+ * benefits from the cached first fetch via React Query's dedup.)
+ */
+export function useProductBatches(productId: string | null | undefined) {
+  return useQuery<ProductBatch[]>({
+    queryKey: productId
+      ? productKeys.batches(productId)
+      : ["products", "batches", "disabled"],
+    queryFn: () => apiGet<ProductBatch[]>(`/api/products/${productId}/batches`),
+    enabled: !!productId,
+    staleTime: 0,
+    refetchOnMount: true,
   });
 }
 

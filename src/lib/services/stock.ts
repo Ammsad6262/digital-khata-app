@@ -21,6 +21,7 @@ export type StockMoveView = {
   quantity: string;
   reason: string | null;
   unitCost: string | null;
+  remainingQuantity: string;  // how much of this batch is still in stock
   date: Date;
   voidedAt: Date | null;
   createdAt: Date;
@@ -34,6 +35,7 @@ function toView(m: Prisma.StockMoveGetPayload<{}>): StockMoveView {
     quantity: m.quantity.toString(),
     reason: m.reason,
     unitCost: m.unitCost ? m.unitCost.toString() : null,
+    remainingQuantity: m.remainingQuantity.toString(),
     date: m.date,
     voidedAt: m.voidedAt,
     createdAt: m.createdAt,
@@ -71,6 +73,11 @@ export async function addStockMove(input: unknown): Promise<StockMoveView> {
       throw new NotFoundError("Product", data.productId);
     }
 
+    // For purchases and returns (batch-like moves), initialize remainingQuantity = quantity.
+    // For adjustments, remainingQuantity stays at 0 (adjustments are not batch-trackable).
+    const isBatchLike = data.type === "purchase" || data.type === "return";
+    const initialRemaining = isBatchLike ? data.quantity : new Decimal(0);
+
     const created = await tx.stockMove.create({
       data: {
         productId: data.productId,
@@ -78,6 +85,9 @@ export async function addStockMove(input: unknown): Promise<StockMoveView> {
         quantity: data.quantity,
         reason: data.reason ?? null,
         unitCost: data.unitCost ?? null,
+        // Initialize remainingQuantity. For purchases/returns: starts at full quantity,
+        // decreases as SaleItems link to this batch. For adjustments: 0 (not tracked).
+        remainingQuantity: initialRemaining,
         date: data.date ? new Date(data.date) : new Date(),
       },
     });
@@ -132,4 +142,71 @@ export async function voidStockMove(id: string): Promise<{ id: string; voidedAt:
 
     return { id, voidedAt: now };
   });
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Batch tracking — list product's available batches (FIFO friendly)
+// ────────────────────────────────────────────────────────────────────────────
+
+export type ProductBatch = {
+  id: string;            // StockMove.id
+  date: Date;            // when this batch was purchased/added
+  quantity: string;      // original batch size
+  remainingQuantity: string; // how much is still in stock from this batch
+  unitCost: string | null;    // purchase cost per unit (may be null for adjustments/returns)
+  type: string;          // "purchase" | "adjustment" | "return"
+  reason: string | null;
+};
+
+/**
+ * List all ACTIVE (non-voided) batches for a product, sorted OLDEST first
+ * (FIFO-friendly). Includes batches with remaining = 0 (the UI can choose
+ * to filter them out or display them as "sold out" for context).
+ *
+ * Used by the New Sale form to let the shopkeeper pick which batch to sell from.
+ *
+ * NOTE: We include type="purchase" and type="return" (both increase stock),
+ * but EXCLUDE type="adjustment" (which is for stock corrections, not batches).
+ *
+ * Returns 1 query, no N+1.
+ */
+export async function listProductBatches(productId: string): Promise<ProductBatch[]> {
+  // Verify product exists (throws 404 if not)
+  const product = await prisma.product.findUnique({
+    where: { id: productId, isDeleted: false },
+    select: { id: true },
+  });
+  if (!product) {
+    throw new NotFoundError("Product", productId);
+  }
+
+  const moves = await prisma.stockMove.findMany({
+    where: {
+      productId,
+      voidedAt: null,
+      // Only include batch-like moves (purchases and returns — both represent
+      // discrete units entering stock that we can later sell from).
+      type: { in: ["purchase", "return"] },
+    },
+    orderBy: { date: "asc" }, // OLDEST first — FIFO-friendly default
+    select: {
+      id: true,
+      date: true,
+      quantity: true,
+      remainingQuantity: true,
+      unitCost: true,
+      type: true,
+      reason: true,
+    },
+  });
+
+  return moves.map((m) => ({
+    id: m.id,
+    date: m.date,
+    quantity: m.quantity.toString(),
+    remainingQuantity: m.remainingQuantity.toString(),
+    unitCost: m.unitCost ? m.unitCost.toString() : null,
+    type: m.type,
+    reason: m.reason,
+  }));
 }

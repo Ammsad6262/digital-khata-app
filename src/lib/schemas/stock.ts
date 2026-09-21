@@ -33,6 +33,20 @@ export const createStockMoveSchema = z
       return data.quantity !== 0;
     },
     { message: "Quantity must be positive for purchase/return type. Use adjustment type for signed quantities." },
+  )
+  .refine(
+    // For "purchase" type, unitCost is REQUIRED (each purchase batch must
+    // carry its cost — without it, batch tracking has no meaning).
+    // For "return" type, unitCost is optional (a customer return doesn't
+    // always come with a known cost).
+    // For "adjustment" type, unitCost is irrelevant (adjustments are not batches).
+    (data) => {
+      if (data.type === "purchase") {
+        return data.unitCost !== undefined && data.unitCost !== null && data.unitCost > 0;
+      }
+      return true;
+    },
+    { message: "Unit cost is required for purchases — each batch must carry its buy price." },
   );
 
 export type CreateStockMoveInput = z.infer<typeof createStockMoveSchema>;

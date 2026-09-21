@@ -59,7 +59,7 @@ export function AddStockForm({ initialProductId }: { initialProductId?: string }
   }, [quantity, unitCost]);
 
   const validation = useMemo(() => {
-    const errors: { product?: string; quantity?: string } = {};
+    const errors: { product?: string; quantity?: string; unitCost?: string } = {};
     if (!selected) {
       errors.product = t("stock.selectProduct");
     }
@@ -67,10 +67,16 @@ export function AddStockForm({ initialProductId }: { initialProductId?: string }
     if (!quantity || qty.lte(0) || !qty.isFinite()) {
       errors.quantity = t("stock.quantityGtZero");
     }
+    // unitCost is required for purchases (each batch must carry its buy price
+    // so batch tracking can correctly compute cost-of-goods-sold).
+    const cost = parseDecimalSafe(unitCost);
+    if (!unitCost || cost.lte(0) || !cost.isFinite()) {
+      errors.unitCost = t("stock.unitCostRequired");
+    }
     return errors;
-  }, [selected, quantity]);
+  }, [selected, quantity, unitCost]);
 
-  const hasErrors = !!validation.product || !!validation.quantity;
+  const hasErrors = !!validation.product || !!validation.quantity || !!validation.unitCost;
 
   const handleSubmit = () => {
     if (!selected) {
@@ -189,10 +195,10 @@ export function AddStockForm({ initialProductId }: { initialProductId?: string }
               ) : null}
             </div>
 
-            {/* Unit cost (optional) */}
+            {/* Unit cost (REQUIRED for purchases — powers batch tracking) */}
             <div>
               <label className="mb-1 block text-xs font-medium text-slate-600">
-                {t("stock.unitCost")}
+                {t("stock.unitCost")} <span className="text-red-500">*</span>
               </label>
               <div className="relative">
                 <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-medium text-slate-500">
@@ -206,12 +212,20 @@ export function AddStockForm({ initialProductId }: { initialProductId?: string }
                   value={unitCost}
                   onChange={(e) => setUnitCost(e.target.value)}
                   placeholder="0"
-                  className="w-full rounded-lg border border-slate-300 bg-white py-2.5 pl-10 pr-3 text-sm tabular-nums text-slate-900 placeholder:text-slate-300 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+                  className={`w-full rounded-lg border bg-white py-2.5 pl-10 pr-3 text-sm tabular-nums text-slate-900 placeholder:text-slate-300 focus:outline-none focus:ring-2 ${
+                    validation.unitCost
+                      ? "border-red-300 focus:border-red-500 focus:ring-red-500/30"
+                      : "border-slate-300 focus:border-brand-500 focus:ring-brand-500/30"
+                  }`}
                 />
               </div>
-              <p className="mt-1 text-[11px] text-slate-500">
-                {t("stock.unitCostHint")}
-              </p>
+              {validation.unitCost ? (
+                <p className="mt-1 text-xs text-red-600">{validation.unitCost}</p>
+              ) : (
+                <p className="mt-1 text-[11px] text-slate-500">
+                  {t("stock.unitCostHintRequired")}
+                </p>
+              )}
             </div>
 
             {/* Date */}

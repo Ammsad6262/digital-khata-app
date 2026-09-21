@@ -13,7 +13,7 @@
  */
 
 import { prisma } from "@/lib/db/prisma";
-import { Decimal } from "@/lib/utils/decimal";
+import { Decimal, toDecimalOrZero } from "@/lib/utils/decimal";
 import { BadRequestError, NotFoundError } from "@/lib/errors";
 import { createSaleSchema } from "@/lib/schemas/sale";
 import {
@@ -203,12 +203,19 @@ export async function getSale(id: string): Promise<SaleWithItems> {
  *  2. Validate all products exist
  *  3. Compute totals (per-item total, totalAmount, outstanding)
  *  4. Verify paidAmount <= totalAmount
- *  5. Create Sale + nested SaleItems (atomic in prisma.$transaction)
- *  6. If paidAmount > 0, create a Payment row linked to the sale
- *  7. Write 1-2 Transaction ledger rows (sale + optional payment)
+ *  5. BATCH VALIDATION: for each item with a batchId, verify the batch exists,
+ *     belongs to the right product, is active (not voided), has enough
+ *     remaining quantity. (Items without batchId = "from opening stock" —
+ *     allowed but not tracked per-batch.)
+ *  6. Create Sale + nested SaleItems (atomic in prisma.$transaction)
+ *     - SaleItem.stockMoveId is set when batchId is provided
+ *  7. Decrement StockMove.remainingQuantity for each linked batch
+ *  8. If paidAmount > 0, create a Payment row linked to the sale
+ *  9. Write 1-2 Transaction ledger rows (sale + optional payment)
  *
- *  Stock is automatically reduced because SaleItem rows exist.
- *  No separate StockMove is needed.
+ * Stock is automatically reduced because SaleItem rows exist.
+ * Batch-level stock (StockMove.remainingQuantity) is also decremented so the
+ * "which batch am I selling from?" view stays accurate across sales.
  */
 export async function createSale(input: unknown): Promise<SaleWithItems> {
   const data = createSaleSchema.parse(input);
@@ -242,6 +249,7 @@ export async function createSale(input: unknown): Promise<SaleWithItems> {
       quantity: new Decimal(i.quantity),
       unitPrice: new Decimal(i.unitPrice),
       total: new Decimal(i.quantity).times(new Decimal(i.unitPrice)),
+      batchId: i.batchId ?? null,
     }));
     const totalAmount = items.reduce(
       (sum, i) => sum.plus(i.total),
@@ -259,7 +267,67 @@ export async function createSale(input: unknown): Promise<SaleWithItems> {
     const outstanding = totalAmount.minus(paidAmount);
     const saleDate = data.date ? new Date(data.date) : new Date();
 
-    // 5. Create Sale + nested SaleItems in one call
+    // 5. Batch validation — for each item with a batchId, verify the batch is
+    //    valid AND has enough remaining quantity.
+    //
+    // We do this BEFORE creating the Sale so we can fail fast with a clear
+    // error before any writes happen.
+    //
+    // IMPORTANT: a single batch can be referenced by multiple items in this
+    // same sale (e.g. selling 5 kg from batch A in line 1, then another 3 kg
+    // from batch A in line 2 — though the UI typically wouldn't allow this).
+    // We need to check the CUMULATIVE demand against remaining.
+    const batchDemand = new Map<string, Decimal>(); // batchId → cumulative qty demanded
+    for (const item of items) {
+      if (!item.batchId) continue;
+      const prev = batchDemand.get(item.batchId) ?? new Decimal(0);
+      batchDemand.set(item.batchId, prev.plus(item.quantity));
+    }
+
+    if (batchDemand.size > 0) {
+      const batchIds = Array.from(batchDemand.keys());
+      const batches = await tx.stockMove.findMany({
+        where: {
+          id: { in: batchIds },
+          voidedAt: null,
+          // Only purchase/return batches can be sold from
+          type: { in: ["purchase", "return"] },
+        },
+        select: { id: true, productId: true, remainingQuantity: true },
+      });
+
+      // Validate each requested batch:
+      // (a) exists + is active (not voided) + is a batch-type move
+      // (b) belongs to the product the sale line is for
+      // (c) has enough remaining (considering cumulative demand in this sale)
+      const batchMap = new Map(batches.map((b) => [b.id, b]));
+      for (const [batchId, demanded] of batchDemand.entries()) {
+        const batch = batchMap.get(batchId);
+        if (!batch) {
+          throw new BadRequestError(
+            `Batch ${batchId} not found, voided, or not a purchase/return batch.`,
+          );
+        }
+        // Check the batch belongs to the product on whose line it was used.
+        // (If multiple lines use the same batch, they must all be for the same product.)
+        const itemsUsingBatch = items.filter((i) => i.batchId === batchId);
+        const productMismatch = itemsUsingBatch.find((i) => i.productId !== batch.productId);
+        if (productMismatch) {
+          throw new BadRequestError(
+            `Batch ${batchId} belongs to a different product than the sale line.`,
+          );
+        }
+        const remaining = toDecimalOrZero(batch.remainingQuantity);
+        if (demanded.gt(remaining)) {
+          throw new BadRequestError(
+            `Batch has only ${remaining} units remaining, but sale demands ${demanded}.`,
+          );
+        }
+      }
+    }
+
+    // 6. Create Sale + nested SaleItems in one call
+    //    SaleItem.stockMoveId is set per item (null if no batchId)
     const sale = await tx.sale.create({
       data: {
         customerId: data.customerId,
@@ -274,13 +342,36 @@ export async function createSale(input: unknown): Promise<SaleWithItems> {
             quantity: i.quantity,
             unitPrice: i.unitPrice,
             total: i.total,
+            stockMoveId: i.batchId, // null if not provided → untracked
           })),
         },
       },
       include: { items: { include: { product: true } } },
     });
 
-    // 6. If money was paid at sale time, create a linked Payment
+    // 7. Decrement remainingQuantity on each linked batch.
+    //    We use updateMany to handle the case where the same batch is linked
+    //    by multiple items in this sale — they all decrement together.
+    //
+    //    We batch the updates via Promise.all (they're independent operations
+    //    on different batch rows — no DB-level contention because each batch
+    //    is its own row).
+    if (batchDemand.size > 0) {
+      await Promise.all(
+        Array.from(batchDemand.entries()).map(([batchId, demanded]) =>
+          tx.stockMove.update({
+            where: { id: batchId },
+            data: {
+              remainingQuantity: {
+                decrement: demanded,
+              },
+            },
+          }),
+        ),
+      );
+    }
+
+    // 8. If money was paid at sale time, create a linked Payment
     let paymentId: string | null = null;
     if (paidAmount.gt(0)) {
       const payment = await tx.payment.create({
@@ -295,7 +386,7 @@ export async function createSale(input: unknown): Promise<SaleWithItems> {
       paymentId = payment.id;
     }
 
-    // 7. Write Transaction ledger rows (batched — 1 createMany instead of 2 creates)
+    // 9. Write Transaction ledger rows (batched — 1 createMany instead of 2 creates)
     const txRows: Array<{
       type: string;
       refType: string;
@@ -365,6 +456,7 @@ export async function createSale(input: unknown): Promise<SaleWithItems> {
  *   - sale.totalAmount excluded from customer balance → balance drops by totalAmount
  *   - linked payments excluded from customer balance → balance rises by paidAmount
  *   - SaleItem rows excluded from stock calc → stock restored
+ *   - StockMove.remainingQuantity INCREMENTED for each linked batch → batch stock restored
  *
  * Net effect on customer balance: (paidAmount - totalAmount).
  */
@@ -372,7 +464,16 @@ export async function voidSale(id: string): Promise<{ id: string; voidedAt: Date
   return await prisma.$transaction(async (tx) => {
     const sale = await tx.sale.findUnique({
       where: { id },
-      include: { payments: { where: { voidedAt: null } } },
+      include: {
+        payments: { where: { voidedAt: null } },
+        items: {
+          select: {
+            id: true,
+            quantity: true,
+            stockMoveId: true,
+          },
+        },
+      },
     });
     if (!sale) throw new NotFoundError("Sale", id);
     if (sale.voidedAt) {
@@ -399,6 +500,30 @@ export async function voidSale(id: string): Promise<{ id: string; voidedAt: Date
         where: { saleId: id, voidedAt: null },
         data: { voidedAt: now },
       });
+    }
+
+    // ── Batch restoration ──────────────────────────────────────────────────
+    // Each SaleItem linked to a batch must restore that batch's remainingQuantity.
+    // Aggregate demand per batch first (in case multiple items used the same batch).
+    const batchRestore = new Map<string, Decimal>();
+    for (const item of sale.items) {
+      if (!item.stockMoveId) continue;
+      const prev = batchRestore.get(item.stockMoveId) ?? new Decimal(0);
+      batchRestore.set(item.stockMoveId, prev.plus(toDecimalOrZero(item.quantity)));
+    }
+    if (batchRestore.size > 0) {
+      await Promise.all(
+        Array.from(batchRestore.entries()).map(([batchId, restoreQty]) =>
+          tx.stockMove.update({
+            where: { id: batchId },
+            data: {
+              remainingQuantity: {
+                increment: restoreQty,
+              },
+            },
+          }),
+        ),
+      );
     }
 
     // Delete the Transaction ledger rows for the voided sale + its linked payments.

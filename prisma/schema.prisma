@@ -44,7 +44,9 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
-
+  // directUrl is used for migrations (pgbouncer pooler doesn't support
+  // prepared-statement-based DDL operations, so we bypass it for migrations).
+  directUrl = env("DIRECT_URL")
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -154,8 +156,20 @@ model SaleItem {
   unitPrice Decimal   // price per unit at time of sale (snapshot)
   total     Decimal   // quantity * unitPrice (denormalized)
 
+  // ── Batch tracking (added 2026-09) ────────────────────────────────────────
+  // Links this sale line to the specific purchase batch it was sold from.
+  // NULL = "legacy / untracked" — sales recorded before batch tracking shipped,
+  // OR sales from "opening stock" (which is not a StockMove batch).
+  //
+  // When this SaleItem is created, the linked StockMove.remainingQuantity is
+  // decremented by `quantity`. When the sale is voided, it's restored.
+  stockMoveId String?
+  stockMove   StockMove? @relation(fields: [stockMoveId], references: [id])
+  // ─────────────────────────────────────────────────────────────────────────
+
   @@index([saleId])
   @@index([productId])
+  @@index([stockMoveId])
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -237,9 +251,27 @@ model StockMove {
   quantity  Decimal   // signed
   reason    String?
   unitCost  Decimal?  // optional purchase cost (for V2 profit reports)
+
+  // ── Batch tracking (added 2026-09) ────────────────────────────────────────
+  // How much of THIS batch is still in stock. Decremented when a SaleItem
+  // links to this StockMove; restored if that sale is voided.
+  //
+  // For type="purchase": represents remaining units from this purchase.
+  // For type="adjustment" / "return": NOT used for batch tracking (remainingQuantity = 0).
+  // For type="opening" (synthetic batch created on product creation, if we add it later):
+  //   same semantics as "purchase".
+  //
+  // Default 0 — migration backfills = quantity for existing purchases.
+  remainingQuantity Decimal @db.Decimal(12, 2) @default(0)
+  // ─────────────────────────────────────────────────────────────────────────
+
   date      DateTime @default(now())
   voidedAt  DateTime?
   createdAt DateTime @default(now())
+
+  // SaleItems linked to this batch (one StockMove → many SaleItems over time,
+  // because a single purchase can be sold off across many separate sales).
+  saleItems SaleItem[]
 
   @@index([productId])
   @@index([type])

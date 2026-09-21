@@ -17,6 +17,12 @@ export const saleItemInputSchema = z.object({
     .union([z.number(), z.string()])
     .transform((v) => (typeof v === "string" ? Number(v) : v))
     .refine((v) => Number.isFinite(v) && v >= 0, "Unit price must be a non-negative number."),
+  // ── Batch tracking ──────────────────────────────────────────────────────
+  // Optional: ID of the StockMove (purchase batch) this sale line is sold from.
+  // If omitted/null: sale is treated as "from opening stock" or "untracked"
+  // (legacy behavior). The UI will default to the oldest available batch
+  // (FIFO) and let the user pick a different one if multiple batches exist.
+  batchId: z.string().min(1).optional().nullable(),
 });
 
 export const paymentMethodSchema = z.enum([

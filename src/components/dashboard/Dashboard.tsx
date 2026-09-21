@@ -22,6 +22,7 @@ import { LowStockList } from "@/components/dashboard/LowStockList";
 import { RecentTransactions } from "@/components/dashboard/RecentTransactions";
 import { DashboardSkeleton } from "@/components/dashboard/DashboardSkeleton";
 import { GlobalSearch } from "@/components/dashboard/GlobalSearch";
+import { ProfitLossCard } from "@/components/dashboard/ProfitLossCard";
 import {
   ShoppingCart,
   Wallet,
@@ -128,6 +129,9 @@ export function Dashboard() {
           />
         </div>
       </section>
+
+      {/* Profit & Loss — comprehensive P&L with period selector */}
+      <ProfitLossCard />
 
       {/* Low stock alert (only if items exist) */}
       <LowStockList products={data.lowStockProducts} />

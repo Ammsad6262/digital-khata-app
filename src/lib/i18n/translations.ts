@@ -37,6 +37,24 @@ export const translations = {
   "dashboard.updating": { en: "Updating", ur: "اپڈیٹ ہو رہا ہے" },
   "dashboard.tapToSeeDetails": { en: "Tap to see who owes you", ur: "کس کس کو قرض ہے دیکھیں" },
 
+  // ─── Profit & Loss section ───
+  "pnl.title": { en: "Profit & Loss", ur: "نفع و نقصان" },
+  "pnl.revenue": { en: "Revenue", ur: "آمدنی" },
+  "pnl.cogs": { en: "Cost of Goods", ur: "مال کی قیمت" },
+  "pnl.grossProfit": { en: "Gross Profit", ur: "خالص منافع" },
+  "pnl.expenses": { en: "Expenses", ur: "اخراجات" },
+  "pnl.netProfit": { en: "Net Profit", ur: "صاف منافع" },
+  "pnl.netLoss": { en: "Net Loss", ur: "صاف نقصان" },
+  "pnl.margin": { en: "Margin", ur: "مارجن" },
+  "pnl.sales": { en: "Sales", ur: "فروخت" },
+  "pnl.thisWeek": { en: "This Week", ur: "اس ہفتے" },
+  "pnl.thisMonth": { en: "This Month", ur: "اس ماہ" },
+  "pnl.allTime": { en: "All Time", ur: "کُل" },
+  "pnl.breakdown": { en: "Breakdown", ur: "تفصیل" },
+  "pnl.noData": { en: "No sales recorded yet", ur: "ابھی کوئی فروخت درج نہیں" },
+  "pnl.noDataDesc": { en: "Record a sale to see profit calculations here.", ur: "نفع کے حساب کے لیے فروخت درج کریں۔" },
+  "pnl.couldntLoad": { en: "Couldn't load profit data", ur: "نفع کا ڈیٹا لوڈ نہیں ہو سکا" },
+
   // ─── Outstanding customers page (/khata/outstanding) ───
   "outstanding.title": { en: "Customers Who Owe You", ur: "قرضدار گاہک" },
   "outstanding.subtitle": { en: "Tap any customer to see their full khata", ur: "مکمل کھاتہ دیکھنے کے لیے گاہک پر ٹیپ کریں" },

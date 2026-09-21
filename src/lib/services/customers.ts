@@ -126,17 +126,37 @@ export async function getCustomerWithBalance(id: string): Promise<CustomerWithBa
 
 /**
  * List customers who currently owe money (balance > 0), sorted by balance desc.
- * Returns id, name, phone, balance.
+ * Returns id, name, phone, balance, plus totalSales / totalPayments / lastActivity
+ * date / customer-since date for the "Who owes you" detail page.
  *
- * PERFORMANCE: Uses 3 batch GROUP BY queries instead of N×3 per-customer
- * queries. For 100 customers: 3 queries instead of 300.
+ * PERFORMANCE: Uses 3 batch GROUP BY queries (with `_max: date`) instead of
+ * N×3 per-customer queries. For 100 customers: 3 queries instead of 300.
  */
-export async function listOutstandingCustomers(): Promise<
-  Array<{ id: string; name: string; phone: string; balance: string }>
-> {
+export type OutstandingCustomer = {
+  id: string;
+  name: string;
+  phone: string;
+  address: string | null;
+  balance: string;            // signed — always > 0 here
+  totalSales: string;          // sum of all sales (debits)
+  totalPayments: string;      // sum of all payments (credits)
+  totalAdjustments: string;   // signed sum of adjustments
+  openingBalance: string;
+  createdAt: Date;            // customer-since date
+  lastActivityAt: Date | null;// date of most recent sale/payment/adjustment
+};
+
+export async function listOutstandingCustomers(): Promise<OutstandingCustomer[]> {
   const customers = await prisma.customer.findMany({
     where: { isDeleted: false },
-    select: { id: true, name: true, phone: true, openingBalance: true },
+    select: {
+      id: true,
+      name: true,
+      phone: true,
+      address: true,
+      openingBalance: true,
+      createdAt: true,
+    },
     orderBy: { name: "asc" },
   });
 
@@ -149,32 +169,72 @@ export async function listOutstandingCustomers(): Promise<
     prisma.sale.groupBy({
       by: ["customerId"],
       _sum: { totalAmount: true },
+      _max: { date: true },
       where: { customerId: { in: customerIds }, voidedAt: null },
     }),
     prisma.payment.groupBy({
       by: ["customerId"],
       _sum: { amount: true },
+      _max: { date: true },
       where: { customerId: { in: customerIds }, voidedAt: null },
     }),
     prisma.customerAdjustment.groupBy({
       by: ["customerId"],
       _sum: { amount: true },
+      _max: { date: true },
       where: { customerId: { in: customerIds }, voidedAt: null },
     }),
   ]);
 
   // Build lookup maps
-  const salesMap = new Map(salesByCustomer.map((s) => [s.customerId, toDecimalOrZero(s._sum.totalAmount)]));
-  const paymentsMap = new Map(paymentsByCustomer.map((p) => [p.customerId, toDecimalOrZero(p._sum.amount)]));
-  const adjMap = new Map(adjustmentsByCustomer.map((a) => [a.customerId, toDecimalOrZero(a._sum.amount)]));
+  const salesMap = new Map(salesByCustomer.map((s) => [s.customerId, {
+    sum: toDecimalOrZero(s._sum.totalAmount),
+    lastDate: s._max.date ?? null,
+  }]));
+  const paymentsMap = new Map(paymentsByCustomer.map((p) => [p.customerId, {
+    sum: toDecimalOrZero(p._sum.amount),
+    lastDate: p._max.date ?? null,
+  }]));
+  const adjMap = new Map(adjustmentsByCustomer.map((a) => [a.customerId, {
+    sum: toDecimalOrZero(a._sum.amount),
+    lastDate: a._max.date ?? null,
+  }]));
 
   // Compute balances in memory
   const withBalances = customers.map((c) => {
-    const balance = toDecimalOrZero(c.openingBalance)
-      .plus(salesMap.get(c.id) ?? new Decimal(0))
-      .minus(paymentsMap.get(c.id) ?? new Decimal(0))
-      .plus(adjMap.get(c.id) ?? new Decimal(0));
-    return { id: c.id, name: c.name, phone: c.phone, balance: balance.toString() };
+    const sales = salesMap.get(c.id) ?? { sum: new Decimal(0), lastDate: null };
+    const payments = paymentsMap.get(c.id) ?? { sum: new Decimal(0), lastDate: null };
+    const adj = adjMap.get(c.id) ?? { sum: new Decimal(0), lastDate: null };
+
+    const opening = toDecimalOrZero(c.openingBalance);
+    const balance = opening
+      .plus(sales.sum)
+      .minus(payments.sum)
+      .plus(adj.sum);
+
+    // Last activity = max date among all three (or null if customer has no
+    // sales/payments/adjustments yet — e.g. only an opening balance).
+    const candidateDates: Date[] = [];
+    if (sales.lastDate) candidateDates.push(sales.lastDate);
+    if (payments.lastDate) candidateDates.push(payments.lastDate);
+    if (adj.lastDate) candidateDates.push(adj.lastDate);
+    const lastActivityAt = candidateDates.length > 0
+      ? new Date(Math.max(...candidateDates.map((d) => d.getTime())))
+      : null;
+
+    return {
+      id: c.id,
+      name: c.name,
+      phone: c.phone,
+      address: c.address,
+      openingBalance: opening.toString(),
+      totalSales: sales.sum.toString(),
+      totalPayments: payments.sum.toString(),
+      totalAdjustments: adj.sum.toString(),
+      balance: balance.toString(),
+      createdAt: c.createdAt,
+      lastActivityAt,
+    };
   });
 
   // Filter positive balances and sort by balance descending

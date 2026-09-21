@@ -17,6 +17,7 @@ import type {
   CustomerWithBalance,
   CustomerSearchResult,
   CustomerHistory,
+  OutstandingCustomer,
 } from "@/lib/services/customers";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useState } from "react";
@@ -30,6 +31,7 @@ export const customerKeys = {
   lists: () => [...customerKeys.all, "list"] as const,
   list: (withBalances: boolean) =>
     [...customerKeys.lists(), { withBalances }] as const,
+  outstanding: () => [...customerKeys.all, "outstanding"] as const,
   search: (query: string) => [...customerKeys.all, "search", query] as const,
   details: () => [...customerKeys.all, "detail"] as const,
   detail: (id: string) => [...customerKeys.details(), id] as const,
@@ -56,6 +58,27 @@ export function useCustomersWithBalance() {
     queryFn: () =>
       apiGet<CustomerSearchResult[]>("/api/customers?withBalances=1"),
     staleTime: 60 * 1000, // 1 minute
+  });
+}
+
+/**
+ * List ONLY customers who currently owe money (balance > 0), sorted by
+ * balance descending. Each row also includes lifetime totals and the
+ * date of the customer's most recent sale/payment/adjustment.
+ *
+ * Used by the /khata/outstanding page — the page you land on when you tap
+ * the "X customers owe you Rs. Y" hero card on the dashboard.
+ *
+ * Cache policy: staleTime=0 + refetchOnMount=true so the page always opens
+ * with fresh data. This is the page a shopkeeper opens to collect money,
+ * so showing a stale balance could cause real-world confusion.
+ */
+export function useOutstandingCustomers() {
+  return useQuery<OutstandingCustomer[]>({
+    queryKey: customerKeys.outstanding(),
+    queryFn: () => apiGet<OutstandingCustomer[]>("/api/customers?outstanding=1"),
+    staleTime: 0,
+    refetchOnMount: true,
   });
 }
 

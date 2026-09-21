@@ -35,6 +35,19 @@ export const translations = {
   "dashboard.welcomeTitle": { en: "Welcome to Digital Khata", ur: "ڈیجیٹل کھاتہ میں خوش آمدید" },
   "dashboard.welcomeDesc": { en: "Record your first sale, payment, or expense using the quick actions above.", ur: "اوپر دیے گئے فوری اقدامات کا استعمال کرتے ہوئے اپنی پہلی فروخت، ادائیگی، یا خرچ درج کریں۔" },
   "dashboard.updating": { en: "Updating", ur: "اپڈیٹ ہو رہا ہے" },
+  "dashboard.tapToSeeDetails": { en: "Tap to see who owes you", ur: "کس کس کو قرض ہے دیکھیں" },
+
+  // ─── Outstanding customers page (/khata/outstanding) ───
+  "outstanding.title": { en: "Customers Who Owe You", ur: "قرضدار گاہک" },
+  "outstanding.subtitle": { en: "Tap any customer to see their full khata", ur: "مکمل کھاتہ دیکھنے کے لیے گاہک پر ٹیپ کریں" },
+  "outstanding.totalOwed": { en: "Total owed", ur: "کل قرض" },
+  "outstanding.customerCount": { en: "customers owe you money", ur: "گاہک قرضدار ہیں" },
+  "outstanding.customerCountOne": { en: "customer owes you money", ur: "گاہک قرضدار ہے" },
+  "outstanding.noOne": { en: "No one owes you money", ur: "کوئی گاہک قرضدار نہیں" },
+  "outstanding.noOneDesc": { en: "All customers are settled. Great work!", ur: "تمام گاہک صفایا ہیں۔ شاباش!" },
+  "outstanding.lastActivity": { en: "Last activity", ur: "آخری سرگرمی" },
+  "outstanding.openedOn": { en: "Customer since", ur: "گاہک از" },
+  "outstanding.viewKhata": { en: "View Khata", ur: "کھاتہ دیکھیں" },
 
   // ─── Quick Actions ───
   "action.newSale": { en: "New Sale", ur: "نئی فروخت" },

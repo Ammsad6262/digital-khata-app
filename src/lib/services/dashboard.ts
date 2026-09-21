@@ -76,9 +76,12 @@ export async function getDashboardStats(
 
   const agg = aggregates[0];
   const customerCount = Number(agg?.customer_count ?? 0);
-  const totalSales = toDecimalOrZero(agg?.total_sales);
-  const totalPayments = toDecimalOrZero(agg?.total_payments);
-  const totalAdjustments = toDecimalOrZero(agg?.total_adjustments);
+  // NOTE: total_sales / total_payments / total_adjustments are intentionally
+  // NOT extracted here. They were previously used to compute totalReceivables
+  // as a single global sum, but that approach was buggy (see Batch 4 below for
+  // the correct per-customer computation). Extracting them via toDecimalOrZero
+  // also failed at runtime because Prisma raw queries return SUM(decimal) as
+  // JS `bigint`, which decimal.js's constructor rejects.
 
   // Batch 2: Recent transactions WITH customer/product names (single query with joins)
   const recentTxRaw = await prisma.transaction.findMany({
@@ -132,23 +135,72 @@ export async function getDashboardStats(
     .filter((p) => new Decimal(p.currentStock).lte(p.lowStockThreshold))
     .sort((a, b) => new Decimal(a.currentStock).cmp(new Decimal(b.currentStock)));
 
-  // Compute total receivables from aggregates (no separate query needed)
-  // receivables = SUM(openingBalance) + totalSales - totalPayments + totalAdjustments
-  const customers = await prisma.customer.findMany({
-    where: { isDeleted: false },
-    select: { openingBalance: true },
-  });
-  const totalOpening = customers.reduce(
-    (sum, c) => sum.plus(c.openingBalance),
-    new Decimal(0),
-  );
-  const totalReceivables = totalOpening
-    .plus(totalSales)
-    .minus(totalPayments)
-    .plus(totalAdjustments);
+  // Batch 4: Per-customer balance computation.
+  //
+  // For each customer, balance = openingBalance
+  //                              + SUM(their sales.totalAmount)
+  //                              - SUM(their payments.amount)
+  //                              + SUM(their adjustments.amount)
+  //
+  // We use this to:
+  //   - count customers whose individual balance is > 0  (customersWithBalance)
+  //   - recompute totalReceivables as SUM(per-customer balances), clamped at 0
+  //     per customer (a single customer's negative balance should NOT offset
+  //     others' positive balances — that's the whole point of a khata).
+  //
+  // The previous buggy implementation did:
+  //     customersWithBalance = totalReceivables.gt(0) ? customers.length : 0
+  // which incorrectly reported EVERY customer as owing money whenever the
+  // total was positive — e.g. "3 customers owe you 500" when actually only
+  // 1 of the 3 customers had any outstanding balance.
+  //
+  // Note: the explicit `CAST(... AS NUMERIC)` is required. Without it,
+  // Postgres infers `integer` for the COALESCE fallback `0` literal, and
+  // Prisma therefore returns the whole expression as JS `bigint` — which
+  // then breaks Decimal() construction in the JS loop below.
+  const perCustomerBalances = await prisma.$queryRaw<Array<{
+    balance: Decimal | null;
+  }>>`
+    SELECT
+      CAST(
+        c."openingBalance"
+          + COALESCE((
+            SELECT SUM(s."totalAmount") FROM "Sale" s
+            WHERE s."customerId" = c.id AND s."voidedAt" IS NULL
+          ), 0)
+          - COALESCE((
+            SELECT SUM(p."amount") FROM "Payment" p
+            WHERE p."customerId" = c.id AND p."voidedAt" IS NULL
+          ), 0)
+          + COALESCE((
+            SELECT SUM(a."amount") FROM "CustomerAdjustment" a
+            WHERE a."customerId" = c.id AND a."voidedAt" IS NULL
+          ), 0)
+        AS NUMERIC
+      ) AS balance
+    FROM "Customer" c
+    WHERE c."isDeleted" = false
+  `;
 
-  // Count customers with positive balance (approximate from receivables > 0)
-  const customersWithBalance = totalReceivables.gt(0) ? customers.length : 0;
+  // Count customers whose individual balance is strictly positive, and
+  // sum those positive balances for the totalReceivables. Negative balances
+  // (customer overpaid / has credit) do NOT offset other customers' dues.
+  let customersWithBalance = 0;
+  let totalReceivables = new Decimal(0);
+  for (const row of perCustomerBalances) {
+    // row.balance can come back as Decimal, string, number, or bigint
+    // depending on the Prisma raw-query type mapping. Normalize via toString()
+    // before constructing a Decimal — Decimal.js accepts strings safely.
+    const raw = row?.balance;
+    const balance =
+      raw === null || raw === undefined
+        ? new Decimal(0)
+        : new Decimal(raw.toString());
+    if (balance.gt(0)) {
+      customersWithBalance += 1;
+      totalReceivables = totalReceivables.plus(balance);
+    }
+  }
 
   return {
     totalReceivables: totalReceivables.lt(0) ? "0" : totalReceivables.toString(),

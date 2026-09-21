@@ -17,9 +17,13 @@ export type Decimal = Prisma.Decimal;
 /**
  * Convert any supported value to a Decimal. Throws if the value cannot
  * be parsed — we want loud failures, not silent NaN propagation.
+ *
+ * Handles: number, string, Decimal, AND bigint (Prisma's raw SQL queries
+ * return SUM(decimal) / COUNT(*) as JS `bigint`; decimal.js's constructor
+ * rejects bigint directly, so we route it through `.toString()` first).
  */
 export function toDecimal(
-  value: Decimal | string | number | null | undefined,
+  value: Decimal | string | number | bigint | null | undefined,
 ): Decimal {
   if (value === null || value === undefined) {
     return new Decimal(0);
@@ -30,12 +34,16 @@ export function toDecimal(
     }
     return new Decimal(value);
   }
+  if (typeof value === "bigint") {
+    // bigint → string → Decimal. Safe for any magnitude.
+    return new Decimal(value.toString());
+  }
   return new Decimal(value);
 }
 
 /** Returns 0 if value is null/undefined, otherwise the value as Decimal. */
 export function toDecimalOrZero(
-  value: Decimal | string | number | null | undefined,
+  value: Decimal | string | number | bigint | null | undefined,
 ): Decimal {
   if (value === null || value === undefined) {
     return new Decimal(0);

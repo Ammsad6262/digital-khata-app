@@ -75,6 +75,7 @@ export type CreateSaleInput = {
     productId: string;
     quantity: number | string;
     unitPrice: number | string;
+    batchId?: string | null;
   }>;
   paidAmount: number | string;
   paymentMethod?: "cash" | "bank" | "cheque" | "jazzcash" | "easypaisa" | "other";

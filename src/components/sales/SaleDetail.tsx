@@ -23,6 +23,7 @@ import {
   Clock,
   Ban,
   Loader2,
+  Wallet,
 } from "lucide-react";
 import { useSale, useVoidSale } from "@/hooks/use-sales";
 import { Money } from "@/components/shared/Money";
@@ -231,6 +232,31 @@ export function SaleDetail({ saleId }: { saleId: string }) {
           </div>
         </div>
       </section>
+
+      {/* Record Payment button — prominent green CTA, shown only when the sale
+          has outstanding balance AND is not voided. Tapping it opens the
+          Add Payment form with ?saleId=X, which pre-fills the customer +
+          suggested amount and links the payment to this sale. */}
+      {!isVoided && outstanding.gt(0) ? (
+        <Link
+          href={`/payments/new?saleId=${sale.id}`}
+          className="flex items-center justify-center gap-2 rounded-xl bg-brand-600 px-3 py-3 text-sm font-semibold text-white shadow-lg shadow-brand-600/20 transition-all hover:bg-brand-700 hover:shadow-brand-600/30 active:scale-[0.99]"
+        >
+          <Wallet className="h-4 w-4" />
+          {t("payment.recordPaymentForSale")}
+          <span className="ml-1 rounded-md bg-white/20 px-1.5 py-0.5 text-xs tabular-nums">
+            <Money value={sale.outstanding} />
+          </span>
+        </Link>
+      ) : null}
+
+      {/* If fully paid (no outstanding), show a celebratory "paid" notice instead. */}
+      {!isVoided && isFullyPaid ? (
+        <div className="flex items-center justify-center gap-2 rounded-xl border border-brand-200 bg-brand-50 px-3 py-3 text-sm font-medium text-brand-700">
+          <CheckCircle2 className="h-4 w-4" />
+          {t("payment.cantRecordForPaidSale")}
+        </div>
+      ) : null}
 
       {/* Void action */}
       {isVoided ? (

@@ -23,6 +23,7 @@ import type {
   PaymentDetail,
   PaymentFilter,
 } from "@/lib/services/payments";
+import { saleKeys } from "@/hooks/use-sales";
 
 // ────────────────────────────────────────────────────────────────────────────
 // Query keys
@@ -134,6 +135,13 @@ export function useRecordPayment() {
       queryClient.invalidateQueries({ queryKey: ["customers"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       queryClient.invalidateQueries({ queryKey: ["transactions"] });
+      // If this payment was linked to a specific sale, invalidate the sale's
+      // cache so the Sale Detail page refetches with the updated
+      // paidAmount + outstanding (otherwise the user would see stale numbers
+      // until they manually refresh).
+      if (variables.saleId) {
+        queryClient.invalidateQueries({ queryKey: saleKeys.detail(variables.saleId) });
+      }
     },
   });
 }

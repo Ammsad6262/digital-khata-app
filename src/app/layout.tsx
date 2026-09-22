@@ -85,6 +85,11 @@ const initScript = `
 })();
 `;
 
+// Force dynamic rendering — prevents Next.js 16 Turbopack from trying to
+// statically prerender pages (which fails on /_global-error due to React
+// context not being available during static generation).
+export const dynamic = "force-dynamic";
+
 export default function RootLayout({
   children,
 }: {

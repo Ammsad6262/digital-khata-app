@@ -19,6 +19,7 @@
 import { prisma } from "@/lib/db/prisma";
 import { Decimal, toDecimalOrZero } from "@/lib/utils/decimal";
 import { NotFoundError, BadRequestError } from "@/lib/errors";
+import { cached, invalidateCache } from "@/lib/utils/cache";
 import { createCustomerSchema, updateCustomerSchema } from "@/lib/schemas/customer";
 import type { Prisma } from "@prisma/client";
 
@@ -255,6 +256,8 @@ export async function createCustomer(input: unknown): Promise<CustomerView> {
       openingBalance: data.openingBalance,
     },
   });
+  invalidateCache("customers");
+  invalidateCache("dashboard");
   return toView(customer);
 }
 
@@ -389,35 +392,37 @@ export async function searchCustomers(query: string | null | undefined): Promise
 
 /** List ALL active customers with their current balance. Used by search("") and the khata list page.
  *  PERFORMANCE: Uses 3 batch GROUP BY queries instead of N×3 per-customer queries.
+ *  CACHED: 10-second server-side cache to avoid re-querying on every page load.
  */
 export async function listAllCustomersWithBalance(): Promise<CustomerSearchResult[]> {
-  const customers = await prisma.customer.findMany({
-    where: { isDeleted: false },
-    select: { id: true, name: true, phone: true, openingBalance: true },
-    orderBy: { name: "asc" },
-  });
+  return cached("customers:list-with-balance", async () => {
+    const customers = await prisma.customer.findMany({
+      where: { isDeleted: false },
+      select: { id: true, name: true, phone: true, openingBalance: true },
+      orderBy: { name: "asc" },
+    });
 
-  if (customers.length === 0) return [];
+    if (customers.length === 0) return [];
 
-  const customerIds = customers.map((c) => c.id);
+    const customerIds = customers.map((c) => c.id);
 
-  // Batch: 3 GROUP BY queries instead of N×3 individual aggregates
-  const [salesByCustomer, paymentsByCustomer, adjustmentsByCustomer] = await Promise.all([
-    prisma.sale.groupBy({
-      by: ["customerId"],
-      _sum: { totalAmount: true },
-      where: { customerId: { in: customerIds }, voidedAt: null },
-    }),
-    prisma.payment.groupBy({
-      by: ["customerId"],
-      _sum: { amount: true },
-      where: { customerId: { in: customerIds }, voidedAt: null },
-    }),
-    prisma.customerAdjustment.groupBy({
-      by: ["customerId"],
-      _sum: { amount: true },
-      where: { customerId: { in: customerIds }, voidedAt: null },
-    }),
+    // Batch: 3 GROUP BY queries instead of N×3 individual aggregates
+    const [salesByCustomer, paymentsByCustomer, adjustmentsByCustomer] = await Promise.all([
+      prisma.sale.groupBy({
+        by: ["customerId"],
+        _sum: { totalAmount: true },
+        where: { customerId: { in: customerIds }, voidedAt: null },
+      }),
+      prisma.payment.groupBy({
+        by: ["customerId"],
+        _sum: { amount: true },
+        where: { customerId: { in: customerIds }, voidedAt: null },
+      }),
+      prisma.customerAdjustment.groupBy({
+        by: ["customerId"],
+        _sum: { amount: true },
+        where: { customerId: { in: customerIds }, voidedAt: null },
+      }),
   ]);
 
   const salesMap = new Map(salesByCustomer.map((s) => [s.customerId, toDecimalOrZero(s._sum.totalAmount)]));
@@ -430,6 +435,7 @@ export async function listAllCustomersWithBalance(): Promise<CustomerSearchResul
       .minus(paymentsMap.get(c.id) ?? new Decimal(0))
       .plus(adjMap.get(c.id) ?? new Decimal(0));
     return { id: c.id, name: c.name, phone: c.phone ?? null, balance: balance.toString() };
+  });
   });
 }
 

@@ -17,6 +17,7 @@
 import { prisma } from "@/lib/db/prisma";
 import { NotFoundError, BadRequestError } from "@/lib/errors";
 import { createExpenseSchema } from "@/lib/schemas/expense";
+import { invalidateCache } from "@/lib/utils/cache";
 import {
   startOfTodayInTz,
   startOfWeekInTz,
@@ -154,6 +155,9 @@ export async function recordExpense(input: unknown): Promise<ExpenseView> {
     return created;
   });
 
+  invalidateCache("dashboard");
+  invalidateCache("profit-loss");
+
   return toView(expense);
 }
 
@@ -191,12 +195,15 @@ export async function updateExpense(id: string, input: unknown): Promise<Expense
     return expense;
   });
 
+  invalidateCache("dashboard");
+  invalidateCache("profit-loss");
+
   return toView(updated);
 }
 
 /** Void an expense — atomic + cleans up the Transaction mirror. */
 export async function voidExpense(id: string): Promise<{ id: string; voidedAt: Date }> {
-  return await prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx) => {
     const expense = await tx.expense.findUnique({ where: { id } });
     if (!expense) throw new NotFoundError("Expense", id);
     if (expense.voidedAt) throw new BadRequestError("Expense is already voided.");
@@ -214,4 +221,9 @@ export async function voidExpense(id: string): Promise<{ id: string; voidedAt: D
 
     return { id, voidedAt: now };
   });
+
+  invalidateCache("dashboard");
+  invalidateCache("profit-loss");
+
+  return result;
 }

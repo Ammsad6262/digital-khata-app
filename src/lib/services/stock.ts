@@ -12,6 +12,7 @@ import { prisma } from "@/lib/db/prisma";
 import { Decimal } from "@/lib/utils/decimal";
 import { NotFoundError, BadRequestError } from "@/lib/errors";
 import { createStockMoveSchema } from "@/lib/schemas/stock";
+import { invalidateCache } from "@/lib/utils/cache";
 import type { Prisma } from "@prisma/client";
 
 export type StockMoveView = {
@@ -118,6 +119,11 @@ export async function addStockMove(input: unknown): Promise<StockMoveView> {
 
     return created;
   });
+
+  // Invalidate caches (stock changes affect products, dashboard, P&L)
+  invalidateCache("products");
+  invalidateCache("dashboard");
+  invalidateCache("profit-loss");
 
   return toView(move);
 }

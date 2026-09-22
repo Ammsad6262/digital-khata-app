@@ -19,6 +19,7 @@
 import { prisma } from "@/lib/db/prisma";
 import { Prisma } from "@prisma/client";
 import { Decimal, toDecimalOrZero } from "@/lib/utils/decimal";
+import { cached } from "@/lib/utils/cache";
 import {
   startOfTodayInTz,
   startOfWeekInTz,
@@ -138,22 +139,24 @@ async function computePeriod(startDate: Date | null): Promise<ProfitLossPeriod> 
 export async function getProfitLossStats(
   timezone: string = "Asia/Karachi",
 ): Promise<ProfitLossStats> {
-  const today = startOfTodayInTz(timezone);
-  const weekStart = startOfWeekInTz(timezone);
-  const monthStart = startOfMonthInTz(timezone);
+  return cached("profit-loss", async () => {
+    const today = startOfTodayInTz(timezone);
+    const weekStart = startOfWeekInTz(timezone);
+    const monthStart = startOfMonthInTz(timezone);
 
-  // Run all 4 period queries in parallel — no dependency between them.
-  const [todayStats, weekStats, monthStats, allTimeStats] = await Promise.all([
-    computePeriod(today),
-    computePeriod(weekStart),
-    computePeriod(monthStart),
-    computePeriod(null), // all-time: no date filter
-  ]);
+    // Run all 4 period queries in parallel — no dependency between them.
+    const [todayStats, weekStats, monthStats, allTimeStats] = await Promise.all([
+      computePeriod(today),
+      computePeriod(weekStart),
+      computePeriod(monthStart),
+      computePeriod(null), // all-time: no date filter
+    ]);
 
-  return {
-    today: todayStats,
-    thisWeek: weekStats,
-    thisMonth: monthStats,
-    allTime: allTimeStats,
-  };
+    return {
+      today: todayStats,
+      thisWeek: weekStats,
+      thisMonth: monthStats,
+      allTime: allTimeStats,
+    };
+  });
 }

@@ -16,6 +16,7 @@ import { prisma } from "@/lib/db/prisma";
 import { Decimal, toDecimalOrZero } from "@/lib/utils/decimal";
 import { NotFoundError } from "@/lib/errors";
 import { createProductSchema, updateProductSchema } from "@/lib/schemas/product";
+import { cached, invalidateCache } from "@/lib/utils/cache";
 import type { Prisma } from "@prisma/client";
 
 export type ProductView = {
@@ -62,23 +63,26 @@ export async function listProducts(): Promise<ProductView[]> {
   return products.map(toView);
 }
 
-/** List products with current stock + low-stock flag. */
+/** List products with current stock + low-stock flag.
+ *  CACHED: 10-second server-side cache. */
 export async function listProductsWithStock(): Promise<ProductWithStock[]> {
-  const products = await prisma.product.findMany({
-    where: { isDeleted: false },
-    orderBy: { name: "asc" },
-  });
+  return cached("products:list-with-stock", async () => {
+    const products = await prisma.product.findMany({
+      where: { isDeleted: false },
+      orderBy: { name: "asc" },
+    });
 
-  // Batch compute stock for all products at once to avoid N+1.
-  const stockByProduct = await computeStockForAllProducts();
+    // Batch compute stock for all products at once to avoid N+1.
+    const stockByProduct = await computeStockForAllProducts();
 
-  return products.map((p) => {
-    const stock = stockByProduct.get(p.id) ?? new Decimal(0);
-    return {
-      ...toView(p),
-      currentStock: stock.toString(),
-      isLowStock: stock.lte(p.lowStockThreshold),
-    };
+    return products.map((p) => {
+      const stock = stockByProduct.get(p.id) ?? new Decimal(0);
+      return {
+        ...toView(p),
+        currentStock: stock.toString(),
+        isLowStock: stock.lte(p.lowStockThreshold),
+      };
+    });
   });
 }
 
@@ -237,6 +241,8 @@ export async function createProduct(input: unknown): Promise<ProductView> {
       lowStockThreshold: data.lowStockThreshold,
     },
   });
+  invalidateCache("products");
+  invalidateCache("dashboard");
   return toView(product);
 }
 
@@ -258,6 +264,9 @@ export async function updateProduct(id: string, input: unknown): Promise<Product
       // openingStock is intentionally NOT updatable.
     },
   });
+
+  invalidateCache("products");
+  invalidateCache("dashboard");
 
   return toView(updated);
 }

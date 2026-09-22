@@ -16,6 +16,7 @@ import { prisma } from "@/lib/db/prisma";
 import { Decimal, toDecimalOrZero } from "@/lib/utils/decimal";
 import { BadRequestError, NotFoundError } from "@/lib/errors";
 import { createSaleSchema } from "@/lib/schemas/sale";
+import { cached, invalidateCache } from "@/lib/utils/cache";
 import {
   startOfTodayInTz,
   startOfWeekInTz,
@@ -133,38 +134,42 @@ export async function listSalesFiltered(
   } = {},
 ): Promise<SaleListItem[]> {
   const { customerId, limit = 100, timezone = "Asia/Karachi" } = options;
-  let startDate: Date | undefined;
+  const cacheKey = `sales:list:${filter}:${customerId ?? "all"}:${limit}`;
 
-  switch (filter) {
-    case "today": startDate = startOfTodayInTz(timezone); break;
-    case "week":  startDate = startOfWeekInTz(timezone); break;
-    case "month": startDate = startOfMonthInTz(timezone); break;
-    case "all":   startDate = undefined; break;
-  }
+  return cached(cacheKey, async () => {
+    let startDate: Date | undefined;
 
-  const sales = await prisma.sale.findMany({
-    where: {
-      voidedAt: null,
-      ...(startDate && { date: { gte: startDate } }),
-      ...(customerId && { customerId }),
-    },
-    include: { customer: true },
-    orderBy: { date: "desc" },
-    take: limit,
+    switch (filter) {
+      case "today": startDate = startOfTodayInTz(timezone); break;
+      case "week":  startDate = startOfWeekInTz(timezone); break;
+      case "month": startDate = startOfMonthInTz(timezone); break;
+      case "all":   startDate = undefined; break;
+    }
+
+    const sales = await prisma.sale.findMany({
+      where: {
+        voidedAt: null,
+        ...(startDate && { date: { gte: startDate } }),
+        ...(customerId && { customerId }),
+      },
+      include: { customer: true },
+      orderBy: { date: "desc" },
+      take: limit,
+    });
+
+    return sales.map((s) => ({
+      id: s.id,
+      customerId: s.customerId,
+      customerName: s.customer.name,
+      customerPhone: s.customer.phone ?? null,
+      totalAmount: s.totalAmount.toString(),
+      paidAmount: s.paidAmount.toString(),
+      outstanding: s.outstanding.toString(),
+      notes: s.notes,
+      date: s.date,
+      voidedAt: s.voidedAt,
+    }));
   });
-
-  return sales.map((s) => ({
-    id: s.id,
-    customerId: s.customerId,
-    customerName: s.customer.name,
-    customerPhone: s.customer.phone ?? null,
-    totalAmount: s.totalAmount.toString(),
-    paidAmount: s.paidAmount.toString(),
-    outstanding: s.outstanding.toString(),
-    notes: s.notes,
-    date: s.date,
-    voidedAt: s.voidedAt,
-  }));
 }
 
 /** Fetch one sale with items + customer info. */
@@ -425,6 +430,13 @@ export async function createSale(input: unknown): Promise<SaleWithItems> {
     return sale;
   });
 
+  // Invalidate caches (sale affects customers, products, dashboard, P&L)
+  invalidateCache("customers");
+  invalidateCache("products");
+  invalidateCache("dashboard");
+  invalidateCache("sales");
+  invalidateCache("profit-loss");
+
   // Re-fetch with customer relation for the response.
   const withCustomer = await prisma.sale.findUniqueOrThrow({
     where: { id: result.id },
@@ -461,7 +473,7 @@ export async function createSale(input: unknown): Promise<SaleWithItems> {
  * Net effect on customer balance: (paidAmount - totalAmount).
  */
 export async function voidSale(id: string): Promise<{ id: string; voidedAt: Date }> {
-  return await prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx) => {
     const sale = await tx.sale.findUnique({
       where: { id },
       include: {
@@ -543,4 +555,13 @@ export async function voidSale(id: string): Promise<{ id: string; voidedAt: Date
 
     return { id, voidedAt: now };
   });
+
+  // Invalidate caches (voiding affects customers, products, dashboard, P&L)
+  invalidateCache("customers");
+  invalidateCache("products");
+  invalidateCache("dashboard");
+  invalidateCache("sales");
+  invalidateCache("profit-loss");
+
+  return result;
 }

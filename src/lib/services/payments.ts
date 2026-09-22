@@ -24,6 +24,7 @@ import { prisma } from "@/lib/db/prisma";
 import { NotFoundError, BadRequestError } from "@/lib/errors";
 import { createPaymentSchema } from "@/lib/schemas/payment";
 import { Decimal } from "@/lib/utils/decimal";
+import { invalidateCache } from "@/lib/utils/cache";
 import {
   startOfTodayInTz,
   startOfWeekInTz,
@@ -251,6 +252,12 @@ export async function recordPayment(input: unknown): Promise<PaymentDetail> {
     return created;
   });
 
+  // Invalidate caches (payment affects customers, dashboard, P&L, sales if linked)
+  invalidateCache("customers");
+  invalidateCache("dashboard");
+  invalidateCache("sales");
+  invalidateCache("profit-loss");
+
   // Re-fetch with customer relation for the response.
   const withCustomer = await prisma.payment.findUniqueOrThrow({
     where: { id: payment.id },
@@ -269,7 +276,7 @@ export async function recordPayment(input: unknown): Promise<PaymentDetail> {
  * the sale's denormalized paidAmount/outstanding if linked.
  */
 export async function voidPayment(id: string): Promise<{ id: string; voidedAt: Date }> {
-  return await prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx) => {
     const payment = await tx.payment.findUnique({ where: { id } });
     if (!payment) throw new NotFoundError("Payment", id);
     if (payment.voidedAt) throw new BadRequestError("Payment is already voided.");
@@ -309,4 +316,12 @@ export async function voidPayment(id: string): Promise<{ id: string; voidedAt: D
 
     return { id, voidedAt: now };
   });
+
+  // Invalidate caches
+  invalidateCache("customers");
+  invalidateCache("dashboard");
+  invalidateCache("sales");
+  invalidateCache("profit-loss");
+
+  return result;
 }

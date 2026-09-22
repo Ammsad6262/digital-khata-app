@@ -55,10 +55,14 @@ export function CustomerPicker({
             <p className="truncate text-sm font-medium text-slate-900">
               {selected.name}
             </p>
-            <p className="flex items-center gap-1 text-xs text-slate-500">
-              <Phone className="h-3 w-3" />
-              {selected.phone || t("customer.noMatch")}
-            </p>
+            {selected.phone ? (
+              <p className="flex items-center gap-1 text-xs text-slate-500">
+                <Phone className="h-3 w-3" />
+                {selected.phone}
+              </p>
+            ) : (
+              <p className="text-xs text-slate-400">No phone</p>
+            )}
             {owes ? (
               <p className="mt-1 text-xs">
                 <span className="text-slate-500">{t("customer.currentBalance")}: </span>
@@ -185,7 +189,9 @@ export function CustomerPicker({
                   <p className="truncate text-sm font-medium text-slate-900">
                     {customer.name}
                   </p>
-                  <p className="truncate text-xs text-slate-500">{customer.phone}</p>
+                  <p className="truncate text-xs text-slate-500">
+                    {customer.phone || "No phone"}
+                  </p>
                 </div>
                 {new Decimal(customer.balance).gt(0) ? (
                   <span className="shrink-0 text-xs font-semibold text-red-600">
@@ -227,14 +233,18 @@ function QuickAddCustomer({
   const [name, setName] = useState(initialName);
   const [phone, setPhone] = useState("");
 
-  const canSave = name.trim().length > 0 && phone.trim().length >= 7 && !createCustomer.isPending;
+  // Phone is optional — only name is required to save.
+  const canSave = name.trim().length > 0 && !createCustomer.isPending;
 
   const handleCreate = () => {
     if (!canSave) return;
+    const trimmedPhone = phone.trim();
     createCustomer.mutate(
       {
         name: name.trim(),
-        phone: phone.trim(),
+        // Send null when phone is empty — the schema converts this to null
+        // for storage. Postgres UNIQUE allows multiple NULLs.
+        phone: trimmedPhone.length > 0 ? trimmedPhone : null,
         openingBalance: 0,
       },
       {
@@ -278,7 +288,7 @@ function QuickAddCustomer({
 
       <div>
         <label className="mb-1 block text-xs font-medium text-slate-600">
-          {t("customer.phone")} <span className="text-red-600">*</span>
+          {t("customer.phone")}
         </label>
         <input
           type="tel"

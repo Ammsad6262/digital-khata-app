@@ -28,10 +28,14 @@ export function CustomerRow({ customer }: { customer: CustomerSearchResult }) {
         <p className="truncate text-sm font-medium text-slate-900">
           {customer.name}
         </p>
-        <p className="flex items-center gap-1 text-xs text-slate-500">
-          <Phone className="h-3 w-3" />
-          {customer.phone}
-        </p>
+        {customer.phone ? (
+          <p className="flex items-center gap-1 text-xs text-slate-500">
+            <Phone className="h-3 w-3" />
+            {customer.phone}
+          </p>
+        ) : (
+          <p className="text-xs text-slate-300">No phone</p>
+        )}
       </div>
 
       <BalanceBadge balance={customer.balance} />

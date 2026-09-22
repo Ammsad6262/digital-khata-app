@@ -155,7 +155,7 @@ export function useCreateCustomer() {
   return useMutation({
     mutationFn: (input: {
       name: string;
-      phone: string;
+      phone: string | null;
       address?: string | null;
       notes?: string | null;
       openingBalance?: number;

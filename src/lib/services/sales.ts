@@ -38,7 +38,7 @@ export type SaleView = {
 
 export type SaleWithItems = SaleView & {
   customerName: string;
-  customerPhone: string;
+  customerPhone: string | null;
   items: Array<{
     id: string;
     productId: string;
@@ -80,7 +80,7 @@ export async function listSales(limit = 50): Promise<SaleWithItems[]> {
   return sales.map((s) => ({
     ...toView(s),
     customerName: s.customer.name,
-    customerPhone: s.customer.phone,
+    customerPhone: s.customer.phone ?? null,
     items: s.items.map((i) => ({
       id: i.id,
       productId: i.productId,
@@ -101,7 +101,7 @@ export type SaleListItem = {
   id: string;
   customerId: string;
   customerName: string;
-  customerPhone: string;
+  customerPhone: string | null;
   totalAmount: string;
   paidAmount: string;
   outstanding: string;
@@ -157,7 +157,7 @@ export async function listSalesFiltered(
     id: s.id,
     customerId: s.customerId,
     customerName: s.customer.name,
-    customerPhone: s.customer.phone,
+    customerPhone: s.customer.phone ?? null,
     totalAmount: s.totalAmount.toString(),
     paidAmount: s.paidAmount.toString(),
     outstanding: s.outstanding.toString(),
@@ -182,7 +182,7 @@ export async function getSale(id: string): Promise<SaleWithItems> {
   return {
     ...toView(sale),
     customerName: sale.customer.name,
-    customerPhone: sale.customer.phone,
+    customerPhone: sale.customer.phone ?? null,
     items: sale.items.map((i) => ({
       id: i.id,
       productId: i.productId,
@@ -434,7 +434,7 @@ export async function createSale(input: unknown): Promise<SaleWithItems> {
   return {
     ...toView(result),
     customerName: withCustomer.customer.name,
-    customerPhone: withCustomer.customer.phone,
+    customerPhone: withCustomer.customer.phone ?? null,
     items: result.items.map((i) => ({
       id: i.id,
       productId: i.productId,

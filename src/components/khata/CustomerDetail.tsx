@@ -111,13 +111,15 @@ export function CustomerDetail({ customerId }: { customerId: string }) {
           <h2 className="text-base font-semibold text-slate-900">{customer.name}</h2>
 
           <div className="space-y-1.5 text-sm">
-            <a
-              href={`tel:${customer.phone}`}
-              className="flex items-center gap-2 text-slate-600 hover:text-slate-900"
-            >
-              <Phone className="h-4 w-4 shrink-0 text-slate-400" />
-              {customer.phone}
-            </a>
+            {customer.phone ? (
+              <a
+                href={`tel:${customer.phone}`}
+                className="flex items-center gap-2 text-slate-600 hover:text-slate-900"
+              >
+                <Phone className="h-4 w-4 shrink-0 text-slate-400" />
+                {customer.phone}
+              </a>
+            ) : null}
 
             {customer.address ? (
               <p className="flex items-start gap-2 text-slate-600">

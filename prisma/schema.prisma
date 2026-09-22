@@ -56,7 +56,7 @@ datasource db {
 model Customer {
   id             String   @id @default(cuid())
   name           String
-  phone          String   @unique
+  phone          String?  @unique
   address        String?
   notes          String?
 

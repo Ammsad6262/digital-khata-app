@@ -548,7 +548,7 @@ function deserializeCustomer(row: Record<string, unknown>) {
   return {
     id: row.id as string,
     name: row.name as string,
-    phone: row.phone as string,
+    phone: (row.phone as string | null) ?? null,
     address: (row.address as string | null) ?? null,
     notes: (row.notes as string | null) ?? null,
     openingBalance: new Decimal(row.openingBalance as string | number),

@@ -8,12 +8,17 @@
 
 import { z } from "zod";
 
+// Phone is OPTIONAL. When provided, it must be a valid phone-like string.
+// Empty string / whitespace → null (stored as NULL in Postgres).
 export const phoneSchema = z
   .string()
   .trim()
   .min(7, "Phone must be at least 7 digits.")
   .max(20, "Phone must be at most 20 characters.")
-  .regex(/^[0-9+\-\s]+$/, "Phone can only contain digits, +, -, and spaces.");
+  .regex(/^[0-9+\-\s]+$/, "Phone can only contain digits, +, -, and spaces.")
+  .optional()
+  .nullable()
+  .transform((v) => (v && v.trim().length > 0 ? v.trim() : null));
 
 export const createCustomerSchema = z.object({
   name: z.string().trim().min(1, "Name is required.").max(100),

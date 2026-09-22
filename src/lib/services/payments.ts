@@ -52,7 +52,7 @@ export type PaymentListItem = {
   id: string;
   customerId: string;
   customerName: string;
-  customerPhone: string;
+  customerPhone: string | null;
   saleId: string | null;
   amount: string;
   method: string;
@@ -63,7 +63,7 @@ export type PaymentListItem = {
 
 export type PaymentDetail = PaymentView & {
   customerName: string;
-  customerPhone: string;
+  customerPhone: string | null;
 };
 
 export type PaymentFilter = "today" | "week" | "month" | "all";
@@ -144,7 +144,7 @@ export async function listPaymentsFiltered(
     id: p.id,
     customerId: p.customerId,
     customerName: p.customer.name,
-    customerPhone: p.customer.phone,
+    customerPhone: p.customer.phone ?? null,
     saleId: p.saleId,
     amount: p.amount.toString(),
     method: p.method,
@@ -175,7 +175,7 @@ export async function getPayment(id: string): Promise<PaymentDetail> {
   return {
     ...toView(payment),
     customerName: payment.customer.name,
-    customerPhone: payment.customer.phone,
+    customerPhone: payment.customer.phone ?? null,
   };
 }
 
@@ -260,7 +260,7 @@ export async function recordPayment(input: unknown): Promise<PaymentDetail> {
   return {
     ...toView(withCustomer),
     customerName: withCustomer.customer.name,
-    customerPhone: withCustomer.customer.phone,
+    customerPhone: withCustomer.customer.phone ?? null,
   };
 }
 

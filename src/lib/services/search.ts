@@ -8,7 +8,7 @@
 import { prisma } from "@/lib/db/prisma";
 
 export type SearchResult = {
-  customers: Array<{ id: string; name: string; phone: string }>;
+  customers: Array<{ id: string; name: string; phone: string | null }>;
   products: Array<{ id: string; name: string; sku: string | null }>;
 };
 
@@ -47,5 +47,12 @@ export async function search(query: string): Promise<SearchResult> {
     }),
   ]);
 
-  return { customers, products };
+  return {
+    customers: customers.map((c) => ({
+      id: c.id,
+      name: c.name,
+      phone: c.phone ?? null,
+    })),
+    products,
+  };
 }

@@ -143,7 +143,7 @@ function SaleRow({
     id: string;
     customerId: string;
     customerName: string;
-    customerPhone: string;
+    customerPhone: string | null;
     totalAmount: string;
     paidAmount: string;
     outstanding: string;

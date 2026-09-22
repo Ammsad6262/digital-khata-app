@@ -144,7 +144,7 @@ function PaymentRow({
     id: string;
     customerId: string;
     customerName: string;
-    customerPhone: string;
+    customerPhone: string | null;
     amount: string;
     method: string;
     notes: string | null;

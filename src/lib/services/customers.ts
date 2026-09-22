@@ -26,7 +26,7 @@ import type { Prisma } from "@prisma/client";
 export type CustomerView = {
   id: string;
   name: string;
-  phone: string;
+  phone: string | null;
   address: string | null;
   notes: string | null;
   openingBalance: string; // string for JSON-safe serialization
@@ -45,7 +45,7 @@ function toView(c: Prisma.CustomerGetPayload<{}>): CustomerView {
   return {
     id: c.id,
     name: c.name,
-    phone: c.phone,
+    phone: c.phone ?? null,
     address: c.address,
     notes: c.notes,
     openingBalance: c.openingBalance.toString(),
@@ -135,7 +135,7 @@ export async function getCustomerWithBalance(id: string): Promise<CustomerWithBa
 export type OutstandingCustomer = {
   id: string;
   name: string;
-  phone: string;
+  phone: string | null;
   address: string | null;
   balance: string;            // signed — always > 0 here
   totalSales: string;          // sum of all sales (debits)
@@ -225,7 +225,7 @@ export async function listOutstandingCustomers(): Promise<OutstandingCustomer[]>
     return {
       id: c.id,
       name: c.name,
-      phone: c.phone,
+      phone: c.phone ?? null,
       address: c.address,
       openingBalance: opening.toString(),
       totalSales: sales.sum.toString(),
@@ -311,7 +311,7 @@ export async function deleteCustomer(id: string): Promise<{ id: string; deleted:
 export type CustomerSearchResult = {
   id: string;
   name: string;
-  phone: string;
+  phone: string | null;
   balance: string; // signed
 };
 
@@ -381,7 +381,7 @@ export async function searchCustomers(query: string | null | undefined): Promise
       .plus(salesMap.get(c.id) ?? new Decimal(0))
       .minus(paymentsMap.get(c.id) ?? new Decimal(0))
       .plus(adjMap.get(c.id) ?? new Decimal(0));
-    return { id: c.id, name: c.name, phone: c.phone, balance: balance.toString() };
+    return { id: c.id, name: c.name, phone: c.phone ?? null, balance: balance.toString() };
   });
 
   return withBalances;
@@ -429,7 +429,7 @@ export async function listAllCustomersWithBalance(): Promise<CustomerSearchResul
       .plus(salesMap.get(c.id) ?? new Decimal(0))
       .minus(paymentsMap.get(c.id) ?? new Decimal(0))
       .plus(adjMap.get(c.id) ?? new Decimal(0));
-    return { id: c.id, name: c.name, phone: c.phone, balance: balance.toString() };
+    return { id: c.id, name: c.name, phone: c.phone ?? null, balance: balance.toString() };
   });
 }
 

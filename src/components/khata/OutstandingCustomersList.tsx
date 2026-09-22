@@ -149,10 +149,14 @@ export function OutstandingCustomersList() {
                     <span className="mr-1.5 text-slate-400">#{idx + 1}</span>
                     {c.name}
                   </p>
-                  <p className="flex items-center gap-1 text-xs text-slate-500">
-                    <Phone className="h-3 w-3" />
-                    {c.phone}
-                  </p>
+                  {c.phone ? (
+                    <p className="flex items-center gap-1 text-xs text-slate-500">
+                      <Phone className="h-3 w-3" />
+                      {c.phone}
+                    </p>
+                  ) : (
+                    <p className="text-xs text-slate-300">No phone</p>
+                  )}
                 </div>
                 <div className="shrink-0 text-right">
                   <p className="text-base font-bold tabular-nums text-red-600">

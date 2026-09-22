@@ -59,7 +59,7 @@ export function AddStockForm({ initialProductId }: { initialProductId?: string }
   }, [quantity, unitCost]);
 
   const validation = useMemo(() => {
-    const errors: { product?: string; quantity?: string; unitCost?: string } = {};
+    const errors: { product?: string; quantity?: string; unitCost?: string; costWarning?: string } = {};
     if (!selected) {
       errors.product = t("stock.selectProduct");
     }
@@ -72,6 +72,15 @@ export function AddStockForm({ initialProductId }: { initialProductId?: string }
     const cost = parseDecimalSafe(unitCost);
     if (!unitCost || cost.lte(0) || !cost.isFinite()) {
       errors.unitCost = t("stock.unitCostRequired");
+    } else if (selected) {
+      // Warn (not block) if the unit cost seems unreasonably high —
+      // e.g. if selling price is Rs. 800 and user enters Rs. 111,111,
+      // that's clearly a typo. This prevents the P&L from showing
+      // millions in losses due to data entry errors.
+      const selling = parseDecimalSafe(selected.sellingPrice);
+      if (selling.gt(0) && cost.gt(selling.times(5))) {
+        errors.costWarning = `⚠ This cost (Rs. ${cost.toFixed(0)}) is much higher than the selling price (Rs. ${selling.toFixed(0)}). Are you sure? Check for typos — this directly affects your profit calculations.`;
+      }
     }
     return errors;
   }, [selected, quantity, unitCost]);
@@ -226,6 +235,11 @@ export function AddStockForm({ initialProductId }: { initialProductId?: string }
                   {t("stock.unitCostHintRequired")}
                 </p>
               )}
+              {validation.costWarning ? (
+                <p className="mt-1 rounded-md bg-amber-50 px-2 py-1.5 text-[11px] text-amber-800">
+                  {validation.costWarning}
+                </p>
+              ) : null}
             </div>
 
             {/* Date */}

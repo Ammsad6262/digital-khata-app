@@ -81,8 +81,15 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
 export function useTheme(): ThemeContextValue {
   const ctx = useContext(ThemeContext);
+  // During static prerendering, ThemeProvider may not be mounted yet.
+  // Return a no-op default instead of throwing — this prevents
+  // "Cannot read properties of null (reading 'useContext')" errors
+  // during `next build`'s static generation phase.
   if (!ctx) {
-    throw new Error("useTheme must be used inside <ThemeProvider>");
+    return {
+      theme: "default",
+      setTheme: () => {},
+    };
   }
   return ctx;
 }

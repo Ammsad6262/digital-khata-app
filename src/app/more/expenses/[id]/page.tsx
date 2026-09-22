@@ -7,6 +7,8 @@
  *   - Name + category + date + notes
  *   - Edit button → /more/expenses/[id]/edit
  *   - Void action (with confirmation)
+ *
+ * NOTE: In Next.js 16, `params` is a Promise that must be awaited.
  */
 
 import { AppHeader } from "@/components/layout/AppHeader";
@@ -15,16 +17,17 @@ import { ExpenseDetail as ExpenseDetailComponent } from "@/components/expenses/E
 
 export const dynamic = "force-dynamic";
 
-export default function ExpenseDetailPage({
+export default async function ExpenseDetailPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
+  const { id } = await params;
   return (
     <>
       <AppHeader title="Expense Detail" />
       <ScreenContent>
-        <ExpenseDetailComponent expenseId={params.id} />
+        <ExpenseDetailComponent expenseId={id} />
       </ScreenContent>
     </>
   );

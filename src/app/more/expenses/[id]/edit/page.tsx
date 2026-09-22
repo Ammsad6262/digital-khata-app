@@ -2,6 +2,8 @@
  * Edit Expense page.
  *
  * Server shell — the form is a client component.
+ *
+ * NOTE: In Next.js 16, `params` is a Promise that must be awaited.
  */
 
 import Link from "next/link";
@@ -12,18 +14,19 @@ import { ExpenseForm } from "@/components/expenses/ExpenseForm";
 
 export const dynamic = "force-dynamic";
 
-export default function EditExpensePage({
+export default async function EditExpensePage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
+  const { id } = await params;
   return (
     <>
       <AppHeader
         title="Edit Expense"
         rightSlot={
           <Link
-            href={`/more/expenses/${params.id}`}
+            href={`/more/expenses/${id}`}
             className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100"
             aria-label="Back"
           >
@@ -32,7 +35,7 @@ export default function EditExpensePage({
         }
       />
       <ScreenContent>
-        <ExpenseForm mode="edit" expenseId={params.id} />
+        <ExpenseForm mode="edit" expenseId={id} />
       </ScreenContent>
     </>
   );

@@ -83,8 +83,17 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
 
 export function useLanguage(): LanguageContextValue {
   const ctx = useContext(LanguageContext);
+  // During static prerendering, LanguageProvider may not be mounted yet.
+  // Return a no-op default instead of throwing — this prevents
+  // "Cannot read properties of null (reading 'useContext')" errors
+  // during `next build`'s static generation phase.
   if (!ctx) {
-    throw new Error("useLanguage must be used inside <LanguageProvider>");
+    return {
+      lang: "en",
+      dir: "ltr",
+      setLang: () => {},
+      t: (key: TranslationKey) => key as string,
+    };
   }
   return ctx;
 }

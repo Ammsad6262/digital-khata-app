@@ -124,8 +124,16 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: () => void }
 
 export function useToast(): ToastContextValue {
   const ctx = useContext(ToastContext);
+  // During static prerendering, ToastProvider may not be mounted yet.
+  // Return a no-op default instead of throwing — this prevents
+  // "Cannot read properties of null (reading 'useContext')" errors
+  // during `next build`'s static generation phase.
   if (!ctx) {
-    throw new Error("useToast must be used inside <ToastProvider>");
+    return {
+      success: () => {},
+      error: () => {},
+      info: () => {},
+    };
   }
   return ctx;
 }

@@ -5,6 +5,8 @@
  *
  * Server component shell — the actual content is a client component that
  * fetches via React Query.
+ *
+ * NOTE: In Next.js 16, `params` is a Promise that must be awaited.
  */
 
 import { AppHeader } from "@/components/layout/AppHeader";
@@ -14,17 +16,18 @@ import { useLanguage } from "@/providers/language-provider";
 
 export const dynamic = "force-dynamic";
 
-export default function PaymentDetailPage({
+export default async function PaymentDetailPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
   const { t } = useLanguage();
+  const { id } = await params;
   return (
     <>
       <AppHeader title={t("payment.paymentDetail")} />
       <ScreenContent>
-        <PaymentDetailComponent paymentId={params.id} />
+        <PaymentDetailComponent paymentId={id} />
       </ScreenContent>
     </>
   );

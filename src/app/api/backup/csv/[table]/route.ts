@@ -9,6 +9,8 @@
  *
  * Supported tables: customers, products, sales, saleItems, payments,
  * stockMoves, expenses, transactions
+ *
+ * NOTE: In Next.js 16, `params` is a Promise that must be awaited.
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -27,10 +29,10 @@ const VALID_TABLES = new Set<string>(EXPORTABLE_TABLES.map((t) => t.value));
 
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { table: string } },
+  { params }: { params: Promise<{ table: string }> },
 ) {
   try {
-    const { table } = params;
+    const { table } = await params;
 
     if (!VALID_TABLES.has(table)) {
       return NextResponse.json(

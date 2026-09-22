@@ -20,13 +20,7 @@ import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import { Noto_Nastaliq_Urdu } from "next/font/google";
 import "./globals.css";
-import { QueryProvider } from "@/providers/query-provider";
-import { ToastProvider } from "@/providers/toast-provider";
-import { ThemeProvider } from "@/providers/theme-provider";
-import { LanguageProvider } from "@/providers/language-provider";
-import { AuthGate } from "@/providers/auth-gate";
-import { Screen } from "@/components/layout/Screen";
-import { BottomNav } from "@/components/layout/BottomNav";
+import { Providers } from "./providers";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -101,20 +95,7 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: initScript }} />
       </head>
       <body>
-        <ThemeProvider>
-          <LanguageProvider>
-            <QueryProvider>
-              <ToastProvider>
-                <AuthGate>
-                  <Screen>
-                    {children}
-                    <BottomNav />
-                  </Screen>
-                </AuthGate>
-              </ToastProvider>
-            </QueryProvider>
-          </LanguageProvider>
-        </ThemeProvider>
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

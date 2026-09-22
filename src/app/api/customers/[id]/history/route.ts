@@ -3,13 +3,7 @@
  *
  * GET → fetch one customer with their complete transaction history.
  *
- * Returns:
- *   - customer info (name, phone, address, notes)
- *   - balance summary (opening, totalPurchases, totalPayments, totalAdjustments, current balance)
- *   - transactions[] — chronologically sorted with runningBalance after each
- *
- * This is the canonical "khata view" — what the owner sees when they tap
- * a customer in the list.
+ * NOTE: In Next.js 16, `params` is a Promise that must be awaited.
  */
 
 import { NextRequest } from "next/server";
@@ -20,10 +14,11 @@ export const dynamic = "force-dynamic";
 
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const history = await getCustomerHistory(params.id);
+    const { id } = await params;
+    const history = await getCustomerHistory(id);
     return ok(history);
   } catch (error) {
     return fail(error);

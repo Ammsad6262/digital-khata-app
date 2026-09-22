@@ -9,6 +9,8 @@
  *   - Prices (purchase + selling)
  *   - Quick actions: Add Stock, Adjust Stock, Edit
  *   - Stock movement history (chronological, with running balance after each)
+ *
+ * NOTE: In Next.js 16, `params` is a Promise that must be awaited.
  */
 
 import Link from "next/link";
@@ -20,19 +22,20 @@ import { useLanguage } from "@/providers/language-provider";
 
 export const dynamic = "force-dynamic";
 
-export default function ProductDetailPage({
+export default async function ProductDetailPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
   const { t } = useLanguage();
+  const { id } = await params;
   return (
     <>
       <AppHeader
         title={t("product.productDetail")}
         rightSlot={
           <Link
-            href={`/more/products/${params.id}/edit`}
+            href={`/more/products/${id}/edit`}
             className="rounded-lg p-1.5 text-brand-600 hover:bg-brand-50"
             aria-label={t("common.edit")}
           >
@@ -41,7 +44,7 @@ export default function ProductDetailPage({
         }
       />
       <ScreenContent>
-        <ProductDetail productId={params.id} />
+        <ProductDetail productId={id} />
       </ScreenContent>
     </>
   );

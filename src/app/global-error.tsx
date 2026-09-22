@@ -3,12 +3,13 @@
 /**
  * Global Error Boundary — catches errors during root layout rendering.
  *
- * This component renders OUTSIDE the root layout, so it CANNOT use any
- * context providers (ThemeProvider, LanguageProvider, etc.).
+ * This component renders OUTSIDE the root layout and its providers, so it
+ * CANNOT use any context hooks (useLanguage, useTheme, useToast, etc.).
  *
- * `force-dynamic` prevents Next.js from trying to statically prerender
- * this page, which avoids "Cannot read properties of null (reading
- * 'useContext')" errors during build.
+ * `export const dynamic = "force-dynamic"` prevents Next.js 16 from trying
+ * to statically prerender this page — which fails with
+ * "invariant expected layout router to be mounted" because the
+ * LayoutRouterContext isn't available during static generation.
  */
 
 export const dynamic = "force-dynamic";

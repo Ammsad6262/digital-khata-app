@@ -45,7 +45,6 @@ import { cn } from "@/lib/utils/cn";
 
 const CURRENCIES = [
   { code: "PKR", symbol: "Rs.", label: "Pakistani Rupee" },
-  { code: "INR", symbol: "₹", label: "Indian Rupee" },
   { code: "BDT", symbol: "৳", label: "Bangladeshi Taka" },
   { code: "USD", symbol: "$", label: "US Dollar" },
   { code: "AED", symbol: "AED", label: "UAE Dirham" },

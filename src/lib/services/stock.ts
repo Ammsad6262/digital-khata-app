@@ -44,9 +44,9 @@ function toView(m: Prisma.StockMoveGetPayload<{}>): StockMoveView {
 }
 
 /** List recent stock moves (default: last 50, active only). */
-export async function listStockMoves(limit = 50): Promise<StockMoveView[]> {
+export async function listStockMoves(limit = 50, userId?: string | null): Promise<StockMoveView[]> {
   const moves = await prisma.stockMove.findMany({
-    where: { voidedAt: null },
+    where: { voidedAt: null, ...(userId && { userId }) },
     orderBy: { date: "desc" },
     take: limit,
   });
@@ -54,21 +54,29 @@ export async function listStockMoves(limit = 50): Promise<StockMoveView[]> {
 }
 
 /** List stock moves for a specific product (its full history). */
-export async function listStockMovesByProduct(productId: string): Promise<StockMoveView[]> {
+export async function listStockMovesByProduct(productId: string, userId?: string | null): Promise<StockMoveView[]> {
   const moves = await prisma.stockMove.findMany({
-    where: { productId },
+    where: { productId, ...(userId && { userId }) },
     orderBy: { date: "desc" },
   });
   return moves.map(toView);
 }
 
 /** Add stock (purchase from supplier, return, or adjustment). Atomic. */
-export async function addStockMove(input: unknown): Promise<StockMoveView> {
+export async function addStockMove(input: unknown, userId?: string | null): Promise<StockMoveView> {
   const data = createStockMoveSchema.parse(input);
 
   const move = await prisma.$transaction(async (tx) => {
-    const product = await tx.product.findUnique({
-      where: { id: data.productId, isDeleted: false },
+    // Tenant isolation: product must belong to the authenticated user
+    // (or be a legacy null-userId product).
+    const product = await tx.product.findFirst({
+      where: {
+        id: data.productId,
+        isDeleted: false,
+        ...(userId && {
+          OR: [{ userId }, { userId: null }],
+        }),
+      },
     });
     if (!product) {
       throw new NotFoundError("Product", data.productId);
@@ -81,6 +89,7 @@ export async function addStockMove(input: unknown): Promise<StockMoveView> {
 
     const created = await tx.stockMove.create({
       data: {
+        ...(userId && { userId }),
         productId: data.productId,
         type: data.type,
         quantity: data.quantity,
@@ -105,6 +114,7 @@ export async function addStockMove(input: unknown): Promise<StockMoveView> {
 
     await tx.transaction.create({
       data: {
+        ...(userId && { userId }),
         type: "stock_move",
         refType: "StockMove",
         refId: created.id,
@@ -129,10 +139,14 @@ export async function addStockMove(input: unknown): Promise<StockMoveView> {
 }
 
 /** Void a stock move — atomic + cleans up the Transaction mirror. */
-export async function voidStockMove(id: string): Promise<{ id: string; voidedAt: Date }> {
+export async function voidStockMove(id: string, userId?: string | null): Promise<{ id: string; voidedAt: Date }> {
   return await prisma.$transaction(async (tx) => {
     const move = await tx.stockMove.findUnique({ where: { id } });
     if (!move) throw new NotFoundError("StockMove", id);
+    // Tenant isolation: a user can only void their own stock moves.
+    if (userId && move.userId && move.userId !== userId) {
+      throw new NotFoundError("StockMove", id);
+    }
     if (move.voidedAt) throw new BadRequestError("StockMove is already voided.");
 
     const now = new Date();
@@ -176,10 +190,16 @@ export type ProductBatch = {
  *
  * Returns 1 query, no N+1.
  */
-export async function listProductBatches(productId: string): Promise<ProductBatch[]> {
-  // Verify product exists (throws 404 if not)
-  const product = await prisma.product.findUnique({
-    where: { id: productId, isDeleted: false },
+export async function listProductBatches(productId: string, userId?: string | null): Promise<ProductBatch[]> {
+  // Verify product exists AND belongs to the authenticated user (or legacy null-userId).
+  const product = await prisma.product.findFirst({
+    where: {
+      id: productId,
+      isDeleted: false,
+      ...(userId && {
+        OR: [{ userId }, { userId: null }],
+      }),
+    },
     select: { id: true },
   });
   if (!product) {
@@ -190,6 +210,7 @@ export async function listProductBatches(productId: string): Promise<ProductBatc
     where: {
       productId,
       voidedAt: null,
+      ...(userId && { userId }),
       // Only include batch-like moves (purchases and returns — both represent
       // discrete units entering stock that we can later sell from).
       type: { in: ["purchase", "return"] },

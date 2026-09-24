@@ -88,7 +88,13 @@ function getFilterStart(filter: TransactionFilter, timezone: string): Date | und
 // List (raw — used internally by dashboard)
 // ────────────────────────────────────────────────────────────────────────────
 
-/** List transactions, optionally filtered by time range and/or type. */
+/**
+ * List transactions, optionally filtered by time range and/or type.
+ *
+ * When `userId` is provided, only transactions belonging to that user are
+ * returned (multi-tenant isolation). When null, ALL transactions are visible
+ * (backward compat for pre-auth data).
+ */
 export async function listTransactions(
   options: {
     filter?: TransactionFilter;
@@ -100,6 +106,7 @@ export async function listTransactions(
     from?: Date;  // custom range start (overrides filter if filter='custom')
     to?: Date;    // custom range end (inclusive)
   } = {},
+  userId?: string | null,
 ): Promise<TransactionView[]> {
   const {
     filter = "all",
@@ -124,6 +131,7 @@ export async function listTransactions(
 
   const transactions = await prisma.transaction.findMany({
     where: {
+      ...(userId && { userId }),
       ...(startDate && { date: { gte: startDate } }),
       ...(endDate && { date: { lte: endDate } }),
       ...(type && { type }),
@@ -146,6 +154,9 @@ export async function listTransactions(
  *
  * Supports all filter options including custom date range.
  *
+ * When `userId` is provided, only transactions belonging to that user are
+ * returned (multi-tenant isolation).
+ *
  * This is the main query powering the /more/transactions page.
  */
 export async function listTransactionsEnriched(
@@ -159,8 +170,9 @@ export async function listTransactionsEnriched(
     from?: Date;
     to?: Date;
   } = {},
+  userId?: string | null,
 ): Promise<TransactionListItem[]> {
-  const raw = await listTransactions(options);
+  const raw = await listTransactions(options, userId);
 
   if (raw.length === 0) return [];
 
@@ -268,6 +280,8 @@ export async function getTotalsForRange(
  * Returns count + total amount (signed: payments are +, expenses are -,
  * sales show full sale amount, stock moves show movement cost).
  *
+ * When `userId` is provided, only that user's transactions are summed.
+ *
  * Used by the Transaction History summary card.
  */
 export async function getTransactionSummary(
@@ -279,6 +293,7 @@ export async function getTransactionSummary(
     to?: Date;
     timezone?: string;
   } = {},
+  userId?: string | null,
 ): Promise<{
   count: number;
   totalIn: string;  // sum of payments received (credit on customer)
@@ -302,6 +317,7 @@ export async function getTransactionSummary(
     _sum: { amount: true },
     _count: { id: true },
     where: {
+      ...(userId && { userId }),
       ...(startDate && { date: { gte: startDate } }),
       ...(endDate && { date: { lte: endDate } }),
       ...(type && { type }),

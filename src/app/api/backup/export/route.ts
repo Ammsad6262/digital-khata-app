@@ -14,22 +14,25 @@
  * tables are still being queried.
  */
 
+import { NextRequest } from "next/server";
 import { exportBackup } from "@/lib/services/backup";
 import { withCircuitBreaker } from "@/lib/utils/circuit-breaker";
+import { getCurrentUserId } from "@/lib/auth/get-current-user";
 
 export const dynamic = "force-dynamic";
 
 // Allow up to 60 seconds for large backups (Vercel Hobby default is 10s)
 export const maxDuration = 60;
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
+    const userId = await getCurrentUserId(req);
     const dateStr = new Date().toISOString().slice(0, 10);
     const filename = `digital-khata-backup-${dateStr}.json`;
 
     // Fetch backup data (with circuit breaker protection)
     const backup = await withCircuitBreaker(
-      () => exportBackup(),
+      () => exportBackup(userId),
       null,
       30000, // 30s timeout for large datasets
     );

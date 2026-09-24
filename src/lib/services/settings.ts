@@ -14,6 +14,7 @@ export type SettingView = {
   currencySymbol: string;
   timezone: string;
   hasPin: boolean;
+  customUnits: string[];
 };
 
 const SINGLETON_ID = "singleton";
@@ -25,6 +26,7 @@ function toView(s: Prisma.SettingGetPayload<{}>): SettingView {
     currencySymbol: s.currencySymbol,
     timezone: s.timezone,
     hasPin: s.ownerPinHash !== null && s.ownerPinHash !== "",
+    customUnits: s.customUnits ?? [],
   };
 }
 
@@ -123,6 +125,7 @@ export async function updateSettings(input: {
   currency?: string;
   currencySymbol?: string;
   timezone?: string;
+  customUnits?: string[];
 }): Promise<SettingView> {
   const updated = await prisma.setting.upsert({
     where: { id: SINGLETON_ID },
@@ -132,12 +135,14 @@ export async function updateSettings(input: {
       currency: input.currency ?? "PKR",
       currencySymbol: input.currencySymbol ?? "Rs.",
       timezone: input.timezone ?? "Asia/Karachi",
+      customUnits: input.customUnits ?? [],
     },
     update: {
       ...(input.businessName !== undefined && { businessName: input.businessName }),
       ...(input.currency !== undefined && { currency: input.currency }),
       ...(input.currencySymbol !== undefined && { currencySymbol: input.currencySymbol }),
       ...(input.timezone !== undefined && { timezone: input.timezone }),
+      ...(input.customUnits !== undefined && { customUnits: input.customUnits }),
     },
   });
   return toView(updated);

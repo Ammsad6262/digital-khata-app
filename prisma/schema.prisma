@@ -394,6 +394,7 @@ model Setting {
   currencySymbol  String  @default("Rs.")
   ownerPinHash    String?                     // bcrypt hash of owner's PIN
   timezone        String  @default("Asia/Karachi")
+  customUnits     String[] @default([])      // user-defined units beyond the defaults
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 }

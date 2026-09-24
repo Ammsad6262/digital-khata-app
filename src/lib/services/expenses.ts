@@ -66,9 +66,9 @@ function toView(e: Prisma.ExpenseGetPayload<{}>): ExpenseView {
 // ────────────────────────────────────────────────────────────────────────────
 
 /** List recent expenses (default: last 50, active only). */
-export async function listExpenses(limit = 50): Promise<ExpenseView[]> {
+export async function listExpenses(limit = 50, userId?: string | null): Promise<ExpenseView[]> {
   const expenses = await prisma.expense.findMany({
-    where: { voidedAt: null },
+    where: { voidedAt: null, ...(userId && { userId }) },
     orderBy: { date: "desc" },
     take: limit,
   });
@@ -90,6 +90,7 @@ export async function listExpensesFiltered(
     limit?: number;
     timezone?: string;
   } = {},
+  userId?: string | null,
 ): Promise<ExpenseView[]> {
   const { limit = 200, timezone = "Asia/Karachi" } = options;
   let startDate: Date | undefined;
@@ -104,6 +105,7 @@ export async function listExpensesFiltered(
   const expenses = await prisma.expense.findMany({
     where: {
       voidedAt: null,
+      ...(userId && { userId }),
       ...(startDate && { date: { gte: startDate } }),
     },
     orderBy: { date: "desc" },
@@ -114,9 +116,13 @@ export async function listExpensesFiltered(
 }
 
 /** Fetch one expense. */
-export async function getExpense(id: string): Promise<ExpenseView> {
+export async function getExpense(id: string, userId?: string | null): Promise<ExpenseView> {
   const expense = await prisma.expense.findUnique({ where: { id } });
   if (!expense || expense.voidedAt) {
+    throw new NotFoundError("Expense", id);
+  }
+  // Tenant isolation: a user can only read their own expenses.
+  if (userId && expense.userId && expense.userId !== userId) {
     throw new NotFoundError("Expense", id);
   }
   return toView(expense);
@@ -127,12 +133,13 @@ export async function getExpense(id: string): Promise<ExpenseView> {
 // ────────────────────────────────────────────────────────────────────────────
 
 /** Record an expense — atomic with the Transaction ledger row. */
-export async function recordExpense(input: unknown): Promise<ExpenseView> {
+export async function recordExpense(input: unknown, userId?: string | null): Promise<ExpenseView> {
   const data = createExpenseSchema.parse(input);
 
   const expense = await prisma.$transaction(async (tx) => {
     const created = await tx.expense.create({
       data: {
+        ...(userId && { userId }),
         name: data.name,
         amount: data.amount,
         category: data.category,
@@ -143,6 +150,7 @@ export async function recordExpense(input: unknown): Promise<ExpenseView> {
 
     await tx.transaction.create({
       data: {
+        ...(userId && { userId }),
         type: "expense",
         refType: "Expense",
         refId: created.id,
@@ -165,9 +173,9 @@ export async function recordExpense(input: unknown): Promise<ExpenseView> {
  * Update an expense — name, amount, category, notes, date can all change.
  * Updates the Transaction ledger row's amount + date to stay in sync.
  */
-export async function updateExpense(id: string, input: unknown): Promise<ExpenseView> {
-  // Throws 404 if not found / voided.
-  await getExpense(id);
+export async function updateExpense(id: string, input: unknown, userId?: string | null): Promise<ExpenseView> {
+  // Throws 404 if not found / voided / belongs to another tenant.
+  await getExpense(id, userId);
 
   const data = createExpenseSchema.partial().parse(input);
 
@@ -202,10 +210,14 @@ export async function updateExpense(id: string, input: unknown): Promise<Expense
 }
 
 /** Void an expense — atomic + cleans up the Transaction mirror. */
-export async function voidExpense(id: string): Promise<{ id: string; voidedAt: Date }> {
+export async function voidExpense(id: string, userId?: string | null): Promise<{ id: string; voidedAt: Date }> {
   const result = await prisma.$transaction(async (tx) => {
     const expense = await tx.expense.findUnique({ where: { id } });
     if (!expense) throw new NotFoundError("Expense", id);
+    // Tenant isolation: a user can only void their own expenses.
+    if (userId && expense.userId && expense.userId !== userId) {
+      throw new NotFoundError("Expense", id);
+    }
     if (expense.voidedAt) throw new BadRequestError("Expense is already voided.");
 
     const now = new Date();

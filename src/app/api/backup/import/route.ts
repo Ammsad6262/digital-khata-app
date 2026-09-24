@@ -23,6 +23,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { importBackup, parseBackupFile } from "@/lib/services/backup";
 import { AppError } from "@/lib/errors";
+import { getCurrentUserId } from "@/lib/auth/get-current-user";
 import { ZodError } from "zod";
 import { z } from "zod";
 
@@ -38,6 +39,7 @@ const importSchema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
+    const userId = await getCurrentUserId(req);
     const body = (await req.json()) as unknown;
     const parsed = importSchema.parse(body);
 
@@ -47,9 +49,11 @@ export async function POST(req: NextRequest) {
 
     // Phase 2: Run the actual import (slow — DB writes)
     // This is the part that could take 5-15s for large datasets.
-    const result = await importBackup(parsed.content, {
-      confirmReplace: parsed.confirmReplace,
-    });
+    const result = await importBackup(
+      parsed.content,
+      { confirmReplace: parsed.confirmReplace },
+      userId,
+    );
 
     return NextResponse.json({ ok: true, data: result });
   } catch (error) {

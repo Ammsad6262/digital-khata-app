@@ -25,6 +25,11 @@ import {
   Check,
   ChevronRight,
   Trash2,
+  Plus,
+  Ruler,
+  X,
+  UserCircle,
+  LogOut,
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
@@ -32,6 +37,7 @@ import { useLanguage } from "@/providers/language-provider";
 import { TextField } from "@/components/ui/TextField";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { useTheme, type Theme } from "@/providers/theme-provider";
+import { useCurrentUser, useUpdateProfile, useChangePassword, useDeleteAccount, useLogout } from "@/hooks/use-auth";
 import {
   useSettings,
   useUpdateSettings,
@@ -99,14 +105,212 @@ export function SettingsPage() {
 
   return (
     <div className="space-y-4">
+      <AccountSection />
       <BusinessInfoSection initial={settings} />
       <CurrencySection initial={settings} />
       <LanguageSection />
       <ThemeSection />
+      <UnitsSection initial={settings} />
       <SecuritySection hasPin={settings.hasPin} />
       <DataManagementSection hasPin={settings.hasPin} />
       <BackupSection />
     </div>
+  );
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// 0. Account (profile, change password, logout, delete account)
+// ────────────────────────────────────────────────────────────────────────────
+
+function AccountSection() {
+  const { data: user, isLoading } = useCurrentUser();
+  const updateProfile = useUpdateProfile();
+  const changePassword = useChangePassword();
+  const deleteAccount = useDeleteAccount();
+  const logout = useLogout();
+  const toast = useToast();
+  const { t } = useLanguage();
+
+  const [editingProfile, setEditingProfile] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [editEmail, setEditEmail] = useState("");
+  const [showChangePassword, setShowChangePassword] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deletePassword, setDeletePassword] = useState("");
+
+  if (isLoading) {
+    return (
+      <section className="rounded-xl border border-slate-200 bg-white p-4">
+        <div className="h-20 animate-pulse rounded-lg bg-slate-200" />
+      </section>
+    );
+  }
+
+  if (!user) {
+    return (
+      <section className="rounded-xl border border-slate-200 bg-white p-4">
+        <p className="text-sm text-slate-500">Not logged in.</p>
+      </section>
+    );
+  }
+
+  const handleSaveProfile = () => {
+    const input: { name?: string; email?: string } = {};
+    if (editName.trim() && editName !== user.name) input.name = editName.trim();
+    if (editEmail.trim() && editEmail !== user.email) input.email = editEmail.trim().toLowerCase();
+
+    if (Object.keys(input).length === 0) {
+      setEditingProfile(false);
+      return;
+    }
+
+    updateProfile.mutate(input, {
+      onSuccess: () => {
+        toast.success("Profile updated.");
+        setEditingProfile(false);
+      },
+      onError: (e) => toast.error(e instanceof Error ? e.message : "Failed to update profile."),
+    });
+  };
+
+  const handleChangePassword = () => {
+    if (newPassword !== confirmPassword) {
+      toast.error("New passwords don't match.");
+      return;
+    }
+    changePassword.mutate(
+      { currentPassword, newPassword },
+      {
+        onSuccess: () => {
+          toast.success("Password changed.");
+          setShowChangePassword(false);
+          setCurrentPassword("");
+          setNewPassword("");
+          setConfirmPassword("");
+        },
+        onError: (e) => toast.error(e instanceof Error ? e.message : "Failed to change password."),
+      },
+    );
+  };
+
+  const handleDeleteAccount = () => {
+    deleteAccount.mutate(
+      { password: deletePassword },
+      {
+        onError: (e) => toast.error(e instanceof Error ? e.message : "Failed to delete account."),
+      },
+    );
+  };
+
+  return (
+    <section className="rounded-xl border border-slate-200 bg-white p-4">
+      <div className="flex items-center gap-2 mb-3">
+        <UserCircle className="h-4 w-4 text-slate-500" />
+        <h2 className="text-sm font-semibold text-slate-900">Account</h2>
+      </div>
+
+      {/* Profile display / edit */}
+      {!editingProfile ? (
+        <div className="flex items-center gap-3 mb-3">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-brand-600 text-lg font-bold text-white">
+            {user.name.charAt(0).toUpperCase()}
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-medium text-slate-900">{user.name}</p>
+            <p className="truncate text-xs text-slate-500">{user.email}</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setEditName(user.name);
+              setEditEmail(user.email);
+              setEditingProfile(true);
+            }}
+            className="shrink-0 rounded-lg px-2 py-1 text-xs font-medium text-brand-600 hover:bg-brand-50"
+          >
+            Edit
+          </button>
+        </div>
+      ) : (
+        <div className="space-y-2 mb-3">
+          <input
+            type="text"
+            value={editName}
+            onChange={(e) => setEditName(e.target.value)}
+            placeholder="Name"
+            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+          />
+          <input
+            type="email"
+            value={editEmail}
+            onChange={(e) => setEditEmail(e.target.value)}
+            placeholder="Email"
+            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+          />
+          <div className="flex gap-2">
+            <button type="button" onClick={() => setEditingProfile(false)} className="flex-1 rounded-lg border border-slate-300 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50">
+              Cancel
+            </button>
+            <button type="button" onClick={handleSaveProfile} disabled={updateProfile.isPending} className="flex-1 rounded-lg bg-brand-600 py-2 text-xs font-medium text-white hover:bg-brand-700 disabled:bg-brand-300">
+              {updateProfile.isPending ? "Saving..." : "Save"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Change password */}
+      {!showChangePassword ? (
+        <button type="button" onClick={() => setShowChangePassword(true)} className="flex w-full items-center justify-between rounded-lg border border-slate-200 px-3 py-2.5 text-sm text-slate-700 hover:bg-slate-50">
+          <span>Change password</span>
+          <ChevronRight className="h-4 w-4 text-slate-300" />
+        </button>
+      ) : (
+        <div className="space-y-2 mb-3 rounded-lg border border-slate-200 p-3">
+          <p className="text-xs font-medium text-slate-600">Change password</p>
+          <input type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} placeholder="Current password" className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30" />
+          <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="New password (min 6 chars)" className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30" />
+          <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Confirm new password" className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30" />
+          <div className="flex gap-2">
+            <button type="button" onClick={() => { setShowChangePassword(false); setCurrentPassword(""); setNewPassword(""); setConfirmPassword(""); }} className="flex-1 rounded-lg border border-slate-300 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50">
+              Cancel
+            </button>
+            <button type="button" onClick={handleChangePassword} disabled={changePassword.isPending || !currentPassword || !newPassword} className="flex-1 rounded-lg bg-brand-600 py-2 text-xs font-medium text-white hover:bg-brand-700 disabled:bg-brand-300">
+              {changePassword.isPending ? "Changing..." : "Change"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Logout */}
+      <button type="button" onClick={() => logout.mutate()} disabled={logout.isPending} className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg border border-slate-200 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50">
+        <LogOut className="h-4 w-4" />
+        {logout.isPending ? "Logging out..." : "Log out"}
+      </button>
+
+      {/* Delete account */}
+      {!showDeleteConfirm ? (
+        <button type="button" onClick={() => setShowDeleteConfirm(true)} className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg border border-red-200 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50">
+          <Trash2 className="h-4 w-4" />
+          Delete account
+        </button>
+      ) : (
+        <div className="mt-2 space-y-2 rounded-lg border border-red-200 bg-red-50/30 p-3">
+          <p className="text-xs font-medium text-red-900">This permanently deletes your account and ALL your data. This cannot be undone.</p>
+          <input type="password" value={deletePassword} onChange={(e) => setDeletePassword(e.target.value)} placeholder="Enter your password to confirm" className="w-full rounded-lg border border-red-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/30" />
+          <div className="flex gap-2">
+            <button type="button" onClick={() => { setShowDeleteConfirm(false); setDeletePassword(""); }} className="flex-1 rounded-lg border border-slate-300 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50">
+              Cancel
+            </button>
+            <button type="button" onClick={handleDeleteAccount} disabled={deleteAccount.isPending || !deletePassword} className="flex-1 rounded-lg bg-red-600 py-2 text-xs font-medium text-white hover:bg-red-700 disabled:bg-red-300">
+              {deleteAccount.isPending ? "Deleting..." : "Delete forever"}
+            </button>
+          </div>
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -434,6 +638,105 @@ function ThemeSection() {
       <p className="mt-2 text-[11px] text-slate-500">
         {t("settings.themeSaved")}
       </p>
+    </section>
+  );
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// 3a. Custom Units Management
+// ────────────────────────────────────────────────────────────────────────────
+
+const BUILTIN_UNITS = ["piece", "kg", "box", "dozen", "litre", "metre", "pack", "bag", "bottle", "carton"];
+
+function UnitsSection({ initial }: { initial: { customUnits: string[] } }) {
+  const toast = useToast();
+  const updateSettings = useUpdateSettings();
+  const { t } = useLanguage();
+  const [customUnits, setCustomUnits] = useState<string[]>(initial.customUnits ?? []);
+  const [newUnit, setNewUnit] = useState("");
+
+  const handleAddUnit = () => {
+    const trimmed = newUnit.trim().toLowerCase();
+    if (!trimmed) return;
+    if (BUILTIN_UNITS.includes(trimmed) || customUnits.includes(trimmed)) {
+      toast.error("This unit already exists.");
+      return;
+    }
+    const updated = [...customUnits, trimmed];
+    setCustomUnits(updated);
+    setNewUnit("");
+    updateSettings.mutate(
+      { customUnits: updated },
+      {
+        onSuccess: () => toast.success(t("product.unitAdded")),
+        onError: (e) => {
+          setCustomUnits(customUnits);
+          toast.error(e instanceof Error ? e.message : t("common.failed"));
+        },
+      },
+    );
+  };
+
+  const handleRemoveUnit = (unit: string) => {
+    const updated = customUnits.filter((u) => u !== unit);
+    setCustomUnits(updated);
+    updateSettings.mutate(
+      { customUnits: updated },
+      {
+        onSuccess: () => toast.success(t("product.unitRemoved")),
+        onError: (e) => {
+          setCustomUnits(customUnits);
+          toast.error(e instanceof Error ? e.message : t("common.failed"));
+        },
+      },
+    );
+  };
+
+  return (
+    <section className="rounded-xl border border-slate-200 bg-white p-4">
+      <div className="flex items-center gap-2 mb-3">
+        <Ruler className="h-4 w-4 text-slate-500" />
+        <h2 className="text-sm font-semibold text-slate-900">{t("stock.manageUnits")}</h2>
+      </div>
+      <p className="text-xs text-slate-500 mb-3">{t("stock.manageUnitsDesc")}</p>
+      <div className="mb-3">
+        <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400 mb-1.5">Built-in</p>
+        <div className="flex flex-wrap gap-1.5">
+          {BUILTIN_UNITS.map((u) => (
+            <span key={u} className="rounded-md bg-slate-100 px-2 py-1 text-xs font-medium text-slate-600">{u}</span>
+          ))}
+        </div>
+      </div>
+      <div className="mb-3">
+        <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400 mb-1.5">{t("stock.customUnits")}</p>
+        {customUnits.length === 0 ? (
+          <p className="text-xs text-slate-400">{t("stock.noCustomUnits")}</p>
+        ) : (
+          <div className="flex flex-wrap gap-1.5">
+            {customUnits.map((u) => (
+              <span key={u} className="inline-flex items-center gap-1 rounded-md bg-brand-50 px-2 py-1 text-xs font-medium text-brand-700">
+                {u}
+                <button type="button" onClick={() => handleRemoveUnit(u)} className="text-brand-400 hover:text-red-600" aria-label={`Remove ${u}`}>
+                  <X className="h-3 w-3" />
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+      <div className="flex gap-1.5">
+        <input
+          type="text"
+          value={newUnit}
+          onChange={(e) => setNewUnit(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleAddUnit(); } }}
+          placeholder={t("stock.unitName")}
+          className="flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+        />
+        <Button type="button" variant="primary" size="md" onClick={handleAddUnit} disabled={!newUnit.trim() || updateSettings.isPending}>
+          <Plus className="h-4 w-4" />
+        </Button>
+      </div>
     </section>
   );
 }

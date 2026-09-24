@@ -93,9 +93,9 @@ function toView(p: Prisma.PaymentGetPayload<{}>): PaymentView {
 // ────────────────────────────────────────────────────────────────────────────
 
 /** List recent payments (default: last 50, active only). */
-export async function listPayments(limit = 50): Promise<PaymentView[]> {
+export async function listPayments(limit = 50, userId?: string | null): Promise<PaymentView[]> {
   const payments = await prisma.payment.findMany({
-    where: { voidedAt: null },
+    where: { voidedAt: null, ...(userId && { userId }) },
     orderBy: { date: "desc" },
     take: limit,
   });
@@ -119,6 +119,7 @@ export async function listPaymentsFiltered(
     limit?: number;
     timezone?: string;
   } = {},
+  userId?: string | null,
 ): Promise<PaymentListItem[]> {
   const { customerId, limit = 100, timezone = "Asia/Karachi" } = options;
   let startDate: Date | undefined;
@@ -133,6 +134,7 @@ export async function listPaymentsFiltered(
   const payments = await prisma.payment.findMany({
     where: {
       voidedAt: null,
+      ...(userId && { userId }),
       ...(startDate && { date: { gte: startDate } }),
       ...(customerId && { customerId }),
     },
@@ -156,21 +158,25 @@ export async function listPaymentsFiltered(
 }
 
 /** List payments for a specific customer. */
-export async function listPaymentsByCustomer(customerId: string): Promise<PaymentView[]> {
+export async function listPaymentsByCustomer(customerId: string, userId?: string | null): Promise<PaymentView[]> {
   const payments = await prisma.payment.findMany({
-    where: { customerId, voidedAt: null },
+    where: { customerId, voidedAt: null, ...(userId && { userId }) },
     orderBy: { date: "desc" },
   });
   return payments.map(toView);
 }
 
 /** Fetch one payment WITH customer info. */
-export async function getPayment(id: string): Promise<PaymentDetail> {
+export async function getPayment(id: string, userId?: string | null): Promise<PaymentDetail> {
   const payment = await prisma.payment.findUnique({
     where: { id },
     include: { customer: true },
   });
   if (!payment || payment.voidedAt) {
+    throw new NotFoundError("Payment", id);
+  }
+  // Tenant isolation: a user can only read their own payments.
+  if (userId && payment.userId && payment.userId !== userId) {
     throw new NotFoundError("Payment", id);
   }
   return {
@@ -193,19 +199,35 @@ export async function getPayment(id: string): Promise<PaymentDetail> {
  *
  * Does NOT throw on overpayment (allowed by design — see policy above).
  */
-export async function recordPayment(input: unknown): Promise<PaymentDetail> {
+export async function recordPayment(input: unknown, userId?: string | null): Promise<PaymentDetail> {
   const data = createPaymentSchema.parse(input);
 
   const payment = await prisma.$transaction(async (tx) => {
-    const customer = await tx.customer.findUnique({
-      where: { id: data.customerId, isDeleted: false },
+    // Tenant isolation: customer must belong to the authenticated user
+    // (or be a legacy null-userId customer).
+    const customer = await tx.customer.findFirst({
+      where: {
+        id: data.customerId,
+        isDeleted: false,
+        ...(userId && {
+          OR: [{ userId }, { userId: null }],
+        }),
+      },
     });
     if (!customer) {
       throw new NotFoundError("Customer", data.customerId);
     }
 
     if (data.saleId) {
-      const sale = await tx.sale.findUnique({ where: { id: data.saleId } });
+      // Tenant isolation: sale must belong to the authenticated user.
+      const sale = await tx.sale.findFirst({
+        where: {
+          id: data.saleId,
+          ...(userId && {
+            OR: [{ userId }, { userId: null }],
+          }),
+        },
+      });
       if (!sale || sale.voidedAt) {
         throw new NotFoundError("Sale", data.saleId);
       }
@@ -228,6 +250,7 @@ export async function recordPayment(input: unknown): Promise<PaymentDetail> {
 
     const created = await tx.payment.create({
       data: {
+        ...(userId && { userId }),
         customerId: data.customerId,
         saleId: data.saleId ?? null,
         amount: data.amount,
@@ -239,6 +262,7 @@ export async function recordPayment(input: unknown): Promise<PaymentDetail> {
 
     await tx.transaction.create({
       data: {
+        ...(userId && { userId }),
         type: "payment",
         refType: "Payment",
         refId: created.id,
@@ -275,10 +299,14 @@ export async function recordPayment(input: unknown): Promise<PaymentDetail> {
  * Void a payment — atomic + cleans up the Transaction mirror + reverses
  * the sale's denormalized paidAmount/outstanding if linked.
  */
-export async function voidPayment(id: string): Promise<{ id: string; voidedAt: Date }> {
+export async function voidPayment(id: string, userId?: string | null): Promise<{ id: string; voidedAt: Date }> {
   const result = await prisma.$transaction(async (tx) => {
     const payment = await tx.payment.findUnique({ where: { id } });
     if (!payment) throw new NotFoundError("Payment", id);
+    // Tenant isolation: a user can only void their own payments.
+    if (userId && payment.userId && payment.userId !== userId) {
+      throw new NotFoundError("Payment", id);
+    }
     if (payment.voidedAt) throw new BadRequestError("Payment is already voided.");
 
     const now = new Date();

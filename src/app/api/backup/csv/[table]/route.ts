@@ -21,6 +21,7 @@ import {
   type ExportableTable,
 } from "@/lib/services/backup";
 import { withCircuitBreaker } from "@/lib/utils/circuit-breaker";
+import { getCurrentUserId } from "@/lib/auth/get-current-user";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
@@ -28,11 +29,12 @@ export const maxDuration = 30;
 const VALID_TABLES = new Set<string>(EXPORTABLE_TABLES.map((t) => t.value));
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ table: string }> },
 ) {
   try {
     const { table } = await params;
+    const userId = await getCurrentUserId(req);
 
     if (!VALID_TABLES.has(table)) {
       return NextResponse.json(
@@ -49,7 +51,7 @@ export async function GET(
 
     // Fetch rows with circuit breaker protection
     const rows = await withCircuitBreaker(
-      () => fetchTableRows(table as ExportableTable),
+      () => fetchTableRows(table as ExportableTable, userId),
       [],
       15000,
     );

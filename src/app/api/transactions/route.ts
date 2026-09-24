@@ -26,6 +26,7 @@ import {
   type TransactionType,
 } from "@/lib/services/transactions";
 import { ok, fail, getQueryParam, getIntQueryParam } from "@/lib/utils/api";
+import { getCurrentUserId } from "@/lib/auth/get-current-user";
 
 const VALID_FILTERS: TransactionFilter[] = ["today", "week", "month", "all", "custom"];
 const VALID_TYPES: TransactionType[] = [
@@ -53,6 +54,7 @@ function parseDateEnd(input: string): Date | undefined {
 
 export async function GET(req: NextRequest) {
   try {
+    const userId = await getCurrentUserId(req);
     const filterRaw = getQueryParam(req, "filter", "all");
     const filter = VALID_FILTERS.includes(filterRaw as TransactionFilter)
       ? (filterRaw as TransactionFilter)
@@ -85,17 +87,20 @@ export async function GET(req: NextRequest) {
     }
 
     const [transactions, summary] = await Promise.all([
-      listTransactionsEnriched({
-        filter,
-        type,
-        customerId,
-        productId,
-        limit,
-        from,
-        to,
-      }),
+      listTransactionsEnriched(
+        {
+          filter,
+          type,
+          customerId,
+          productId,
+          limit,
+          from,
+          to,
+        },
+        userId,
+      ),
       includeSummary
-        ? getTransactionSummary({ filter, type, customerId, from, to })
+        ? getTransactionSummary({ filter, type, customerId, from, to }, userId)
         : Promise.resolve(null),
     ]);
 

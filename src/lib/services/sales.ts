@@ -67,9 +67,9 @@ function toView(s: Prisma.SaleGetPayload<{}>): SaleView {
 }
 
 /** List recent sales (default: last 50, active only) — WITH items + customer info. */
-export async function listSales(limit = 50): Promise<SaleWithItems[]> {
+export async function listSales(limit = 50, userId?: string | null): Promise<SaleWithItems[]> {
   const sales = await prisma.sale.findMany({
-    where: { voidedAt: null },
+    where: { voidedAt: null, ...(userId && { userId }) },
     include: {
       items: { include: { product: true } },
       customer: true,
@@ -132,9 +132,10 @@ export async function listSalesFiltered(
     limit?: number;
     timezone?: string;
   } = {},
+  userId?: string | null,
 ): Promise<SaleListItem[]> {
   const { customerId, limit = 100, timezone = "Asia/Karachi" } = options;
-  const cacheKey = `sales:list:${filter}:${customerId ?? "all"}:${limit}`;
+  const cacheKey = `sales:list:${filter}:${customerId ?? "all"}:${limit}:${userId ?? "all"}`;
 
   return cached(cacheKey, async () => {
     let startDate: Date | undefined;
@@ -149,6 +150,7 @@ export async function listSalesFiltered(
     const sales = await prisma.sale.findMany({
       where: {
         voidedAt: null,
+        ...(userId && { userId }),
         ...(startDate && { date: { gte: startDate } }),
         ...(customerId && { customerId }),
       },
@@ -173,7 +175,7 @@ export async function listSalesFiltered(
 }
 
 /** Fetch one sale with items + customer info. */
-export async function getSale(id: string): Promise<SaleWithItems> {
+export async function getSale(id: string, userId?: string | null): Promise<SaleWithItems> {
   const sale = await prisma.sale.findUnique({
     where: { id },
     include: {
@@ -182,6 +184,11 @@ export async function getSale(id: string): Promise<SaleWithItems> {
     },
   });
   if (!sale || sale.voidedAt) {
+    throw new NotFoundError("Sale", id);
+  }
+  // Tenant isolation: if a userId is provided and the sale belongs to a different
+  // user, treat it as not found (avoids leaking record existence across tenants).
+  if (userId && sale.userId && sale.userId !== userId) {
     throw new NotFoundError("Sale", id);
   }
   return {
@@ -222,25 +229,38 @@ export async function getSale(id: string): Promise<SaleWithItems> {
  * Batch-level stock (StockMove.remainingQuantity) is also decremented so the
  * "which batch am I selling from?" view stays accurate across sales.
  */
-export async function createSale(input: unknown): Promise<SaleWithItems> {
+export async function createSale(input: unknown, userId?: string | null): Promise<SaleWithItems> {
   const data = createSaleSchema.parse(input);
 
   const result = await prisma.$transaction(async (tx) => {
-    // 1. Validate customer exists
-    const customer = await tx.customer.findUnique({
-      where: { id: data.customerId, isDeleted: false },
+    // 1. Validate customer exists AND belongs to the authenticated user
+    //    (legacy null-userId customers are visible to everyone for backward compat).
+    const customer = await tx.customer.findFirst({
+      where: {
+        id: data.customerId,
+        isDeleted: false,
+        ...(userId && {
+          OR: [{ userId }, { userId: null }],
+        }),
+      },
     });
     if (!customer) {
       throw new NotFoundError("Customer", data.customerId);
     }
 
-    // 2. Validate all products exist
+    // 2. Validate all products exist AND belong to the authenticated user.
     // Dedupe productIds first — if the same product appears twice in items,
     // the findMany would return 1 row but productIds would have 2 entries,
     // causing a misleading "Product not found" error on a duplicate.
     const uniqueProductIds = Array.from(new Set(data.items.map((i) => i.productId)));
     const products = await tx.product.findMany({
-      where: { id: { in: uniqueProductIds }, isDeleted: false },
+      where: {
+        id: { in: uniqueProductIds },
+        isDeleted: false,
+        ...(userId && {
+          OR: [{ userId }, { userId: null }],
+        }),
+      },
     });
     if (products.length !== uniqueProductIds.length) {
       const foundIds = new Set(products.map((p) => p.id));
@@ -297,6 +317,11 @@ export async function createSale(input: unknown): Promise<SaleWithItems> {
           voidedAt: null,
           // Only purchase/return batches can be sold from
           type: { in: ["purchase", "return"] },
+          // Tenant isolation: a user can only sell from batches belonging to them
+          // (or legacy batches with null userId).
+          ...(userId && {
+            OR: [{ userId }, { userId: null }],
+          }),
         },
         select: { id: true, productId: true, remainingQuantity: true },
       });
@@ -333,8 +358,10 @@ export async function createSale(input: unknown): Promise<SaleWithItems> {
 
     // 6. Create Sale + nested SaleItems in one call
     //    SaleItem.stockMoveId is set per item (null if no batchId)
+    //    userId is set from the authenticated user (NEVER from the client body).
     const sale = await tx.sale.create({
       data: {
+        ...(userId && { userId }),
         customerId: data.customerId,
         totalAmount,
         paidAmount,
@@ -381,6 +408,7 @@ export async function createSale(input: unknown): Promise<SaleWithItems> {
     if (paidAmount.gt(0)) {
       const payment = await tx.payment.create({
         data: {
+          ...(userId && { userId }),
           customerId: data.customerId,
           saleId: sale.id,
           amount: paidAmount,
@@ -401,6 +429,7 @@ export async function createSale(input: unknown): Promise<SaleWithItems> {
       direction: string;
       date: Date;
       notes: string | null;
+      userId?: string;
     }> = [{
       type: "sale",
       refType: "Sale",
@@ -410,6 +439,7 @@ export async function createSale(input: unknown): Promise<SaleWithItems> {
       direction: "debit",
       date: saleDate,
       notes: `Sale ${sale.id}`,
+      ...(userId && { userId }),
     }];
 
     if (paymentId) {
@@ -422,6 +452,7 @@ export async function createSale(input: unknown): Promise<SaleWithItems> {
         direction: "credit",
         date: saleDate,
         notes: null,
+        ...(userId && { userId }),
       });
     }
 
@@ -472,7 +503,7 @@ export async function createSale(input: unknown): Promise<SaleWithItems> {
  *
  * Net effect on customer balance: (paidAmount - totalAmount).
  */
-export async function voidSale(id: string): Promise<{ id: string; voidedAt: Date }> {
+export async function voidSale(id: string, userId?: string | null): Promise<{ id: string; voidedAt: Date }> {
   const result = await prisma.$transaction(async (tx) => {
     const sale = await tx.sale.findUnique({
       where: { id },
@@ -488,6 +519,11 @@ export async function voidSale(id: string): Promise<{ id: string; voidedAt: Date
       },
     });
     if (!sale) throw new NotFoundError("Sale", id);
+    // Tenant isolation: a user can only void their own sales.
+    // Legacy sales with null userId can be voided by anyone (until claimed).
+    if (userId && sale.userId && sale.userId !== userId) {
+      throw new NotFoundError("Sale", id);
+    }
     if (sale.voidedAt) {
       throw new BadRequestError("Sale is already voided.");
     }

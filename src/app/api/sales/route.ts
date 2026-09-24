@@ -18,16 +18,18 @@ import {
   type SaleFilter,
 } from "@/lib/services/sales";
 import { ok, fail, parseJsonBody, getQueryParam } from "@/lib/utils/api";
+import { getCurrentUserId } from "@/lib/auth/get-current-user";
 
 const VALID_FILTERS: SaleFilter[] = ["today", "week", "month", "all"];
 
 export async function GET(req: NextRequest) {
   try {
+    const userId = await getCurrentUserId(req);
     const filterRaw = getQueryParam(req, "filter");
 
     // No filter → return the rich list (with items), recent 50.
     if (!filterRaw) {
-      const data = await listSales(50);
+      const data = await listSales(50, userId);
       return ok(data);
     }
 
@@ -38,10 +40,14 @@ export async function GET(req: NextRequest) {
 
     const customerId = getQueryParam(req, "customerId");
 
-    const data = await listSalesFiltered(filter, {
-      customerId,
-      limit: 200,
-    });
+    const data = await listSalesFiltered(
+      filter,
+      {
+        customerId,
+        limit: 200,
+      },
+      userId,
+    );
 
     return ok(data);
   } catch (error) {
@@ -51,10 +57,11 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    const userId = await getCurrentUserId(req);
     const { data, error } = await parseJsonBody<unknown>(req);
     if (error) return fail(new Error(error));
 
-    const sale = await createSale(data);
+    const sale = await createSale(data, userId);
     return ok(sale, 201);
   } catch (error) {
     return fail(error);

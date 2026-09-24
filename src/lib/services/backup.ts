@@ -80,8 +80,16 @@ export type ImportResult = {
 /**
  * Export the entire database as a JSON-serializable object.
  * Preserves all relationships (foreign keys are kept as-is).
+ *
+ * When `userId` is provided, only records belonging to that user are exported
+ * (multi-tenant isolation). SaleItem (which has no userId column) is filtered
+ * via its parent Sale. The Setting singleton is always included (it's global).
+ * When userId is null, all data is exported (backward compat for pre-auth data).
  */
-export async function exportBackup(): Promise<BackupFile> {
+export async function exportBackup(userId?: string | null): Promise<BackupFile> {
+  const userWhere = userId ? { userId } : undefined;
+  const saleItemWhere = userId ? { sale: { userId } } : undefined;
+
   const [
     settings,
     customers,
@@ -95,15 +103,15 @@ export async function exportBackup(): Promise<BackupFile> {
     transactions,
   ] = await Promise.all([
     prisma.setting.findMany(),
-    prisma.customer.findMany(),
-    prisma.product.findMany(),
-    prisma.sale.findMany(),
-    prisma.saleItem.findMany(),
-    prisma.payment.findMany(),
-    prisma.customerAdjustment.findMany(),
-    prisma.stockMove.findMany(),
-    prisma.expense.findMany(),
-    prisma.transaction.findMany(),
+    prisma.customer.findMany({ where: userWhere }),
+    prisma.product.findMany({ where: userWhere }),
+    prisma.sale.findMany({ where: userWhere }),
+    prisma.saleItem.findMany({ where: saleItemWhere }),
+    prisma.payment.findMany({ where: userWhere }),
+    prisma.customerAdjustment.findMany({ where: userWhere }),
+    prisma.stockMove.findMany({ where: userWhere }),
+    prisma.expense.findMany({ where: userWhere }),
+    prisma.transaction.findMany({ where: userWhere }),
   ]);
 
   const setting = settings[0];
@@ -184,17 +192,26 @@ export const EXPORTABLE_TABLES: Array<{ value: ExportableTable; label: string; d
 /**
  * Fetch one table's rows as an array of plain objects (Decimals → strings,
  * Dates → ISO strings). Used by the CSV exporter.
+ *
+ * When `userId` is provided, only rows belonging to that user are returned.
+ * SaleItem (no userId column) is filtered via its parent Sale.
  */
-export async function fetchTableRows(table: ExportableTable): Promise<Array<Record<string, unknown>>> {
+export async function fetchTableRows(
+  table: ExportableTable,
+  userId?: string | null,
+): Promise<Array<Record<string, unknown>>> {
+  const userWhere = userId ? { userId } : undefined;
+  const saleItemWhere = userId ? { sale: { userId } } : undefined;
+
   switch (table) {
-    case "customers":         return (await prisma.customer.findMany({ orderBy: { name: "asc" } })).map(serialize);
-    case "products":          return (await prisma.product.findMany({ orderBy: { name: "asc" } })).map(serialize);
-    case "sales":             return (await prisma.sale.findMany({ orderBy: { date: "desc" } })).map(serialize);
-    case "saleItems":         return (await prisma.saleItem.findMany({ orderBy: { saleId: "asc" } })).map(serialize);
-    case "payments":          return (await prisma.payment.findMany({ orderBy: { date: "desc" } })).map(serialize);
-    case "stockMoves":        return (await prisma.stockMove.findMany({ orderBy: { date: "desc" } })).map(serialize);
-    case "expenses":          return (await prisma.expense.findMany({ orderBy: { date: "desc" } })).map(serialize);
-    case "transactions":      return (await prisma.transaction.findMany({ orderBy: { date: "desc" } })).map(serialize);
+    case "customers":         return (await prisma.customer.findMany({ where: userWhere, orderBy: { name: "asc" } })).map(serialize);
+    case "products":          return (await prisma.product.findMany({ where: userWhere, orderBy: { name: "asc" } })).map(serialize);
+    case "sales":             return (await prisma.sale.findMany({ where: userWhere, orderBy: { date: "desc" } })).map(serialize);
+    case "saleItems":         return (await prisma.saleItem.findMany({ where: saleItemWhere, orderBy: { saleId: "asc" } })).map(serialize);
+    case "payments":          return (await prisma.payment.findMany({ where: userWhere, orderBy: { date: "desc" } })).map(serialize);
+    case "stockMoves":        return (await prisma.stockMove.findMany({ where: userWhere, orderBy: { date: "desc" } })).map(serialize);
+    case "expenses":          return (await prisma.expense.findMany({ where: userWhere, orderBy: { date: "desc" } })).map(serialize);
+    case "transactions":      return (await prisma.transaction.findMany({ where: userWhere, orderBy: { date: "desc" } })).map(serialize);
   }
 }
 
@@ -315,16 +332,19 @@ export function parseBackupFile(content: string): BackupFile {
  *   2. Verify all referenced foreign keys exist within the backup
  *   3. Wrap the entire import in prisma.$transaction
  *   4. Delete existing data in reverse-dependency order
- *   5. Insert new data in dependency order
+ *      (when userId is provided, ONLY that user's data is deleted — other users untouched)
+ *   5. Insert new data in dependency order, stamping every row with the given userId
+ *      (NEVER trust userId from the backup file — always use the server-provided one)
  *   6. If any step fails, the transaction rolls back — original data is safe
  *
- * IMPORTANT: This REPLACES all existing data. The API requires
+ * IMPORTANT: This REPLACES the user's existing data. The API requires
  * `confirmReplace: true` in the request body, and the UI shows a scary
  * confirmation dialog before calling this.
  */
 export async function importBackup(
   content: string,
   options: { confirmReplace: boolean },
+  userId?: string | null,
 ): Promise<ImportResult> {
   if (!options.confirmReplace) {
     throw new BadRequestError(
@@ -339,19 +359,30 @@ export async function importBackup(
 
   // Wrap everything in a single transaction — all or nothing.
   await prisma.$transaction(async (tx) => {
-    // Delete in reverse dependency order (children first, parents last)
-    await tx.transaction.deleteMany({});
-    await tx.saleItem.deleteMany({});
-    await tx.payment.deleteMany({});
-    await tx.sale.deleteMany({});
-    await tx.stockMove.deleteMany({});
-    await tx.expense.deleteMany({});
-    await tx.customerAdjustment.deleteMany({});
-    await tx.customer.deleteMany({});
-    await tx.product.deleteMany({});
+    // Delete in reverse dependency order (children first, parents last).
+    // When userId is provided, only that user's rows are deleted — other users'
+    // data is preserved (multi-tenant safety). SaleItem has no userId column,
+    // so we scope it via its parent Sale.
+    const userWhere = userId ? { userId } : undefined;
+    const saleItemWhere = userId ? { sale: { userId } } : undefined;
+
+    await tx.transaction.deleteMany({ where: userWhere });
+    await tx.saleItem.deleteMany({ where: saleItemWhere });
+    await tx.payment.deleteMany({ where: userWhere });
+    await tx.sale.deleteMany({ where: userWhere });
+    await tx.stockMove.deleteMany({ where: userWhere });
+    await tx.expense.deleteMany({ where: userWhere });
+    await tx.customerAdjustment.deleteMany({ where: userWhere });
+    await tx.customer.deleteMany({ where: userWhere });
+    await tx.product.deleteMany({ where: userWhere });
+    // Setting is a global singleton — always wiped on import (single tenant per
+    // business). We intentionally do NOT scope this by userId.
     await tx.setting.deleteMany({});
 
-    // Insert in dependency order (parents first, children last)
+    // Insert in dependency order (parents first, children last).
+    // Every create stamps the row with `userId` so the imported data belongs
+    // to the authenticated user. NEVER trust userId from the backup file body —
+    // always overwrite with the server-provided id.
     // 1. Settings (singleton)
     if (backup.data.settings.length > 0) {
       // Only insert the first setting (singleton pattern). We already
@@ -367,32 +398,45 @@ export async function importBackup(
     // 2. Customers (no FK dependencies except settings, which is singleton)
     if (backup.data.customers.length > 0) {
       await tx.customer.createMany({
-        data: backup.data.customers.map(deserializeCustomer),
+        data: backup.data.customers.map((r) => ({
+          ...deserializeCustomer(r),
+          ...(userId && { userId }),
+        })),
       });
     }
 
     // 3. Products (no FK dependencies)
     if (backup.data.products.length > 0) {
       await tx.product.createMany({
-        data: backup.data.products.map(deserializeProduct),
+        data: backup.data.products.map((r) => ({
+          ...deserializeProduct(r),
+          ...(userId && { userId }),
+        })),
       });
     }
 
     // 4. Customer Adjustments (FK: customer)
     if (backup.data.customerAdjustments.length > 0) {
       await tx.customerAdjustment.createMany({
-        data: backup.data.customerAdjustments.map(deserializeCustomerAdjustment),
+        data: backup.data.customerAdjustments.map((r) => ({
+          ...deserializeCustomerAdjustment(r),
+          ...(userId && { userId }),
+        })),
       });
     }
 
     // 5. Sales (FK: customer)
     if (backup.data.sales.length > 0) {
       await tx.sale.createMany({
-        data: backup.data.sales.map(deserializeSale),
+        data: backup.data.sales.map((r) => ({
+          ...deserializeSale(r),
+          ...(userId && { userId }),
+        })),
       });
     }
 
-    // 6. Sale Items (FK: sale + product)
+    // 6. Sale Items (FK: sale + product). SaleItem has no userId column —
+    //    its ownership is inherited from its parent Sale.
     if (backup.data.saleItems.length > 0) {
       await tx.saleItem.createMany({
         data: backup.data.saleItems.map(deserializeSaleItem),
@@ -402,28 +446,40 @@ export async function importBackup(
     // 7. Payments (FK: customer + optional sale)
     if (backup.data.payments.length > 0) {
       await tx.payment.createMany({
-        data: backup.data.payments.map(deserializePayment),
+        data: backup.data.payments.map((r) => ({
+          ...deserializePayment(r),
+          ...(userId && { userId }),
+        })),
       });
     }
 
     // 8. Stock Moves (FK: product)
     if (backup.data.stockMoves.length > 0) {
       await tx.stockMove.createMany({
-        data: backup.data.stockMoves.map(deserializeStockMove),
+        data: backup.data.stockMoves.map((r) => ({
+          ...deserializeStockMove(r),
+          ...(userId && { userId }),
+        })),
       });
     }
 
     // 9. Expenses (no FK)
     if (backup.data.expenses.length > 0) {
       await tx.expense.createMany({
-        data: backup.data.expenses.map(deserializeExpense),
+        data: backup.data.expenses.map((r) => ({
+          ...deserializeExpense(r),
+          ...(userId && { userId }),
+        })),
       });
     }
 
     // 10. Transactions (FK: optional customer + optional product)
     if (backup.data.transactions.length > 0) {
       await tx.transaction.createMany({
-        data: backup.data.transactions.map(deserializeTransaction),
+        data: backup.data.transactions.map((r) => ({
+          ...deserializeTransaction(r),
+          ...(userId && { userId }),
+        })),
       });
     }
   });

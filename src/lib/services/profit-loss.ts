@@ -48,11 +48,19 @@ export type ProfitLossStats = {
 // Single-period computation
 // ────────────────────────────────────────────────────────────────────────────
 
-async function computePeriod(startDate: Date | null): Promise<ProfitLossPeriod> {
-  // Build the date filter clause. For all-time (startDate=null), use '1=1' (no filter).
-  // We pass the date as a parameter to prevent SQL injection.
-  const dateFilter = startDate
-    ? Prisma.sql`AND s."date" >= ${startDate} AND e."date" >= ${startDate}`
+async function computePeriod(
+  startDate: Date | null,
+  userId?: string | null,
+): Promise<ProfitLossPeriod> {
+  // Multi-tenant isolation: when userId is set, only count sales/expenses
+  // belonging to that user. When null, show all (backward compat for pre-auth data).
+  // We use Prisma.sql tagged template literals so ${userId} is parameterized
+  // (safe from SQL injection).
+  const saleUserFilter = userId
+    ? Prisma.sql`AND s."userId" = ${userId}`
+    : Prisma.sql``;
+  const expenseUserFilter = userId
+    ? Prisma.sql`AND "userId" = ${userId}`
     : Prisma.sql``;
 
   // Revenue + COGS + Expenses in ONE query using LEFT JOINs:
@@ -78,7 +86,7 @@ async function computePeriod(startDate: Date | null): Promise<ProfitLossPeriod> 
         (SELECT SUM(si."quantity" * si."unitPrice")
          FROM "SaleItem" si
          JOIN "Sale" s ON si."saleId" = s.id
-         WHERE s."voidedAt" IS NULL ${
+         WHERE s."voidedAt" IS NULL ${saleUserFilter} ${
            startDate ? Prisma.sql`AND s."date" >= ${startDate}` : Prisma.sql``
          }),
         0
@@ -89,21 +97,21 @@ async function computePeriod(startDate: Date | null): Promise<ProfitLossPeriod> 
          JOIN "Sale" s ON si."saleId" = s.id
          LEFT JOIN "StockMove" sm ON si."stockMoveId" = sm.id
          LEFT JOIN "Product" p ON si."productId" = p.id
-         WHERE s."voidedAt" IS NULL ${
+         WHERE s."voidedAt" IS NULL ${saleUserFilter} ${
            startDate ? Prisma.sql`AND s."date" >= ${startDate}` : Prisma.sql``
          }),
         0
       ) AS cogs,
       COALESCE(
-        (SELECT SUM("amount") FROM "Expense" WHERE "voidedAt" IS NULL ${
+        (SELECT SUM("amount") FROM "Expense" WHERE "voidedAt" IS NULL ${expenseUserFilter} ${
           startDate ? Prisma.sql`AND "date" >= ${startDate}` : Prisma.sql``
         }),
         0
       ) AS expenses,
-      (SELECT COUNT(*) FROM "Sale" WHERE "voidedAt" IS NULL ${
+      (SELECT COUNT(*) FROM "Sale" WHERE "voidedAt" IS NULL ${expenseUserFilter} ${
         startDate ? Prisma.sql`AND "date" >= ${startDate}` : Prisma.sql``
       }) AS sales_count,
-      (SELECT COUNT(*) FROM "Expense" WHERE "voidedAt" IS NULL ${
+      (SELECT COUNT(*) FROM "Expense" WHERE "voidedAt" IS NULL ${expenseUserFilter} ${
         startDate ? Prisma.sql`AND "date" >= ${startDate}` : Prisma.sql``
       }) AS expense_count
   `;
@@ -137,19 +145,22 @@ async function computePeriod(startDate: Date | null): Promise<ProfitLossPeriod> 
 // ────────────────────────────────────────────────────────────────────────────
 
 export async function getProfitLossStats(
+  userId?: string | null,
   timezone: string = "Asia/Karachi",
 ): Promise<ProfitLossStats> {
-  return cached("profit-loss", async () => {
+  // Cache key includes userId so different tenants don't share cached results.
+  const cacheKey = `profit-loss:${userId ?? "all"}`;
+  return cached(cacheKey, async () => {
     const today = startOfTodayInTz(timezone);
     const weekStart = startOfWeekInTz(timezone);
     const monthStart = startOfMonthInTz(timezone);
 
     // Run all 4 period queries in parallel — no dependency between them.
     const [todayStats, weekStats, monthStats, allTimeStats] = await Promise.all([
-      computePeriod(today),
-      computePeriod(weekStart),
-      computePeriod(monthStart),
-      computePeriod(null), // all-time: no date filter
+      computePeriod(today, userId),
+      computePeriod(weekStart, userId),
+      computePeriod(monthStart, userId),
+      computePeriod(null, userId), // all-time: no date filter
     ]);
 
     return {

@@ -117,12 +117,8 @@ export async function listExpensesFiltered(
 
 /** Fetch one expense. */
 export async function getExpense(id: string, userId?: string | null): Promise<ExpenseView> {
-  const expense = await prisma.expense.findUnique({ where: { id } });
+  const expense = await prisma.expense.findFirst({ where: { id, ...(userId && { userId }) } });
   if (!expense || expense.voidedAt) {
-    throw new NotFoundError("Expense", id);
-  }
-  // Tenant isolation: a user can only read their own expenses.
-  if (userId && expense.userId && expense.userId !== userId) {
     throw new NotFoundError("Expense", id);
   }
   return toView(expense);
@@ -212,12 +208,8 @@ export async function updateExpense(id: string, input: unknown, userId?: string 
 /** Void an expense — atomic + cleans up the Transaction mirror. */
 export async function voidExpense(id: string, userId?: string | null): Promise<{ id: string; voidedAt: Date }> {
   const result = await prisma.$transaction(async (tx) => {
-    const expense = await tx.expense.findUnique({ where: { id } });
+    const expense = await tx.expense.findFirst({ where: { id, ...(userId && { userId }) } });
     if (!expense) throw new NotFoundError("Expense", id);
-    // Tenant isolation: a user can only void their own expenses.
-    if (userId && expense.userId && expense.userId !== userId) {
-      throw new NotFoundError("Expense", id);
-    }
     if (expense.voidedAt) throw new BadRequestError("Expense is already voided.");
 
     const now = new Date();

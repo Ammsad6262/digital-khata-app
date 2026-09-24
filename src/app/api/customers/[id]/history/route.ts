@@ -1,24 +1,18 @@
-/**
- * /api/customers/[id]/history
- *
- * GET → fetch one customer with their complete transaction history.
- *
- * NOTE: In Next.js 16, `params` is a Promise that must be awaited.
- */
-
 import { NextRequest } from "next/server";
 import { getCustomerHistory } from "@/lib/services/customers";
 import { ok, fail } from "@/lib/utils/api";
+import { getCurrentUserId } from "@/lib/auth/get-current-user";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const userId = await getCurrentUserId(req);
     const { id } = await params;
-    const history = await getCustomerHistory(id);
+    const history = await getCustomerHistory(id, userId);
     return ok(history);
   } catch (error) {
     return fail(error);

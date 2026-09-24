@@ -168,15 +168,11 @@ export async function listPaymentsByCustomer(customerId: string, userId?: string
 
 /** Fetch one payment WITH customer info. */
 export async function getPayment(id: string, userId?: string | null): Promise<PaymentDetail> {
-  const payment = await prisma.payment.findUnique({
-    where: { id },
+  const payment = await prisma.payment.findFirst({
+    where: { id, ...(userId && { userId }) },
     include: { customer: true },
   });
   if (!payment || payment.voidedAt) {
-    throw new NotFoundError("Payment", id);
-  }
-  // Tenant isolation: a user can only read their own payments.
-  if (userId && payment.userId && payment.userId !== userId) {
     throw new NotFoundError("Payment", id);
   }
   return {
@@ -301,12 +297,8 @@ export async function recordPayment(input: unknown, userId?: string | null): Pro
  */
 export async function voidPayment(id: string, userId?: string | null): Promise<{ id: string; voidedAt: Date }> {
   const result = await prisma.$transaction(async (tx) => {
-    const payment = await tx.payment.findUnique({ where: { id } });
+    const payment = await tx.payment.findFirst({ where: { id, ...(userId && { userId }) } });
     if (!payment) throw new NotFoundError("Payment", id);
-    // Tenant isolation: a user can only void their own payments.
-    if (userId && payment.userId && payment.userId !== userId) {
-      throw new NotFoundError("Payment", id);
-    }
     if (payment.voidedAt) throw new BadRequestError("Payment is already voided.");
 
     const now = new Date();

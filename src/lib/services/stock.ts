@@ -196,9 +196,7 @@ export async function listProductBatches(productId: string, userId?: string | nu
     where: {
       id: productId,
       isDeleted: false,
-      ...(userId && {
-        OR: [{ userId }, { userId: null }],
-      }),
+      ...(userId && { userId }),
     },
     select: { id: true },
   });

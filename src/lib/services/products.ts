@@ -87,18 +87,22 @@ export async function listProductsWithStock(userId?: string | null): Promise<Pro
 }
 
 /** Fetch one product. */
-export async function getProduct(id: string): Promise<ProductView> {
-  const product = await prisma.product.findUnique({ where: { id } });
-  if (!product || product.isDeleted) {
+export async function getProduct(id: string, userId?: string | null): Promise<ProductView> {
+  const product = await prisma.product.findFirst({
+    where: { id, isDeleted: false, ...(userId && { userId }) },
+  });
+  if (!product) {
     throw new NotFoundError("Product", id);
   }
   return toView(product);
 }
 
 /** Fetch one product with current stock. */
-export async function getProductWithStock(id: string): Promise<ProductWithStock> {
-  const product = await prisma.product.findUnique({ where: { id } });
-  if (!product || product.isDeleted) {
+export async function getProductWithStock(id: string, userId?: string | null): Promise<ProductWithStock> {
+  const product = await prisma.product.findFirst({
+    where: { id, isDeleted: false, ...(userId && { userId }) },
+  });
+  if (!product) {
     throw new NotFoundError("Product", id);
   }
   const stock = await getProductStock(id);
@@ -250,8 +254,9 @@ export async function createProduct(input: unknown, userId?: string | null): Pro
 }
 
 /** Update a product. */
-export async function updateProduct(id: string, input: unknown): Promise<ProductView> {
-  await getProduct(id); // throws if not found
+export async function updateProduct(id: string, input: unknown, userId?: string | null): Promise<ProductView> {
+  // Verify ownership — throws 404 if not owned by this user
+  await getProduct(id, userId);
   const data = updateProductSchema.parse(input);
 
   const updated = await prisma.product.update({

@@ -65,9 +65,11 @@ export async function listCustomers(userId?: string | null): Promise<CustomerVie
 }
 
 /** Fetch one customer by ID, throw 404 if not found / soft-deleted. */
-export async function getCustomer(id: string): Promise<CustomerView> {
-  const customer = await prisma.customer.findUnique({ where: { id } });
-  if (!customer || customer.isDeleted) {
+export async function getCustomer(id: string, userId?: string | null): Promise<CustomerView> {
+  const customer = await prisma.customer.findFirst({
+    where: { id, isDeleted: false, ...(userId && { userId }) },
+  });
+  if (!customer) {
     throw new NotFoundError("Customer", id);
   }
   return toView(customer);
@@ -117,9 +119,9 @@ export async function getCustomerBalance(customerId: string): Promise<{
 }
 
 /** Fetch one customer with their balance precomputed. */
-export async function getCustomerWithBalance(id: string): Promise<CustomerWithBalance> {
+export async function getCustomerWithBalance(id: string, userId?: string | null): Promise<CustomerWithBalance> {
   const [customerView, balance] = await Promise.all([
-    getCustomer(id),
+    getCustomer(id, userId),
     getCustomerBalance(id),
   ]);
   return { ...customerView, ...balance };
@@ -263,9 +265,9 @@ export async function createCustomer(input: unknown, userId?: string | null): Pr
 }
 
 /** Update a customer. */
-export async function updateCustomer(id: string, input: unknown): Promise<CustomerView> {
-  // Throws if not found / deleted.
-  await getCustomer(id);
+export async function updateCustomer(id: string, input: unknown, userId?: string | null): Promise<CustomerView> {
+  // Throws if not found / deleted / not owned by this user.
+  await getCustomer(id, userId);
   const data = updateCustomerSchema.parse(input);
 
   const updated = await prisma.customer.update({
@@ -283,8 +285,9 @@ export async function updateCustomer(id: string, input: unknown): Promise<Custom
   return toView(updated);
 }
 
-/** Soft-delete a customer (V1: just flags; hard delete is blocked in API). */
-export async function deleteCustomer(id: string): Promise<{ id: string; deleted: true }> {
+export async function deleteCustomer(id: string, userId?: string | null): Promise<{ id: string; deleted: true }> {
+  // Verify ownership first — throws 404 if not owned by this user
+  await getCustomer(id, userId);
   // Block soft-delete if customer has any ACTIVE (non-voided) transactions.
   // Voided sales/payments don't count — they don't affect the balance.
   // Also count CustomerAdjustment (was missing before).
@@ -478,9 +481,9 @@ export type CustomerHistory = {
  * which also equals the balance returned by getCustomerBalance() — this is the
  * consistency check that proves there are no conflicting calculations.
  */
-export async function getCustomerHistory(customerId: string): Promise<CustomerHistory> {
+export async function getCustomerHistory(customerId: string, userId?: string | null): Promise<CustomerHistory> {
   // Throws 404 if not found.
-  const customer = await getCustomerWithBalance(customerId);
+  const customer = await getCustomerWithBalance(customerId, userId);
 
   // Fetch all active (non-voided) transactions in parallel.
   const [sales, payments, adjustments] = await Promise.all([

@@ -176,8 +176,8 @@ export async function listSalesFiltered(
 
 /** Fetch one sale with items + customer info. */
 export async function getSale(id: string, userId?: string | null): Promise<SaleWithItems> {
-  const sale = await prisma.sale.findUnique({
-    where: { id },
+  const sale = await prisma.sale.findFirst({
+    where: { id, ...(userId && { userId }) },
     include: {
       items: { include: { product: true } },
       customer: true,
@@ -505,8 +505,8 @@ export async function createSale(input: unknown, userId?: string | null): Promis
  */
 export async function voidSale(id: string, userId?: string | null): Promise<{ id: string; voidedAt: Date }> {
   const result = await prisma.$transaction(async (tx) => {
-    const sale = await tx.sale.findUnique({
-      where: { id },
+    const sale = await tx.sale.findFirst({
+      where: { id, ...(userId && { userId }) },
       include: {
         payments: { where: { voidedAt: null } },
         items: {
@@ -519,11 +519,6 @@ export async function voidSale(id: string, userId?: string | null): Promise<{ id
       },
     });
     if (!sale) throw new NotFoundError("Sale", id);
-    // Tenant isolation: a user can only void their own sales.
-    // Legacy sales with null userId can be voided by anyone (until claimed).
-    if (userId && sale.userId && sale.userId !== userId) {
-      throw new NotFoundError("Sale", id);
-    }
     if (sale.voidedAt) {
       throw new BadRequestError("Sale is already voided.");
     }

@@ -55,6 +55,7 @@ async function fetchWithTimeout(
   try {
     const res = await fetch(path, {
       ...options,
+      credentials: "same-origin",
       signal: controller.signal,
     });
     return res;
@@ -131,11 +132,17 @@ export async function apiDelete<T>(
 
 /** Unwrap a fetch response into either data or an ApiError. */
 async function unwrap<T>(res: Response, path: string): Promise<T> {
-  // Handle 401 — session expired.
-  // DON'T reload — that causes an infinite loop. Just throw an error.
-  // The AuthGate will handle showing the PIN screen if needed.
+  // Handle 401 — session expired or not authenticated.
   if (res.status === 401) {
-    throw new ApiError("Session expired. Please unlock the app.", "UNAUTHORIZED", 401);
+    // For auth routes, throw normally (handled by caller)
+    // For non-auth routes, redirect to login
+    if (!path.startsWith("/api/auth/")) {
+      // Check if we're in the browser (not SSR)
+      if (typeof window !== "undefined") {
+        window.location.href = "/login";
+      }
+    }
+    throw new ApiError("Please log in to continue.", "UNAUTHORIZED", 401);
   }
 
   let json: ApiResponse<T>;

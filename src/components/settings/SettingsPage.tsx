@@ -123,7 +123,7 @@ export function SettingsPage() {
 // ────────────────────────────────────────────────────────────────────────────
 
 function AccountSection() {
-  const { data: user, isLoading } = useCurrentUser();
+  const { data: user, isLoading, isError, error, refetch } = useCurrentUser();
   const updateProfile = useUpdateProfile();
   const changePassword = useChangePassword();
   const deleteAccount = useDeleteAccount();
@@ -149,10 +149,17 @@ function AccountSection() {
     );
   }
 
-  if (!user) {
+  if (isError || !user) {
     return (
       <section className="rounded-xl border border-slate-200 bg-white p-4">
-        <p className="text-sm text-slate-500">Not logged in.</p>
+        <div className="flex items-center gap-2 mb-2">
+          <UserCircle className="h-4 w-4 text-slate-500" />
+          <h2 className="text-sm font-semibold text-slate-900">Account</h2>
+        </div>
+        <p className="text-sm text-slate-500 mb-3">Could not load account data.</p>
+        <Button onClick={() => refetch()} variant="outline" size="sm">
+          Retry
+        </Button>
       </section>
     );
   }

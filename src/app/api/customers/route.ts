@@ -23,9 +23,11 @@ import {
   listAllCustomersWithBalance,
 } from "@/lib/services/customers";
 import { ok, fail, parseJsonBody, getQueryParam } from "@/lib/utils/api";
+import { getCurrentUserId } from "@/lib/auth/get-current-user";
 
 export async function GET(req: NextRequest) {
   try {
+    const userId = await getCurrentUserId(req);
     const url = new URL(req.url);
     const queryParam = getQueryParam(req, "q");
     const withBalances = url.searchParams.get("withBalances") === "1";
@@ -33,22 +35,22 @@ export async function GET(req: NextRequest) {
 
     // Search takes precedence (and always returns balances).
     if (queryParam !== undefined && queryParam !== null) {
-      const data = await searchCustomers(queryParam);
+      const data = await searchCustomers(queryParam, userId);
       return ok(data);
     }
 
     if (outstandingOnly) {
-      const data = await listOutstandingCustomers();
+      const data = await listOutstandingCustomers(userId);
       return ok(data);
     }
 
     if (withBalances) {
-      const data = await listAllCustomersWithBalance();
+      const data = await listAllCustomersWithBalance(userId);
       return ok(data);
     }
 
     // Default: list customers without balance (fastest path).
-    const data = await listCustomers();
+    const data = await listCustomers(userId);
     return ok(data);
   } catch (error) {
     return fail(error);
@@ -57,10 +59,11 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    const userId = await getCurrentUserId(req);
     const { data, error } = await parseJsonBody<unknown>(req);
     if (error) return fail(new Error(error));
 
-    const customer = await createCustomer(data);
+    const customer = await createCustomer(data, userId);
     return ok(customer, 201);
   } catch (error) {
     return fail(error);

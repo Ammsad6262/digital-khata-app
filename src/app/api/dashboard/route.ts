@@ -10,6 +10,7 @@ import { NextRequest } from "next/server";
 import { getDashboardStats } from "@/lib/services/dashboard";
 import { withCircuitBreaker, getCircuitBreakerState } from "@/lib/utils/circuit-breaker";
 import { ok, fail } from "@/lib/utils/api";
+import { getCurrentUserId } from "@/lib/auth/get-current-user";
 
 export const dynamic = "force-dynamic";
 
@@ -25,7 +26,9 @@ const FALLBACK_DASHBOARD = {
   recentTransactions: [],
 };
 
-export async function GET(_req: NextRequest) {
+export async function GET(req: NextRequest) {
+  const userId = await getCurrentUserId(req);
+
   const cbState = getCircuitBreakerState();
 
   // If circuit is open, return fallback immediately
@@ -39,7 +42,7 @@ export async function GET(_req: NextRequest) {
 
   try {
     const data = await withCircuitBreaker(
-      () => getDashboardStats(),
+      () => getDashboardStats(userId),
       FALLBACK_DASHBOARD,
       10000, // 10s timeout for the heaviest query
     );

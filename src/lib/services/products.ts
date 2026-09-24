@@ -55,9 +55,9 @@ function toView(p: Prisma.ProductGetPayload<{}>): ProductView {
 }
 
 /** List all active products. */
-export async function listProducts(): Promise<ProductView[]> {
+export async function listProducts(userId?: string | null): Promise<ProductView[]> {
   const products = await prisma.product.findMany({
-    where: { isDeleted: false },
+    where: { isDeleted: false, ...(userId && { userId }) },
     orderBy: { name: "asc" },
   });
   return products.map(toView);
@@ -65,10 +65,10 @@ export async function listProducts(): Promise<ProductView[]> {
 
 /** List products with current stock + low-stock flag.
  *  CACHED: 10-second server-side cache. */
-export async function listProductsWithStock(): Promise<ProductWithStock[]> {
-  return cached("products:list-with-stock", async () => {
+export async function listProductsWithStock(userId?: string | null): Promise<ProductWithStock[]> {
+  return cached(`products:list-with-stock:${userId ?? "all"}`, async () => {
     const products = await prisma.product.findMany({
-      where: { isDeleted: false },
+      where: { isDeleted: false, ...(userId && { userId }) },
       orderBy: { name: "asc" },
     });
 
@@ -128,6 +128,7 @@ export type ProductSearchResult = ProductView & {
  */
 export async function searchProducts(
   query: string | null | undefined,
+  userId?: string | null,
 ): Promise<ProductSearchResult[]> {
   const q = (query ?? "").trim();
 
@@ -138,6 +139,7 @@ export async function searchProducts(
   const products = await prisma.product.findMany({
     where: {
       isDeleted: false,
+      ...(userId && { userId }),
       ...(q.length > 0 && {
         OR: [
           { name: { contains: q } },
@@ -227,7 +229,7 @@ export async function computeStockForAllProducts(): Promise<Map<string, Decimal>
 }
 
 /** Create a new product. Throws on duplicate SKU (Prisma P2002 → fail()). */
-export async function createProduct(input: unknown): Promise<ProductView> {
+export async function createProduct(input: unknown, userId?: string | null): Promise<ProductView> {
   const data = createProductSchema.parse(input);
   const product = await prisma.product.create({
     data: {
@@ -239,6 +241,7 @@ export async function createProduct(input: unknown): Promise<ProductView> {
       sku: data.sku ?? null,
       openingStock: data.openingStock,
       lowStockThreshold: data.lowStockThreshold,
+      ...(userId && { userId }),
     },
   });
   invalidateCache("products");

@@ -56,18 +56,23 @@ export type RecentTransaction = {
 // still being fresh enough for practical use. React Query handles
 // client-side caching; this handles SERVER-side caching so the DB
 // isn't hit on every page load.
-let dashboardCache: { data: DashboardStats; expiresAt: number } | null = null;
+const dashboardCache = new Map<string, { data: DashboardStats; expiresAt: number }>();
 const DASHBOARD_CACHE_TTL_MS = 15_000; // 15 seconds
 
 export async function getDashboardStats(
+  userId?: string | null,
   timezone: string = "Asia/Karachi",
 ): Promise<DashboardStats> {
   // Return cached data if still fresh
-  if (dashboardCache && Date.now() < dashboardCache.expiresAt) {
-    return dashboardCache.data;
+  const cacheKey = userId ?? "all";
+  const cached = dashboardCache.get(cacheKey);
+  if (cached && Date.now() < cached.expiresAt) {
+    return cached.data;
   }
 
   const today = startOfTodayInTz(timezone);
+  const userFilter = userId ? `AND "userId" = '${userId}'` : "";
+  const userFilterCustomer = userId ? `AND c."userId" = '${userId}'` : "";
 
   // ── ALL queries in parallel — no dependencies between them ────────────
   const [aggregates, recentTxRaw, stockByProduct, products, perCustomerBalances] = await Promise.all([
@@ -197,7 +202,7 @@ export async function getDashboardStats(
   };
 
   // Cache the result
-  dashboardCache = { data: result, expiresAt: Date.now() + DASHBOARD_CACHE_TTL_MS };
+  dashboardCache.set(cacheKey, { data: result, expiresAt: Date.now() + DASHBOARD_CACHE_TTL_MS });
 
   return result;
 }

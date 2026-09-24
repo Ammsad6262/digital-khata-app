@@ -56,9 +56,9 @@ function toView(c: Prisma.CustomerGetPayload<{}>): CustomerView {
 }
 
 /** List all active customers (isDeleted = false), sorted by name. */
-export async function listCustomers(): Promise<CustomerView[]> {
+export async function listCustomers(userId?: string | null): Promise<CustomerView[]> {
   const customers = await prisma.customer.findMany({
-    where: { isDeleted: false },
+    where: { isDeleted: false, ...(userId && { userId }) },
     orderBy: { name: "asc" },
   });
   return customers.map(toView);
@@ -147,9 +147,9 @@ export type OutstandingCustomer = {
   lastActivityAt: Date | null;// date of most recent sale/payment/adjustment
 };
 
-export async function listOutstandingCustomers(): Promise<OutstandingCustomer[]> {
+export async function listOutstandingCustomers(userId?: string | null): Promise<OutstandingCustomer[]> {
   const customers = await prisma.customer.findMany({
-    where: { isDeleted: false },
+    where: { isDeleted: false, ...(userId && { userId }) },
     select: {
       id: true,
       name: true,
@@ -245,7 +245,7 @@ export async function listOutstandingCustomers(): Promise<OutstandingCustomer[]>
 }
 
 /** Create a new customer. Throws ConflictError on duplicate phone (via Prisma P2002 → fail()). */
-export async function createCustomer(input: unknown): Promise<CustomerView> {
+export async function createCustomer(input: unknown, userId?: string | null): Promise<CustomerView> {
   const data = createCustomerSchema.parse(input);
   const customer = await prisma.customer.create({
     data: {
@@ -254,6 +254,7 @@ export async function createCustomer(input: unknown): Promise<CustomerView> {
       address: data.address ?? null,
       notes: data.notes ?? null,
       openingBalance: data.openingBalance,
+      ...(userId && { userId }),
     },
   });
   invalidateCache("customers");
@@ -326,12 +327,12 @@ export type CustomerSearchResult = {
  * - Short query (< 2 chars) → returns empty list (avoid expensive LIKE scans).
  * - Results include balance so the UI can show it inline.
  */
-export async function searchCustomers(query: string | null | undefined): Promise<CustomerSearchResult[]> {
+export async function searchCustomers(query: string | null | undefined, userId?: string | null): Promise<CustomerSearchResult[]> {
   const q = (query ?? "").trim();
 
   // Empty query → list everything (the khata page initial state).
   if (q.length === 0) {
-    return listAllCustomersWithBalance();
+    return listAllCustomersWithBalance(userId);
   }
 
   // Short query → no results (avoids accidental full-table matches).
@@ -394,10 +395,11 @@ export async function searchCustomers(query: string | null | undefined): Promise
  *  PERFORMANCE: Uses 3 batch GROUP BY queries instead of N×3 per-customer queries.
  *  CACHED: 10-second server-side cache to avoid re-querying on every page load.
  */
-export async function listAllCustomersWithBalance(): Promise<CustomerSearchResult[]> {
-  return cached("customers:list-with-balance", async () => {
+export async function listAllCustomersWithBalance(userId?: string | null): Promise<CustomerSearchResult[]> {
+  const cacheKey = `customers:list-with-balance:${userId ?? "all"}`;
+  return cached(cacheKey, async () => {
     const customers = await prisma.customer.findMany({
-      where: { isDeleted: false },
+      where: { isDeleted: false, ...(userId && { userId }) },
       select: { id: true, name: true, phone: true, openingBalance: true },
       orderBy: { name: "asc" },
     });

@@ -1,20 +1,21 @@
 "use client";
 
 /**
- * AuthGate — checks auth status on mount, shows PIN screen if needed.
+ * AuthGate — checks auth status on mount.
  *
- * Without the proxy middleware, API routes are accessible without a session.
- * This gate provides the UX layer:
- *   - If no PIN is set → render app immediately
- *   - If PIN is set and session is valid → render app
- *   - If PIN is set and no session → show PIN unlock screen
+ * Two-layer auth:
+ *   1. Account auth (email/password JWT) — checked via /api/auth/me
+ *      If not logged in → redirect to /login
+ *   2. PIN lock (optional device-level lock) — checked via /api/auth/status
+ *      If PIN is set and not unlocked → show PIN unlock screen
  *
- * The gate calls /api/auth/unlock when no PIN is set to establish a session
- * cookie (for future use if the user sets a PIN later). It does NOT reload
- * the page — it updates React state directly.
+ * This allows both systems to coexist:
+ *   - Email/password = account identity + data isolation
+ *   - PIN = optional device lock (like a phone lock screen)
  */
 
 import { useEffect, useState, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
 import { PinUnlockScreen } from "@/components/auth/PinUnlockScreen";
 
 type AuthStatus = {
@@ -23,8 +24,16 @@ type AuthStatus = {
   businessName: string | null;
 };
 
+type AuthUser = {
+  id: string;
+  name: string;
+  email: string;
+};
+
 export function AuthGate({ children }: { children: ReactNode }) {
-  const [status, setStatus] = useState<AuthStatus | null>(null);
+  const router = useRouter();
+  const [user, setUser] = useState<AuthUser | null | undefined>(undefined);
+  const [pinStatus, setPinStatus] = useState<AuthStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -32,20 +41,35 @@ export function AuthGate({ children }: { children: ReactNode }) {
 
     async function init() {
       try {
-        // 1. Check auth status
-        const res = await fetch("/api/auth/status", { cache: "no-store" });
-        const json = await res.json();
+        // 1. Check account auth (JWT)
+        const meRes = await fetch("/api/auth/me", { cache: "no-store" });
+        const meJson = await meRes.json();
 
         if (!mounted) return;
 
-        if (!json.ok) {
-          setError(json.error?.message || "Failed to check auth status.");
+        if (!meJson.ok || !meJson.data?.user) {
+          // Not logged in → redirect to login
+          router.push("/login");
           return;
         }
 
-        const s = json.data as AuthStatus;
+        setUser(meJson.data.user);
 
-        // 2. If no PIN and not unlocked, auto-unlock to set session cookie
+        // 2. Check PIN status
+        const pinRes = await fetch("/api/auth/status", { cache: "no-store" });
+        const pinJson = await pinRes.json();
+
+        if (!mounted) return;
+
+        if (!pinJson.ok) {
+          // PIN check failed — proceed without PIN (don't block the app)
+          setPinStatus({ hasPin: false, unlocked: true, businessName: null });
+          return;
+        }
+
+        const s = pinJson.data as AuthStatus;
+
+        // If no PIN and not unlocked, auto-unlock
         if (!s.hasPin && !s.unlocked) {
           try {
             const unlockRes = await fetch("/api/auth/unlock", {
@@ -56,15 +80,15 @@ export function AuthGate({ children }: { children: ReactNode }) {
             });
             const unlockJson = await unlockRes.json();
             if (mounted && unlockJson.ok) {
-              setStatus({ hasPin: false, unlocked: true, businessName: s.businessName });
+              setPinStatus({ hasPin: false, unlocked: true, businessName: s.businessName });
               return;
             }
           } catch {
-            // Even if unlock fails, proceed — API routes are accessible without proxy
+            // Proceed even if unlock fails
           }
         }
 
-        setStatus(s);
+        setPinStatus(s);
       } catch {
         if (mounted) setError("Cannot reach server. Check your connection.");
       }
@@ -72,14 +96,12 @@ export function AuthGate({ children }: { children: ReactNode }) {
 
     init();
     return () => { mounted = false; };
-  }, []);
+  }, [router]);
 
-  // Loading — invisible (bg matches app bg, no layout shift when app renders)
-  if (!status && !error) {
+  // Loading — invisible bg to prevent FOUC
+  if (user === undefined && !error) {
     return (
-      <div className="min-h-[100dvh] bg-slate-50" aria-hidden="true">
-        {/* Prevent FOUC: same bg as app shell, no spinner that causes layout shift */}
-      </div>
+      <div className="min-h-[100dvh] bg-slate-50" aria-hidden="true" />
     );
   }
 
@@ -101,19 +123,26 @@ export function AuthGate({ children }: { children: ReactNode }) {
     );
   }
 
-  // Unlocked or no PIN → render app
-  if (status?.unlocked || !status?.hasPin) {
-    return <>{children}</>;
+  // Not logged in (redirecting to login)
+  if (!user) {
+    return (
+      <div className="min-h-[100dvh] bg-slate-50" aria-hidden="true" />
+    );
   }
 
   // PIN is set but not unlocked → show PIN screen
-  return (
-    <PinUnlockScreen
-      hasPin={status.hasPin}
-      businessName={status.businessName}
-      onUnlocked={() => {
-        setStatus((prev) => prev ? { ...prev, unlocked: true } : null);
-      }}
-    />
-  );
+  if (pinStatus && pinStatus.hasPin && !pinStatus.unlocked) {
+    return (
+      <PinUnlockScreen
+        hasPin={pinStatus.hasPin}
+        businessName={pinStatus.businessName}
+        onUnlocked={() => {
+          setPinStatus((prev) => prev ? { ...prev, unlocked: true } : null);
+        }}
+      />
+    );
+  }
+
+  // Authenticated + unlocked (or no PIN) → render app
+  return <>{children}</>;
 }

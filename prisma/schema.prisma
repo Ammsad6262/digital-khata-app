@@ -50,11 +50,35 @@ datasource db {
 }
 
 // ────────────────────────────────────────────────────────────────────────────
+// USER — account/login system
+// ────────────────────────────────────────────────────────────────────────────
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String   // bcrypt hash
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  customers    Customer[]
+  products     Product[]
+  sales        Sale[]
+  payments     Payment[]
+  expenses     Expense[]
+  stockMoves   StockMove[]
+  transactions Transaction[]
+  adjustments  CustomerAdjustment[]
+}
+
+// ────────────────────────────────────────────────────────────────────────────
 // CUSTOMER
 // ────────────────────────────────────────────────────────────────────────────
 
 model Customer {
   id             String   @id @default(cuid())
+  userId         String?
+  user           User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
   name           String
   phone          String?  @unique
   address        String?
@@ -84,6 +108,8 @@ model Customer {
 
 model Product {
   id        String  @id @default(cuid())
+  userId    String?
+  user      User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
   name      String
   category  String?
 
@@ -117,6 +143,8 @@ model Product {
 
 model Sale {
   id         String   @id @default(cuid())
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
   customerId String
   customer   Customer @relation(fields: [customerId], references: [id])
 
@@ -178,6 +206,8 @@ model SaleItem {
 
 model Payment {
   id         String   @id @default(cuid())
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
   customerId String
   customer   Customer @relation(fields: [customerId], references: [id])
 
@@ -214,6 +244,8 @@ model Payment {
 
 model CustomerAdjustment {
   id         String   @id @default(cuid())
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
   customerId String
   customer   Customer @relation(fields: [customerId], references: [id])
 
@@ -244,6 +276,8 @@ model CustomerAdjustment {
 
 model StockMove {
   id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
   productId String
   product   Product  @relation(fields: [productId], references: [id])
 
@@ -284,6 +318,8 @@ model StockMove {
 
 model Expense {
   id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
   name      String
   amount    Decimal
   category  String   // "transport" | "shop" | "electricity" | "packaging" | "salary" | "rent" | "other"
@@ -322,6 +358,8 @@ model Expense {
 
 model Transaction {
   id         String   @id @default(cuid())
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
   type       String   // "sale" | "payment" | "expense" | "stock_move" | "balance_adjustment"
   refId      String   // ID of the source record (Sale.id, Payment.id, etc.)
   refType    String   // "Sale" | "Payment" | "Expense" | "StockMove" | "CustomerAdjustment"

@@ -15,7 +15,7 @@
  */
 
 import { useEffect, useState, type ReactNode } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { PinUnlockScreen } from "@/components/auth/PinUnlockScreen";
 
 type AuthStatus = {
@@ -30,13 +30,23 @@ type AuthUser = {
   email: string;
 };
 
+// Pages that don't need auth (login/register are standalone)
+const PUBLIC_PAGES = ["/login", "/register"];
+
 export function AuthGate({ children }: { children: ReactNode }) {
   const router = useRouter();
+  const pathname = usePathname();
   const [user, setUser] = useState<AuthUser | null | undefined>(undefined);
   const [pinStatus, setPinStatus] = useState<AuthStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    // Skip auth check entirely on login/register pages
+    if (PUBLIC_PAGES.some((p) => pathname === p || pathname.startsWith(p + "/"))) {
+      setUser(null); // null = not checked, just render children
+      return;
+    }
+
     let mounted = true;
 
     async function init() {
@@ -96,7 +106,12 @@ export function AuthGate({ children }: { children: ReactNode }) {
 
     init();
     return () => { mounted = false; };
-  }, [router]);
+  }, [router, pathname]);
+
+  // Public pages (login/register) — skip auth entirely, render children
+  if (PUBLIC_PAGES.some((p) => pathname === p || pathname.startsWith(p + "/"))) {
+    return <>{children}</>;
+  }
 
   // Loading — invisible bg to prevent FOUC
   if (user === undefined && !error) {

@@ -5,6 +5,9 @@
  *
  * Uses usePathname() to detect if we're on a public page (login/register)
  * and skips the Screen/BottomNav wrapper for those pages.
+ *
+ * Also adds the universal QuickAddMenu (floating + button) on all
+ * authenticated pages.
  */
 
 import { type ReactNode } from "react";
@@ -16,13 +19,33 @@ import { LanguageProvider } from "@/providers/language-provider";
 import { AuthGate } from "@/providers/auth-gate";
 import { Screen } from "@/components/layout/Screen";
 import { BottomNav } from "@/components/layout/BottomNav";
+import { QuickAddMenu } from "@/components/layout/QuickAddMenu";
 
 const PUBLIC_PAGES = ["/login", "/register"];
+
+// Pages where the floating + button should NOT appear
+// (because the user is already on a form/create page)
+const NO_FAB_PAGES = [
+  "/sales/new",
+  "/payments/new",
+  "/more/expenses/new",
+  "/more/customers/new",
+  "/more/products/new",
+  "/stock/add",
+  "/stock/adjust",
+  "/more/expenses/",
+  "/more/products/",
+];
 
 export function Providers({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const isPublicPage = PUBLIC_PAGES.some(
     (p) => pathname === p || pathname.startsWith(p + "/"),
+  );
+
+  // Don't show the FAB on form/create/edit pages
+  const showFab = !isPublicPage && !NO_FAB_PAGES.some(
+    (p) => pathname === p || (pathname.startsWith(p) && pathname.includes("/edit")),
   );
 
   return (
@@ -31,14 +54,13 @@ export function Providers({ children }: { children: ReactNode }) {
         <QueryProvider>
           <ToastProvider>
             {isPublicPage ? (
-              // Public pages (login/register) — no app shell, no bottom nav, no AuthGate
               <Screen>{children}</Screen>
             ) : (
-              // Authenticated pages — full app shell with AuthGate + bottom nav
               <AuthGate>
                 <Screen>
                   {children}
                   <BottomNav />
+                  {showFab ? <QuickAddMenu /> : null}
                 </Screen>
               </AuthGate>
             )}

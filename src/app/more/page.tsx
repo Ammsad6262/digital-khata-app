@@ -3,9 +3,7 @@
 /**
  * More page — index of secondary sections.
  *
- * Links to: Customers, Products, Expenses, Transactions, Settings.
- * Stock is in the bottom nav; Products here is the management UI
- * (vs. Stock overview which is the operational view).
+ * Links to: Customers (khata), Payments, Products, Expenses, Transactions, Settings.
  */
 
 import Link from "next/link";
@@ -16,21 +14,16 @@ import {
   ListTree,
   Settings,
   ChevronRight,
+  Wallet,
+  Database,
 } from "lucide-react";
 import { AppHeader } from "@/components/layout/AppHeader";
 import { ScreenContent } from "@/components/layout/Screen";
 import { useLanguage } from "@/providers/language-provider";
 
-type SectionKey =
-  | "more.addCustomer"
-  | "more.products"
-  | "more.expenses"
-  | "more.transactions"
-  | "more.settings";
-
 type Section = {
   href: string;
-  titleKey: SectionKey;
+  titleKey: string;
   descKey: string;
   icon: typeof Users;
   color: string;
@@ -38,18 +31,25 @@ type Section = {
 
 const SECTIONS: Section[] = [
   {
-    href: "/more/customers/new",
-    titleKey: "more.addCustomer",
-    descKey: "more.addCustomerDesc",
+    href: "/khata",
+    titleKey: "nav.khata",
+    descKey: "more.customersDesc",
     icon: Users,
     color: "bg-brand-50 text-brand-700",
+  },
+  {
+    href: "/payments",
+    titleKey: "more.payments",
+    descKey: "more.paymentsDesc",
+    icon: Wallet,
+    color: "bg-blue-50 text-blue-700",
   },
   {
     href: "/more/products",
     titleKey: "more.products",
     descKey: "more.productsDesc",
     icon: Package,
-    color: "bg-blue-50 text-blue-700",
+    color: "bg-indigo-50 text-indigo-700",
   },
   {
     href: "/more/expenses",
@@ -64,6 +64,13 @@ const SECTIONS: Section[] = [
     descKey: "more.transactionsDesc",
     icon: ListTree,
     color: "bg-purple-50 text-purple-700",
+  },
+  {
+    href: "/more/backup",
+    titleKey: "more.backup",
+    descKey: "more.backupDesc",
+    icon: Database,
+    color: "bg-slate-100 text-slate-700",
   },
   {
     href: "/more/settings",
@@ -96,7 +103,7 @@ export default function MorePage() {
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium text-slate-900">
-                    {t(section.titleKey)}
+                    {t(section.titleKey as any)}
                   </p>
                   <p className="text-[11px] text-slate-500">
                     {t(section.descKey as any)}

@@ -38,7 +38,7 @@ export function LowStockList({ products }: { products: LowStockProduct[] }) {
         {products.slice(0, 5).map((product, idx) => (
           <Link
             key={product.id}
-            href={`/stock`}
+            href={`/more/products/${product.id}`}
             className={idx > 0 ? "border-t border-amber-200/70" : ""}
           >
             <div className="flex items-center justify-between px-3 py-2.5">

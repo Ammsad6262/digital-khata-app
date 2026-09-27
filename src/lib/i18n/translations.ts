@@ -417,6 +417,9 @@ export const translations = {
   // ─── More Menu ───
   "more.addCustomer": { en: "Add Customer", ur: "گاہک شامل کریں" },
   "more.addCustomerDesc": { en: "Add a new customer to the khata", ur: "کھاتے میں نیا گاہک شامل کریں" },
+  "more.customersDesc": { en: "View and manage your customers", ur: "اپنے گاہکوں کو دیکھیں اور منتظم کریں" },
+  "more.payments": { en: "Payments", ur: "ادائیگیاں" },
+  "more.paymentsDesc": { en: "All money received from customers", ur: "گاہکوں سے موصولہ تمام ادائیگیاں" },
   "more.products": { en: "Products", ur: "مصنوعات" },
   "more.productsDesc": { en: "Manage your products, prices, and stock thresholds", ur: "مصنوعات، قیمتوں کا انتظام" },
   "more.expenses": { en: "Expenses", ur: "خراجات" },

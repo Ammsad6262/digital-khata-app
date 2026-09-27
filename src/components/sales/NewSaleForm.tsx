@@ -32,6 +32,7 @@ import { BatchPicker } from "@/components/sales/BatchPicker";
 import { StickyFormActions } from "@/components/ui/StickyFormActions";
 import { Money } from "@/components/shared/Money";
 import { useCreateSale } from "@/hooks/use-sales";
+import { useCustomer } from "@/hooks/use-customers";
 import { useToast } from "@/providers/toast-provider";
 import { ApiError } from "@/lib/utils/api-client";
 import { Decimal } from "@/lib/utils/decimal";
@@ -64,14 +65,18 @@ export function NewSaleForm() {
   const [customerError, setCustomerError] = useState<string | null>(null);
 
   // Pre-fill customer from ?customerId=... (e.g. when tapping "New Sale" from a customer's khata page)
+  const customerIdParam = searchParams.get("customerId");
+  const { data: prefilledCustomer } = useCustomer(customerIdParam);
   useEffect(() => {
-    const customerId = searchParams.get("customerId");
-    if (customerId && !customer) {
-      // We can't easily fetch one customer by ID here without a hook; the user
-      // will just have to search/select. (A future enhancement could pre-fetch.)
-      // For now we just leave the customer empty.
+    if (prefilledCustomer && !customer) {
+      setCustomer({
+        id: prefilledCustomer.id,
+        name: prefilledCustomer.name,
+        phone: prefilledCustomer.phone ?? "",
+        balance: prefilledCustomer.balance,
+      });
     }
-  }, [searchParams, customer]);
+  }, [prefilledCustomer, customer]);
 
   // ── Computed totals ──────────────────────────────────────────────────
   const totals = useMemo(() => {

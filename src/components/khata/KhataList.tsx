@@ -140,18 +140,6 @@ export function KhataList() {
           </div>
         </>
       )}
-
-      {/* Floating add button (only when there are existing customers) */}
-      {!isEmpty && !isError ? (
-        <Link
-          href="/more/customers/new"
-          className="fixed bottom-20 right-4 z-20 flex h-12 w-12 items-center justify-center rounded-full bg-brand-600 text-white shadow-lg shadow-brand-600/30 transition-transform hover:scale-105 active:scale-95"
-          style={{ right: "max(1rem, calc((100vw - 480px) / 2 + 1rem))" }}
-          aria-label="Add customer"
-        >
-          <Plus className="h-5 w-5" />
-        </Link>
-      ) : null}
     </div>
   );
 }

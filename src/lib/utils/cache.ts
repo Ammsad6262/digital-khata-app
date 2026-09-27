@@ -64,6 +64,19 @@ export function invalidateCache(keyOrPrefix: string): void {
       cache.delete(k);
     }
   }
+
+  // Also clear the dashboard's private cache (it uses a separate Map, not this one).
+  // This fixes the bug where invalidateCache("dashboard") only cleared this module's
+  // Map but NOT dashboard.ts's private dashboardCache — causing stale data for 15s.
+  if (keyOrPrefix === "dashboard" || keyOrPrefix === "all") {
+    try {
+      // Dynamic import to avoid circular dependency at module load time
+      const { clearDashboardCache } = require("@/lib/services/dashboard");
+      clearDashboardCache();
+    } catch {
+      // If the dashboard module isn't loaded yet (e.g., during build), ignore.
+    }
+  }
 }
 
 /** Invalidate ALL cache entries (used after major mutations). */

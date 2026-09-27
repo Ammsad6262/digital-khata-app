@@ -56,8 +56,18 @@ export type RecentTransaction = {
 // still being fresh enough for practical use. React Query handles
 // client-side caching; this handles SERVER-side caching so the DB
 // isn't hit on every page load.
+//
+// IMPORTANT: This cache is cleared by invalidateCache("dashboard") from
+// src/lib/utils/cache.ts. The cache.ts module calls clearDashboardCache()
+// which is exported below. This ensures mutations (createSale, recordPayment,
+// etc.) immediately invalidate the dashboard cache so users see fresh data.
 const dashboardCache = new Map<string, { data: DashboardStats; expiresAt: number }>();
 const DASHBOARD_CACHE_TTL_MS = 15_000; // 15 seconds
+
+/** Clear the dashboard cache (called by invalidateCache in cache.ts). */
+export function clearDashboardCache(): void {
+  dashboardCache.clear();
+}
 
 export async function getDashboardStats(
   userId?: string | null,

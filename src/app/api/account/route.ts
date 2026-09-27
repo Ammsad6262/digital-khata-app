@@ -39,7 +39,7 @@ export async function GET(req: NextRequest) {
 
     if (!user) throw new UnauthorizedError("Account not found.");
 
-    return ok({ user });
+    return ok(user);
   } catch (error) {
     return fail(error);
   }
@@ -87,7 +87,7 @@ export async function PATCH(req: NextRequest) {
       },
     });
 
-    return ok({ user: updated });
+    return ok(updated);
   } catch (error) {
     return fail(error);
   }

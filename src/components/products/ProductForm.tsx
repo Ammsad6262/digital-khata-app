@@ -23,7 +23,7 @@
  */
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { TextField } from "@/components/ui/TextField";
 import { StickyFormActions } from "@/components/ui/StickyFormActions";
 import { useToast } from "@/providers/toast-provider";
@@ -55,20 +55,27 @@ export function ProductForm({
   const createProduct = useCreateProduct();
   const updateProduct = useUpdateProduct(productId ?? "");
 
-  const [name, setName] = useState<string>(existing?.name ?? "");
-  const [category, setCategory] = useState<string>(existing?.category ?? "");
-  const [purchasePrice, setPurchasePrice] = useState<string>(
-    existing?.purchasePrice ? existing.purchasePrice.toString() : "",
-  );
-  const [sellingPrice, setSellingPrice] = useState<string>(
-    existing?.sellingPrice ? existing.sellingPrice.toString() : "",
-  );
-  const [unit, setUnit] = useState<string>(existing?.unit ?? "piece");
-  const [sku, setSku] = useState<string>(existing?.sku ?? "");
+  const [name, setName] = useState<string>("");
+  const [category, setCategory] = useState<string>("");
+  const [purchasePrice, setPurchasePrice] = useState<string>("");
+  const [sellingPrice, setSellingPrice] = useState<string>("");
+  const [unit, setUnit] = useState<string>("piece");
+  const [sku, setSku] = useState<string>("");
   const [openingStock, setOpeningStock] = useState<string>("");
-  const [lowStockThreshold, setLowStockThreshold] = useState<string>(
-    existing?.lowStockThreshold ? existing.lowStockThreshold.toString() : "5",
-  );
+  const [lowStockThreshold, setLowStockThreshold] = useState<string>("5");
+
+  // Sync form fields when existing product data arrives (edit mode)
+  useEffect(() => {
+    if (existing) {
+      setName(existing.name ?? "");
+      setCategory(existing.category ?? "");
+      setPurchasePrice(existing.purchasePrice ? existing.purchasePrice.toString() : "");
+      setSellingPrice(existing.sellingPrice ? existing.sellingPrice.toString() : "");
+      setUnit(existing.unit ?? "piece");
+      setSku(existing.sku ?? "");
+      setLowStockThreshold(existing.lowStockThreshold ? existing.lowStockThreshold.toString() : "5");
+    }
+  }, [existing]);
 
   // Wait for product data to load before rendering in edit mode.
   if (mode === "edit" && !existing) {

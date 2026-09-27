@@ -18,7 +18,7 @@
  */
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { TextField } from "@/components/ui/TextField";
 import { TextArea } from "@/components/ui/TextArea";
 import { StickyFormActions } from "@/components/ui/StickyFormActions";
@@ -73,15 +73,22 @@ export function ExpenseForm({
   const recordExpense = useRecordExpense();
   const updateExpense = useUpdateExpense(expenseId ?? "");
 
-  const [name, setName] = useState<string>(existing?.name ?? "");
-  const [amount, setAmount] = useState<string>(
-    existing?.amount ? existing.amount.toString() : "",
-  );
-  const [category, setCategory] = useState<Category>(existing?.category as Category ?? "other");
-  const [date, setDate] = useState<string>(
-    existing?.date ? new Date(existing.date).toISOString().slice(0, 10) : todayIsoLocal(),
-  );
-  const [notes, setNotes] = useState<string>(existing?.notes ?? "");
+  const [name, setName] = useState<string>("");
+  const [amount, setAmount] = useState<string>("");
+  const [category, setCategory] = useState<Category>("other");
+  const [date, setDate] = useState<string>(todayIsoLocal());
+  const [notes, setNotes] = useState<string>("");
+
+  // Sync form fields when existing expense data arrives (edit mode)
+  useEffect(() => {
+    if (existing) {
+      setName(existing.name ?? "");
+      setAmount(existing.amount ? existing.amount.toString() : "");
+      setCategory((existing.category as Category) ?? "other");
+      setDate(existing.date ? new Date(existing.date).toISOString().slice(0, 10) : todayIsoLocal());
+      setNotes(existing.notes ?? "");
+    }
+  }, [existing]);
 
   // Wait for product data to load in edit mode.
   if (mode === "edit" && !existing) {

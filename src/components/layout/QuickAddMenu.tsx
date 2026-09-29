@@ -93,12 +93,20 @@ export function QuickAddMenu() {
 
   return (
     <>
-      {/* Floating + button — always visible, above bottom nav */}
+      {/* Floating + button — always visible on Dashboard + Sales pages.
+          On desktop (max-width: 1024px container), the button aligns to the
+          right edge of the centered app shell instead of the viewport edge,
+          so it doesn't float disconnected in the desktop margin. */}
       <button
         type="button"
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-20 right-4 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-brand-600 text-white shadow-lg shadow-brand-600/30 transition-transform hover:scale-105 active:scale-95"
-        style={{ right: "max(1rem, calc((100vw - 480px) / 2 + 1rem))" }}
+        className="fixed bottom-20 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-brand-600 text-white shadow-lg shadow-brand-600/30 transition-transform hover:scale-105 active:scale-95"
+        style={{
+          // On mobile (≤1024px), 1rem from the right edge of the viewport.
+          // On desktop (>1024px), aligned to the right edge of the centered
+          // app shell (1024px wide, centered) + 1rem padding.
+          right: "max(1rem, calc((100vw - 1024px) / 2 + 1rem))",
+        }}
         aria-label="Quick add"
       >
         <Plus className="h-6 w-6" />

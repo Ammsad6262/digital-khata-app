@@ -13,7 +13,7 @@
  *   - Empty state with "Add customer" CTA
  */
 
-import { Search, X, Users, AlertCircle, UserPlus } from "lucide-react";
+import { Search, X, Users, AlertCircle, UserPlus, UserPlus2, Plus, Sparkles, Lightbulb, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { useCustomerSearch } from "@/hooks/use-customers";
 import { CustomerRow } from "@/components/khata/CustomerRow";
@@ -99,19 +99,7 @@ export function KhataList() {
             }
           />
         ) : (
-          <EmptyState
-            title={t("customer.noCustomers")}
-            description={t("customer.addFirst")}
-            icon={<Users className="h-6 w-6" />}
-            action={
-              <Link href="/more/customers/new">
-                <Button size="sm">
-                  <UserPlus className="h-4 w-4" />
-                  {t("customer.addFirstBtn")}
-                </Button>
-              </Link>
-            }
-          />
+          <EmptyCustomersState />
         )
       ) : (
         <>
@@ -162,6 +150,70 @@ function KhataListSkeleton() {
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+/**
+ * Empty customers state — matches the design spec.
+ *
+ * Layout (vertical, centered):
+ *   1. Large light-green circle with a UserPlus icon (white) + small dark-green
+ *      "+" badge at bottom-right + sparkle accents
+ *   2. "No customers yet" heading
+ *   3. Description: "Add your first customer to start tracking their khata."
+ *   4. Large green pill button: "+ Add your first customer"
+ *   5. Helper tip at the bottom: "💡 You can also create a customer from any transaction."
+ */
+function EmptyCustomersState() {
+  const { t } = useLanguage();
+  return (
+    <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-white/60 px-6 py-12 text-center">
+      {/* Icon with badge + sparkles */}
+      <div className="relative mb-5">
+        {/* Sparkle accents */}
+        <Sparkles className="absolute -left-3 -top-2 h-4 w-4 text-brand-300" aria-hidden />
+        <Sparkles className="absolute -right-2 top-2 h-3 w-3 text-brand-200" aria-hidden />
+
+        {/* Main icon container */}
+        <div className="flex h-20 w-20 items-center justify-center rounded-full bg-brand-50">
+          <UserPlus2 className="h-9 w-9 text-brand-600" strokeWidth={1.75} />
+        </div>
+
+        {/* Small "+" badge at bottom-right of the icon */}
+        <div className="absolute bottom-1 right-1 flex h-6 w-6 items-center justify-center rounded-full border-2 border-white bg-brand-600 text-white shadow-sm">
+          <Plus className="h-3.5 w-3.5" strokeWidth={3} />
+        </div>
+      </div>
+
+      {/* Heading + description */}
+      <h3 className="text-base font-semibold text-slate-900">
+        {t("customer.noCustomers")}
+      </h3>
+      <p className="mt-1.5 max-w-xs text-sm text-slate-500">
+        {t("customer.addFirst")}
+      </p>
+
+      {/* Primary CTA — large green pill */}
+      <Link
+        href="/more/customers/new"
+        className="mt-6 flex items-center gap-2 rounded-full bg-brand-600 px-5 py-3 text-sm font-semibold text-white shadow-md shadow-brand-600/30 transition-transform hover:scale-[1.02] active:scale-95"
+      >
+        <Plus className="h-4 w-4" strokeWidth={2.5} />
+        {t("customer.addFirstBtn")}
+      </Link>
+
+      {/* Helper tip */}
+      <Link
+        href="/sales/new"
+        className="mt-8 flex w-full max-w-xs items-center gap-2 rounded-lg bg-slate-50 px-3 py-2.5 text-left text-xs text-slate-500 transition-colors hover:bg-slate-100"
+      >
+        <Lightbulb className="h-4 w-4 shrink-0 text-brand-500" />
+        <span className="flex-1">
+          You can also create a customer from any transaction.
+        </span>
+        <ChevronRight className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+      </Link>
     </div>
   );
 }

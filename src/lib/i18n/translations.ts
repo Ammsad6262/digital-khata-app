@@ -15,6 +15,7 @@ export const translations = {
   "app.name": { en: "Digital Khata", ur: "ڈیجیٹل کھاتہ" },
   "nav.dashboard": { en: "Dashboard", ur: "ڈیش بورڈ" },
   "nav.khata": { en: "Khata", ur: "کھاتہ" },
+  "nav.khataSubtitle": { en: "Manage your customers", ur: "اپنے گاہکوں کو منظم کریں" },
   "nav.sales": { en: "Sales", ur: "فروخت" },
   "nav.stock": { en: "Stock", ur: "اسٹاک" },
   "nav.more": { en: "More", ur: "مزید" },

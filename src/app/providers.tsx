@@ -23,9 +23,20 @@ import { QuickAddMenu } from "@/components/layout/QuickAddMenu";
 
 const PUBLIC_PAGES = ["/login", "/register"];
 
-// Pages where the floating + button should NOT appear
-// (because the user is already on a form/create page)
+// Pages where the floating + button should NOT appear.
+//
+// The FAB is shown on the Dashboard + Sales pages only — those are the
+// two screens where the user most often records new activity (sales
+// especially). On list pages like Khata / Payments / Expenses / Stock / More,
+// the page header already has a "+" action in the top-right, so the FAB
+// would be redundant and just add visual noise.
+//
+// Form/create/edit pages also hide the FAB (the user is already on a form).
 const NO_FAB_PAGES = [
+  "/khata",
+  "/payments",
+  "/more",
+  "/stock",
   "/sales/new",
   "/payments/new",
   "/more/expenses/new",

@@ -43,7 +43,9 @@ export const customerKeys = {
 // List + search
 // ────────────────────────────────────────────────────────────────────────────
 
-/** List all customers (without balance — fastest path). */
+/** List all customers (without balance — fastest path).
+ *  Uses the global cache settings (staleTime=30s, refetchOnWindowFocus=true)
+ *  so data added on another device appears within 30s or on tab focus. */
 export function useCustomers() {
   return useQuery<CustomerView[]>({
     queryKey: customerKeys.list(false),
@@ -57,7 +59,7 @@ export function useCustomersWithBalance() {
     queryKey: customerKeys.list(true),
     queryFn: () =>
       apiGet<CustomerSearchResult[]>("/api/customers?withBalances=1"),
-    staleTime: 60 * 1000, // 1 minute
+    staleTime: 30 * 1000, // 30 seconds — sync with global default
   });
 }
 
@@ -106,7 +108,7 @@ export function useCustomerSearch() {
       const url = q ? `/api/customers?q=${encodeURIComponent(q)}` : "/api/customers?withBalances=1";
       return apiGet<CustomerSearchResult[]>(url);
     },
-    staleTime: 60 * 1000, // 1 minute — new customers should appear quickly
+    staleTime: 30 * 1000, // 30 seconds — new customers should appear quickly
   });
 
   return {

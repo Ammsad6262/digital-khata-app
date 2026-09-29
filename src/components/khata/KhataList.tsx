@@ -13,7 +13,7 @@
  *   - Empty state with "Add customer" CTA
  */
 
-import { Search, X, Users, AlertCircle, UserPlus, Plus } from "lucide-react";
+import { Search, X, Users, AlertCircle, UserPlus } from "lucide-react";
 import Link from "next/link";
 import { useCustomerSearch } from "@/hooks/use-customers";
 import { CustomerRow } from "@/components/khata/CustomerRow";

@@ -45,7 +45,7 @@ export function useProducts() {
     queryKey: productKeys.list(false),
     queryFn: () => apiGet<ProductView[]>("/api/products"),
     // Short staleTime for product lists — new products should appear quickly
-    staleTime: 60 * 1000, // 1 minute
+    staleTime: 30 * 1000, // 30 seconds — multi-device sync
   });
 }
 
@@ -54,7 +54,7 @@ export function useProductsWithStock() {
   return useQuery<ProductWithStock[]>({
     queryKey: productKeys.list(true),
     queryFn: () => apiGet<ProductWithStock[]>("/api/products?withStock=1"),
-    staleTime: 60 * 1000, // 1 minute
+    staleTime: 30 * 1000, // 30 seconds — multi-device sync
   });
 }
 
@@ -78,7 +78,7 @@ export function useProductSearch() {
       const url = q ? `/api/products?q=${encodeURIComponent(q)}` : "/api/products?withStock=1";
       return apiGet<ProductSearchResult[]>(url);
     },
-    staleTime: 60 * 1000, // 1 minute
+    staleTime: 30 * 1000, // 30 seconds — multi-device sync
   });
 
   return {
@@ -95,7 +95,7 @@ export function useProduct(id: string | null | undefined) {
     queryKey: id ? productKeys.detail(id) : ["products", "detail", "disabled"],
     queryFn: () => apiGet<ProductWithStock>(`/api/products/${id}`),
     enabled: !!id,
-    staleTime: 60 * 1000,
+    staleTime: 30 * 1000, // 30 seconds — multi-device sync
   });
 }
 

@@ -8,7 +8,7 @@
  */
 
 import Link from "next/link";
-import { Search, X, Package, AlertTriangle, Plus } from "lucide-react";
+import { Search, X, Package, AlertTriangle } from "lucide-react";
 import { useProductSearch } from "@/hooks/use-products";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { Button } from "@/components/ui/Button";
@@ -179,18 +179,6 @@ export function ProductsList() {
           </div>
         </>
       )}
-
-      {/* Floating add button */}
-      {!isEmpty && !isError ? (
-        <Link
-          href="/more/products/new"
-          className="fixed bottom-20 z-20 flex h-12 w-12 items-center justify-center rounded-full bg-brand-600 text-white shadow-lg shadow-brand-600/30 transition-transform hover:scale-105 active:scale-95"
-          style={{ right: "max(1rem, calc((100vw - 480px) / 2 + 1rem))" }}
-          aria-label="Add product"
-        >
-          <Plus className="h-5 w-5" />
-        </Link>
-      ) : null}
     </div>
   );
 }

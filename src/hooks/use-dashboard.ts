@@ -9,12 +9,13 @@
  * Both override the global cache settings:
  *   - staleTime: 0            → always consider data stale
  *   - refetchOnMount: true     → ALWAYS refetch when Dashboard mounts
+ *   - refetchOnWindowFocus: true → refetch when user returns to the tab
+ *   - refetchInterval: 60s     → auto-refresh every 60 seconds
  *
- * The global QueryProvider sets staleTime=10min and refetchOnMount=false to
- * minimize API calls on high-latency Supabase. That's fine for list/detail
- * pages, but the dashboard is the home screen — users open it specifically
- * to see current numbers. Showing 10-minute-stale data after a sale was
- * recorded is a worse UX than waiting 1 second for a fresh fetch.
+ * The global QueryProvider sets staleTime=30s + refetchOnWindowFocus=true
+ * for multi-device sync. The dashboard goes further: staleTime=0 means
+ * it ALWAYS refetches on mount/focus, and refetchInterval polls every 60s.
+ * The dashboard is the home screen — users open it to see current numbers.
  */
 
 import { useQuery } from "@tanstack/react-query";

@@ -13,7 +13,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { AlertCircle, ShoppingCart } from "lucide-react";
+import { AlertCircle, ShoppingCart, Receipt, Plus, Sparkles, ArrowRight } from "lucide-react";
 import { useSalesList } from "@/hooks/use-sales";
 import type { SaleFilter } from "@/lib/services/sales";
 import { EmptyState } from "@/components/shared/EmptyState";
@@ -107,23 +107,7 @@ export function SalesList() {
           }
         />
       ) : !data || data.length === 0 ? (
-        <EmptyState
-          title={filter === "all" ? t("sale.noSales") : t("sale.noSalesPeriod")}
-          description={
-            filter === "all"
-              ? t("sale.noSalesDesc")
-              : t("sale.noSalesPeriodDesc")
-          }
-          icon={<ShoppingCart className="h-6 w-6" />}
-          action={
-            <Link href="/sales/new">
-              <Button size="sm">
-                <ShoppingCart className="h-4 w-4" />
-                {t("action.newSale")}
-              </Button>
-            </Link>
-          }
-        />
+        <EmptySalesState filter={filter} />
       ) : (
         <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
           {data.map((sale, idx) => (
@@ -214,6 +198,61 @@ function SalesListSkeleton() {
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+/**
+ * Empty sales state — matches the design spec.
+ *
+ * Layout (vertical, centered):
+ *   1. Receipt/document icon with green circle + "+" badge + sparkle accents
+ *   2. Heading: "No sales yet" (or "No sales in this period" if a filter is set)
+ *   3. Description: "Start recording your first sale to keep track of your
+ *      revenue and growth."
+ *   4. Large green pill button: "New Sale" with shopping cart icon on the
+ *      left and a chevron-right arrow on the right.
+ */
+function EmptySalesState({ filter }: { filter: SaleFilter }) {
+  const { t } = useLanguage();
+  const isAllFilter = filter === "all";
+
+  return (
+    <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-white/60 px-6 py-12 text-center">
+      {/* Receipt icon with green circle + badge + sparkles */}
+      <div className="relative mb-5">
+        {/* Sparkle accents */}
+        <Sparkles className="absolute -left-3 -top-2 h-4 w-4 text-brand-300" aria-hidden />
+        <Sparkles className="absolute -right-2 top-2 h-3 w-3 text-brand-200" aria-hidden />
+
+        {/* Main icon container — receipt/document */}
+        <div className="flex h-20 w-20 items-center justify-center rounded-full bg-brand-50">
+          <Receipt className="h-9 w-9 text-brand-600" strokeWidth={1.75} />
+        </div>
+
+        {/* Small "+" badge at bottom-right of the icon */}
+        <div className="absolute bottom-1 right-1 flex h-6 w-6 items-center justify-center rounded-full border-2 border-white bg-brand-600 text-white shadow-sm">
+          <Plus className="h-3.5 w-3.5" strokeWidth={3} />
+        </div>
+      </div>
+
+      {/* Heading + description */}
+      <h3 className="text-base font-semibold text-slate-900">
+        {isAllFilter ? t("sale.noSales") : t("sale.noSalesPeriod")}
+      </h3>
+      <p className="mt-1.5 max-w-xs text-sm text-slate-500">
+        {isAllFilter ? t("sale.noSalesDesc") : t("sale.noSalesPeriodDesc")}
+      </p>
+
+      {/* Primary CTA — large green pill with shopping cart + chevron */}
+      <Link
+        href="/sales/new"
+        className="mt-6 flex items-center gap-2 rounded-full bg-brand-600 px-5 py-3 text-sm font-semibold text-white shadow-md shadow-brand-600/30 transition-transform hover:scale-[1.02] active:scale-95"
+      >
+        <ShoppingCart className="h-4 w-4" strokeWidth={2.25} />
+        {t("action.newSale")}
+        <ArrowRight className="h-4 w-4" strokeWidth={2.25} />
+      </Link>
     </div>
   );
 }

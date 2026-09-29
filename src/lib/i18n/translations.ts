@@ -17,6 +17,7 @@ export const translations = {
   "nav.khata": { en: "Khata", ur: "کھاتہ" },
   "nav.khataSubtitle": { en: "Manage your customers", ur: "اپنے گاہکوں کو منظم کریں" },
   "nav.sales": { en: "Sales", ur: "فروخت" },
+  "nav.salesSubtitle": { en: "Track and manage your sales", ur: "اپنی فروخت کو ٹریک اور منظم کریں" },
   "nav.stock": { en: "Stock", ur: "اسٹاک" },
   "nav.more": { en: "More", ur: "مزید" },
 
@@ -177,7 +178,7 @@ export const translations = {
   "sale.voidedOn": { en: "This sale was voided on", ur: "یہ فروخت منسوخ کی گئی" },
   "sale.voidedDesc": { en: "It does not affect customer balance or stock.", ur: "یہ گاہک کے بیلنس یا اسٹاک کو متاثر نہیں کرتی۔" },
   "sale.noSales": { en: "No sales yet", ur: "ابھی کوئی فروخت نہیں" },
-  "sale.noSalesDesc": { en: "Record your first sale using the + button above.", ur: "اوپر + بٹن کا استعمال کرتے ہوئے پہلی فروخت درج کریں۔" },
+  "sale.noSalesDesc": { en: "Start recording your first sale to keep track of your revenue and growth.", ur: "اپنی آمدنی اور ترقی کو ٹریک کرنے کے لیے پہلی فروخت درج کرنا شروع کریں۔" },
   "sale.noSalesPeriod": { en: "No sales in this period", ur: "اس مدت میں کوئی فروخت نہیں" },
   "sale.due": { en: "due", ur: "بقایا" },
 

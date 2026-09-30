@@ -193,25 +193,32 @@ export async function getProductStock(productId: string): Promise<Decimal> {
 }
 
 /**
- * Batch compute stock for ALL products in one query (avoids N+1).
- * Returns a Map<productId, Decimal>.
+ * Batch compute stock for ALL products belonging to a user in one query
+ * (avoids N+1). Returns a Map<productId, Decimal>.
  *
- * Implementation note: SQLite doesn't support GROUP BY joins well in Prisma.
- * We do two groupBys (one for stock moves, one for sale items) and merge them
- * in JS. Still O(products) queries — but 2 queries total instead of 2*N.
+ * Multi-tenant safety: when userId is provided, only counts stock moves +
+ * sale items for that user's products. Other users' stock never leaks.
  */
-export async function computeStockForAllProducts(): Promise<Map<string, Decimal>> {
+export async function computeStockForAllProducts(userId?: string | null): Promise<Map<string, Decimal>> {
   const [products, movesGrouped, soldGrouped] = await Promise.all([
-    prisma.product.findMany({ where: { isDeleted: false }, select: { id: true, openingStock: true } }),
+    prisma.product.findMany({
+      where: { isDeleted: false, ...(userId && { userId }) },
+      select: { id: true, openingStock: true },
+    }),
     prisma.stockMove.groupBy({
       by: ["productId"],
       _sum: { quantity: true },
-      where: { voidedAt: null },
+      where: { voidedAt: null, ...(userId && { userId }) },
     }),
     prisma.saleItem.groupBy({
       by: ["productId"],
       _sum: { quantity: true },
-      where: { sale: { voidedAt: null } },
+      where: {
+        sale: {
+          voidedAt: null,
+          ...(userId && { userId }),
+        },
+      },
     }),
   ]);
 

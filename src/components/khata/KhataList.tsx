@@ -11,6 +11,7 @@
  *   - Loading skeleton while fetching
  *   - Error state with retry
  *   - Empty state with "Add customer" CTA
+ *   - Pull-to-refresh: drag down from the top to refetch
  */
 
 import { Search, X, Users, AlertCircle, UserPlus, UserPlus2, Plus, Sparkles, Lightbulb, ChevronRight } from "lucide-react";
@@ -18,6 +19,7 @@ import Link from "next/link";
 import { useCustomerSearch } from "@/hooks/use-customers";
 import { CustomerRow } from "@/components/khata/CustomerRow";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { PullToRefresh } from "@/components/shared/PullToRefresh";
 import { Button } from "@/components/ui/Button";
 import { useLanguage } from "@/providers/language-provider";
 
@@ -30,105 +32,107 @@ export function KhataList() {
   const isEmpty = !data || data.length === 0;
 
   return (
-    <div className="space-y-3">
-      {/* Search bar — sticky within the scroll container */}
-      <div className="sticky top-0 z-10 -mx-4 bg-slate-50 px-4 py-2">
-        <div className="relative">
-          <Search
-            className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
-            aria-hidden
-          />
-          <input
-            type="text"
-            inputMode="search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder={t("customer.searchPlaceholder")}
-            className="w-full rounded-lg border border-slate-300 bg-white py-2.5 pl-9 pr-9 text-sm text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
-            aria-label="Search customers"
-          />
-          {query ? (
-            <button
-              type="button"
-              onClick={() => setQuery("")}
-              className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-slate-400 hover:text-slate-700"
-              aria-label="Clear search"
-            >
-              <X className="h-4 w-4" />
-            </button>
+    <PullToRefresh onRefresh={async () => { await refetch(); }} className="-mx-4 px-4 sm:-mx-6 sm:px-6">
+      <div className="space-y-3">
+        {/* Search bar — sticky within the scroll container */}
+        <div className="sticky top-0 z-10 -mx-4 bg-slate-50 px-4 py-2">
+          <div className="relative">
+            <Search
+              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+              aria-hidden
+            />
+            <input
+              type="text"
+              inputMode="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={t("customer.searchPlaceholder")}
+              className="w-full rounded-lg border border-slate-300 bg-white py-2.5 pl-9 pr-9 text-sm text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+              aria-label="Search customers"
+            />
+            {query ? (
+              <button
+                type="button"
+                onClick={() => setQuery("")}
+                className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-slate-400 hover:text-slate-700"
+                aria-label="Clear search"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            ) : null}
+          </div>
+          {isShortQuery ? (
+            <p className="mt-1 pl-1 text-xs text-slate-500">
+              {t("customer.keepTyping")}
+            </p>
           ) : null}
         </div>
-        {isShortQuery ? (
-          <p className="mt-1 pl-1 text-xs text-slate-500">
-            {t("customer.keepTyping")}
-          </p>
-        ) : null}
-      </div>
 
-      {/* Body — loading / error / empty / list */}
-      {isLoading ? (
-        <KhataListSkeleton />
-      ) : isError ? (
-        <EmptyState
-          title={t("customer.couldntLoad")}
-          description={
-            error instanceof Error
-              ? error.message
-              : t("common.networkError")
-          }
-          icon={<AlertCircle className="h-6 w-6" />}
-          action={
-            <Button onClick={() => refetch()} variant="outline" size="sm">
-              {t("common.retry")}
-            </Button>
-          }
-        />
-      ) : isEmpty ? (
-        query.trim() ? (
+        {/* Body — loading / error / empty / list */}
+        {isLoading ? (
+          <KhataListSkeleton />
+        ) : isError ? (
           <EmptyState
-            title={t("customer.noMatch")}
-            description={`${t("customer.noMatchDesc")} "${query.trim()}".`}
-            icon={<Search className="h-6 w-6" />}
+            title={t("customer.couldntLoad")}
+            description={
+              error instanceof Error
+                ? error.message
+                : t("common.networkError")
+            }
+            icon={<AlertCircle className="h-6 w-6" />}
             action={
-              <Link href="/more/customers/new">
-                <Button size="sm" variant="outline">
-                  <UserPlus className="h-4 w-4" />
-                  {t("customer.addFirstBtn")}
-                </Button>
-              </Link>
+              <Button onClick={() => refetch()} variant="outline" size="sm">
+                {t("common.retry")}
+              </Button>
             }
           />
+        ) : isEmpty ? (
+          query.trim() ? (
+            <EmptyState
+              title={t("customer.noMatch")}
+              description={`${t("customer.noMatchDesc")} "${query.trim()}".`}
+              icon={<Search className="h-6 w-6" />}
+              action={
+                <Link href="/more/customers/new">
+                  <Button size="sm" variant="outline">
+                    <UserPlus className="h-4 w-4" />
+                    {t("customer.addFirstBtn")}
+                  </Button>
+                </Link>
+              }
+            />
+          ) : (
+            <EmptyCustomersState />
+          )
         ) : (
-          <EmptyCustomersState />
-        )
-      ) : (
-        <>
-          <div className="flex items-center justify-between px-1">
-            <p className="text-xs text-slate-500">
-              {query.trim() ? (
-                <>
-                  {data?.length} {data?.length === 1 ? t("customer.result") : t("customer.results")} {t("customer.for")} &ldquo;{query.trim()}&rdquo;
-                </>
-              ) : (
-                <>
-                  {data?.length} {data?.length === 1 ? t("customer.customer") : t("customer.customers")} {t("customer.total")}
-                </>
-              )}
-            </p>
-          </div>
-          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
-            {data?.map((customer, idx) => (
-              <div
-                key={customer.id}
-                className={idx > 0 ? "border-t border-slate-100" : ""}
-              >
-                <CustomerRow customer={customer} />
-              </div>
-            ))}
-          </div>
-        </>
-      )}
-    </div>
+          <>
+            <div className="flex items-center justify-between px-1">
+              <p className="text-xs text-slate-500">
+                {query.trim() ? (
+                  <>
+                    {data?.length} {data?.length === 1 ? t("customer.result") : t("customer.results")} {t("customer.for")} &ldquo;{query.trim()}&rdquo;
+                  </>
+                ) : (
+                  <>
+                    {data?.length} {data?.length === 1 ? t("customer.customer") : t("customer.customers")} {t("customer.total")}
+                  </>
+                )}
+              </p>
+            </div>
+            <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+              {data?.map((customer, idx) => (
+                <div
+                  key={customer.id}
+                  className={idx > 0 ? "border-t border-slate-100" : ""}
+                >
+                  <CustomerRow customer={customer} />
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+    </PullToRefresh>
   );
 }
 

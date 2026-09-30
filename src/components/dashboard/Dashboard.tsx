@@ -14,6 +14,7 @@ import { AlertCircle, RefreshCw } from "lucide-react";
 import { useDashboard } from "@/hooks/use-dashboard";
 import { Money } from "@/components/shared/Money";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { PullToRefresh } from "@/components/shared/PullToRefresh";
 import { Button } from "@/components/ui/Button";
 import { HeroCard } from "@/components/dashboard/HeroCard";
 import { StatCard } from "@/components/dashboard/StatCard";
@@ -78,9 +79,10 @@ export function Dashboard() {
     data.recentTransactions.length === 0;
 
   return (
-    <div className="space-y-4">
-      {/* Global search — always at the very top for fast access */}
-      <GlobalSearch />
+    <PullToRefresh onRefresh={async () => { await refetch(); }} className="-mx-4 px-4 sm:-mx-6 sm:px-6">
+      <div className="space-y-4">
+        {/* Global search — always at the very top for fast access */}
+        <GlobalSearch />
 
       {/* Hero — total receivables */}
       <HeroCard
@@ -146,6 +148,7 @@ export function Dashboard() {
           icon={<TrendingUp className="h-6 w-6" />}
         />
       ) : null}
-    </div>
+      </div>
+    </PullToRefresh>
   );
 }

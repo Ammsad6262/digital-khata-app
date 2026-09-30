@@ -146,7 +146,7 @@ model Sale {
   userId     String?
   user       User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
   customerId String
-  customer   Customer @relation(fields: [customerId], references: [id])
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
 
   // Total of all SaleItem.total — denormalized for fast display
   totalAmount Decimal
@@ -178,7 +178,7 @@ model SaleItem {
   saleId    String
   sale      Sale    @relation(fields: [saleId], references: [id], onDelete: Cascade)
   productId String
-  product   Product @relation(fields: [productId], references: [id])
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   quantity  Decimal
   unitPrice Decimal   // price per unit at time of sale (snapshot)
@@ -192,7 +192,7 @@ model SaleItem {
   // When this SaleItem is created, the linked StockMove.remainingQuantity is
   // decremented by `quantity`. When the sale is voided, it's restored.
   stockMoveId String?
-  stockMove   StockMove? @relation(fields: [stockMoveId], references: [id])
+  stockMove   StockMove? @relation(fields: [stockMoveId], references: [id], onDelete: Cascade)
   // ─────────────────────────────────────────────────────────────────────────
 
   @@index([saleId])
@@ -209,11 +209,11 @@ model Payment {
   userId     String?
   user       User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
   customerId String
-  customer   Customer @relation(fields: [customerId], references: [id])
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
 
   // Optional link to a specific Sale — useful when payment is for one invoice
   saleId     String?
-  sale       Sale?    @relation(fields: [saleId], references: [id])
+  sale       Sale?    @relation(fields: [saleId], references: [id], onDelete: Cascade)
 
   amount     Decimal
   method     String   // "cash" | "bank" | "cheque" | "jazzcash" | "easypaisa" | "other"
@@ -247,7 +247,7 @@ model CustomerAdjustment {
   userId     String?
   user       User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
   customerId String
-  customer   Customer @relation(fields: [customerId], references: [id])
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
 
   amount     Decimal   // signed: + increases balance, - decreases
   reason     String   // required — must explain why the adjustment was made
@@ -279,7 +279,7 @@ model StockMove {
   userId    String?
   user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
   productId String
-  product   Product  @relation(fields: [productId], references: [id])
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   type      String   // "purchase" | "adjustment" | "return"
   quantity  Decimal   // signed
@@ -365,10 +365,10 @@ model Transaction {
   refType    String   // "Sale" | "Payment" | "Expense" | "StockMove" | "CustomerAdjustment"
 
   customerId String?  // set if transaction involves a customer
-  customer   Customer? @relation(fields: [customerId], references: [id])
+  customer   Customer? @relation(fields: [customerId], references: [id], onDelete: Cascade)
 
   productId  String?  // set if transaction involves a product (stock moves)
-  product    Product?  @relation(fields: [productId], references: [id])
+  product    Product?  @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   amount     Decimal   // always positive; direction tells you sign
   direction  String   // "debit" | "credit" — semantic per type, see docs

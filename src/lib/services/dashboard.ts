@@ -1,14 +1,22 @@
 /**
- * Dashboard service — optimized for high-latency DB connections.
+ * Dashboard service — multi-tenant scoped, fully parallelized.
  *
- * All queries are scoped by userId for multi-tenant isolation.
- * Legacy data (null userId) is NOT shown to logged-in users.
+ * Every query is scoped by `userId` (required). The dashboard never leaks
+ * another user's data — verified end-to-end via the e2e test suite.
+ *
+ * Performance: all 5 queries run in parallel via Promise.all, so total
+ * time = single slowest query (~500ms from US-East to Supabase Mumbai).
+ *
+ * Server-side cache: 5 seconds (short — fresh data matters for the dashboard,
+ * but 5s is enough to absorb a double-load from React Query's mount+refetch).
  */
 
 import { prisma } from "@/lib/db/prisma";
+import { Prisma } from "@prisma/client";
 import { Decimal, toDecimalOrZero } from "@/lib/utils/decimal";
 import { startOfTodayInTz } from "@/lib/utils/date";
 import { computeStockForAllProducts } from "@/lib/services/products";
+import { UnauthorizedError } from "@/lib/errors";
 
 export type DashboardStats = {
   totalReceivables: string;
@@ -43,21 +51,30 @@ export type RecentTransaction = {
 };
 
 // ────────────────────────────────────────────────────────────────────────────
-// In-memory cache — 15 second TTL
+// In-memory cache — 5 second TTL (very short so dashboard stays fresh)
 // ────────────────────────────────────────────────────────────────────────────
+// The dashboard is the home screen — users open it to see CURRENT numbers.
+// A 5s cache absorbs a double-load from React Query (mount + refetch) but
+// is short enough that data added moments ago appears on the next refresh.
 const dashboardCache = new Map<string, { data: DashboardStats; expiresAt: number }>();
-const DASHBOARD_CACHE_TTL_MS = 15_000;
+const DASHBOARD_CACHE_TTL_MS = 5_000; // 5 seconds
 
-/** Clear the dashboard cache (called by invalidateCache in cache.ts). */
+/** Clear the dashboard cache — called by invalidateCache("dashboard") after
+ *  any mutation (sale/payment/expense/etc.) so the next read gets fresh data. */
 export function clearDashboardCache(): void {
   dashboardCache.clear();
 }
 
 export async function getDashboardStats(
-  userId?: string | null,
+  userId: string,
   timezone: string = "Asia/Karachi",
 ): Promise<DashboardStats> {
-  const cacheKey = userId ?? "all";
+  if (!userId) {
+    throw new UnauthorizedError("Authentication required to load dashboard.");
+  }
+
+  // Return cached data if still fresh (per-user cache key)
+  const cacheKey = userId;
   const cached = dashboardCache.get(cacheKey);
   if (cached && Date.now() < cached.expiresAt) {
     return cached.data;
@@ -65,8 +82,13 @@ export async function getDashboardStats(
 
   const today = startOfTodayInTz(timezone);
 
-  // Build the user filter for Prisma queries
-  const userWhere = userId ? { userId } : undefined;
+  // All queries below are scoped by userId. We use Prisma.sql tagged template
+  // literals so ${userId} is parameterized (safe from SQL injection).
+  // NOTE: the per-customer-balance subqueries don't use table aliases, so
+  // the filter must reference the unqualified "userId" column (not "s"."userId").
+  const saleUserFilter = Prisma.sql`AND "userId" = ${userId}`;
+  const expenseUserFilter = Prisma.sql`AND "userId" = ${userId}`;
+  const customerUserFilter = Prisma.sql`AND c."userId" = ${userId}`;
 
   // ── ALL queries in parallel — no dependencies between them ────────────
   const [aggregates, recentTxRaw, stockByProduct, products, perCustomerBalances] = await Promise.all([
@@ -78,15 +100,15 @@ export async function getDashboardStats(
       todays_expenses: Decimal | null;
     }>>`
       SELECT
-        (SELECT COUNT(*) FROM "Customer" WHERE "isDeleted" = false ${userId ? prisma.$queryRaw`AND "userId" = ${userId}` : prisma.$queryRaw``}) as customer_count,
-        (SELECT COALESCE(SUM("totalAmount"), 0) FROM "Sale" WHERE "voidedAt" IS NULL AND "date" >= ${today} ${userId ? prisma.$queryRaw`AND "userId" = ${userId}` : prisma.$queryRaw``}) as todays_sales,
-        (SELECT COALESCE(SUM("amount"), 0) FROM "Payment" WHERE "voidedAt" IS NULL AND "date" >= ${today} ${userId ? prisma.$queryRaw`AND "userId" = ${userId}` : prisma.$queryRaw``}) as todays_payments,
-        (SELECT COALESCE(SUM("amount"), 0) FROM "Expense" WHERE "voidedAt" IS NULL AND "date" >= ${today} ${userId ? prisma.$queryRaw`AND "userId" = ${userId}` : prisma.$queryRaw``}) as todays_expenses
+        (SELECT COUNT(*) FROM "Customer" WHERE "isDeleted" = false AND "userId" = ${userId}) as customer_count,
+        (SELECT COALESCE(SUM("totalAmount"), 0) FROM "Sale" WHERE "voidedAt" IS NULL AND "date" >= ${today} AND "userId" = ${userId}) as todays_sales,
+        (SELECT COALESCE(SUM("amount"), 0) FROM "Payment" WHERE "voidedAt" IS NULL AND "date" >= ${today} AND "userId" = ${userId}) as todays_payments,
+        (SELECT COALESCE(SUM("amount"), 0) FROM "Expense" WHERE "voidedAt" IS NULL AND "date" >= ${today} AND "userId" = ${userId}) as todays_expenses
     `,
 
     // 2. Recent transactions — scoped by userId
     prisma.transaction.findMany({
-      where: userWhere ? { userId } : undefined,
+      where: { userId },
       orderBy: { date: "desc" },
       take: 10,
       select: {
@@ -103,17 +125,17 @@ export async function getDashboardStats(
       },
     }),
 
-    // 3. Stock computation (batched) — scoped by userId via products
-    computeStockForAllProducts(),
+    // 3. Stock computation (batched) — scoped by userId
+    computeStockForAllProducts(userId),
 
     // 4. Products for low-stock check — scoped by userId
     prisma.product.findMany({
-      where: { isDeleted: false, ...(userWhere || {}) },
+      where: { isDeleted: false, userId },
       select: { id: true, name: true, unit: true, lowStockThreshold: true },
       orderBy: { name: "asc" },
     }),
 
-    // 5. Per-customer balances — scoped by userId
+    // 5. Per-customer balances using GROUP BY + LEFT JOIN — scoped by userId
     prisma.$queryRaw<Array<{ balance: Decimal | null }>>`
       SELECT
         CAST(
@@ -126,21 +148,21 @@ export async function getDashboardStats(
       FROM "Customer" c
       LEFT JOIN (
         SELECT "customerId", SUM("totalAmount") AS total
-        FROM "Sale" WHERE "voidedAt" IS NULL ${userId ? prisma.$queryRaw`AND "userId" = ${userId}` : prisma.$queryRaw``} GROUP BY "customerId"
+        FROM "Sale" WHERE "voidedAt" IS NULL ${saleUserFilter} GROUP BY "customerId"
       ) sales_total ON sales_total."customerId" = c.id
       LEFT JOIN (
         SELECT "customerId", SUM("amount") AS total
-        FROM "Payment" WHERE "voidedAt" IS NULL ${userId ? prisma.$queryRaw`AND "userId" = ${userId}` : prisma.$queryRaw``} GROUP BY "customerId"
+        FROM "Payment" WHERE "voidedAt" IS NULL ${expenseUserFilter} GROUP BY "customerId"
       ) payments_total ON payments_total."customerId" = c.id
       LEFT JOIN (
         SELECT "customerId", SUM("amount") AS total
-        FROM "CustomerAdjustment" WHERE "voidedAt" IS NULL ${userId ? prisma.$queryRaw`AND "userId" = ${userId}` : prisma.$queryRaw``} GROUP BY "customerId"
+        FROM "CustomerAdjustment" WHERE "voidedAt" IS NULL ${expenseUserFilter} GROUP BY "customerId"
       ) adj_total ON adj_total."customerId" = c.id
-      WHERE c."isDeleted" = false ${userId ? prisma.$queryRaw`AND c."userId" = ${userId}` : prisma.$queryRaw``}
+      WHERE c."isDeleted" = false ${customerUserFilter}
     `,
   ]);
 
-  // ── Process results ─────────────────────────────────────────────────────
+  // ── Process results (all in memory, no DB calls) ──────────────────────
 
   const agg = aggregates[0];
   const customerCount = Number(agg?.customer_count ?? 0);
@@ -169,6 +191,7 @@ export async function getDashboardStats(
     .filter((p) => new Decimal(p.currentStock).lte(p.lowStockThreshold))
     .sort((a, b) => new Decimal(a.currentStock).cmp(new Decimal(b.currentStock)));
 
+  // Count customers with positive balance + sum those balances
   let customersWithBalance = 0;
   let totalReceivables = new Decimal(0);
   for (const row of perCustomerBalances) {
@@ -194,6 +217,7 @@ export async function getDashboardStats(
     recentTransactions,
   };
 
+  // Cache the result (per-user)
   dashboardCache.set(cacheKey, { data: result, expiresAt: Date.now() + DASHBOARD_CACHE_TTL_MS });
 
   return result;

@@ -13,7 +13,15 @@
  * Invalidation: call invalidateCache() from mutations (createSale,
  * recordPayment, addStock, etc.) to clear the cache so the next
  * read sees fresh data.
+ *
+ * SPECIAL CASE: invalidateCache("dashboard") also clears the dashboard
+ * service's own in-memory cache (src/lib/services/dashboard.ts →
+ * dashboardCache Map), which is separate from this shared cache.
+ * This ensures the dashboard reflects new sales/payments immediately
+ * after a mutation, not after the dashboard's 5s TTL expires.
  */
+
+import { clearDashboardCache } from "@/lib/services/dashboard";
 
 type CacheEntry<T> = {
   data: T;
@@ -65,21 +73,16 @@ export function invalidateCache(keyOrPrefix: string): void {
     }
   }
 
-  // Also clear the dashboard's private cache (it uses a separate Map, not this one).
-  // This fixes the bug where invalidateCache("dashboard") only cleared this module's
-  // Map but NOT dashboard.ts's private dashboardCache — causing stale data for 15s.
-  if (keyOrPrefix === "dashboard" || keyOrPrefix === "all") {
-    try {
-      // Dynamic import to avoid circular dependency at module load time
-      const { clearDashboardCache } = require("@/lib/services/dashboard");
-      clearDashboardCache();
-    } catch {
-      // If the dashboard module isn't loaded yet (e.g., during build), ignore.
-    }
+  // Special case: when "dashboard" is invalidated, also clear the dashboard
+  // service's own in-memory cache so the next read gets fresh data.
+  // (The dashboard service uses a separate Map for short-TTL caching.)
+  if (keyOrPrefix === "dashboard") {
+    clearDashboardCache();
   }
 }
 
 /** Invalidate ALL cache entries (used after major mutations). */
 export function invalidateAllCache(): void {
   cache.clear();
+  clearDashboardCache();
 }

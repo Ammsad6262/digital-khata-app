@@ -17,6 +17,7 @@ import { AlertCircle, ShoppingCart, Receipt, Plus, Sparkles, ArrowRight } from "
 import { useSalesList } from "@/hooks/use-sales";
 import type { SaleFilter } from "@/lib/services/sales";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { PullToRefresh } from "@/components/shared/PullToRefresh";
 import { Money } from "@/components/shared/Money";
 import { Button } from "@/components/ui/Button";
 import { Decimal } from "@/lib/utils/decimal";
@@ -50,18 +51,19 @@ export function SalesList() {
   })();
 
   return (
-    <div className="space-y-3">
-      {/* Filter chips */}
-      <div className="flex gap-1.5 overflow-x-auto pb-1">
-        {FILTERS.map((f) => (
-          <button
-            key={f.value}
-            type="button"
-            onClick={() => setFilter(f.value)}
-            className={cn(
-              "shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
-              filter === f.value
-                ? "bg-brand-600 text-white"
+    <PullToRefresh onRefresh={async () => { await refetch(); }} className="-mx-4 px-4 sm:-mx-6 sm:px-6">
+      <div className="space-y-3">
+        {/* Filter chips */}
+        <div className="flex gap-1.5 overflow-x-auto pb-1">
+          {FILTERS.map((f) => (
+            <button
+              key={f.value}
+              type="button"
+              onClick={() => setFilter(f.value)}
+              className={cn(
+                "shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
+                filter === f.value
+                  ? "bg-brand-600 text-white"
                 : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50",
             )}
           >
@@ -107,6 +109,24 @@ export function SalesList() {
           }
         />
       ) : !data || data.length === 0 ? (
+        <EmptyState
+          title={filter === "all" ? t("sale.noSales") : t("sale.noSalesPeriod")}
+          description={
+            filter === "all"
+              ? t("sale.noSalesDesc")
+              : t("sale.noSalesPeriodDesc")
+          }
+          icon={<ShoppingCart className="h-6 w-6" />}
+          action={
+            <Link href="/sales/new">
+              <Button size="sm">
+                <ShoppingCart className="h-4 w-4" />
+                {t("action.newSale")}
+              </Button>
+            </Link>
+          }
+        />
+      ) : !data || data.length === 0 ? (
         <EmptySalesState filter={filter} />
       ) : (
         <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
@@ -115,7 +135,8 @@ export function SalesList() {
           ))}
         </div>
       )}
-    </div>
+      </div>
+    </PullToRefresh>
   );
 }
 

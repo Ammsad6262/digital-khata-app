@@ -10,7 +10,7 @@ import { NextRequest } from "next/server";
 import { getDashboardStats } from "@/lib/services/dashboard";
 import { withCircuitBreaker, getCircuitBreakerState } from "@/lib/utils/circuit-breaker";
 import { ok, fail } from "@/lib/utils/api";
-import { getCurrentUserId } from "@/lib/auth/get-current-user";
+import { requireUserId } from "@/lib/auth/get-current-user";
 
 export const dynamic = "force-dynamic";
 
@@ -27,20 +27,20 @@ const FALLBACK_DASHBOARD = {
 };
 
 export async function GET(req: NextRequest) {
-  const userId = await getCurrentUserId(req);
-
-  const cbState = getCircuitBreakerState();
-
-  // If circuit is open, return fallback immediately
-  if (cbState.state === "open") {
-    return ok({
-      ...FALLBACK_DASHBOARD,
-      _circuitBreaker: "open",
-      _message: "Database is temporarily unavailable. Showing cached data.",
-    });
-  }
-
   try {
+    const userId = await requireUserId(req);
+
+    const cbState = getCircuitBreakerState();
+
+    // If circuit is open, return fallback immediately
+    if (cbState.state === "open") {
+      return ok({
+        ...FALLBACK_DASHBOARD,
+        _circuitBreaker: "open",
+        _message: "Database is temporarily unavailable. Showing cached data.",
+      });
+    }
+
     const data = await withCircuitBreaker(
       () => getDashboardStats(userId),
       FALLBACK_DASHBOARD,

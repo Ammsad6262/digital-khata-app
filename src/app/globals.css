@@ -7,10 +7,11 @@
    Brand colors are defined as CSS variables (space-separated RGB channels).
    Tailwind references them via rgb(var(--brand-X) / <alpha-value>).
 
-   Two themes:
+   Three themes:
      1. Default (green)  — the original palette
      2. Bright Leaf     — uses #CDFF9B (BRIGHT LEAF) as the accent and
                           #203D43 (EMERALD GREEN) as the darkest shade
+     3. Monochrome (B&W) — premium black & white. DEFAULT for new users.
    ═══════════════════════════════════════════════════════════════════════════ */
 
 @layer base {
@@ -45,6 +46,24 @@
     --brand-700: 50 100 22;    /* deep */
     --brand-800: 38 75 30;     /* darker */
     --brand-900: 32 61 67;     /* #203D43 — EMERALD GREEN */
+  }
+
+  /* ─── Black & White (Monochrome) theme ────────────────────────────────
+     Premium, minimal, elegant. Uses near-black as the brand color.
+     White surfaces, charcoal text, subtle gray backgrounds.
+     Color is used ONLY for functional meaning (destructive=red, success=green).
+     This is the DEFAULT theme for new users. */
+  [data-theme="monochrome"] {
+    --brand-50:  249 250 251;  /* gray-50 — very light gray bg */
+    --brand-100: 243 244 246;  /* gray-100 — light surface */
+    --brand-200: 229 231 235;  /* gray-200 — subtle borders */
+    --brand-300: 209 213 219;  /* gray-300 — muted borders */
+    --brand-400: 156 163 175;  /* gray-400 — placeholder text */
+    --brand-500: 107 114 128;  /* gray-500 — secondary text */
+    --brand-600: 17 24 39;     /* gray-900 — near-black (primary action) */
+    --brand-700: 17 24 39;     /* gray-900 — same (buttons, active states) */
+    --brand-800: 3 7 18;       /* near pure black */
+    --brand-900: 0 0 0;        /* pure black */
   }
 
   html,

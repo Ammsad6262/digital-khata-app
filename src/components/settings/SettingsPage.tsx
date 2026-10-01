@@ -12,7 +12,7 @@
  *   6. Backup & Export — links to /more/backup
  */
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Building2,
   Globe,
@@ -61,10 +61,16 @@ const CURRENCIES = [
 
 const THEMES: Array<{
   id: Theme;
-  nameKey: "settings.defaultGreen" | "settings.brightLeaf";
-  descriptionKey: "settings.defaultGreenDesc" | "settings.brightLeafDesc";
+  nameKey: "settings.monochrome" | "settings.defaultGreen" | "settings.brightLeaf";
+  descriptionKey: "settings.monochromeDesc" | "settings.defaultGreenDesc" | "settings.brightLeafDesc";
   preview: { bg: string; accent: string; dark: string };
 }> = [
+  {
+    id: "monochrome",
+    nameKey: "settings.monochrome",
+    descriptionKey: "settings.monochromeDesc",
+    preview: { bg: "#f9fafb", accent: "#111827", dark: "#000000" },
+  },
   {
     id: "default",
     nameKey: "settings.defaultGreen",
@@ -587,22 +593,40 @@ function LanguageSection() {
 // ────────────────────────────────────────────────────────────────────────────
 
 function ThemeSection() {
-  const { theme, setTheme } = useTheme();
+  const { theme, setTheme, syncThemeFromServer } = useTheme();
   const { t } = useLanguage();
+  const updateSettings = useUpdateSettings();
+  const { data: settings } = useSettings();
+
+  // Sync theme from server-side settings when they load (after login).
+  // This ensures the theme is per-user — User A's theme doesn't affect User B.
+  useEffect(() => {
+    if (settings?.theme) {
+      syncThemeFromServer(settings.theme);
+    }
+  }, [settings?.theme, syncThemeFromServer]);
+
+  const handleSetTheme = (newTheme: Theme) => {
+    // 1. Apply locally (localStorage + CSS variables) — instant feedback
+    setTheme(newTheme);
+    // 2. Persist to server (per-user, survives device switch)
+    updateSettings.mutate({ theme: newTheme });
+  };
 
   return (
     <section className="rounded-xl border border-slate-200 bg-white p-4">
-      <div className="flex items-center gap-2 mb-3">
+      <div className="flex items-center gap-2 mb-1">
         <Palette className="h-4 w-4 text-slate-500" />
         <h2 className="text-sm font-semibold text-slate-900">{t("settings.theme")}</h2>
       </div>
+      <p className="mb-3 text-xs text-slate-500">{t("settings.themeDesc")}</p>
 
       <div className="space-y-2">
         {THEMES.map((themeOpt) => (
           <button
             key={themeOpt.id}
             type="button"
-            onClick={() => setTheme(themeOpt.id)}
+            onClick={() => handleSetTheme(themeOpt.id)}
             className={cn(
               "flex items-center gap-3 rounded-xl border-2 p-3 text-left transition-all w-full",
               theme === themeOpt.id

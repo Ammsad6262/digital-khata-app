@@ -32,6 +32,7 @@ type UpdateSettingsInput = {
   currencySymbol?: string;
   timezone?: string;
   customUnits?: string[];
+  theme?: string;
 };
 
 export function useUpdateSettings() {

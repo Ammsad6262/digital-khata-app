@@ -60,13 +60,23 @@ export const viewport: Viewport = {
 };
 
 // Anti-FOUC: set theme + language dir BEFORE React hydrates
+// Default theme is "monochrome" (Black & White) for new users.
+// If no localStorage preference exists, apply monochrome immediately.
 const initScript = `
 (function() {
   try {
-    // Theme
+    // Theme — default to monochrome (Black & White) for new users
     var t = localStorage.getItem('digital-khata-theme');
     if (t === 'leaf') {
       document.documentElement.setAttribute('data-theme', 'leaf');
+    } else if (t === 'default') {
+      // 'default' = no data-theme attribute (uses :root green variables)
+      document.documentElement.removeAttribute('data-theme');
+    } else if (t === 'monochrome') {
+      document.documentElement.setAttribute('data-theme', 'monochrome');
+    } else {
+      // No stored preference → apply monochrome (the default)
+      document.documentElement.setAttribute('data-theme', 'monochrome');
     }
     // Language
     var lang = localStorage.getItem('digital-khata-lang');

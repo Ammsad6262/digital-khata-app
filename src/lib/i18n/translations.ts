@@ -219,8 +219,10 @@ export const translations = {
   // ─── Stock ───
   "stock.searchPlaceholder": { en: "Search product by name or SKU...", ur: "نام یا کوڈ سے مصنوعات تلاش کریں..." },
   "stock.addStock": { en: "Add Stock", ur: "اسٹاک شامل کریں" },
+  "stock.inStock": { en: "In Stock", ur: "اسٹاک میں" },
+  "stock.outOfStock": { en: "Out of Stock", ur: "ختم" },
   "stock.adjustStock": { en: "Adjust stock (recount / write-off)", ur: "اسٹاک میں ترمیم (دوبارہ گنتی / خراب)" },
-  "stock.inStock": { en: "in stock", ur: "اسٹاک میں" },
+  "stock.inStockLabel": { en: "in stock", ur: "اسٹاک میں" },
   "stock.low": { en: "low", ur: "کم" },
   "stock.belowZero": { en: "below zero", ur: "صفر سے کم" },
   "stock.currentStock": { en: "Current stock", ur: "موجودہ اسٹاک" },

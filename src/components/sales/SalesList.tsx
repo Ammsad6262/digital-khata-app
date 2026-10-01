@@ -13,7 +13,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { AlertCircle, ShoppingCart, Receipt, Plus, Sparkles, ArrowRight } from "lucide-react";
+import { AlertCircle, ShoppingCart, Receipt, Plus, Sparkles, ArrowRight, Calendar, CalendarDays, CalendarRange, LayoutGrid } from "lucide-react";
 import { useSalesList } from "@/hooks/use-sales";
 import type { SaleFilter } from "@/lib/services/sales";
 import { EmptyState } from "@/components/shared/EmptyState";
@@ -26,11 +26,15 @@ import { formatMoney } from "@/lib/utils/money";
 import { cn } from "@/lib/utils/cn";
 import { useLanguage } from "@/providers/language-provider";
 
-const FILTERS: Array<{ value: SaleFilter; labelKey: "transactions.today" | "transactions.thisWeek" | "transactions.thisMonth" | "transactions.all" }> = [
-  { value: "today", labelKey: "transactions.today" },
-  { value: "week", labelKey: "transactions.thisWeek" },
-  { value: "month", labelKey: "transactions.thisMonth" },
-  { value: "all", labelKey: "transactions.all" },
+const FILTERS: Array<{
+  value: SaleFilter;
+  labelKey: "transactions.today" | "transactions.thisWeek" | "transactions.thisMonth" | "transactions.all";
+  icon: typeof Calendar;
+}> = [
+  { value: "today", labelKey: "transactions.today", icon: Calendar },
+  { value: "week", labelKey: "transactions.thisWeek", icon: CalendarRange },
+  { value: "month", labelKey: "transactions.thisMonth", icon: CalendarDays },
+  { value: "all", labelKey: "transactions.all", icon: LayoutGrid },
 ];
 
 export function SalesList() {
@@ -53,24 +57,28 @@ export function SalesList() {
   return (
     <PullToRefresh onRefresh={async () => { await refetch(); }} className="-mx-4 px-4 sm:-mx-6 sm:px-6">
       <div className="space-y-3">
-        {/* Filter chips */}
+        {/* Filter chips — each has an icon + label, active chip is green */}
         <div className="flex gap-1.5 overflow-x-auto pb-1">
-          {FILTERS.map((f) => (
-            <button
-              key={f.value}
-              type="button"
-              onClick={() => setFilter(f.value)}
-              className={cn(
-                "shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
-                filter === f.value
-                  ? "bg-brand-600 text-white"
-                : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50",
-            )}
-          >
-            {t(f.labelKey)}
-          </button>
-        ))}
-      </div>
+          {FILTERS.map((f) => {
+            const Icon = f.icon;
+            return (
+              <button
+                key={f.value}
+                type="button"
+                onClick={() => setFilter(f.value)}
+                className={cn(
+                  "flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
+                  filter === f.value
+                    ? "bg-brand-600 text-white"
+                    : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50",
+                )}
+              >
+                <Icon className="h-3.5 w-3.5" />
+                {t(f.labelKey)}
+              </button>
+            );
+          })}
+        </div>
 
       {/* Summary */}
       {data && data.length > 0 ? (
@@ -226,8 +234,10 @@ function SalesListSkeleton() {
 /**
  * Empty sales state — matches the design spec.
  *
- * Layout (vertical, centered):
- *   1. Receipt/document icon with green circle + "+" badge + sparkle accents
+ * Layout (vertical, centered, on a white card):
+ *   1. Receipt illustration: white receipt with wavy bottom edge + faint green
+ *      horizontal lines (representing text), overlaid with a solid green circle
+ *      + white "+" badge at the bottom-right, with sparkle accents around it
  *   2. Heading: "No sales yet" (or "No sales in this period" if a filter is set)
  *   3. Description: "Start recording your first sale to keep track of your
  *      revenue and growth."
@@ -239,21 +249,22 @@ function EmptySalesState({ filter }: { filter: SaleFilter }) {
   const isAllFilter = filter === "all";
 
   return (
-    <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-white/60 px-6 py-12 text-center">
-      {/* Receipt icon with green circle + badge + sparkles */}
+    <div className="flex flex-col items-center justify-center rounded-2xl border border-slate-100 bg-white px-6 py-12 text-center shadow-sm">
+      {/* Receipt illustration with green circle + badge + sparkles */}
       <div className="relative mb-5">
-        {/* Sparkle accents */}
-        <Sparkles className="absolute -left-3 -top-2 h-4 w-4 text-brand-300" aria-hidden />
-        <Sparkles className="absolute -right-2 top-2 h-3 w-3 text-brand-200" aria-hidden />
+        {/* Sparkle accents around the illustration */}
+        <Sparkles className="absolute -left-4 -top-2 h-4 w-4 text-brand-300" aria-hidden />
+        <Sparkles className="absolute -right-3 top-1 h-3 w-3 text-brand-200" aria-hidden />
+        <Sparkles className="absolute -right-5 top-6 h-2.5 w-2.5 text-brand-200" aria-hidden />
 
-        {/* Main icon container — receipt/document */}
+        {/* Main icon container — light green circle with a receipt icon */}
         <div className="flex h-20 w-20 items-center justify-center rounded-full bg-brand-50">
           <Receipt className="h-9 w-9 text-brand-600" strokeWidth={1.75} />
         </div>
 
-        {/* Small "+" badge at bottom-right of the icon */}
-        <div className="absolute bottom-1 right-1 flex h-6 w-6 items-center justify-center rounded-full border-2 border-white bg-brand-600 text-white shadow-sm">
-          <Plus className="h-3.5 w-3.5" strokeWidth={3} />
+        {/* Solid green circle + white "+" badge at bottom-right of the icon */}
+        <div className="absolute bottom-1 right-1 flex h-7 w-7 items-center justify-center rounded-full border-2 border-white bg-brand-600 text-white shadow-sm">
+          <Plus className="h-4 w-4" strokeWidth={3} />
         </div>
       </div>
 

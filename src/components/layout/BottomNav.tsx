@@ -48,7 +48,7 @@ export function BottomNav() {
             key={tab.href}
             href={tab.href}
             className={cn(
-              "flex flex-1 flex-col items-center justify-center gap-0.5 text-[11px] font-medium",
+              "relative flex flex-1 flex-col items-center justify-center gap-0.5 text-[11px] font-medium",
               isActive
                 ? "text-brand-600"
                 : "text-slate-500 hover:text-slate-900",
@@ -57,6 +57,10 @@ export function BottomNav() {
           >
             <Icon className="h-5 w-5" />
             <span>{t(tab.labelKey)}</span>
+            {/* Active tab underline indicator */}
+            {isActive ? (
+              <span className="absolute bottom-1 h-0.5 w-8 rounded-full bg-brand-600" />
+            ) : null}
           </Link>
         );
       })}

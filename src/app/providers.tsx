@@ -25,15 +25,16 @@ const PUBLIC_PAGES = ["/login", "/register"];
 
 // Pages where the floating + button should NOT appear.
 //
-// The FAB is shown on the Dashboard + Sales pages only — those are the
-// two screens where the user most often records new activity (sales
-// especially). On list pages like Khata / Payments / Expenses / Stock / More,
-// the page header already has a "+" action in the top-right, so the FAB
-// would be redundant and just add visual noise.
+// The FAB is shown on the Dashboard only — that's the screen where quick
+// access to "what just happened" (sale / payment / expense / stock) is most
+// useful. On every other screen (Khata, Sales, Payments, Expenses, Stock,
+// More), the page header already has a "+" action in the top-right, so the
+// FAB would be redundant and just add visual noise.
 //
 // Form/create/edit pages also hide the FAB (the user is already on a form).
 const NO_FAB_PAGES = [
   "/khata",
+  "/sales",
   "/payments",
   "/more",
   "/stock",

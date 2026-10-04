@@ -17,7 +17,7 @@
  */
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiGet, apiPost, apiPatch, ApiError } from "@/lib/utils/api-client";
+import { apiGet, apiPost, apiPatch, apiDelete, ApiError } from "@/lib/utils/api-client";
 import type {
   ProductView,
   ProductWithStock,
@@ -200,6 +200,19 @@ export function useUpdateProduct(id: string) {
 
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: productKeys.detail(id), refetchType: "active" });
+      queryClient.invalidateQueries({ queryKey: productKeys.lists(), refetchType: "active" });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+    },
+  });
+}
+
+/** Delete a product (soft-delete). Blocks if product has active transactions. */
+export function useDeleteProduct() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => apiDelete<{ id: string; deleted: true }>(`/api/products/${id}`),
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: productKeys.lists(), refetchType: "active" });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
     },

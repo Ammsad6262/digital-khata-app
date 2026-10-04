@@ -14,7 +14,7 @@
 
 import { prisma } from "@/lib/db/prisma";
 import { Decimal, toDecimalOrZero } from "@/lib/utils/decimal";
-import { NotFoundError } from "@/lib/errors";
+import { NotFoundError, BadRequestError } from "@/lib/errors";
 import { createProductSchema, updateProductSchema } from "@/lib/schemas/product";
 import { cached, invalidateCache } from "@/lib/utils/cache";
 import type { Prisma } from "@prisma/client";
@@ -284,4 +284,40 @@ export async function updateProduct(id: string, input: unknown, userId?: string 
   invalidateCache("dashboard");
 
   return toView(updated);
+}
+
+/**
+ * Soft-delete a product (sets isDeleted = true).
+ * Blocks if the product has active (non-voided) sales or stock moves.
+ * The owner should void those transactions first.
+ */
+export async function deleteProduct(id: string, userId?: string | null): Promise<{ id: string; deleted: true }> {
+  // Verify ownership first — throws 404 if not owned by this user
+  await getProduct(id, userId);
+
+  // Block soft-delete if product has any ACTIVE (non-voided) sales or stock moves.
+  const [saleItemCount, stockMoveCount] = await Promise.all([
+    prisma.saleItem.count({
+      where: { productId: id, sale: { voidedAt: null } },
+    }),
+    prisma.stockMove.count({
+      where: { productId: id, voidedAt: null },
+    }),
+  ]);
+  const total = saleItemCount + stockMoveCount;
+  if (total > 0) {
+    throw new BadRequestError(
+      `Cannot delete product with active transactions (${saleItemCount} sale items, ${stockMoveCount} stock moves). Void them first.`,
+    );
+  }
+
+  await prisma.product.update({
+    where: { id },
+    data: { isDeleted: true },
+  });
+
+  invalidateCache("products");
+  invalidateCache("dashboard");
+
+  return { id, deleted: true };
 }

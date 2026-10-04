@@ -496,6 +496,13 @@ export const translations = {
   "common.searchProductAria": { en: "Search product", ur: "مصنوعات تلاش کریں" },
   "common.searchProductsAria": { en: "Search products", ur: "مصنوعات تلاش کریں" },
   "common.clearSearchAria": { en: "Clear search", ur: "تلاش صاف کریں" },
+  "common.delete": { en: "Delete", ur: "حذف کریں" },
+  "common.deleteConfirm": { en: "Are you sure?", ur: "کیا آپ واقعی حذف کرنا چاہتے ہیں؟" },
+  "common.deleteWarning": { en: "This action cannot be undone. The record will be permanently removed.", ur: "یہ عمل واپس نہیں ہو سکتا۔ ریکارڈ مستقل طور پر حذف ہو جائے گا۔" },
+  "common.yesDelete": { en: "Yes, Delete", ur: "ہاں، حذف کریں" },
+  "common.deleting": { en: "Deleting...", ur: "حذف ہو رہا ہے..." },
+  "common.deleted": { en: "Deleted successfully", ur: "کامیابی سے حذف ہو گیا" },
+  "common.cannotDelete": { en: "Cannot delete", ur: "حذف نہیں ہو سکتا" },
 
   // ─── Product — extra ───
   "product.per": { en: "per", ur: "فی" },

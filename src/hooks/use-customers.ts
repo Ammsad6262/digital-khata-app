@@ -11,7 +11,7 @@
  */
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiGet, apiPost } from "@/lib/utils/api-client";
+import { apiGet, apiPost, apiDelete } from "@/lib/utils/api-client";
 import type {
   CustomerView,
   CustomerWithBalance,
@@ -202,6 +202,19 @@ export function useCreateCustomer() {
 
     onSuccess: () => {
       // Refetch all customer lists + dashboard
+      queryClient.invalidateQueries({ queryKey: customerKeys.all });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+    },
+  });
+}
+
+/** Delete a customer (soft-delete). Blocks if customer has active transactions. */
+export function useDeleteCustomer() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => apiDelete<{ id: string; deleted: true }>(`/api/customers/${id}`),
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: customerKeys.all });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
     },

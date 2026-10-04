@@ -24,11 +24,14 @@
  */
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { AlertCircle, Package, ArrowDownToLine, Settings2, Pencil, TrendingUp, TrendingDown } from "lucide-react";
-import { useProduct } from "@/hooks/use-products";
+import { useProduct, useDeleteProduct } from "@/hooks/use-products";
 import { useStockMovesByProduct } from "@/hooks/use-stock";
 import { Money } from "@/components/shared/Money";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { DeleteButton } from "@/components/shared/DeleteButton";
 import { Button } from "@/components/ui/Button";
 import { Decimal } from "@/lib/utils/decimal";
 import { formatQuantity } from "@/lib/utils/money";
@@ -39,6 +42,9 @@ import { useLanguage } from "@/providers/language-provider";
 export function ProductDetail({ productId }: { productId: string }) {
   const { data: product, isLoading, isError, error, refetch } = useProduct(productId);
   const { data: moves, isLoading: movesLoading } = useStockMovesByProduct(productId);
+  const deleteProduct = useDeleteProduct();
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const router = useRouter();
   const { t } = useLanguage();
 
   if (isLoading) {
@@ -201,6 +207,25 @@ export function ProductDetail({ productId }: { productId: string }) {
           product.
         </p>
       </section>
+
+      {/* Delete product — destructive action with two-step confirmation */}
+      <div className="pt-2">
+        <DeleteButton
+          loading={deleteProduct.isPending}
+          errorMessage={deleteError}
+          onConfirm={() => {
+            setDeleteError(null);
+            deleteProduct.mutate(productId, {
+              onSuccess: () => {
+                router.push("/stock");
+              },
+              onError: (err) => {
+                setDeleteError(err instanceof Error ? err.message : "Failed to delete product.");
+              },
+            });
+          }}
+        />
+      </div>
     </div>
   );
 }

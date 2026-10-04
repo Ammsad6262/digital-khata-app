@@ -13,6 +13,8 @@
  */
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 import {
   ArrowLeft,
   AlertCircle,
@@ -25,9 +27,10 @@ import {
   TrendingUp,
   TrendingDown,
 } from "lucide-react";
-import { useCustomerHistory } from "@/hooks/use-customers";
+import { useCustomerHistory, useDeleteCustomer } from "@/hooks/use-customers";
 import { Money } from "@/components/shared/Money";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { DeleteButton } from "@/components/shared/DeleteButton";
 import { Button } from "@/components/ui/Button";
 import { Decimal } from "@/lib/utils/decimal";
 import { formatDate, formatTime } from "@/lib/utils/date";
@@ -39,6 +42,9 @@ import { useLanguage } from "@/providers/language-provider";
 
 export function CustomerDetail({ customerId }: { customerId: string }) {
   const { data, isLoading, isError, error, refetch } = useCustomerHistory(customerId);
+  const deleteCustomer = useDeleteCustomer();
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const router = useRouter();
   const { t } = useLanguage();
 
   if (isLoading) {
@@ -197,6 +203,25 @@ export function CustomerDetail({ customerId }: { customerId: string }) {
           <TransactionHistory transactions={transactions} />
         )}
       </section>
+
+      {/* Delete customer — destructive action with two-step confirmation */}
+      <div className="pt-2">
+        <DeleteButton
+          loading={deleteCustomer.isPending}
+          errorMessage={deleteError}
+          onConfirm={() => {
+            setDeleteError(null);
+            deleteCustomer.mutate(customerId, {
+              onSuccess: () => {
+                router.push("/khata");
+              },
+              onError: (err) => {
+                setDeleteError(err instanceof Error ? err.message : "Failed to delete customer.");
+              },
+            });
+          }}
+        />
+      </div>
     </div>
   );
 }

@@ -21,6 +21,7 @@ import { NextRequest } from "next/server";
 import { verifyToken, getUserById, AUTH_COOKIE_NAME } from "@/lib/services/auth";
 import { UnauthorizedError, ForbiddenError } from "@/lib/errors";
 import { hasActiveAccess } from "@/lib/services/subscription";
+import { setUserContext } from "@/lib/db/prisma";
 
 /**
  * Cryptographically derive the authenticated user's ID from the JWT cookie.
@@ -54,6 +55,8 @@ export async function requireUserId(req: NextRequest): Promise<string> {
   if (!userId) {
     throw new UnauthorizedError("Authentication required.");
   }
+  // Set RLS context so database queries are scoped to this user
+  await setUserContext(userId);
   return userId;
 }
 

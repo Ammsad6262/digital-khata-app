@@ -17,7 +17,7 @@
 import { NextRequest } from "next/server";
 import { exportBackup } from "@/lib/services/backup";
 import { withCircuitBreaker } from "@/lib/utils/circuit-breaker";
-import { getCurrentUserId } from "@/lib/auth/get-current-user";
+import { requireActiveAccess } from "@/lib/auth/get-current-user";
 
 export const dynamic = "force-dynamic";
 
@@ -26,7 +26,7 @@ export const maxDuration = 60;
 
 export async function GET(req: NextRequest) {
   try {
-    const userId = await getCurrentUserId(req);
+    const userId = await requireActiveAccess(req);
     const dateStr = new Date().toISOString().slice(0, 10);
     const filename = `digital-khata-backup-${dateStr}.json`;
 

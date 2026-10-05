@@ -19,7 +19,8 @@
 
 import { NextRequest } from "next/server";
 import { verifyToken, getUserById, AUTH_COOKIE_NAME } from "@/lib/services/auth";
-import { UnauthorizedError } from "@/lib/errors";
+import { UnauthorizedError, ForbiddenError } from "@/lib/errors";
+import { hasActiveAccess } from "@/lib/services/subscription";
 
 /**
  * Cryptographically derive the authenticated user's ID from the JWT cookie.
@@ -53,5 +54,37 @@ export async function requireUserId(req: NextRequest): Promise<string> {
   if (!userId) {
     throw new UnauthorizedError("Authentication required.");
   }
+  return userId;
+}
+
+/**
+ * Like requireUserId, but ALSO checks that the user has an active
+ * subscription/trial. If expired, throws ForbiddenError.
+ *
+ * Use this in PREMIUM API routes (customers, sales, payments, products,
+ * stock, expenses, transactions, dashboard, backup) to enforce access
+ * server-side — even if a malicious user calls the API directly while
+ * their subscription is expired.
+ *
+ * Routes that should NOT use this (accessible even when expired):
+ *   - /api/account (GET/PATCH/DELETE)
+ *   - /api/account/password
+ *   - /api/subscription (GET)
+ *   - /api/subscription/redeem (POST)
+ *   - /api/subscription/history (GET)
+ *   - /api/settings (GET — so the user can still see their settings)
+ *   - /api/auth/* (login, logout, etc.)
+ */
+export async function requireActiveAccess(req: NextRequest): Promise<string> {
+  const userId = await requireUserId(req);
+
+  // Check subscription status server-side
+  const isActive = await hasActiveAccess(userId);
+  if (!isActive) {
+    throw new ForbiddenError(
+      "Your free trial has ended. Please redeem an activation code to continue.",
+    );
+  }
+
   return userId;
 }

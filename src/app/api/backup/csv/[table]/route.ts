@@ -21,7 +21,7 @@ import {
   type ExportableTable,
 } from "@/lib/services/backup";
 import { withCircuitBreaker } from "@/lib/utils/circuit-breaker";
-import { getCurrentUserId } from "@/lib/auth/get-current-user";
+import { requireActiveAccess } from "@/lib/auth/get-current-user";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
@@ -34,7 +34,7 @@ export async function GET(
 ) {
   try {
     const { table } = await params;
-    const userId = await getCurrentUserId(req);
+    const userId = await requireActiveAccess(req);
 
     if (!VALID_TABLES.has(table)) {
       return NextResponse.json(

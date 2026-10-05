@@ -26,7 +26,7 @@ import {
   type TransactionType,
 } from "@/lib/services/transactions";
 import { ok, fail, getQueryParam, getIntQueryParam } from "@/lib/utils/api";
-import { getCurrentUserId } from "@/lib/auth/get-current-user";
+import { requireActiveAccess } from "@/lib/auth/get-current-user";
 
 const VALID_FILTERS: TransactionFilter[] = ["today", "week", "month", "all", "custom"];
 const VALID_TYPES: TransactionType[] = [
@@ -54,7 +54,7 @@ function parseDateEnd(input: string): Date | undefined {
 
 export async function GET(req: NextRequest) {
   try {
-    const userId = await getCurrentUserId(req);
+    const userId = await requireActiveAccess(req);
     const filterRaw = getQueryParam(req, "filter", "all");
     const filter = VALID_FILTERS.includes(filterRaw as TransactionFilter)
       ? (filterRaw as TransactionFilter)

@@ -22,13 +22,13 @@
 import { NextRequest } from "next/server";
 import { getProfitLossStats } from "@/lib/services/profit-loss";
 import { ok, fail } from "@/lib/utils/api";
-import { requireUserId } from "@/lib/auth/get-current-user";
+import { requireActiveAccess } from "@/lib/auth/get-current-user";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   try {
-    const userId = await requireUserId(req);
+    const userId = await requireActiveAccess(req);
     const stats = await getProfitLossStats(userId);
     return ok(stats);
   } catch (error) {

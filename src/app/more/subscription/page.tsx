@@ -89,10 +89,17 @@ function SubscriptionContent() {
   const remainingDays = subscription.remainingDays ?? 0;
   const isExpiringSoon = remainingDays > 0 && remainingDays <= 7;
 
+  // Convert ISO date strings from the API to Date objects
+  // (JSON serialization converts Date → string, so we need to parse them back)
+  const trialStartedAt = subscription.trialStartedAt ? new Date(subscription.trialStartedAt) : null;
+  const trialExpiresAt = subscription.trialExpiresAt ? new Date(subscription.trialExpiresAt) : null;
+  const effectiveExpiresAt = subscription.effectiveExpiresAt ? new Date(subscription.effectiveExpiresAt) : null;
+  const accessStartedAt = subscription.accessStartedAt ? new Date(subscription.accessStartedAt) : null;
+
   // Trial progress (0-100%)
-  const trialProgress = isTrial && subscription.trialStartedAt && subscription.trialExpiresAt
-    ? Math.min(100, Math.max(0, ((Date.now() - subscription.trialStartedAt.getTime()) /
-        (subscription.trialExpiresAt.getTime() - subscription.trialStartedAt.getTime())) * 100))
+  const trialProgress = isTrial && trialStartedAt && trialExpiresAt
+    ? Math.min(100, Math.max(0, ((Date.now() - trialStartedAt.getTime()) /
+        (trialExpiresAt.getTime() - trialStartedAt.getTime())) * 100))
     : 0;
 
   return (
@@ -153,7 +160,7 @@ function SubscriptionContent() {
 
         {/* Status details */}
         <div className="space-y-3 p-4">
-          {isActive && subscription.effectiveExpiresAt ? (
+          {isActive && effectiveExpiresAt ? (
             <>
               {/* Progress bar for trial */}
               {isTrial && (
@@ -178,14 +185,14 @@ function SubscriptionContent() {
                   {isTrial ? t("subscription.trialEndsOn") : t("subscription.accessExpires")}
                 </span>
                 <span className="font-medium text-slate-900">
-                  {formatDate(subscription.effectiveExpiresAt)}
+                  {formatDate(effectiveExpiresAt)}
                 </span>
               </div>
-              {!isTrial && subscription.accessStartedAt ? (
+              {!isTrial && accessStartedAt ? (
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-slate-500">{t("subscription.activatedOn")}</span>
                   <span className="font-medium text-slate-900">
-                    {formatDate(subscription.accessStartedAt)}
+                    {formatDate(accessStartedAt)}
                   </span>
                 </div>
               ) : null}

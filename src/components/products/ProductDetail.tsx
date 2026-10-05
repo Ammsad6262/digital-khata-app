@@ -177,7 +177,7 @@ export function ProductDetail({ productId }: { productId: string }) {
                 label={t("product.openingStock")}
                 quantity={product.openingStock}
                 unit={product.unit}
-                date={product.createdAt.toISOString()}
+                date={new Date(product.createdAt).toISOString()}
                 isFirst
               />
             ) : null}

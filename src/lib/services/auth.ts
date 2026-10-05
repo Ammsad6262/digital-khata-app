@@ -134,8 +134,26 @@ export async function registerUser(input: {
   if (existing) throw new BadRequestError("An account with this email already exists.");
 
   const passwordHash = await hashPassword(password);
-  const user = await prisma.user.create({
-    data: { name, email, passwordHash },
+
+  // Create user + trial subscription atomically
+  const user = await prisma.$transaction(async (tx) => {
+    const newUser = await tx.user.create({
+      data: { name, email, passwordHash },
+    });
+
+    // Create a 30-day free trial subscription
+    const now = new Date();
+    const trialExpires = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+    await tx.userSubscription.create({
+      data: {
+        userId: newUser.id,
+        status: "TRIAL_ACTIVE",
+        trialStartedAt: now,
+        trialExpiresAt: trialExpires,
+      },
+    });
+
+    return newUser;
   });
 
   const token = await signToken({ userId: user.id });

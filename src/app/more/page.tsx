@@ -16,6 +16,7 @@ import {
   ChevronRight,
   Wallet,
   Database,
+  Crown,
 } from "lucide-react";
 import { AppHeader } from "@/components/layout/AppHeader";
 import { ScreenContent } from "@/components/layout/Screen";
@@ -30,6 +31,13 @@ type Section = {
 };
 
 const SECTIONS: Section[] = [
+  {
+    href: "/more/subscription",
+    titleKey: "subscription.title",
+    descKey: "subscription.subtitle",
+    icon: Crown,
+    color: "bg-amber-50 text-amber-700",
+  },
   {
     href: "/khata",
     titleKey: "nav.khata",

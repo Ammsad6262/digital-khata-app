@@ -30,6 +30,7 @@ import {
   X,
   UserCircle,
   LogOut,
+  Crown,
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
@@ -112,6 +113,7 @@ export function SettingsPage() {
   return (
     <div className="space-y-4">
       <AccountSection />
+      <SubscriptionCard />
       <BusinessInfoSection initial={settings} />
       <CurrencySection initial={settings} />
       <LanguageSection />
@@ -1093,6 +1095,31 @@ function BackupSection() {
           <p className="text-[11px] text-slate-500">
             {t("settings.backupDesc")}
           </p>
+        </div>
+        <ChevronRight className="h-4 w-4 shrink-0 text-slate-300" />
+      </div>
+    </Link>
+  );
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Subscription Card — compact subscription status on the Settings page
+// ────────────────────────────────────────────────────────────────────────────
+
+function SubscriptionCard() {
+  const { t } = useLanguage();
+  return (
+    <Link
+      href="/more/subscription"
+      className="block rounded-xl border border-slate-200 bg-white p-4 transition-colors hover:bg-slate-50 active:bg-slate-100"
+    >
+      <div className="flex items-center gap-3">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-50 text-amber-600">
+          <Crown className="h-5 w-5" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold text-slate-900">{t("subscription.title")}</p>
+          <p className="text-[11px] text-slate-500">{t("subscription.subtitle")}</p>
         </div>
         <ChevronRight className="h-4 w-4 shrink-0 text-slate-300" />
       </div>

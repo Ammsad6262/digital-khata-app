@@ -115,20 +115,23 @@ export function QuickAddMenu() {
       {/* Bottom sheet overlay */}
       {isOpen ? (
         <>
-          {/* Backdrop */}
+          {/* Backdrop — covers the entire viewport including bottom nav */}
           <div
             className="fixed inset-0 z-40 bg-black/30"
             onClick={() => setIsOpen(false)}
           />
 
-          {/* Bottom sheet */}
-          <div className="fixed inset-x-0 bottom-0 z-50 mx-auto max-w-[480px] rounded-t-2xl bg-white p-4 pb-8 shadow-2xl"
-               style={{ animation: "slideUp 0.2s ease-out" }}>
+          {/* Bottom sheet — scrolls if content exceeds viewport height.
+              max-h-[85dvh] keeps it within the viewport with room for the
+              status bar. overflow-y-auto makes the content area scrollable.
+              pb-[env(safe-area-inset-bottom)] handles iPhone notch/home bar. */}
+          <div className="fixed inset-x-0 bottom-0 z-50 mx-auto flex max-h-[85dvh] max-w-[480px] flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl"
+               style={{ animation: "slideUp 0.2s ease-out", paddingBottom: "env(safe-area-inset-bottom)" }}>
             {/* Drag handle */}
-            <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-slate-200" />
+            <div className="mx-auto mt-3 mb-2 h-1 w-10 shrink-0 rounded-full bg-slate-200" />
 
-            {/* Header */}
-            <div className="mb-4 flex items-center justify-between">
+            {/* Header — sticky, doesn't scroll */}
+            <div className="flex shrink-0 items-center justify-between px-4 pb-3">
               <h3 className="text-base font-semibold text-slate-900">
                 What happened?
               </h3>
@@ -142,8 +145,8 @@ export function QuickAddMenu() {
               </button>
             </div>
 
-            {/* Action grid */}
-            <div className="grid grid-cols-3 gap-3">
+            {/* Action grid — scrolls if needed */}
+            <div className="grid grid-cols-3 gap-3 overflow-y-auto px-4 pb-6">
               {ACTIONS.map((action) => {
                 const Icon = action.icon;
                 return (

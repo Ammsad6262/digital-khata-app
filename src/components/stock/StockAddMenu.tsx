@@ -67,23 +67,23 @@ export function StockAddMenu() {
       {/* Bottom sheet overlay */}
       {isOpen ? (
         <>
-          {/* Backdrop */}
+          {/* Backdrop — covers the entire viewport including bottom nav */}
           <div
             className="fixed inset-0 z-40 bg-black/30"
             onClick={() => setIsOpen(false)}
             style={{ animation: "fadeIn 0.15s ease-out" }}
           />
 
-          {/* Bottom sheet */}
+          {/* Bottom sheet — scrolls if content exceeds viewport height */}
           <div
-            className="fixed inset-x-0 bottom-0 z-50 mx-auto max-w-[480px] rounded-t-2xl bg-white p-4 pb-8 shadow-2xl"
-            style={{ animation: "slideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1)" }}
+            className="fixed inset-x-0 bottom-0 z-50 mx-auto flex max-h-[85dvh] max-w-[480px] flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl"
+            style={{ animation: "slideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1)", paddingBottom: "env(safe-area-inset-bottom)" }}
           >
             {/* Drag handle */}
-            <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-slate-200" />
+            <div className="mx-auto mt-3 mb-2 h-1 w-10 shrink-0 rounded-full bg-slate-200" />
 
-            {/* Header */}
-            <div className="mb-4 flex items-center justify-between">
+            {/* Header — sticky */}
+            <div className="flex shrink-0 items-center justify-between px-4 pb-3">
               <h3 className="text-base font-semibold text-slate-900">
                 What do you want to add?
               </h3>
@@ -97,8 +97,8 @@ export function StockAddMenu() {
               </button>
             </div>
 
-            {/* Action list — full-width rows with icon + label + description */}
-            <div className="space-y-2">
+            {/* Action list — scrolls if needed */}
+            <div className="space-y-2 overflow-y-auto px-4 pb-6">
               {ACTIONS.map((action) => {
                 const Icon = action.icon;
                 return (

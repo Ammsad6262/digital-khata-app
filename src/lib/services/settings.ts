@@ -1,8 +1,8 @@
 /**
- * Settings service layer.
+ * Settings service layer — per-user settings.
  *
- * The Setting table is a singleton — only one row, id = "singleton".
- * This service lazily creates the row if it doesn't exist yet.
+ * Each user has exactly one Setting row (one-to-one via userId @unique).
+ * The service lazily creates the row if it doesn't exist.
  */
 
 import { prisma } from "@/lib/db/prisma";
@@ -18,8 +18,6 @@ export type SettingView = {
   theme: string;
 };
 
-const SINGLETON_ID = "singleton";
-
 function toView(s: Prisma.SettingGetPayload<{}>): SettingView {
   return {
     businessName: s.businessName,
@@ -32,22 +30,19 @@ function toView(s: Prisma.SettingGetPayload<{}>): SettingView {
   };
 }
 
-/** Get the current settings. Lazily creates the singleton row if missing. */
-export async function getSettings(): Promise<SettingView> {
-  // Use findUnique (read-only) instead of upsert (write).
-  // upsert does an INSERT-or-UPDATE on every call — slow on high-latency DBs.
-  const setting = await prisma.setting.findUnique({ where: { id: SINGLETON_ID } });
+/** Get the current user's settings. Lazily creates the row if missing. */
+export async function getSettings(userId: string): Promise<SettingView> {
+  const setting = await prisma.setting.findUnique({ where: { userId } });
   if (!setting) {
-    // Only create if missing (first run)
-    const created = await prisma.setting.create({ data: { id: SINGLETON_ID } });
+    const created = await prisma.setting.create({ data: { userId } });
     return toView(created);
   }
   return toView(setting);
 }
 
 /** Get the raw owner PIN hash (for auth). Returns null if no PIN is set. */
-export async function getOwnerPinHash(): Promise<string | null> {
-  const setting = await prisma.setting.findUnique({ where: { id: SINGLETON_ID } });
+export async function getOwnerPinHash(userId: string): Promise<string | null> {
+  const setting = await prisma.setting.findUnique({ where: { userId } });
   if (!setting) return null;
   return setting.ownerPinHash && setting.ownerPinHash.length > 0
     ? setting.ownerPinHash
@@ -55,31 +50,28 @@ export async function getOwnerPinHash(): Promise<string | null> {
 }
 
 /** Set the owner PIN hash (called by the auth flow after bcrypt hashing). */
-export async function setOwnerPinHash(hash: string): Promise<void> {
+export async function setOwnerPinHash(userId: string, hash: string): Promise<void> {
   await prisma.setting.upsert({
-    where: { id: SINGLETON_ID },
-    create: { id: SINGLETON_ID, ownerPinHash: hash },
+    where: { userId },
+    create: { userId, ownerPinHash: hash },
     update: { ownerPinHash: hash },
   });
 }
 
 /** Remove the owner PIN (disables PIN lock). */
-export async function clearOwnerPinHash(): Promise<void> {
+export async function clearOwnerPinHash(userId: string): Promise<void> {
   await prisma.setting.upsert({
-    where: { id: SINGLETON_ID },
-    create: { id: SINGLETON_ID, ownerPinHash: null },
+    where: { userId },
+    create: { userId, ownerPinHash: null },
     update: { ownerPinHash: null },
   });
 }
 
 /**
- * Clear ALL business data (the "danger zone" action).
- * Keeps the Setting row (with business name + currency) but wipes everything else.
- * Used by Settings → Data Management → Clear All Data.
- *
- * IMPORTANT: This is destructive. The API route requires explicit confirmation.
+ * Clear ALL business data belonging to the authenticated user ONLY.
+ * Keeps the Setting row (with business name + currency + PIN).
  */
-export async function clearAllData(): Promise<{
+export async function clearAllData(userId: string): Promise<{
   deleted: {
     transactions: number;
     saleItems: number;
@@ -92,18 +84,16 @@ export async function clearAllData(): Promise<{
     products: number;
   };
 }> {
-  // Wrap in a transaction — if any delete fails (e.g. FK constraint),
-  // the entire operation rolls back. No partial state.
   const result = await prisma.$transaction(async (tx) => {
-    const transactions = await tx.transaction.deleteMany({});
-    const saleItems = await tx.saleItem.deleteMany({});
-    const payments = await tx.payment.deleteMany({});
-    const sales = await tx.sale.deleteMany({});
-    const stockMoves = await tx.stockMove.deleteMany({});
-    const expenses = await tx.expense.deleteMany({});
-    const customerAdjustments = await tx.customerAdjustment.deleteMany({});
-    const customers = await tx.customer.deleteMany({});
-    const products = await tx.product.deleteMany({});
+    const transactions = await tx.transaction.deleteMany({ where: { userId } });
+    const saleItems = await tx.saleItem.deleteMany({ where: { sale: { userId } } });
+    const payments = await tx.payment.deleteMany({ where: { userId } });
+    const sales = await tx.sale.deleteMany({ where: { userId } });
+    const stockMoves = await tx.stockMove.deleteMany({ where: { userId } });
+    const expenses = await tx.expense.deleteMany({ where: { userId } });
+    const customerAdjustments = await tx.customerAdjustment.deleteMany({ where: { userId } });
+    const customers = await tx.customer.deleteMany({ where: { userId } });
+    const products = await tx.product.deleteMany({ where: { userId } });
 
     return {
       transactions: transactions.count,
@@ -121,19 +111,22 @@ export async function clearAllData(): Promise<{
   return { deleted: result };
 }
 
-/** Update business name / currency / etc. */
-export async function updateSettings(input: {
-  businessName?: string | null;
-  currency?: string;
-  currencySymbol?: string;
-  timezone?: string;
-  customUnits?: string[];
-  theme?: string;
-}): Promise<SettingView> {
+/** Update business name / currency / etc for the authenticated user. */
+export async function updateSettings(
+  userId: string,
+  input: {
+    businessName?: string | null;
+    currency?: string;
+    currencySymbol?: string;
+    timezone?: string;
+    customUnits?: string[];
+    theme?: string;
+  },
+): Promise<SettingView> {
   const updated = await prisma.setting.upsert({
-    where: { id: SINGLETON_ID },
+    where: { userId },
     create: {
-      id: SINGLETON_ID,
+      userId,
       businessName: input.businessName ?? null,
       currency: input.currency ?? "PKR",
       currencySymbol: input.currencySymbol ?? "Rs.",

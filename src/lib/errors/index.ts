@@ -86,3 +86,11 @@ export class UnauthorizedError extends AppError {
     this.name = "UnauthorizedError";
   }
 }
+
+/** 403 — authenticated but not allowed (e.g. subscription expired). */
+export class ForbiddenError extends AppError {
+  constructor(message: string = "Forbidden.") {
+    super(message, ErrorCode.UNAUTHORIZED, 403);
+    this.name = "ForbiddenError";
+  }
+}

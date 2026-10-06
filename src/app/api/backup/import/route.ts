@@ -23,7 +23,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { importBackup, parseBackupFile } from "@/lib/services/backup";
 import { AppError } from "@/lib/errors";
-import { getCurrentUserId } from "@/lib/auth/get-current-user";
+import { requireActiveAccess } from "@/lib/auth/get-current-user";
 import { ZodError } from "zod";
 import { z } from "zod";
 
@@ -39,7 +39,7 @@ const importSchema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
-    const userId = await getCurrentUserId(req);
+    const userId = await requireActiveAccess(req);
     const body = (await req.json()) as unknown;
     const parsed = importSchema.parse(body);
 

@@ -13,14 +13,14 @@
 import { NextRequest } from "next/server";
 import { getProductWithStock, updateProduct, deleteProduct } from "@/lib/services/products";
 import { ok, fail, parseJsonBody } from "@/lib/utils/api";
-import { getCurrentUserId } from "@/lib/auth/get-current-user";
+import { requireActiveAccess } from "@/lib/auth/get-current-user";
 
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const userId = await getCurrentUserId(req);
+    const userId = await requireActiveAccess(req);
     const { id } = await params;
     const product = await getProductWithStock(id, userId);
     return ok(product);
@@ -34,7 +34,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const userId = await getCurrentUserId(req);
+    const userId = await requireActiveAccess(req);
     const { id } = await params;
     const { data, error } = await parseJsonBody<unknown>(req);
     if (error) return fail(new Error(error));
@@ -51,7 +51,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const userId = await getCurrentUserId(req);
+    const userId = await requireActiveAccess(req);
     const { id } = await params;
     const result = await deleteProduct(id, userId);
     return ok(result);

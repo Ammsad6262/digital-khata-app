@@ -3,20 +3,20 @@
 /**
  * AuthGate — checks auth status on mount.
  *
- * Two-layer auth:
+ * Three-layer auth:
  *   1. Account auth (email/password JWT) — checked via /api/auth/me
  *      If not logged in → redirect to /login
  *   2. PIN lock (optional device-level lock) — checked via /api/auth/status
  *      If PIN is set and not unlocked → show PIN unlock screen
- *
- * This allows both systems to coexist:
- *   - Email/password = account identity + data isolation
- *   - PIN = optional device lock (like a phone lock screen)
+ *   3. Subscription access — checked via /api/subscription
+ *      If expired → show ExpiredAccessScreen (but Settings/Subscription/Redeem
+ *      pages remain accessible so the user can reactivate)
  */
 
 import { useEffect, useState, type ReactNode } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { PinUnlockScreen } from "@/components/auth/PinUnlockScreen";
+import { ExpiredAccessScreen } from "@/components/subscription/ExpiredAccessScreen";
 
 type AuthStatus = {
   hasPin: boolean;
@@ -33,11 +33,23 @@ type AuthUser = {
 // Pages that don't need auth (login/register are standalone)
 const PUBLIC_PAGES = ["/login", "/register"];
 
+// Pages that remain accessible even when subscription is expired
+// (so the user can reactivate their account)
+const ACCESSIBLE_WHEN_EXPIRED = [
+  "/more/settings",
+  "/more/subscription",
+  "/more/redeem",
+  "/api/account",
+  "/api/subscription",
+  "/api/settings",
+];
+
 export function AuthGate({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const [user, setUser] = useState<AuthUser | null | undefined>(undefined);
   const [pinStatus, setPinStatus] = useState<AuthStatus | null>(null);
+  const [subscriptionExpired, setSubscriptionExpired] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -74,31 +86,43 @@ export function AuthGate({ children }: { children: ReactNode }) {
         if (!pinJson.ok) {
           // PIN check failed — proceed without PIN (don't block the app)
           setPinStatus({ hasPin: false, unlocked: true, businessName: null });
-          return;
-        }
+        } else {
+          const s = pinJson.data as AuthStatus;
 
-        const s = pinJson.data as AuthStatus;
-
-        // If no PIN and not unlocked, auto-unlock
-        if (!s.hasPin && !s.unlocked) {
-          try {
-            const unlockRes = await fetch("/api/auth/unlock", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ pin: "" }),
-              credentials: "same-origin",
-            });
-            const unlockJson = await unlockRes.json();
-            if (mounted && unlockJson.ok) {
-              setPinStatus({ hasPin: false, unlocked: true, businessName: s.businessName });
-              return;
+          // If no PIN and not unlocked, auto-unlock
+          if (!s.hasPin && !s.unlocked) {
+            try {
+              const unlockRes = await fetch("/api/auth/unlock", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ pin: "" }),
+                credentials: "same-origin",
+              });
+              const unlockJson = await unlockRes.json();
+              if (mounted && unlockJson.ok) {
+                setPinStatus({ hasPin: false, unlocked: true, businessName: s.businessName });
+                return;
+              }
+            } catch {
+              // Proceed even if unlock fails
             }
-          } catch {
-            // Proceed even if unlock fails
           }
+
+          setPinStatus(s);
         }
 
-        setPinStatus(s);
+        // 3. Check subscription status (don't block on failure — network errors
+        //    must NOT lock the user out of their account)
+        try {
+          const subRes = await fetch("/api/subscription", { cache: "no-store" });
+          const subJson = await subRes.json();
+          if (mounted && subJson.ok && subJson.data) {
+            setSubscriptionExpired(subJson.data.isExpired);
+          }
+        } catch {
+          // If subscription check fails, don't block — let the user in.
+          // The API layer enforces access server-side anyway.
+        }
       } catch {
         if (mounted) setError("Cannot reach server. Check your connection.");
       }
@@ -158,6 +182,12 @@ export function AuthGate({ children }: { children: ReactNode }) {
     );
   }
 
-  // Authenticated + unlocked (or no PIN) → render app
+  // Subscription expired → show expired screen UNLESS the user is on an
+  // accessible page (Settings, Subscription, Redeem, Account)
+  if (subscriptionExpired && !ACCESSIBLE_WHEN_EXPIRED.some((p) => pathname.startsWith(p))) {
+    return <ExpiredAccessScreen />;
+  }
+
+  // Authenticated + unlocked + (active subscription or on accessible page) → render app
   return <>{children}</>;
 }

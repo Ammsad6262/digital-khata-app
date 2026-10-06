@@ -1,14 +1,14 @@
 import { NextRequest } from "next/server";
 import { getSale, voidSale } from "@/lib/services/sales";
 import { ok, fail } from "@/lib/utils/api";
-import { getCurrentUserId } from "@/lib/auth/get-current-user";
+import { requireActiveAccess } from "@/lib/auth/get-current-user";
 
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const userId = await getCurrentUserId(req);
+    const userId = await requireActiveAccess(req);
     const { id } = await params;
     const sale = await getSale(id, userId);
     return ok(sale);
@@ -22,7 +22,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const userId = await getCurrentUserId(req);
+    const userId = await requireActiveAccess(req);
     const { id } = await params;
     const url = new URL(req.url);
     const action = url.searchParams.get("action");

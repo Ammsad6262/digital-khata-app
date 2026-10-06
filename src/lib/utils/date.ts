@@ -144,8 +144,10 @@ export function startNDaysAgoInTz(n: number, timezone: string = "Asia/Karachi"):
 // Display formatters
 // ────────────────────────────────────────────────────────────────────────────
 
-/** Format a Date for display in the business TZ: "16 Sep 2026, 2:30 PM". */
-export function formatDateTime(date: Date, timezone: string = "Asia/Karachi"): string {
+/** Format a Date for display in the business TZ: "16 Sep 2026, 2:30 PM".
+ *  Accepts Date, string (ISO), or number (epoch). Normalizes to Date first. */
+export function formatDateTime(date: Date | string | number, timezone: string = "Asia/Karachi"): string {
+  const d = typeof date === "string" || typeof date === "number" ? new Date(date) : date;
   return new Intl.DateTimeFormat("en-GB", {
     timeZone: timezone,
     day: "2-digit",
@@ -154,33 +156,39 @@ export function formatDateTime(date: Date, timezone: string = "Asia/Karachi"): s
     hour: "numeric",
     minute: "2-digit",
     hour12: true,
-  }).format(date);
+  }).format(d);
 }
 
-/** Format a Date for display: "16 Sep 2026" (no time). */
-export function formatDate(date: Date, timezone: string = "Asia/Karachi"): string {
+/** Format a Date for display: "16 Sep 2026" (no time).
+ *  Accepts Date, string (ISO), or number (epoch). */
+export function formatDate(date: Date | string | number, timezone: string = "Asia/Karachi"): string {
+  const d = typeof date === "string" || typeof date === "number" ? new Date(date) : date;
   return new Intl.DateTimeFormat("en-GB", {
     timeZone: timezone,
     day: "2-digit",
     month: "short",
     year: "numeric",
-  }).format(date);
+  }).format(d);
 }
 
-/** Format a Date for display: "2:30 PM" (no date). */
-export function formatTime(date: Date, timezone: string = "Asia/Karachi"): string {
+/** Format a Date for display: "2:30 PM" (no date).
+ *  Accepts Date, string (ISO), or number (epoch). */
+export function formatTime(date: Date | string | number, timezone: string = "Asia/Karachi"): string {
+  const d = typeof date === "string" || typeof date === "number" ? new Date(date) : date;
   return new Intl.DateTimeFormat("en-GB", {
     timeZone: timezone,
     hour: "numeric",
     minute: "2-digit",
     hour12: true,
-  }).format(date);
+  }).format(d);
 }
 
-/** Relative time: "5 min ago", "2 hours ago", "Yesterday", or absolute date. */
-export function formatRelative(date: Date, timezone: string = "Asia/Karachi"): string {
+/** Relative time: "5 min ago", "2 hours ago", "Yesterday", or absolute date.
+ *  Accepts Date, string (ISO), or number (epoch). */
+export function formatRelative(date: Date | string | number, timezone: string = "Asia/Karachi"): string {
+  const d = typeof date === "string" || typeof date === "number" ? new Date(date) : date;
   const now = Date.now();
-  const diffMs = now - date.getTime();
+  const diffMs = now - d.getTime();
   const diffMin = Math.floor(diffMs / 60_000);
   const diffHr = Math.floor(diffMin / 60);
   const diffDay = Math.floor(diffHr / 24);
@@ -190,5 +198,5 @@ export function formatRelative(date: Date, timezone: string = "Asia/Karachi"): s
   if (diffHr < 24) return `${diffHr} hr ago`;
   if (diffDay === 1) return "yesterday";
   if (diffDay < 7) return `${diffDay} days ago`;
-  return formatDate(date, timezone);
+  return formatDate(d, timezone);
 }

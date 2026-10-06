@@ -14,6 +14,7 @@ import { getOwnerPinHash, setOwnerPinHash, clearOwnerPinHash } from "@/lib/servi
 import { hashPin, verifyPin, isValidPinFormat } from "@/lib/auth/pin";
 import { BadRequestError, UnauthorizedError } from "@/lib/errors";
 import { ok, fail, parseJsonBody } from "@/lib/utils/api";
+import { requireUserId } from "@/lib/auth/get-current-user";
 
 export const dynamic = "force-dynamic";
 
@@ -28,6 +29,7 @@ const removePinSchema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
+    const userId = await requireUserId(req);
     const { data, error } = await parseJsonBody<unknown>(req);
     if (error) return fail(new Error(error));
 
@@ -39,7 +41,7 @@ export async function POST(req: NextRequest) {
     }
 
     // If a PIN is already set, verify the current PIN before allowing change
-    const existingHash = await getOwnerPinHash();
+    const existingHash = await getOwnerPinHash(userId);
     if (existingHash) {
       if (!parsed.currentPin) {
         throw new UnauthorizedError("Current PIN is required to change PIN.");
@@ -52,7 +54,7 @@ export async function POST(req: NextRequest) {
 
     // Hash + store the new PIN
     const hash = await hashPin(parsed.pin);
-    await setOwnerPinHash(hash);
+    await setOwnerPinHash(userId, hash);
 
     return ok({ hasPin: true });
   } catch (error) {
@@ -62,13 +64,14 @@ export async function POST(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   try {
+    const userId = await requireUserId(req);
     const { data, error } = await parseJsonBody<unknown>(req);
     if (error) return fail(new Error(error));
 
     const parsed = removePinSchema.parse(data);
 
     // Verify current PIN before removing
-    const existingHash = await getOwnerPinHash();
+    const existingHash = await getOwnerPinHash(userId);
     if (!existingHash) {
       throw new BadRequestError("No PIN is set — nothing to remove.");
     }
@@ -78,7 +81,7 @@ export async function DELETE(req: NextRequest) {
       throw new UnauthorizedError("Current PIN is incorrect.");
     }
 
-    await clearOwnerPinHash();
+    await clearOwnerPinHash(userId);
 
     return ok({ hasPin: false });
   } catch (error) {

@@ -70,6 +70,9 @@ model User {
   transactions    Transaction[]
   adjustments     CustomerAdjustment[]
   smartEntrySessions SmartEntrySession[]
+  subscription    UserSubscription?
+  redemptions     RedeemCodeRedemption[]
+  settings        Setting?
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -454,14 +457,68 @@ model Transaction {
 // ────────────────────────────────────────────────────────────────────────────
 
 model Setting {
-  id              String  @id @default("singleton")
+  id              String  @id @default(cuid())
+  userId          String  @unique
+  user            User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   businessName    String?
-  currency        String  @default("PKR")     // ISO 4217 code
+  currency        String  @default("PKR")
   currencySymbol  String  @default("Rs.")
-  ownerPinHash    String?                     // bcrypt hash of owner's PIN
+  ownerPinHash    String?
   timezone        String  @default("Asia/Karachi")
-  customUnits     String[] @default([])      // user-defined units beyond the defaults
-  theme           String  @default("monochrome") // "monochrome" | "default" | "leaf"
+  customUnits     String[] @default([])
+  theme           String  @default("monochrome")
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// SUBSCRIPTION / ACCESS — trial + redeem-code system
+// ────────────────────────────────────────────────────────────────────────────
+
+model UserSubscription {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status          String   @default("TRIAL_ACTIVE")
+  trialStartedAt  DateTime
+  trialExpiresAt  DateTime
+  accessStartedAt  DateTime?
+  accessExpiresAt  DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([userId])
+  @@index([status])
+}
+
+model RedeemCode {
+  id              String   @id @default(cuid())
+  codeHash        String   @unique
+  durationDays    Int
+  maxRedemptions  Int      @default(1)
+  redemptionCount Int      @default(0)
+  active          Boolean  @default(true)
+  expiresAt       DateTime?
+  createdBy       String   @default("admin")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  redemptions     RedeemCodeRedemption[]
+
+  @@index([codeHash])
+  @@index([active])
+}
+
+model RedeemCodeRedemption {
+  id              String   @id @default(cuid())
+  redeemCodeId    String
+  redeemCode      RedeemCode @relation(fields: [redeemCodeId], references: [id], onDelete: Cascade)
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  durationDays    Int
+  previousAccessExpiresAt  DateTime?
+  newAccessExpiresAt       DateTime
+  redeemedAt      DateTime @default(now())
+
+  @@index([redeemCodeId])
+  @@index([userId])
 }

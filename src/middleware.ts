@@ -14,7 +14,8 @@
 
 import { NextRequest, NextResponse } from "next/server";
 
-// Public routes that don't require auth
+// Public routes that don't require JWT auth
+// (admin/codes uses x-admin-secret header instead of JWT cookie)
 const PUBLIC_ROUTES = [
   "/api/auth/register",
   "/api/auth/login",
@@ -23,6 +24,7 @@ const PUBLIC_ROUTES = [
   "/api/auth/me",
   "/api/auth/unlock",
   "/api/health",
+  "/api/admin/codes",
 ];
 
 export const config = {

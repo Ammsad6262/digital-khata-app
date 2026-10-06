@@ -17,8 +17,8 @@ import {
   Wallet,
   Database,
   Crown,
+  Menu,
 } from "lucide-react";
-import { AppHeader } from "@/components/layout/AppHeader";
 import { ScreenContent } from "@/components/layout/Screen";
 import { useLanguage } from "@/providers/language-provider";
 
@@ -93,7 +93,15 @@ export default function MorePage() {
   const { t } = useLanguage();
   return (
     <>
-      <AppHeader title={t("nav.more")} />
+      <header className="sticky top-0 z-20 flex items-center gap-3 border-b border-slate-200 bg-white px-4 py-3">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-600">
+          <Menu className="h-5 w-5" />
+        </div>
+        <div className="min-w-0">
+          <h1 className="truncate text-base font-semibold text-slate-900">{t("nav.more")}</h1>
+          <p className="truncate text-xs text-slate-500">All sections & settings</p>
+        </div>
+      </header>
       <ScreenContent>
         <div className="space-y-2">
           {SECTIONS.map((section) => {

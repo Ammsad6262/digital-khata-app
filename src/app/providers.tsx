@@ -6,8 +6,12 @@
  * Uses usePathname() to detect if we're on a public page (login/register)
  * and skips the Screen/BottomNav wrapper for those pages.
  *
- * Also adds the universal QuickAddMenu (floating + button) on all
- * authenticated pages.
+ * On the Dashboard, renders TWO floating action buttons:
+ *   - LEFT:   QuickAddMenu (+ button) — manual entry options sheet
+ *   - RIGHT:  SmartKhataMicButton (microphone) — voice-driven Smart Khata Entry
+ *
+ * The mic FAB is the primary, more prominent action; the + FAB is the
+ * secondary, manual fallback.
  */
 
 import { type ReactNode } from "react";
@@ -20,34 +24,14 @@ import { AuthGate } from "@/providers/auth-gate";
 import { Screen } from "@/components/layout/Screen";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { QuickAddMenu } from "@/components/layout/QuickAddMenu";
+import { SmartKhataMicButton } from "@/components/smart-entry/SmartKhataMicButton";
 
 const PUBLIC_PAGES = ["/login", "/register"];
 
-// Pages where the floating + button should NOT appear.
-//
-// The FAB is shown on the Dashboard only — that's the screen where quick
-// access to "what just happened" (sale / payment / expense / stock) is most
-// useful. On every other screen (Khata, Sales, Payments, Expenses, Stock,
-// More), the page header already has a "+" action in the top-right, so the
-// FAB would be redundant and just add visual noise.
-//
-// Form/create/edit pages also hide the FAB (the user is already on a form).
-const NO_FAB_PAGES = [
-  "/khata",
-  "/sales",
-  "/payments",
-  "/more",
-  "/stock",
-  "/sales/new",
-  "/payments/new",
-  "/more/expenses/new",
-  "/more/customers/new",
-  "/more/products/new",
-  "/stock/add",
-  "/stock/adjust",
-  "/more/expenses/",
-  "/more/products/",
-];
+// The Dashboard is the only page where the FABs render. Every other section
+// has its own header-level "+" action, so the floating buttons would just be
+// visual noise there. Form/edit pages also hide the FABs.
+const DASHBOARD_PATH = "/dashboard";
 
 export function Providers({ children }: { children: ReactNode }) {
   const pathname = usePathname();
@@ -55,10 +39,8 @@ export function Providers({ children }: { children: ReactNode }) {
     (p) => pathname === p || pathname.startsWith(p + "/"),
   );
 
-  // Don't show the FAB on form/create/edit pages
-  const showFab = !isPublicPage && !NO_FAB_PAGES.some(
-    (p) => pathname === p || (pathname.startsWith(p) && pathname.includes("/edit")),
-  );
+  // Both FABs render ONLY on /dashboard
+  const showFab = !isPublicPage && pathname === DASHBOARD_PATH;
 
   return (
     <ThemeProvider>
@@ -72,7 +54,12 @@ export function Providers({ children }: { children: ReactNode }) {
                 <Screen>
                   {children}
                   <BottomNav />
-                  {showFab ? <QuickAddMenu /> : null}
+                  {showFab ? (
+                    <>
+                      <QuickAddMenu />
+                      <SmartKhataMicButton />
+                    </>
+                  ) : null}
                 </Screen>
               </AuthGate>
             )}

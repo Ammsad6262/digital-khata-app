@@ -197,6 +197,25 @@ export function useAudioRecorder() {
     }
   }, [cleanup]);
 
+  /**
+   * Cancel an in-flight recording WITHOUT firing the onStop callback.
+   *
+   * Used when the user taps "Cancel" during recording — we want to stop
+   * the mic and discard the audio, NOT submit it to the API. The recorder's
+   * own onstop handler will still fire (browser behavior), but because we
+   * null out onStopCallbackRef first, the audio won't be submitted.
+   */
+  const cancel = useCallback(() => {
+    onStopCallbackRef.current = null;
+    setState("stopping");
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
+      mediaRecorderRef.current.stop();
+    } else {
+      cleanup();
+      setState("idle");
+    }
+  }, [cleanup]);
+
   return {
     state,
     audioBlob,
@@ -205,5 +224,6 @@ export function useAudioRecorder() {
     levels,
     start,
     stop,
+    cancel,
   };
 }

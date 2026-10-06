@@ -616,15 +616,19 @@ export async function resolveDisambiguation(
  * This is the CRITICAL security boundary. Despite the user confirming,
  * we MUST:
  *   1. Re-authenticate (caller passes verified userId — never client)
- *   2. Load the session and verify it belongs to this user
- *   3. Verify status === "AWAITING_CONFIRMATION"
- *   4. Verify not expired
- *   5. Re-resolve customer + product against the CURRENT DB (they may have
+ *   2. Atomically transition the session from AWAITING_CONFIRMATION → EXECUTING
+ *      using a conditional UPDATE (WHERE status = 'AWAITING_CONFIRMATION').
+ *      This prevents double-execution race conditions: if two concurrent
+ *      requests arrive (e.g. user double-clicked "Add to Khata"), only
+ *      one will succeed in flipping the status; the other gets count=0
+ *      and we return an "already executing/completed" error.
+ *   3. Verify not expired
+ *   4. Re-resolve customer + product against the CURRENT DB (they may have
  *      been deleted, or their price may have changed, since interpretation)
- *   6. Recompute the amount (DON'T trust the cached resolvedAmount)
- *   7. Call the EXISTING SaleService.createSale() — the SAME path the
+ *   5. Recompute the amount (DON'T trust the cached resolvedAmount)
+ *   6. Call the EXISTING SaleService.createSale() — the SAME path the
  *      manual sale form uses. No AI-specific transaction logic.
- *   8. Mark session COMPLETED with the createdSaleId.
+ *   7. Mark session COMPLETED with the createdSaleId.
  *
  * The client sends ONLY { sessionId } (+ optional chosenCustomerId/Product
  * for disambiguation flow). It CANNOT inject amount, customer ID, or
@@ -641,105 +645,162 @@ export async function executeSession(
     await resolveDisambiguation(userId, sessionId, chosen);
   }
 
-  // 1-4. Load + verify session
+  // 1. Load + verify session belongs to this user
   const session = await loadAndVerifySession(userId, sessionId);
 
-  if (session.status !== "AWAITING_CONFIRMATION") {
+  // 2. Handle already-terminal states gracefully (idempotency).
+  //    If the session is already COMPLETED, return the existing sale info
+  //    instead of erroring — this is the "duplicate request after success"
+  //    case (user refreshed the page after confirming).
+  if (session.status === "COMPLETED" && session.createdSaleId) {
+    // Fetch the sale to return its totals
+    const existingSale = await prisma.sale.findFirst({
+      where: { id: session.createdSaleId, userId },
+      select: { id: true, totalAmount: true, outstanding: true },
+    });
+    if (existingSale) {
+      return {
+        saleId: existingSale.id,
+        totalAmount: existingSale.totalAmount.toString(),
+        outstanding: existingSale.outstanding.toString(),
+      };
+    }
+    // Sale was deleted — fall through to error
+    throw new BadRequestError("This entry was already processed but its sale no longer exists.");
+  }
+
+  // 3. Atomically claim the session: only proceed if status is still
+  //    AWAITING_CONFIRMATION. This is the duplicate-execution guard.
+  //    Two concurrent requests will both try this UPDATE; only one will
+  //    affect a row (the other will get count=0 because the status is
+  //    no longer AWAITING_CONFIRMATION).
+  const claimed = await prisma.smartEntrySession.updateMany({
+    where: {
+      id: sessionId,
+      userId, // tenant isolation even on the claim
+      status: "AWAITING_CONFIRMATION",
+    },
+    data: { status: "EXECUTING", updatedAt: new Date() },
+  });
+
+  if (claimed.count === 0) {
+    // Someone else (or this same request earlier) already claimed it.
+    // Re-read to give the user a meaningful message.
+    const current = await prisma.smartEntrySession.findFirst({
+      where: { id: sessionId, userId },
+      select: { status: true },
+    });
+    const currentState = current?.status ?? "UNKNOWN";
+    if (currentState === "EXECUTING") {
+      // Another request is mid-flight. Tell the user to wait — don't create
+      // a duplicate sale.
+      throw new BadRequestError("This entry is already being processed. Please wait a moment.");
+    }
     throw new BadRequestError(
-      `Session is in ${session.status} state — cannot execute.`,
+      `Session is in ${currentState} state — cannot execute.`,
     );
   }
 
-  if (isExpired(session)) {
-    await prisma.smartEntrySession.update({
-      where: { id: sessionId },
-      data: { status: "EXPIRED" },
-    });
-    throw new BadRequestError("This Smart Entry has expired. Please try again.");
-  }
+  // From here, we OWN this session. If anything fails, we must transition
+  // it to FAILED so it can't be re-executed (idempotency on failure too).
+  try {
+    // 4. Verify not expired (we claimed it, but it might have expired
+    //    between status check and claim). Mark EXPIRED specifically so
+    //    the user sees "expired" in their session history rather than "failed".
+    if (isExpired(session)) {
+      await prisma.smartEntrySession.update({
+        where: { id: sessionId },
+        data: { status: "EXPIRED", completedAt: new Date() },
+      });
+      throw new BadRequestError("This Smart Entry has expired. Please try again.");
+    }
 
-  // 5. Re-resolve customer + product (defense against deletion since interpret)
-  const customer = await prisma.customer.findFirst({
-    where: {
-      id: session.resolvedCustomerId ?? undefined,
+    // 5. Re-resolve customer + product (defense against deletion since interpret)
+    const customer = await prisma.customer.findFirst({
+      where: {
+        id: session.resolvedCustomerId ?? undefined,
+        userId,
+        isDeleted: false,
+      },
+    });
+    if (!customer) {
+      throw new NotFoundError("Customer");
+    }
+
+    const product = await prisma.product.findFirst({
+      where: {
+        id: session.resolvedProductId ?? undefined,
+        userId,
+        isDeleted: false,
+      },
+    });
+    if (!product) {
+      throw new NotFoundError("Product");
+    }
+
+    // 6. Recompute amount with the CURRENT product price (DON'T trust cached)
+    const quantity = toDecimalOrZero(session.quantityRaw);
+    const unitPrice = toDecimal(product.sellingPrice);
+    const amount = quantity.times(unitPrice);
+
+    // 7. Call existing SaleService.createSale() — the trusted path.
+    //    paidAmount = 0 (this is a CREDIT sale; V1 doesn't support paying
+    //    at sale time via Smart Entry).
+    const sale = await createSale(
+      {
+        customerId: customer.id,
+        items: [
+          {
+            productId: product.id,
+            quantity: quantity.toNumber(),
+            unitPrice: unitPrice.toNumber(),
+          },
+        ],
+        paidAmount: 0,
+        paymentMethod: "cash",
+      },
       userId,
-      isDeleted: false,
-    },
-  });
-  if (!customer) {
-    // The customer was deleted between interpret and execute
+    );
+
+    // 8. Mark session COMPLETED + link to created sale
     await prisma.smartEntrySession.update({
       where: { id: sessionId },
-      data: { status: "FAILED" },
+      data: {
+        status: "COMPLETED",
+        completedAt: new Date(),
+        createdSaleId: sale.id,
+        resolvedCustomerId: customer.id,
+        resolvedProductId: product.id,
+        resolvedUnit: product.unit,
+        resolvedQuantity: quantity,
+        resolvedUnitPrice: unitPrice,
+        resolvedAmount: amount,
+      },
     });
-    throw new NotFoundError("Customer");
-  }
 
-  const product = await prisma.product.findFirst({
-    where: {
-      id: session.resolvedProductId ?? undefined,
-      userId,
-      isDeleted: false,
-    },
-  });
-  if (!product) {
+    invalidateCache("dashboard");
+    invalidateCache("customers");
+    invalidateCache("products");
+    invalidateCache("sales");
+
+    return {
+      saleId: sale.id,
+      totalAmount: sale.totalAmount,
+      outstanding: sale.outstanding,
+    };
+  } catch (error) {
+    // Mark the session FAILED so it can't be re-executed (idempotent on failure).
+    // BUT: if the error is the expiry-related BadRequestError we threw above,
+    // the session is ALREADY marked EXPIRED — don't overwrite it.
+    if (error instanceof BadRequestError && error.message.includes("expired")) {
+      throw error; // session already EXPIRED, just re-throw
+    }
     await prisma.smartEntrySession.update({
       where: { id: sessionId },
-      data: { status: "FAILED" },
-    });
-    throw new NotFoundError("Product");
+      data: { status: "FAILED", completedAt: new Date() },
+    }).catch(() => { /* ignore — original error is more important */ });
+    throw error;
   }
-
-  // 6. Recompute amount with the CURRENT product price (DON'T trust cached)
-  const quantity = toDecimalOrZero(session.quantityRaw);
-  const unitPrice = toDecimal(product.sellingPrice);
-  const amount = quantity.times(unitPrice);
-
-  // 7. Call existing SaleService.createSale() — the trusted path.
-  //    paidAmount = 0 (this is a CREDIT sale; V1 doesn't support paying
-  //    at sale time via Smart Entry).
-  const sale = await createSale(
-    {
-      customerId: customer.id,
-      items: [
-        {
-          productId: product.id,
-          quantity: quantity.toNumber(),
-          unitPrice: unitPrice.toNumber(),
-        },
-      ],
-      paidAmount: 0,
-      paymentMethod: "cash",
-    },
-    userId,
-  );
-
-  // 8. Mark session COMPLETED + link to created sale
-  await prisma.smartEntrySession.update({
-    where: { id: sessionId },
-    data: {
-      status: "COMPLETED",
-      completedAt: new Date(),
-      createdSaleId: sale.id,
-      resolvedCustomerId: customer.id,
-      resolvedProductId: product.id,
-      resolvedUnit: product.unit,
-      resolvedQuantity: quantity,
-      resolvedUnitPrice: unitPrice,
-      resolvedAmount: amount,
-    },
-  });
-
-  invalidateCache("dashboard");
-  invalidateCache("customers");
-  invalidateCache("products");
-  invalidateCache("sales");
-
-  return {
-    saleId: sale.id,
-    totalAmount: sale.totalAmount,
-    outstanding: sale.outstanding,
-  };
 }
 
 // ────────────────────────────────────────────────────────────────────────────

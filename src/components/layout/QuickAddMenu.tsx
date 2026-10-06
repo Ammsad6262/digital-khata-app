@@ -93,23 +93,23 @@ export function QuickAddMenu() {
 
   return (
     <>
-      {/* Floating + button — always visible on Dashboard + Sales pages.
-          On desktop (max-width: 1024px container), the button aligns to the
-          right edge of the centered app shell instead of the viewport edge,
-          so it doesn't float disconnected in the desktop margin. */}
+      {/* Floating + button — on the LEFT side of the dashboard.
+          Moved left to make room for the prominent Smart Khata microphone
+          button on the right. This button opens the manual "What happened?"
+          action sheet (Sale / Payment / Expense / Stock / Customer / Product).
+          On desktop, aligns to the left edge of the centered 1024px app shell. */}
       <button
         type="button"
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-20 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-brand-600 text-white shadow-lg shadow-brand-600/30 transition-transform hover:scale-105 active:scale-95"
+        className="fixed bottom-20 z-30 flex h-12 w-12 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-md shadow-slate-900/5 transition-transform hover:scale-105 active:scale-95"
         style={{
-          // On mobile (≤1024px), 1rem from the right edge of the viewport.
-          // On desktop (>1024px), aligned to the right edge of the centered
-          // app shell (1024px wide, centered) + 1rem padding.
-          right: "max(1rem, calc((100vw - 1024px) / 2 + 1rem))",
+          // On mobile, 1rem from the left edge. On desktop, aligned to
+          // the left edge of the centered 1024px app shell.
+          left: "max(1rem, calc((100vw - 1024px) / 2 + 1rem))",
         }}
-        aria-label="Quick add"
+        aria-label="Quick add — manual entry options"
       >
-        <Plus className="h-6 w-6" />
+        <Plus className="h-5 w-5" strokeWidth={2.5} />
       </button>
 
       {/* Bottom sheet overlay */}

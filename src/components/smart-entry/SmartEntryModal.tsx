@@ -69,14 +69,6 @@ export function SmartEntryModal({ open, onClose }: { open: boolean; onClose: () 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  // Wire up the recorder's onStop → smartEntry.submitAudio
-  useEffect(() => {
-    if (recorder.audioBlob && recorder.audioMimeType && smartEntry.state === "transcribing") {
-      // Already submitted — don't double-submit
-      return;
-    }
-  }, [recorder.audioBlob, recorder.audioMimeType, smartEntry.state]);
-
   const handleStartRecording = useCallback(async () => {
     setMode("voice");
     await recorder.start(async (blob, mimeType) => {
@@ -96,15 +88,24 @@ export function SmartEntryModal({ open, onClose }: { open: boolean; onClose: () 
   }, [textValue, smartEntry]);
 
   const handleClose = useCallback(() => {
-    if (smartEntry.state === "executing") return; // don't close mid-execution
-    if (smartEntry.sessionId && !["success", "cancelled", "expired", "error"].includes(smartEntry.state)) {
+    // Don't allow closing mid-execution (would orphan a sale creation)
+    if (smartEntry.state === "executing") return;
+    // If there's an active session that hasn't reached a terminal state,
+    // cancel it server-side (frees the session row + prevents stale
+    // AWAITING_CONFIRMATION rows from accumulating)
+    const terminalStates = ["success", "cancelled", "expired", "error"];
+    if (smartEntry.sessionId && !terminalStates.includes(smartEntry.state)) {
       smartEntry.cancel();
     }
-    // Reset everything
+    // Reset local UI state
     smartEntry.reset();
     setTextValue("");
     setMode("choice");
-    recorder.state; // touch to silence unused warning
+    // If recording is in-flight, cancel it WITHOUT submitting the audio
+    // (just stopping the recorder would fire onstop → submitAudio — wrong)
+    if (recorder.state === "recording" || recorder.state === "requesting") {
+      recorder.cancel();
+    }
     onClose();
   }, [smartEntry, recorder, onClose]);
 
@@ -319,7 +320,9 @@ function SmartEntryBody({
         levels={recorder.levels}
         onStop={onStopRecording}
         onCancel={() => {
-          onStopRecording();
+          // Cancel the recording (discard audio, don't submit it)
+          recorder.cancel();
+          // Reset back to the choice view (no session to cancel server-side yet)
           smartEntry.reset();
         }}
       />

@@ -214,6 +214,51 @@ export function useSmartEntry() {
     }
   }, [state.sessionId]);
 
+  /**
+   * Resolve a disambiguation choice WITHOUT executing the sale.
+   * Used when the user picks a customer/product from the picker — we want
+   * to show the confirmation preview FIRST, then the user clicks "Add to
+   * Khata" to actually execute.
+   *
+   * Calls /api/smart-entry/resolve, which returns a READY-status result
+   * with the preview.
+   */
+  const resolveChoice = useCallback(async (
+    chosen: { customerId?: string; productId?: string },
+  ) => {
+    if (!state.sessionId) return;
+    setState((s) => ({ ...s, state: "interpreting" }));
+    try {
+      const res = await fetch("/api/smart-entry/resolve", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sessionId: state.sessionId,
+          chosenCustomerId: chosen.customerId,
+          chosenProductId: chosen.productId,
+        }),
+      });
+      const json = await res.json();
+      if (!json.ok) {
+        setState((s) => ({
+          ...s,
+          state: "error",
+          error: json.error?.message ?? "Failed to resolve.",
+          message: json.error?.message ?? "Failed to resolve your choice.",
+        }));
+        return;
+      }
+      applyInterpretResult(json.data as ApiResult);
+    } catch (e) {
+      setState((s) => ({
+        ...s,
+        state: "error",
+        error: e instanceof Error ? e.message : "Network error.",
+        message: "Network error. Please check your connection.",
+      }));
+    }
+  }, [state.sessionId, applyInterpretResult]);
+
   const cancel = useCallback(async () => {
     if (!state.sessionId) {
       setState(INITIAL);
@@ -237,8 +282,10 @@ export function useSmartEntry() {
     submitText,
     submitAudio,
     confirm: () => execute(),
-    chooseCustomer: (id: string) => execute({ customerId: id }),
-    chooseProduct: (id: string) => execute({ productId: id }),
+    // Disambiguation: resolve to preview, don't execute yet.
+    // User must click "Add to Khata" on the confirmation screen to execute.
+    chooseCustomer: (id: string) => resolveChoice({ customerId: id }),
+    chooseProduct: (id: string) => resolveChoice({ productId: id }),
     cancel,
     reset,
   };

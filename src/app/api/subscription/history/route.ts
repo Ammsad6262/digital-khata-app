@@ -1,9 +1,3 @@
-/**
- * GET /api/subscription/history
- *
- * Returns the user's redemption history (audit trail).
- */
-
 import { NextRequest } from "next/server";
 import { getRedemptionHistory } from "@/lib/services/subscription";
 import { requireUserId } from "@/lib/auth/get-current-user";

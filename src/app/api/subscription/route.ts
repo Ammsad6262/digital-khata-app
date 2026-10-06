@@ -1,11 +1,3 @@
-/**
- * GET /api/subscription
- *
- * Returns the current user's subscription/access status.
- * Used by the frontend to determine whether to show the subscription page,
- * the expired trial screen, or normal app access.
- */
-
 import { NextRequest } from "next/server";
 import { getSubscriptionStatus } from "@/lib/services/subscription";
 import { requireUserId } from "@/lib/auth/get-current-user";

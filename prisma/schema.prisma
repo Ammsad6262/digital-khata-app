@@ -71,6 +71,7 @@ model User {
   adjustments  CustomerAdjustment[]
   subscription  UserSubscription?
   redemptions  RedeemCodeRedemption[]
+  settings     Setting?
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -390,14 +391,16 @@ model Transaction {
 // ────────────────────────────────────────────────────────────────────────────
 
 model Setting {
-  id              String  @id @default("singleton")
+  id              String  @id @default(cuid())
+  userId          String  @unique
+  user            User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   businessName    String?
-  currency        String  @default("PKR")     // ISO 4217 code
+  currency        String  @default("PKR")
   currencySymbol  String  @default("Rs.")
-  ownerPinHash    String?                     // bcrypt hash of owner's PIN
+  ownerPinHash    String?
   timezone        String  @default("Asia/Karachi")
-  customUnits     String[] @default([])      // user-defined units beyond the defaults
-  theme           String  @default("monochrome") // "monochrome" | "default" | "leaf"
+  customUnits     String[] @default([])
+  theme           String  @default("monochrome")
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 }
@@ -410,19 +413,11 @@ model UserSubscription {
   id              String   @id @default(cuid())
   userId          String   @unique
   user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  // "TRIAL_ACTIVE" | "TRIAL_EXPIRED" | "ACTIVE" | "EXPIRED"
   status          String   @default("TRIAL_ACTIVE")
-
-  // Trial timestamps (set once at registration, never changed)
   trialStartedAt  DateTime
   trialExpiresAt  DateTime
-
-  // Active access timestamps (updated when a redeem code is redeemed)
-  // If null, the user has never redeemed a code.
   accessStartedAt  DateTime?
   accessExpiresAt  DateTime?
-
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
@@ -432,33 +427,15 @@ model UserSubscription {
 
 model RedeemCode {
   id              String   @id @default(cuid())
-  // SHA-256 hash of the code — never store plaintext for security.
-  // The plaintext code is shown ONCE at generation time to the admin.
   codeHash        String   @unique
-
-  // Duration in days that this code grants when redeemed.
   durationDays    Int
-
-  // Maximum number of times this code can be redeemed.
-  // 0 = unlimited.
   maxRedemptions  Int      @default(1)
-
-  // Current redemption count (incremented atomically on each redemption).
   redemptionCount Int      @default(0)
-
-  // Whether the code is active (can be redeemed).
   active          Boolean  @default(true)
-
-  // Optional expiration date for the code itself (not the access it grants).
-  // If null, the code never expires.
   expiresAt       DateTime?
-
-  // Who created this code (admin identifier — stored as a string for now).
   createdBy       String   @default("admin")
-
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
-
   redemptions     RedeemCodeRedemption[]
 
   @@index([codeHash])
@@ -467,22 +444,13 @@ model RedeemCode {
 
 model RedeemCodeRedemption {
   id              String   @id @default(cuid())
-
   redeemCodeId    String
   redeemCode      RedeemCode @relation(fields: [redeemCodeId], references: [id], onDelete: Cascade)
-
   userId          String
   user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  // How many days this redemption granted.
   durationDays    Int
-
-  // Previous access expiration (before this redemption extended it).
   previousAccessExpiresAt  DateTime?
-
-  // New access expiration (after this redemption).
   newAccessExpiresAt       DateTime
-
   redeemedAt      DateTime @default(now())
 
   @@index([redeemCodeId])

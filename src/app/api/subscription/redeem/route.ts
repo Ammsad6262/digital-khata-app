@@ -1,15 +1,3 @@
-/**
- * POST /api/subscription/redeem
- *
- * Redeem an activation code. The server determines the duration —
- * the frontend only submits the code string.
- *
- * Rate limited: max 10 redemption attempts per 5 minutes per IP.
- *
- * Body: { code: string }
- * Returns: { success, durationDays, newAccessExpiresAt, previousAccessExpiresAt }
- */
-
 import { NextRequest } from "next/server";
 import { z } from "zod";
 import { redeemCode } from "@/lib/services/subscription";
@@ -28,13 +16,9 @@ export async function POST(req: NextRequest) {
     const userId = await requireUserId(req);
     const ip = getClientIp(req);
 
-    // Rate limit: 10 attempts per 5 minutes
     const { locked, retryAfter } = checkRateLimit(ip);
     if (locked) {
-      return ok(
-        { error: "Too many attempts. Please wait a moment and try again." },
-        429,
-      );
+      return ok({ error: "Too many attempts. Please wait a moment and try again." }, 429);
     }
 
     const { data, error } = await parseJsonBody<unknown>(req);
@@ -46,7 +30,6 @@ export async function POST(req: NextRequest) {
     recordSuccess(ip);
     return ok(result);
   } catch (error) {
-    // Record failure for rate limiting
     const ip = getClientIp(req);
     recordFailure(ip);
     return fail(error);

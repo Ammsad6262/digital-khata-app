@@ -1,18 +1,3 @@
-/**
- * Admin API: /api/admin/codes
- *
- * POST   → Generate one or more redeem codes (requires ADMIN_SECRET header)
- * GET    → List all redeem codes (requires ADMIN_SECRET header)
- * PATCH  → Enable/disable a code (requires ADMIN_SECRET header + { codeId, active })
- *
- * SECURITY: The ADMIN_SECRET must be passed in the `x-admin-secret` header.
- * It is NEVER stored in client-side code. The admin generates this secret
- * and stores it in the .env file as ADMIN_SECRET.
- *
- * Normal users CANNOT access this endpoint — the middleware doesn't
- * know about ADMIN_SECRET, so the check happens in the route handler.
- */
-
 import { NextRequest } from "next/server";
 import { z } from "zod";
 import { generateCodes, listCodesAdmin, disableCode, enableCode } from "@/lib/services/subscription";
@@ -20,15 +5,11 @@ import { ok, fail, parseJsonBody } from "@/lib/utils/api";
 
 export const dynamic = "force-dynamic";
 
-/** Verify the admin secret from the x-admin-secret header. */
 function verifyAdmin(req: NextRequest): boolean {
   const adminSecret = process.env.ADMIN_SECRET;
-  if (!adminSecret || adminSecret.length < 16) {
-    return false; // ADMIN_SECRET not configured
-  }
+  if (!adminSecret || adminSecret.length < 16) return false;
   const provided = req.headers.get("x-admin-secret");
   if (!provided) return false;
-  // Use timing-safe comparison
   return provided === adminSecret;
 }
 
@@ -46,9 +27,7 @@ const toggleSchema = z.object({
 
 export async function GET(req: NextRequest) {
   try {
-    if (!verifyAdmin(req)) {
-      return ok({ error: "Unauthorized." }, 401);
-    }
+    if (!verifyAdmin(req)) return ok({ error: "Unauthorized." }, 401);
     const codes = await listCodesAdmin();
     return ok(codes);
   } catch (error) {
@@ -58,9 +37,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    if (!verifyAdmin(req)) {
-      return ok({ error: "Unauthorized." }, 401);
-    }
+    if (!verifyAdmin(req)) return ok({ error: "Unauthorized." }, 401);
     const { data, error } = await parseJsonBody<unknown>(req);
     if (error) return fail(new Error(error));
 
@@ -80,9 +57,7 @@ export async function POST(req: NextRequest) {
 
 export async function PATCH(req: NextRequest) {
   try {
-    if (!verifyAdmin(req)) {
-      return ok({ error: "Unauthorized." }, 401);
-    }
+    if (!verifyAdmin(req)) return ok({ error: "Unauthorized." }, 401);
     const { data, error } = await parseJsonBody<unknown>(req);
     if (error) return fail(new Error(error));
 

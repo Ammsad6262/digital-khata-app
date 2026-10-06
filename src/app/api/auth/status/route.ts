@@ -4,32 +4,43 @@
  * Returns whether a PIN is set and whether the current session is unlocked.
  * The client uses this to decide whether to show the PIN unlock screen.
  *
- * This route is PUBLIC (no session required) — it only reveals whether a PIN
- * exists, not the PIN itself.
- *
- * If the database connection fails, this route returns the ACTUAL error message
- * (not a generic 500) so the user can debug.
+ * This route is PUBLIC (listed in PUBLIC_ROUTES in middleware) — it doesn't
+ * require authentication. But it tries to read the JWT cookie to determine
+ * the userId (for per-user PIN status). If no JWT is present, it returns
+ * hasPin=false (no PIN lock).
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { getSettings } from "@/lib/services/settings";
 import { verifySession, SESSION_COOKIE_NAME } from "@/lib/auth/session";
+import { getCurrentUserId } from "@/lib/auth/get-current-user";
+import { getOwnerPinHash } from "@/lib/services/settings";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   try {
-    const settings = await getSettings();
+    // Try to derive userId from JWT (returns null if not logged in)
+    const userId = await getCurrentUserId(req);
+
+    // Default: no PIN, unlocked
+    let hasPin = false;
+    let businessName: string | null = null;
+
+    if (userId) {
+      const pinHash = await getOwnerPinHash(userId);
+      hasPin = !!pinHash;
+    }
+
     const sessionCookie = req.cookies.get(SESSION_COOKIE_NAME)?.value;
-    const unlocked = !settings.hasPin || await verifySession(sessionCookie);
+    const unlocked = !hasPin || await verifySession(sessionCookie);
 
     return NextResponse.json(
       {
         ok: true,
         data: {
-          hasPin: settings.hasPin,
+          hasPin,
           unlocked,
-          businessName: settings.businessName,
+          businessName,
         },
       },
       {
@@ -39,7 +50,6 @@ export async function GET(req: NextRequest) {
       },
     );
   } catch (error) {
-    // Return the ACTUAL error message so the user can see what's wrong
     const message = error instanceof Error ? error.message : "Unknown error";
     console.error("[auth/status] Error:", message);
 

@@ -102,7 +102,7 @@ export async function exportBackup(userId?: string | null): Promise<BackupFile> 
     expenses,
     transactions,
   ] = await Promise.all([
-    prisma.setting.findMany(),
+    prisma.setting.findMany({ where: userWhere }),
     prisma.customer.findMany({ where: userWhere }),
     prisma.product.findMany({ where: userWhere }),
     prisma.sale.findMany({ where: userWhere }),
@@ -375,22 +375,24 @@ export async function importBackup(
     await tx.customerAdjustment.deleteMany({ where: userWhere });
     await tx.customer.deleteMany({ where: userWhere });
     await tx.product.deleteMany({ where: userWhere });
-    // Setting is a global singleton — always wiped on import (single tenant per
-    // business). We intentionally do NOT scope this by userId.
-    await tx.setting.deleteMany({});
+    // Setting is per-user — only delete and import for this user.
+    if (userId) {
+      await tx.setting.deleteMany({ where: { userId } });
+    }
 
     // Insert in dependency order (parents first, children last).
     // Every create stamps the row with `userId` so the imported data belongs
     // to the authenticated user. NEVER trust userId from the backup file body —
     // always overwrite with the server-provided id.
-    // 1. Settings (singleton)
-    if (backup.data.settings.length > 0) {
-      // Only insert the first setting (singleton pattern). We already
-      // deleted all settings above, so no skipDuplicates needed.
+    // 1. Settings (per-user) — upsert to be safe
+    if (backup.data.settings.length > 0 && userId) {
       const firstSetting = backup.data.settings[0];
       if (firstSetting) {
-        await tx.setting.create({
-          data: deserializeSetting(firstSetting),
+        const deserialized = deserializeSetting(firstSetting);
+        await tx.setting.upsert({
+          where: { userId },
+          create: { ...deserialized, userId },
+          update: { ...deserialized, userId },
         });
       }
     }
@@ -589,12 +591,13 @@ function deserializeDate(value: unknown): Date {
 
 function deserializeSetting(row: Record<string, unknown>) {
   return {
-    id: row.id as string,
     businessName: row.businessName as string | null,
     currency: row.currency as string,
     currencySymbol: row.currencySymbol as string,
     ownerPinHash: (row.ownerPinHash as string | null) ?? null,
     timezone: row.timezone as string,
+    customUnits: (row.customUnits as string[]) ?? [],
+    theme: (row.theme as string) ?? "monochrome",
     createdAt: deserializeDate(row.createdAt),
     updatedAt: deserializeDate(row.updatedAt),
   };

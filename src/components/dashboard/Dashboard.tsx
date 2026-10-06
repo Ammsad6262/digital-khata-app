@@ -24,6 +24,7 @@ import { RecentTransactions } from "@/components/dashboard/RecentTransactions";
 import { DashboardSkeleton } from "@/components/dashboard/DashboardSkeleton";
 import { GlobalSearch } from "@/components/dashboard/GlobalSearch";
 import { ProfitLossCard } from "@/components/dashboard/ProfitLossCard";
+import { SmartEntryButton } from "@/components/smart-entry/SmartEntryButton";
 import {
   ShoppingCart,
   Wallet,
@@ -83,6 +84,9 @@ export function Dashboard() {
       <div className="space-y-4">
         {/* Global search — always at the very top for fast access */}
         <GlobalSearch />
+
+      {/* Smart Khata Entry — prominent, above the hero */}
+      <SmartEntryButton />
 
       {/* Hero — total receivables */}
       <HeroCard

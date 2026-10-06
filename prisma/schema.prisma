@@ -61,14 +61,76 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  customers    Customer[]
-  products     Product[]
-  sales        Sale[]
-  payments     Payment[]
-  expenses     Expense[]
-  stockMoves   StockMove[]
-  transactions Transaction[]
-  adjustments  CustomerAdjustment[]
+  customers       Customer[]
+  products        Product[]
+  sales           Sale[]
+  payments        Payment[]
+  expenses        Expense[]
+  stockMoves      StockMove[]
+  transactions    Transaction[]
+  adjustments     CustomerAdjustment[]
+  smartEntrySessions SmartEntrySession[]
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// SMART ENTRY SESSION — pending AI-interpreted Khata operation awaiting
+// user confirmation. AI is an interpreter only; the resolved IDs in this
+// row are computed by the BACKEND (never trusted from the AI/client).
+// ────────────────────────────────────────────────────────────────────────────
+
+model SmartEntrySession {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Lifecycle: INTERPRETING → AWAITING_CONFIRMATION → COMPLETED | CANCELLED | EXPIRED | FAILED
+  //            (or → CLARIFICATION_NEEDED → user re-records → back to AWAITING_CONFIRMATION)
+  status          String   @default("INTERPRETING")
+
+  // "text" or "voice" — how the user originally entered their input
+  inputType        String
+
+  // What the user said (text input OR the transcript from speech)
+  transcript       String?
+
+  // Raw structured AI response (for debugging/audit). Never used as source
+  // of truth — only the resolved* fields below are trusted.
+  rawAiResponse    Json?
+
+  // ── Interpreted fields (from AI, validated by Zod) ────────────────────────
+  intent           String?   // "CREATE_CREDIT_SALE" in V1
+  customerNameRaw  String?   // what AI heard
+  productNameRaw   String?   // what AI heard
+  quantityRaw      Decimal?  @db.Decimal(12, 3)
+  unitRaw          String?
+
+  // ── Resolved fields (set by BACKEND, never by AI) ─────────────────────────
+  resolvedCustomerId  String?
+  resolvedCustomer    Customer? @relation("SmartEntryCustomer", fields: [resolvedCustomerId], references: [id], onDelete: SetNull)
+  resolvedProductId   String?
+  resolvedProduct     Product?  @relation("SmartEntryProduct",  fields: [resolvedProductId],  references: [id], onDelete: SetNull)
+  resolvedUnit        String?
+  resolvedQuantity    Decimal?  @db.Decimal(12, 3)
+  resolvedUnitPrice   Decimal?  @db.Decimal(12, 2)   // snapshot from product
+  resolvedAmount      Decimal?  @db.Decimal(12, 2)   // qty × unitPrice (backend computed)
+
+  // AI provider used + self-reported confidence (informational only)
+  provider         String?   // "gemini-3.5-flash"
+  confidence       Float?
+
+  // After execution: link to the created sale
+  createdSaleId    String?
+
+  // 5-minute TTL — sessions auto-expire to prevent stale data
+  expiresAt        DateTime
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  completedAt      DateTime?
+
+  @@index([userId, createdAt])
+  @@index([status, expiresAt])
+  @@index([resolvedCustomerId])
+  @@index([resolvedProductId])
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -97,6 +159,8 @@ model Customer {
   payments    Payment[]
   adjustments CustomerAdjustment[]
   transactions Transaction[]
+  // Back-relation: SmartEntrySessions that resolved to this customer.
+  smartEntrySessions SmartEntrySession[] @relation("SmartEntryCustomer")
 
   @@index([name])
   @@index([phone])
@@ -131,6 +195,8 @@ model Product {
   saleItems SaleItem[]
   stockMoves StockMove[]
   transactions Transaction[]
+  // Back-relation: SmartEntrySessions that resolved to this product.
+  smartEntrySessions SmartEntrySession[] @relation("SmartEntryProduct")
 
   @@index([name])
   @@index([category])

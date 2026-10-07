@@ -63,9 +63,32 @@ export type FormFieldState = {
   quantityRaw: number | null;
   unitRaw: string | null;
 
+  // V3: Price fields extracted by AI
+  explicitUnitPrice: number | null;  // user said "950 per kg"
+  explicitTotal: number | null;      // user said "total 24000"
+
   // Resolved by BACKEND — pre-fill the form if exactly 1 match
   resolvedCustomerId: string | null;
   resolvedProductId: string | null;
+
+  // V3: Computed price fields (backend applies pricing priority)
+  // These are what the form should display:
+  unitPrice: number | null;    // the unit price to use (from priority)
+  totalAmount: number | null;  // the total amount (qty × unitPrice OR explicitTotal)
+  priceSource: "USER_TOTAL" | "USER_UNIT_PRICE" | "DEFAULT_PRODUCT_PRICE" | "MANUAL_INPUT" | "CONFLICT_RESOLVED" | "NONE";
+
+  // V3: If both unit price AND total were given but they conflict,
+  // this flag is set so the UI can show a clarification dialog.
+  priceConflict: {
+    unitPrice: number;
+    total: number;
+    calculatedTotal: number;  // qty × unitPrice
+  } | null;
+
+  // V3: New customer detection
+  // If the AI extracted a customerName but NO existing customer matched,
+  // this is set so the UI can show "Add as new customer?" prompt.
+  isNewCustomer: boolean;
 
   // All of the user's customers + products (for the searchable pickers)
   customerCandidates: EntityCandidate[];
@@ -208,8 +231,15 @@ export async function interpretInput(
         productNameRaw: null,
         quantityRaw: null,
         unitRaw: null,
+        explicitUnitPrice: null,
+        explicitTotal: null,
         resolvedCustomerId: null,
         resolvedProductId: null,
+        unitPrice: null,
+        totalAmount: null,
+        priceSource: "NONE",
+        priceConflict: null,
+        isNewCustomer: false,
         customerCandidates: customers,
         productCandidates: products,
         hint,
@@ -241,8 +271,15 @@ export async function interpretInput(
         productNameRaw: null,
         quantityRaw: null,
         unitRaw: null,
+        explicitUnitPrice: null,
+        explicitTotal: null,
         resolvedCustomerId: null,
         resolvedProductId: null,
+        unitPrice: null,
+        totalAmount: null,
+        priceSource: "NONE",
+        priceConflict: null,
+        isNewCustomer: false,
         customerCandidates: customers,
         productCandidates: products,
         hint: null,
@@ -273,8 +310,72 @@ export async function interpretInput(
   // Load all user's customers + products for the searchable pickers
   const { customers, products } = await loadUserCustomersAndProducts(userId);
 
+  // V3: Compute pricing priority + detect new customer
+  const isNewCustomer = !!ai.customerName && !resolvedCustomerId && ai.customerName.length > 0;
+
+  // V3: Resolve the product's default price (if exactly 1 product matched)
+  const resolvedProduct = resolvedProductId
+    ? products.find((p) => p.id === resolvedProductId)
+    : null;
+  const defaultUnitPrice = resolvedProduct?.sellingPrice
+    ? Number(resolvedProduct.sellingPrice)
+    : null;
+
+  // V3: Apply PRICING PRIORITY
+  //   1. explicitTotal → use it, compute unitPrice = total / qty
+  //   2. explicitUnitPrice → use it, compute total = qty × unitPrice
+  //   3. defaultUnitPrice (product.sellingPrice) → use it, compute total
+  //   4. None → ask user for price (priceSource = NONE)
+  //   5. If BOTH explicitUnitPrice AND explicitTotal → check for conflict
+  let unitPrice: number | null = null;
+  let totalAmount: number | null = null;
+  let priceSource: FormFieldState["priceSource"] = "NONE";
+  let priceConflict: FormFieldState["priceConflict"] = null;
+
+  const qty = ai.quantity ?? null;
+
+  if (ai.explicitUnitPrice != null && ai.explicitTotal != null && qty != null) {
+    // BOTH given — check if they're consistent
+    const calculatedTotal = qty * ai.explicitUnitPrice;
+    const tolerance = Math.max(calculatedTotal * 0.01, 1); // 1% or 1 rupee tolerance
+    if (Math.abs(calculatedTotal - ai.explicitTotal) > tolerance) {
+      // CONFLICT — the user said both a unit price AND a total that don't match
+      priceConflict = {
+        unitPrice: ai.explicitUnitPrice,
+        total: ai.explicitTotal,
+        calculatedTotal,
+      };
+      // Default to the total (higher priority) but let the UI show the conflict
+      unitPrice = ai.explicitTotal / qty;
+      totalAmount = ai.explicitTotal;
+      priceSource = "CONFLICT_RESOLVED";
+    } else {
+      // Consistent — use the explicit unit price
+      unitPrice = ai.explicitUnitPrice;
+      totalAmount = ai.explicitTotal;
+      priceSource = "USER_UNIT_PRICE";
+    }
+  } else if (ai.explicitTotal != null && qty != null) {
+    // PRIORITY 1: explicit total → compute unit price
+    unitPrice = ai.explicitTotal / qty;
+    totalAmount = ai.explicitTotal;
+    priceSource = "USER_TOTAL";
+  } else if (ai.explicitUnitPrice != null && qty != null) {
+    // PRIORITY 2: explicit unit price → compute total
+    unitPrice = ai.explicitUnitPrice;
+    totalAmount = qty * ai.explicitUnitPrice;
+    priceSource = "USER_UNIT_PRICE";
+  } else if (defaultUnitPrice != null && qty != null) {
+    // PRIORITY 3: default product price → compute total
+    unitPrice = defaultUnitPrice;
+    totalAmount = qty * defaultUnitPrice;
+    priceSource = "DEFAULT_PRODUCT_PRICE";
+  }
+  // PRIORITY 4: None → priceSource stays "NONE", unitPrice/totalAmount stay null
+  // The UI will show "Price: —" and the user can type it manually.
+
   // Build a helpful hint based on what's missing
-  const hint = buildHint(ai);
+  const hint = buildHint(ai, priceSource, defaultUnitPrice);
 
   // Create the SmartEntrySession row (storing what AI heard + resolved IDs)
   const session = await prisma.smartEntrySession.create({
@@ -291,6 +392,8 @@ export async function interpretInput(
       unitRaw: ai.unit ?? null,
       resolvedCustomerId,
       resolvedProductId,
+      resolvedUnitPrice: unitPrice != null ? new Decimal(unitPrice) : null,
+      resolvedAmount: totalAmount != null ? new Decimal(totalAmount) : null,
       provider: provider.name,
       confidence: ai.confidence ?? null,
       expiresAt: new Date(Date.now() + SESSION_TTL_MS),
@@ -306,8 +409,15 @@ export async function interpretInput(
       productNameRaw: ai.productName,
       quantityRaw: ai.quantity ?? null,
       unitRaw: ai.unit ?? null,
+      explicitUnitPrice: ai.explicitUnitPrice ?? null,
+      explicitTotal: ai.explicitTotal ?? null,
       resolvedCustomerId,
       resolvedProductId,
+      unitPrice,
+      totalAmount,
+      priceSource,
+      priceConflict,
+      isNewCustomer,
       customerCandidates: customers,
       productCandidates: products,
       hint,
@@ -320,16 +430,24 @@ export async function interpretInput(
 // ────────────────────────────────────────────────────────────────────────────
 
 /**
- * V2: The client sends the FINAL form values after the user reviews/edits.
+ * V3: The client sends the FINAL form values including unitPrice.
  *
- * The backend re-validates EVERYTHING — never trusts client values blindly:
+ * PRICING PRIORITY (server-side re-validation):
+ *   - If unitPrice is provided by the client → use it (user explicitly set it)
+ *   - If unitPrice is NOT provided → use product.sellingPrice (default)
+ *   - amount = quantity × unitPrice (ALWAYS computed server-side, NEVER from client)
+ *
+ * The backend NEVER trusts the client's amount. It always recomputes:
+ *   amount = quantity × unitPrice
+ *
+ * Security:
  *   1. sessionId belongs to this user
  *   2. session is in AWAITING_CONFIRMATION state, not expired
  *   3. customerId belongs to this user, not deleted
  *   4. productId belongs to this user, not deleted
  *   5. quantity is positive
- *   6. unitPrice = product.sellingPrice (server-side, NEVER client)
- *   7. amount = quantity × unitPrice (server-side)
+ *   6. unitPrice: if provided, must be positive. If not provided, uses product.sellingPrice
+ *   7. amount = quantity × unitPrice (computed SERVER-SIDE)
  *   8. Atomic EXECUTING transition (prevents double-execution)
  *   9. Call existing SaleService.createSale()
  */
@@ -340,9 +458,12 @@ export async function executeSession(
     customerId: string;
     productId: string;
     quantity: number;
+    unitPrice?: number;
   },
 ): Promise<ExecuteResult> {
   const { sessionId, customerId, productId, quantity } = input;
+  // V3: unitPrice is OPTIONAL — if not provided, backend uses product default
+  const clientUnitPrice = input.unitPrice;
 
   // 1. Load + verify session belongs to this user
   const session = await loadAndVerifySession(userId, sessionId);
@@ -417,12 +538,19 @@ export async function executeSession(
       throw new BadRequestError("Quantity must be a positive number.");
     }
 
-    // 8. Compute amount SERVER-SIDE (never trust client)
+    // V3: Determine final unit price (priority: client-provided > product default)
+    // If the client provided a unitPrice (user explicitly set it in the form),
+    // use it. Otherwise, fall back to the product's default sellingPrice.
+    // The amount is ALWAYS computed server-side: amount = quantity × unitPrice
     const quantityDec = new Decimal(quantity);
-    const unitPrice = toDecimal(product.sellingPrice);
-    const amount = quantityDec.times(unitPrice);
+    const finalUnitPrice = clientUnitPrice != null && clientUnitPrice > 0
+      ? toDecimal(clientUnitPrice)
+      : toDecimal(product.sellingPrice);
+    const amount = quantityDec.times(finalUnitPrice);
 
-    // 9. Call existing SaleService.createSale() — the trusted path
+    // 9. Call existing SaleService.createSale() — the trusted path.
+    //    paidAmount = 0 (this is a CREDIT sale; V1 doesn't support paying
+    //    at sale time via Smart Entry).
     const sale = await createSale(
       {
         customerId: customer.id,
@@ -430,7 +558,7 @@ export async function executeSession(
           {
             productId: product.id,
             quantity: quantityDec.toNumber(),
-            unitPrice: unitPrice.toNumber(),
+            unitPrice: finalUnitPrice.toNumber(),
           },
         ],
         paidAmount: 0,
@@ -450,7 +578,7 @@ export async function executeSession(
         resolvedProductId: product.id,
         resolvedUnit: product.unit,
         resolvedQuantity: quantityDec,
-        resolvedUnitPrice: unitPrice,
+        resolvedUnitPrice: finalUnitPrice,
         resolvedAmount: amount,
       },
     });
@@ -645,9 +773,20 @@ async function findProductCandidates(
  *   - Customer understood, product missing → "What product did you sell?"
  *   - Nothing understood → null (form is just empty, no hint needed)
  */
-function buildHint(ai: AiInterpretation): string | null {
-  // If everything is filled, no hint needed
-  if (ai.customerName && ai.productName && ai.quantity && ai.quantity > 0 && ai.unit) {
+function buildHint(
+  ai: AiInterpretation,
+  priceSource: FormFieldState["priceSource"],
+  defaultUnitPrice: number | null,
+): string | null {
+  // If everything is filled AND we have a price, no hint needed
+  if (
+    ai.customerName &&
+    ai.productName &&
+    ai.quantity &&
+    ai.quantity > 0 &&
+    ai.unit &&
+    priceSource !== "NONE"
+  ) {
     return null;
   }
 
@@ -661,8 +800,19 @@ function buildHint(ai: AiInterpretation): string | null {
   if (!ai.customerName && ai.productName) {
     return `Who bought the ${ai.productName}?`;
   }
-  if (ai.customerName && ai.productName && !ai.unit) {
+  if (ai.customerName && ai.productName && ai.quantity && !ai.unit) {
     return `What unit? (kg, piece, box, etc.)`;
+  }
+  // V3: Price hint — if everything else is filled but no price
+  if (
+    ai.customerName &&
+    ai.productName &&
+    ai.quantity &&
+    ai.quantity > 0 &&
+    priceSource === "NONE" &&
+    defaultUnitPrice == null
+  ) {
+    return `What's the price per ${ai.unit ?? "unit"} for ${ai.productName}?`;
   }
   return null;
 }

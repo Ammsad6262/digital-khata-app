@@ -167,12 +167,14 @@ export function useSmartEntry() {
 
   /**
    * Execute the sale with the user's final form values.
-   * The backend re-validates everything server-side.
+   * V3: now includes unitPrice (optional — if not provided, backend uses product default).
+   * The backend re-validates everything server-side and computes amount = qty × unitPrice.
    */
   const execute = useCallback(async (input: {
     customerId: string;
     productId: string;
     quantity: number;
+    unitPrice?: number;
   }) => {
     if (!state.sessionId) return;
     setState((s) => ({ ...s, state: "executing" }));
@@ -185,6 +187,7 @@ export function useSmartEntry() {
           customerId: input.customerId,
           productId: input.productId,
           quantity: input.quantity,
+          unitPrice: input.unitPrice,
         }),
       });
       const json = await res.json();

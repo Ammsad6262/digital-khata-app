@@ -773,14 +773,21 @@ function EditableFormView({
     productNameRaw: string | null;
     quantityRaw: number | null;
     unitRaw: string | null;
+    explicitUnitPrice: number | null;
+    explicitTotal: number | null;
     resolvedCustomerId: string | null;
     resolvedProductId: string | null;
+    unitPrice: number | null;
+    totalAmount: number | null;
+    priceSource: string;
+    priceConflict: { unitPrice: number; total: number; calculatedTotal: number } | null;
+    isNewCustomer: boolean;
     customerCandidates: Array<{ id: string; name: string; phone?: string | null }>;
     productCandidates: Array<{ id: string; name: string; unit?: string | null; sellingPrice?: string | null }>;
     hint: string | null;
   };
   transcript: string | null;
-  onConfirm: (input: { customerId: string; productId: string; quantity: number }) => void;
+  onConfirm: (input: { customerId: string; productId: string; quantity: number; unitPrice?: number }) => void;
   onCancel: () => void;
 }) {
   // Local form state — initialized from the AI-resolved values, fully editable
@@ -789,34 +796,81 @@ function EditableFormView({
   const [quantityStr, setQuantityStr] = useState<string>(
     form.quantityRaw != null ? String(form.quantityRaw) : ""
   );
+  // V3: unit price is editable — initialized from the backend-computed value
+  const [unitPriceStr, setUnitPriceStr] = useState<string>(
+    form.unitPrice != null ? String(form.unitPrice) : ""
+  );
 
-  // Find the selected product (for unit + price display)
+  // Find the selected product (for unit + default price)
   const selectedProduct = form.productCandidates.find((p) => p.id === productId);
   const unit = selectedProduct?.unit ?? form.unitRaw ?? null;
-  const unitPrice = selectedProduct?.sellingPrice ? Number(selectedProduct.sellingPrice) : null;
+  const defaultProductPrice = selectedProduct?.sellingPrice ? Number(selectedProduct.sellingPrice) : null;
+
   const quantityNum = Number(quantityStr);
   const isValidQuantity = Number.isFinite(quantityNum) && quantityNum > 0;
-  const amount = isValidQuantity && unitPrice != null ? quantityNum * unitPrice : null;
+  const unitPriceNum = Number(unitPriceStr);
+  const isValidUnitPrice = Number.isFinite(unitPriceNum) && unitPriceNum > 0;
 
-  // Validation: customer + product + valid quantity all required
-  const canSubmit = !!customerId && !!productId && isValidQuantity;
+  // V3: Live calculation — total = qty × unitPrice
+  const calculatedTotal = isValidQuantity && isValidUnitPrice
+    ? quantityNum * unitPriceNum
+    : null;
+
+  // V3: If the AI provided an explicit total, show it alongside the calculated
+  const explicitTotalDisplay = form.explicitTotal ?? null;
+
+  // Validation: customer + product + valid quantity + valid unitPrice all required
+  const canSubmit = !!customerId && !!productId && isValidQuantity && isValidUnitPrice;
 
   const handleSubmit = () => {
     if (!canSubmit) return;
-    onConfirm({ customerId, productId, quantity: quantityNum });
+    // V3: pass unitPrice to the backend — it re-validates + recomputes amount
+    onConfirm({ customerId, productId, quantity: quantityNum, unitPrice: unitPriceNum });
   };
+
+  // V3: Price source label for display
+  const priceSourceLabel = (() => {
+    switch (form.priceSource) {
+      case "USER_TOTAL": return "from your total";
+      case "USER_UNIT_PRICE": return "your rate";
+      case "DEFAULT_PRODUCT_PRICE": return "default price";
+      case "CONFLICT_RESOLVED": return "resolved";
+      case "MANUAL_INPUT": return "manual";
+      default: return "";
+    }
+  })();
 
   return (
     <div className="space-y-4">
-      {/* Transcript — what the user said (builds trust) */}
+      {/* Transcript — what the user said */}
       {transcript ? (
         <div className="rounded-xl bg-slate-50 p-3.5">
           <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">You said</p>
-          <p className="mt-1 text-sm italic text-slate-700">"{transcript}"</p>
+          <p className="mt-1 text-sm italic text-slate-700">&ldquo;{transcript}&rdquo;</p>
         </div>
       ) : null}
 
-      {/* Hint — helpful message for missing fields */}
+      {/* V3: Price conflict warning */}
+      {form.priceConflict ? (
+        <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800">
+          <p className="font-semibold">⚠ Price mismatch</p>
+          <p className="mt-1 text-xs">
+            You said rate Rs. {form.priceConflict.unitPrice}/kg AND total Rs. {form.priceConflict.total}.
+            But {form.quantityRaw} × Rs. {form.priceConflict.unitPrice} = Rs. {form.priceConflict.calculatedTotal}.
+          </p>
+          <p className="mt-1 text-xs font-medium">Using your total (Rs. {form.priceConflict.total}) — edit if wrong.</p>
+        </div>
+      ) : null}
+
+      {/* V3: New customer prompt */}
+      {form.isNewCustomer ? (
+        <div className="rounded-xl border border-blue-300 bg-blue-50 p-3 text-sm text-blue-800">
+          <p className="font-semibold">New customer found: {form.customerNameRaw}</p>
+          <p className="mt-0.5 text-xs">&ldquo;{form.customerNameRaw}&rdquo; is not in your Khata yet. Pick an existing customer or add them later.</p>
+        </div>
+      ) : null}
+
+      {/* Hint */}
       {form.hint ? (
         <div className="rounded-xl border border-brand-200 bg-brand-50 p-3 text-sm text-brand-800">
           <p className="flex items-center gap-2">
@@ -829,10 +883,7 @@ function EditableFormView({
       {/* The form */}
       <div className="space-y-3">
         {/* Customer picker */}
-        <Field
-          label="Customer"
-          isFilled={!!customerId}
-        >
+        <Field label="Customer" isFilled={!!customerId}>
           <SearchablePicker
             value={customerId}
             onChange={setCustomerId}
@@ -843,10 +894,7 @@ function EditableFormView({
         </Field>
 
         {/* Product picker */}
-        <Field
-          label="Product"
-          isFilled={!!productId}
-        >
+        <Field label="Product" isFilled={!!productId}>
           <SearchablePicker
             value={productId}
             onChange={setProductId}
@@ -857,7 +905,7 @@ function EditableFormView({
           />
         </Field>
 
-        {/* Quantity + Unit (side by side on wider screens) */}
+        {/* Quantity + Unit */}
         <div className="grid grid-cols-2 gap-2.5">
           <Field label="Quantity" isFilled={isValidQuantity}>
             <input
@@ -878,21 +926,46 @@ function EditableFormView({
           </Field>
         </div>
 
-        {/* Amount — auto-calculated, read-only */}
+        {/* V3: Unit Price — editable */}
+        <Field
+          label={`Unit Price${priceSourceLabel ? ` (${priceSourceLabel})` : ""}`}
+          isFilled={isValidUnitPrice}
+        >
+          <input
+            type="number"
+            inputMode="decimal"
+            step="any"
+            min="0"
+            value={unitPriceStr}
+            onChange={(e) => setUnitPriceStr(e.target.value)}
+            placeholder={defaultProductPrice != null ? String(defaultProductPrice) : "0"}
+            className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+          />
+        </Field>
+
+        {/* V3: Amount — auto-calculated from qty × unitPrice */}
         <div className="rounded-2xl bg-gradient-to-br from-brand-50 to-brand-100 p-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-[11px] font-medium uppercase tracking-wide text-brand-700">Amount</p>
+              <p className="text-[11px] font-medium uppercase tracking-wide text-brand-700">Total Amount</p>
               <p className="mt-0.5 text-2xl font-bold text-brand-900">
-                {amount != null ? formatMoney(amount) : "—"}
+                {calculatedTotal != null ? formatMoney(calculatedTotal) : "—"}
               </p>
             </div>
-            {unitPrice != null && isValidQuantity ? (
+            {isValidQuantity && isValidUnitPrice ? (
               <p className="text-xs text-brand-600">
-                {quantityNum} × {formatMoney(unitPrice)}
+                {quantityNum} × {formatMoney(unitPriceNum)}
               </p>
             ) : null}
           </div>
+          {/* Show explicit total if the user said one and it differs */}
+          {explicitTotalDisplay != null && calculatedTotal != null &&
+           Math.abs(explicitTotalDisplay - calculatedTotal) > 1 ? (
+            <p className="mt-2 border-t border-brand-200 pt-2 text-xs text-brand-700">
+              You said total: <span className="font-bold">Rs. {explicitTotalDisplay.toLocaleString()}</span>
+              {" "}(effective rate: Rs. {(explicitTotalDisplay / quantityNum).toFixed(2)}/{unit})
+            </p>
+          ) : null}
         </div>
       </div>
 

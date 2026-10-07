@@ -176,7 +176,11 @@ export async function interpretInput(
     } else if (googleErrorCode === 404) {
       hint = `Gemini model not found: ${googleErrorMessage.slice(0, 100)}. Check that the model ID is current. You can still fill the form manually below.`;
     } else if (googleErrorCode === 429) {
-      hint = "Gemini API rate limit reached. Try again in a minute. You can still fill the form manually below.";
+      // 429 = rate limit / quota exhausted. NOT an "understanding" issue.
+      // Show a friendly "temporarily busy" message, NOT "couldn't understand".
+      hint = "The AI service is temporarily busy. Please wait a minute and try again. You can also fill the form manually below.";
+    } else if (googleErrorCode === 500 || googleErrorCode === 503) {
+      hint = "The AI service is temporarily unavailable. Please try again in a moment. You can also fill the form manually below.";
     } else {
       hint = `Gemini API error ${googleErrorCode ?? "(unknown)"}: ${googleErrorMessage.slice(0, 150)}. You can still fill the form manually below.`;
     }

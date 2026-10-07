@@ -13,7 +13,7 @@
  * to execute.
  */
 
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import type { InterpretResult, FormFieldState } from "@/lib/smart-entry/service";
 
 export type SmartEntryState =
@@ -56,6 +56,15 @@ function mapStatusToState(status: InterpretResult["status"]): SmartEntryState {
 export function useSmartEntry() {
   const [state, setState] = useState<State>(INITIAL);
 
+  // ── Duplicate-submission guard ────────────────────────────────────────────
+  // Prevents the same user action from triggering multiple Gemini requests.
+  // When submitText/submitAudio is in flight, subsequent calls are ignored
+  // until the first one completes. This protects against:
+  //   - React re-renders causing duplicate calls
+  //   - Double-click on the submit button
+  //   - Any other accidental concurrent submission
+  const inFlightRef = useRef(false);
+
   const applyInterpretResult = useCallback((result: InterpretResult) => {
     setState({
       state: mapStatusToState(result.status),
@@ -69,6 +78,15 @@ export function useSmartEntry() {
   }, []);
 
   const submitText = useCallback(async (text: string) => {
+    // ── Duplicate-submission guard ──
+    // If a request is already in flight, ignore this call. Prevents
+    // double-click / re-render from triggering multiple Gemini requests.
+    if (inFlightRef.current) {
+      console.log("[smart-entry] submitText ignored — request already in flight");
+      return;
+    }
+    inFlightRef.current = true;
+
     setState({ ...INITIAL, state: "interpreting" });
     try {
       const res = await fetch("/api/smart-entry/interpret", {
@@ -94,10 +112,19 @@ export function useSmartEntry() {
         error: e instanceof Error ? e.message : "Network error.",
         message: "Network error. Please check your connection.",
       });
+    } finally {
+      inFlightRef.current = false;
     }
   }, [applyInterpretResult]);
 
   const submitAudio = useCallback(async (audio: Blob, mimeType: string) => {
+    // ── Duplicate-submission guard ──
+    if (inFlightRef.current) {
+      console.log("[smart-entry] submitAudio ignored — request already in flight");
+      return;
+    }
+    inFlightRef.current = true;
+
     setState({ ...INITIAL, state: "transcribing" });
     try {
       const arrayBuffer = await audio.arrayBuffer();
@@ -133,6 +160,8 @@ export function useSmartEntry() {
         error: e instanceof Error ? e.message : "Network error.",
         message: "Network error. Please check your connection.",
       });
+    } finally {
+      inFlightRef.current = false;
     }
   }, [applyInterpretResult]);
 

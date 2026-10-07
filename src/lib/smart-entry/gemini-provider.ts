@@ -106,6 +106,10 @@ export class GeminiProvider implements AIProvider {
 
   async interpretText(text: string, context: AIContext): Promise<AiInterpretation> {
     const prompt = `<USER_INPUT>\n${text}\n</USER_INPUT>`;
+    const requestId = `req_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    const startTime = Date.now();
+
+    console.log(`[gemini] ${requestId} START interpretText model=${FLASH_MODEL} textLen=${text.length}`);
 
     const response = await this.client.models.generateContent({
       model: FLASH_MODEL,
@@ -119,7 +123,9 @@ export class GeminiProvider implements AIProvider {
       },
     });
 
-    return this.parseResponse(response);
+    const elapsed = Date.now() - startTime;
+    console.log(`[gemini] ${requestId} DONE in ${elapsed}ms`);
+    return this.parseResponse(response, requestId);
   }
 
   async transcribeAndInterpret(
@@ -127,6 +133,12 @@ export class GeminiProvider implements AIProvider {
     mimeType: string,
     context: AIContext,
   ): Promise<{ transcript: string; interpretation: AiInterpretation }> {
+    const requestId = `req_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    const startTime = Date.now();
+    const audioKB = Math.round(audio.byteLength / 1024);
+
+    console.log(`[gemini] ${requestId} START transcribeAndInterpret model=${FLASH_MODEL} audioSize=${audioKB}KB mimeType=${mimeType}`);
+
     const response = await this.client.models.generateContent({
       model: FLASH_MODEL,
       contents: {
@@ -151,7 +163,10 @@ export class GeminiProvider implements AIProvider {
       },
     });
 
-    const interpretation = await this.parseResponse(response);
+    const elapsed = Date.now() - startTime;
+    console.log(`[gemini] ${requestId} DONE in ${elapsed}ms`);
+
+    const interpretation = await this.parseResponse(response, requestId);
     const transcript = interpretation.transcript ?? "";
     return { transcript, interpretation };
   }
@@ -215,9 +230,11 @@ export class GeminiProvider implements AIProvider {
    */
   private async parseResponse(
     response: { text: string | undefined },
+    requestId: string = "unknown",
   ): Promise<AiInterpretation> {
     const text = response.text;
     if (!text) {
+      console.error(`[gemini] ${requestId} EMPTY RESPONSE — Gemini returned no text`);
       throw new Error("Gemini returned an empty response.");
     }
 
@@ -225,16 +242,17 @@ export class GeminiProvider implements AIProvider {
     try {
       parsed = JSON.parse(text);
     } catch {
+      console.error(`[gemini] ${requestId} NON-JSON RESPONSE (first 200 chars): ${text.slice(0, 200)}`);
       throw new Error(`Gemini returned non-JSON output (first 200 chars): ${text.slice(0, 200)}`);
     }
 
     // Zod validation — strips unknown fields, type-checks everything.
     const result = aiInterpretationSchema.safeParse(parsed);
     if (!result.success) {
-      throw new Error(
-        `Gemini output failed schema validation: ${JSON.stringify(result.error.issues)}`,
-      );
+      console.error(`[gemini] ${requestId} SCHEMA VALIDATION FAILED: ${JSON.stringify(result.error.issues)}`);
+      throw new Error(`Gemini output failed schema validation: ${JSON.stringify(result.error.issues)}`);
     }
+    console.log(`[gemini] ${requestId} PARSED OK — intent=${result.data.intent} customer=${result.data.customerName} product=${result.data.productName} qty=${result.data.quantity}`);
     return result.data;
   }
 

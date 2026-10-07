@@ -92,7 +92,7 @@ export function ProfitLossCard() {
         className={cn(
           "rounded-2xl p-4 text-white shadow-lg",
           isProfit
-            ? "bg-gradient-to-br from-green-500 to-emerald-600"
+            ? "bg-gradient-to-br from-brand-600 to-brand-800"
             : "bg-gradient-to-br from-red-500 to-rose-600",
         )}
       >

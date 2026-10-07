@@ -58,7 +58,7 @@ export function PullToRefresh({
   return (
     <div
       ref={containerRef}
-      className={cn("relative overflow-y-auto overscroll-y-contain", className)}
+      className={cn("relative", className)}
       style={{
         // Prevent the browser's native pull-to-refresh on Chrome Android
         // from interfering with our custom one.

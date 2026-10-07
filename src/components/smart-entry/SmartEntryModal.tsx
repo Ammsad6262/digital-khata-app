@@ -214,6 +214,17 @@ function SmartEntryBody({
 }) {
   const { state } = smartEntry;
 
+  // ── Priority: smartEntry states FIRST, recorder states SECOND ─────────────
+  // When the user clicks "Stop & Send", the recorder goes "recording" →
+  // "stopping" → "idle", and then onstop fires which calls submitAudio()
+  // which sets smartEntry.state to "transcribing". There's a brief race
+  // condition where recorder is "idle" but smartEntry hasn't yet updated
+  // to "transcribing". To prevent the UI from flashing back to the choice
+  // view during that gap, we check smartEntry states FIRST.
+  //
+  // Only when smartEntry is "idle" do we check recorder state (for the
+  // recording/requesting/denied UI).
+
   // Loading states (transcribing + interpreting are similar but distinct for UX)
   if (state === "transcribing" || state === "interpreting") {
     return (
@@ -230,10 +241,7 @@ function SmartEntryBody({
     return <LoadingState title="Adding to Khata..." subtitle="Creating the transaction" />;
   }
 
-  // V2: the editable form. This is the new normal state — replaces ready,
-  // clarification, ambiguous_customer, ambiguous_product, customer_not_found,
-  // product_not_found, unsupported_intent. The form pre-fills whatever the
-  // AI understood and the user completes/edits the rest manually.
+  // V2: the editable form. This is the new normal state.
   if (state === "form" && smartEntry.form) {
     return (
       <EditableFormView
@@ -279,28 +287,7 @@ function SmartEntryBody({
     );
   }
 
-  // ── Recording-related states ──────────────────────────────────────────────
-  // These come from the recorder, NOT the smartEntry hook — the recorder
-  // owns the mic lifecycle, the hook owns the API lifecycle. We have to
-  // check BOTH to render the correct UI.
-  //
-  // recorder.state values:
-  //   "idle"        — not recording (initial or after stop)
-  //   "requesting"  — asking for mic permission
-  //   "recording"   — actively recording audio
-  //   "stopping"    — recorder.stop() called, onstop pending
-  //   "denied"      — user denied mic permission (or browser blocked it)
-  //   "unsupported" — browser doesn't support MediaRecorder
-  //   "error"       — other recorder error
-  //
-  // smartEntry.state values relevant here:
-  //   "transcribing" — audio has been submitted to the API (recorder already stopped)
-  //   "interpreting" — text submitted to the API
-  //   "ready" / "ambiguous_*" / "clarification" / "success" / etc.
-  //
-  // Priority: if recorder is actively recording or requesting, show the
-  // recording UI. Only when the recorder returns to idle do we let the
-  // smartEntry state take over (transcribing, interpreting, etc.).
+  // ── Recorder states (only checked when smartEntry is idle) ────────────────
   if (recorder.state === "requesting") {
     return (
       <LoadingState
@@ -316,9 +303,7 @@ function SmartEntryBody({
         levels={recorder.levels}
         onStop={onStopRecording}
         onCancel={() => {
-          // Cancel the recording (discard audio, don't submit it)
           recorder.cancel();
-          // Reset back to the choice view (no session to cancel server-side yet)
           smartEntry.reset();
         }}
       />
@@ -331,15 +316,11 @@ function SmartEntryBody({
         state={recorder.state}
         message={recorder.error ?? "Please try typing instead, or check your browser settings."}
         onRetry={() => {
-          // Reset BOTH the recorder (so it leaves the error state) and the
-          // smartEntry hook (so the choice view renders again)
           recorder.reset();
           smartEntry.reset();
           setMode("choice");
         }}
         onUseText={() => {
-          // Switch to text mode — clear the recorder error, show the choice view
-          // with the text input pre-focused.
           recorder.reset();
           smartEntry.reset();
           setMode("text");

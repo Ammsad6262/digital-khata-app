@@ -216,6 +216,21 @@ export function useAudioRecorder() {
     }
   }, [cleanup]);
 
+  /**
+   * Reset the recorder back to idle, clearing any error/denied state.
+   * Used by the SmartEntryModal when the user clicks "Try again" on the
+   * mic-error screen — without this, the recorder stays in the error
+   * state and the UI keeps showing the error screen even after smartEntry.reset().
+   */
+  const reset = useCallback(() => {
+    cleanup();
+    setState("idle");
+    setError(null);
+    setAudioBlob(null);
+    setAudioMimeType(null);
+    setLevels(0);
+  }, [cleanup]);
+
   return {
     state,
     audioBlob,
@@ -225,5 +240,6 @@ export function useAudioRecorder() {
     start,
     stop,
     cancel,
+    reset,
   };
 }

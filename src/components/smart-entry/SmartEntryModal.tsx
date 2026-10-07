@@ -37,6 +37,7 @@ import {
   Package,
   ArrowRight,
   AlertTriangle,
+  Type,
 } from "lucide-react";
 import { useSmartEntry } from "@/hooks/smart-entry/use-smart-entry";
 import { useAudioRecorder } from "@/hooks/smart-entry/use-audio-recorder";
@@ -314,7 +315,38 @@ function SmartEntryBody({
     );
   }
 
-  if (state === "recording") {
+  // ── Recording-related states ──────────────────────────────────────────────
+  // These come from the recorder, NOT the smartEntry hook — the recorder
+  // owns the mic lifecycle, the hook owns the API lifecycle. We have to
+  // check BOTH to render the correct UI.
+  //
+  // recorder.state values:
+  //   "idle"        — not recording (initial or after stop)
+  //   "requesting"  — asking for mic permission
+  //   "recording"   — actively recording audio
+  //   "stopping"    — recorder.stop() called, onstop pending
+  //   "denied"      — user denied mic permission (or browser blocked it)
+  //   "unsupported" — browser doesn't support MediaRecorder
+  //   "error"       — other recorder error
+  //
+  // smartEntry.state values relevant here:
+  //   "transcribing" — audio has been submitted to the API (recorder already stopped)
+  //   "interpreting" — text submitted to the API
+  //   "ready" / "ambiguous_*" / "clarification" / "success" / etc.
+  //
+  // Priority: if recorder is actively recording or requesting, show the
+  // recording UI. Only when the recorder returns to idle do we let the
+  // smartEntry state take over (transcribing, interpreting, etc.).
+  if (recorder.state === "requesting") {
+    return (
+      <LoadingState
+        title="Requesting microphone..."
+        subtitle="Allow microphone access to speak"
+      />
+    );
+  }
+
+  if (recorder.state === "recording" || recorder.state === "stopping") {
     return (
       <RecordingState
         levels={recorder.levels}
@@ -324,6 +356,29 @@ function SmartEntryBody({
           recorder.cancel();
           // Reset back to the choice view (no session to cancel server-side yet)
           smartEntry.reset();
+        }}
+      />
+    );
+  }
+
+  if (recorder.state === "denied" || recorder.state === "unsupported" || recorder.state === "error") {
+    return (
+      <MicErrorState
+        state={recorder.state}
+        message={recorder.error ?? "Please try typing instead, or check your browser settings."}
+        onRetry={() => {
+          // Reset BOTH the recorder (so it leaves the error state) and the
+          // smartEntry hook (so the choice view renders again)
+          recorder.reset();
+          smartEntry.reset();
+          setMode("choice");
+        }}
+        onUseText={() => {
+          // Switch to text mode — clear the recorder error, show the choice view
+          // with the text input pre-focused.
+          recorder.reset();
+          smartEntry.reset();
+          setMode("text");
         }}
       />
     );
@@ -351,13 +406,13 @@ function SmartEntryBody({
 
 function ChoiceView({
   mode,
-  setMode,
+  setMode: _setMode,
   textValue,
   setTextValue,
   onStartRecording,
   onTextSubmit,
-  recorderError,
-  recorderState,
+  recorderError: _recorderError,
+  recorderState: _recorderState,
 }: {
   mode: "choice" | "voice" | "text";
   setMode: (m: "choice" | "voice" | "text") => void;
@@ -369,25 +424,11 @@ function ChoiceView({
   recorderError: string | null;
   recorderState: string;
 }) {
-  // If mic permission was denied, show the error inline
-  if (recorderState === "denied" || recorderState === "unsupported") {
-    return (
-      <div className="space-y-4">
-        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-          <p className="font-medium">🎤 Microphone unavailable</p>
-          <p className="mt-1 text-xs">{recorderError}</p>
-          <p className="mt-2 text-xs">You can still use text input below.</p>
-        </div>
-        <TextInput
-          value={textValue}
-          setTextValue={setTextValue}
-          onSubmit={onTextSubmit}
-          autoFocus
-        />
-      </div>
-    );
-  }
-
+  // Note: mic-error states (denied/unsupported/error) are handled by
+  // MicErrorState in the parent SmartEntryBody — by the time we reach
+  // ChoiceView, the recorder is in a usable state (idle). If the user
+  // previously hit a mic error and chose "Type instead", `mode` is "text"
+  // and we auto-focus the text input.
   return (
     <div className="space-y-4">
       {/* Example prompts */}
@@ -422,11 +463,12 @@ function ChoiceView({
         <div className="h-px flex-1 bg-slate-200" />
       </div>
 
-      {/* Text input */}
+      {/* Text input — auto-focus when user came from "Type instead" */}
       <TextInput
         value={textValue}
         setTextValue={setTextValue}
         onSubmit={onTextSubmit}
+        autoFocus={mode === "text"}
       />
     </div>
   );
@@ -801,6 +843,79 @@ function SuccessState({
           className="flex-1 rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-700"
         >
           Done
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * MicErrorState — shown when the recorder can't access the microphone.
+ *
+ * Offers TWO actions:
+ *   - "Try again" — resets the recorder + smartEntry, goes back to the
+ *     choice view so the user can retry the mic.
+ *   - "Type instead" — switches to text input mode (fallback for users
+ *     whose mic is broken/denied/unsupported).
+ *
+ * This screen is the answer to "the mic button doesn't work" — it gives
+ * the user a clear explanation + a path forward instead of leaving them
+ * stuck staring at an error.
+ */
+function MicErrorState({
+  state,
+  message,
+  onRetry,
+  onUseText,
+}: {
+  state: "denied" | "unsupported" | "error";
+  message: string;
+  onRetry: () => void;
+  onUseText: () => void;
+}) {
+  const title =
+    state === "denied" ? "Microphone permission denied"
+    : state === "unsupported" ? "Microphone not supported"
+    : "Microphone unavailable";
+  const helpText =
+    state === "denied"
+      ? "Your browser blocked microphone access. You can allow it in your browser's site settings (look for the mic icon in the address bar), then tap 'Try again'."
+      : state === "unsupported"
+      ? "This browser doesn't support audio recording. Try Chrome, Edge, or Safari, or use the text input instead."
+      : "We couldn't access your microphone. Make sure no other app is using it, then try again — or use the text input below.";
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-800">
+        <div className="flex items-start gap-3">
+          <span className="mt-0.5 shrink-0">
+            <MicOff className="h-6 w-6" />
+          </span>
+          <div>
+            <p className="font-semibold">{title}</p>
+            <p className="mt-1 text-sm">{message}</p>
+            <p className="mt-2 text-xs text-amber-700">{helpText}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Two buttons: retry mic, or switch to text */}
+      <div className="flex flex-col gap-2">
+        <button
+          type="button"
+          onClick={onRetry}
+          className="flex w-full items-center justify-center gap-2 rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-700 active:scale-[0.98]"
+        >
+          <Mic className="h-4 w-4" />
+          Try microphone again
+        </button>
+        <button
+          type="button"
+          onClick={onUseText}
+          className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 active:scale-[0.98]"
+        >
+          <Type className="h-4 w-4" />
+          Type instead
         </button>
       </div>
     </div>

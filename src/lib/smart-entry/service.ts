@@ -148,9 +148,11 @@ export async function interpretInput(
     console.error("[smart-entry] AI provider error:", errMsg);
 
     const isGeoBlocked = errMsg.includes("User location is not supported");
-    const userMessage = isGeoBlocked
-      ? "AI service is unavailable in this region. Please try again later."
-      : "Sorry, I couldn't process that. Please try again, or fill the form manually below.";
+    // When AI is geo-blocked (dev environment) or completely unavailable,
+    // we STILL show the editable form. The hint is friendly, not alarming.
+    const hint = isGeoBlocked
+      ? "Couldn't reach the AI service from this server. Fill the form below manually — it works the same way."
+      : "Couldn't process that with AI. Fill the form below manually.";
 
     // Create a session row so the user can still fill the form manually
     const session = await prisma.smartEntrySession.create({
@@ -179,7 +181,7 @@ export async function interpretInput(
         resolvedProductId: null,
         customerCandidates: customers,
         productCandidates: products,
-        hint: userMessage,
+        hint,
       },
     };
   }

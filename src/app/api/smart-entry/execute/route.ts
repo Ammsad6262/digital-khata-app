@@ -1,26 +1,21 @@
 /**
  * POST /api/smart-entry/execute
  *
- * Body:
- *   { sessionId: "..." }
- *   OR (for disambiguation flow):
- *   { sessionId: "...", chosenCustomerId: "..." }
- *   { sessionId: "...", chosenProductId: "..." }
+ * V2 body:
+ *   { sessionId, customerId, productId, quantity }
  *
- * Response:
- *   { ok: true, data: { saleId, totalAmount, outstanding } }
+ * The client sends the FINAL form values after the user reviews/edits.
+ * The backend RE-VALIDATES everything server-side — never trusts client values:
+ *   - sessionId belongs to authenticated user
+ *   - session is in AWAITING_CONFIRMATION state, not expired
+ *   - customerId belongs to authenticated user, not deleted
+ *   - productId belongs to authenticated user, not deleted
+ *   - quantity is positive
+ *   - unitPrice fetched from product (NEVER from client)
+ *   - amount computed server-side: quantity × unitPrice
  *
- * SECURITY:
- *   - userId derived from JWT cookie (NEVER from body)
- *   - sessionId verified to belong to this user
- *   - chosenCustomerId / chosenProductId RE-VALIDATED against this user's records
- *   - The client CANNOT inject amount, customer ID, or product ID — those
- *     come from the server-side SmartEntrySession row.
- *   - Amount is recomputed using the CURRENT product.sellingPrice (defends
- *     against price changes since interpret)
- *   - Customer/product are re-verified to still exist (defends against deletion)
- *   - Calls existing SaleService.createSale() — the same trusted path as the
- *     manual sale form.
+ * Then calls existing SaleService.createSale() — the same trusted path as the
+ * manual sale form.
  */
 
 import { NextRequest } from "next/server";
@@ -37,7 +32,6 @@ export async function POST(req: NextRequest) {
   try {
     const userId = await requireUserId(req);
 
-    // Rate limit (executions are cheap but we still cap)
     const limit = checkExecuteLimit(userId);
     if (!limit.allowed) {
       throw new BadRequestError(
@@ -57,10 +51,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const result = await executeSession(userId, parsed.data.sessionId, {
-      customerId: parsed.data.chosenCustomerId,
-      productId: parsed.data.chosenProductId,
-    });
+    const result = await executeSession(userId, parsed.data);
 
     return ok(result);
   } catch (error) {

@@ -1,62 +1,37 @@
 "use client";
 
 /**
- * useSmartEntry — React hook that wraps the Smart Khata Entry API.
+ * useSmartEntry — React hook for Smart Khata Entry (V2: editable-form architecture).
  *
- * State machine:
- *   idle → recording → transcribing → interpreting → ready|clarification|ambiguous|failed
- *                                                                ↓
- *                                                           confirming → executing → success|error
+ * V2 state machine:
+ *   idle → recording → transcribing → form → executing → success
+ *                                  ↑           ↓
+ *                                  ← error ←───┘
  *
- * Exposes:
- *   - state:           the current UX state (string union)
- *   - transcript:      what the user said (for the "You said:" UI)
- *   - preview:         the resolved transaction preview (when state=ready)
- *   - candidates:      customer/product candidates (when state=ambiguous_*)
- *   - message:         user-friendly message (when state=clarification|failed)
- *   - error:           raw error message (for dev)
- *   - sessionId:       the SmartEntrySession ID (for execute/cancel)
- *   - submitText(text)         → text path
- *   - submitAudio(blob, mime)  → voice path
- *   - confirm()                → execute (no disambiguation)
- *   - chooseCustomer(id)       → execute with chosen customer
- *   - chooseProduct(id)        → execute with chosen product
- *   - cancel()                 → cancel the session
- *   - reset()                  → back to idle
+ * The "form" state is the new normal state — AI returns partial fields,
+ * the user reviews/edits in an editable form, then clicks "Add to Khata"
+ * to execute.
  */
 
-import { useCallback, useRef, useState } from "react";
-import type {
-  InterpretResult,
-} from "@/lib/smart-entry/service";
+import { useCallback, useState } from "react";
+import type { InterpretResult, FormFieldState } from "@/lib/smart-entry/service";
 
 export type SmartEntryState =
   | "idle"
   | "recording"
   | "transcribing"
   | "interpreting"
-  | "ready"
-  | "clarification"
-  | "ambiguous_customer"
-  | "ambiguous_product"
-  | "customer_not_found"
-  | "product_not_found"
-  | "unsupported_intent"
-  | "confirming"
+  | "form"           // ← V2: the editable form (replaces ready/clarification/ambiguous_*)
   | "executing"
   | "success"
   | "cancelled"
-  | "expired"
   | "error";
-
-type ApiResult = InterpretResult;
 
 type State = {
   state: SmartEntryState;
   sessionId: string | null;
   transcript: string | null;
-  preview: ApiResult["preview"] | null;
-  candidates: ApiResult["candidates"] | null;
+  form: FormFieldState | null;
   message: string | null;
   error: string | null;
   createdSaleId: string | null;
@@ -66,38 +41,27 @@ const INITIAL: State = {
   state: "idle",
   sessionId: null,
   transcript: null,
-  preview: null,
-  candidates: null,
+  form: null,
   message: null,
   error: null,
   createdSaleId: null,
 };
 
-function mapStatusToState(status: ApiResult["status"]): SmartEntryState {
-  switch (status) {
-    case "READY": return "ready";
-    case "CLARIFICATION_NEEDED": return "clarification";
-    case "AMBIGUOUS_CUSTOMER": return "ambiguous_customer";
-    case "AMBIGUOUS_PRODUCT": return "ambiguous_product";
-    case "CUSTOMER_NOT_FOUND": return "customer_not_found";
-    case "PRODUCT_NOT_FOUND": return "product_not_found";
-    case "UNSUPPORTED_INTENT": return "unsupported_intent";
-    case "FAILED": return "error";
-    default: return "error";
-  }
+function mapStatusToState(status: InterpretResult["status"]): SmartEntryState {
+  // V2: only FORM and FAILED
+  if (status === "FORM") return "form";
+  return "error"; // FAILED → error
 }
 
 export function useSmartEntry() {
   const [state, setState] = useState<State>(INITIAL);
-  const abortRef = useRef<AbortController | null>(null);
 
-  const applyInterpretResult = useCallback((result: ApiResult) => {
+  const applyInterpretResult = useCallback((result: InterpretResult) => {
     setState({
       state: mapStatusToState(result.status),
       sessionId: result.sessionId,
       transcript: result.transcript ?? null,
-      preview: result.preview ?? null,
-      candidates: result.candidates ?? null,
+      form: result.form ?? null,
       message: result.message ?? null,
       error: null,
       createdSaleId: null,
@@ -122,7 +86,7 @@ export function useSmartEntry() {
         });
         return;
       }
-      applyInterpretResult(json.data as ApiResult);
+      applyInterpretResult(json.data as InterpretResult);
     } catch (e) {
       setState({
         ...INITIAL,
@@ -136,7 +100,6 @@ export function useSmartEntry() {
   const submitAudio = useCallback(async (audio: Blob, mimeType: string) => {
     setState({ ...INITIAL, state: "transcribing" });
     try {
-      // Convert Blob → base64
       const arrayBuffer = await audio.arrayBuffer();
       const bytes = new Uint8Array(arrayBuffer);
       let binary = "";
@@ -162,7 +125,7 @@ export function useSmartEntry() {
         });
         return;
       }
-      applyInterpretResult(json.data as ApiResult);
+      applyInterpretResult(json.data as InterpretResult);
     } catch (e) {
       setState({
         ...INITIAL,
@@ -173,9 +136,15 @@ export function useSmartEntry() {
     }
   }, [applyInterpretResult]);
 
-  const execute = useCallback(async (
-    chosen?: { customerId?: string; productId?: string },
-  ) => {
+  /**
+   * Execute the sale with the user's final form values.
+   * The backend re-validates everything server-side.
+   */
+  const execute = useCallback(async (input: {
+    customerId: string;
+    productId: string;
+    quantity: number;
+  }) => {
     if (!state.sessionId) return;
     setState((s) => ({ ...s, state: "executing" }));
     try {
@@ -184,8 +153,9 @@ export function useSmartEntry() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           sessionId: state.sessionId,
-          chosenCustomerId: chosen?.customerId,
-          chosenProductId: chosen?.productId,
+          customerId: input.customerId,
+          productId: input.productId,
+          quantity: input.quantity,
         }),
       });
       const json = await res.json();
@@ -214,57 +184,11 @@ export function useSmartEntry() {
     }
   }, [state.sessionId]);
 
-  /**
-   * Resolve a disambiguation choice WITHOUT executing the sale.
-   * Used when the user picks a customer/product from the picker — we want
-   * to show the confirmation preview FIRST, then the user clicks "Add to
-   * Khata" to actually execute.
-   *
-   * Calls /api/smart-entry/resolve, which returns a READY-status result
-   * with the preview.
-   */
-  const resolveChoice = useCallback(async (
-    chosen: { customerId?: string; productId?: string },
-  ) => {
-    if (!state.sessionId) return;
-    setState((s) => ({ ...s, state: "interpreting" }));
-    try {
-      const res = await fetch("/api/smart-entry/resolve", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          sessionId: state.sessionId,
-          chosenCustomerId: chosen.customerId,
-          chosenProductId: chosen.productId,
-        }),
-      });
-      const json = await res.json();
-      if (!json.ok) {
-        setState((s) => ({
-          ...s,
-          state: "error",
-          error: json.error?.message ?? "Failed to resolve.",
-          message: json.error?.message ?? "Failed to resolve your choice.",
-        }));
-        return;
-      }
-      applyInterpretResult(json.data as ApiResult);
-    } catch (e) {
-      setState((s) => ({
-        ...s,
-        state: "error",
-        error: e instanceof Error ? e.message : "Network error.",
-        message: "Network error. Please check your connection.",
-      }));
-    }
-  }, [state.sessionId, applyInterpretResult]);
-
   const cancel = useCallback(async () => {
     if (!state.sessionId) {
       setState(INITIAL);
       return;
     }
-    // Fire and forget — don't block the UI on cancel
     fetch("/api/smart-entry/cancel", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -281,11 +205,7 @@ export function useSmartEntry() {
     ...state,
     submitText,
     submitAudio,
-    confirm: () => execute(),
-    // Disambiguation: resolve to preview, don't execute yet.
-    // User must click "Add to Khata" on the confirmation screen to execute.
-    chooseCustomer: (id: string) => resolveChoice({ customerId: id }),
-    chooseProduct: (id: string) => resolveChoice({ productId: id }),
+    confirm: execute,
     cancel,
     reset,
   };

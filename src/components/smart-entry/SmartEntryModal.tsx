@@ -22,7 +22,7 @@
  * context (the Dashboard uses z-20 sticky headers; this modal needs z-[80]).
  */
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { createPortal } from "react-dom";
 import {
   X,
@@ -38,6 +38,7 @@ import {
   ArrowRight,
   AlertTriangle,
   Type,
+  ChevronDown,
 } from "lucide-react";
 import { useSmartEntry } from "@/hooks/smart-entry/use-smart-entry";
 import { useAudioRecorder } from "@/hooks/smart-entry/use-audio-recorder";
@@ -229,54 +230,17 @@ function SmartEntryBody({
     return <LoadingState title="Adding to Khata..." subtitle="Creating the transaction" />;
   }
 
-  if (state === "ready" && smartEntry.preview) {
+  // V2: the editable form. This is the new normal state — replaces ready,
+  // clarification, ambiguous_customer, ambiguous_product, customer_not_found,
+  // product_not_found, unsupported_intent. The form pre-fills whatever the
+  // AI understood and the user completes/edits the rest manually.
+  if (state === "form" && smartEntry.form) {
     return (
-      <ConfirmationView
-        preview={smartEntry.preview}
+      <EditableFormView
+        form={smartEntry.form}
         transcript={smartEntry.transcript}
         onConfirm={smartEntry.confirm}
         onCancel={smartEntry.cancel}
-      />
-    );
-  }
-
-  if (state === "ambiguous_customer" && smartEntry.candidates) {
-    return (
-      <DisambiguationView
-        type="customer"
-        candidates={smartEntry.candidates}
-        message={smartEntry.message}
-        onPick={smartEntry.chooseCustomer}
-        onCancel={smartEntry.cancel}
-      />
-    );
-  }
-
-  if (state === "ambiguous_product" && smartEntry.candidates) {
-    return (
-      <DisambiguationView
-        type="product"
-        candidates={smartEntry.candidates}
-        message={smartEntry.message}
-        onPick={smartEntry.chooseProduct}
-        onCancel={smartEntry.cancel}
-      />
-    );
-  }
-
-  if (state === "clarification" || state === "customer_not_found" ||
-      state === "product_not_found" || state === "unsupported_intent") {
-    return (
-      <MessageState
-        title={state === "unsupported_intent" ? "I can only handle credit sales right now"
-              : state === "clarification" ? "Need a bit more info"
-              : state === "customer_not_found" ? "Customer not found"
-              : "Product not found"}
-        message={smartEntry.message ?? "Please try again."}
-        icon={state === "unsupported_intent" ? <AlertCircle className="h-6 w-6" />
-              : <AlertTriangle className="h-6 w-6" />}
-        tone={state === "unsupported_intent" || state === "customer_not_found" || state === "product_not_found" ? "amber" : "blue"}
-        onRetry={() => smartEntry.reset()}
       />
     );
   }
@@ -797,6 +761,329 @@ function MessageState({
         Try again
       </button>
     </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// EditableFormView — V2: the new normal Smart Khata state.
+//
+// The AI returns whatever it understood (possibly partial). The form pre-fills
+// the resolved fields and leaves missing ones empty. The user reviews/edits
+// and clicks "Add to Khata" to execute.
+//
+// Form fields:
+//   - Customer: searchable picker (limited to the user's customers)
+//   - Product:  searchable picker (limited to the user's products)
+//   - Quantity: numeric input
+//   - Unit:     read-only display of the product's unit
+//   - Amount:   auto-calculated = quantity × product.sellingPrice (read-only)
+//
+// Submit is disabled until customer + product + quantity are all set.
+// ════════════════════════════════════════════════════════════════════════════
+
+function EditableFormView({
+  form,
+  transcript,
+  onConfirm,
+  onCancel,
+}: {
+  form: {
+    customerNameRaw: string | null;
+    productNameRaw: string | null;
+    quantityRaw: number | null;
+    unitRaw: string | null;
+    resolvedCustomerId: string | null;
+    resolvedProductId: string | null;
+    customerCandidates: Array<{ id: string; name: string; phone?: string | null }>;
+    productCandidates: Array<{ id: string; name: string; unit?: string | null; sellingPrice?: string | null }>;
+    hint: string | null;
+  };
+  transcript: string | null;
+  onConfirm: (input: { customerId: string; productId: string; quantity: number }) => void;
+  onCancel: () => void;
+}) {
+  // Local form state — initialized from the AI-resolved values, fully editable
+  const [customerId, setCustomerId] = useState<string>(form.resolvedCustomerId ?? "");
+  const [productId, setProductId] = useState<string>(form.resolvedProductId ?? "");
+  const [quantityStr, setQuantityStr] = useState<string>(
+    form.quantityRaw != null ? String(form.quantityRaw) : ""
+  );
+
+  // Find the selected product (for unit + price display)
+  const selectedProduct = form.productCandidates.find((p) => p.id === productId);
+  const unit = selectedProduct?.unit ?? form.unitRaw ?? null;
+  const unitPrice = selectedProduct?.sellingPrice ? Number(selectedProduct.sellingPrice) : null;
+  const quantityNum = Number(quantityStr);
+  const isValidQuantity = Number.isFinite(quantityNum) && quantityNum > 0;
+  const amount = isValidQuantity && unitPrice != null ? quantityNum * unitPrice : null;
+
+  // Validation: customer + product + valid quantity all required
+  const canSubmit = !!customerId && !!productId && isValidQuantity;
+
+  const handleSubmit = () => {
+    if (!canSubmit) return;
+    onConfirm({ customerId, productId, quantity: quantityNum });
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Transcript — what the user said (builds trust) */}
+      {transcript ? (
+        <div className="rounded-xl bg-slate-50 p-3.5">
+          <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">You said</p>
+          <p className="mt-1 text-sm italic text-slate-700">"{transcript}"</p>
+        </div>
+      ) : null}
+
+      {/* Hint — helpful message for missing fields */}
+      {form.hint ? (
+        <div className="rounded-xl border border-brand-200 bg-brand-50 p-3 text-sm text-brand-800">
+          <p className="flex items-center gap-2">
+            <Sparkles className="h-4 w-4 shrink-0" />
+            <span>{form.hint}</span>
+          </p>
+        </div>
+      ) : null}
+
+      {/* The form */}
+      <div className="space-y-3">
+        {/* Customer picker */}
+        <Field
+          label="Customer"
+          isFilled={!!customerId}
+        >
+          <SearchablePicker
+            value={customerId}
+            onChange={setCustomerId}
+            candidates={form.customerCandidates}
+            placeholder={form.customerNameRaw ?? "Search customer..."}
+            emptyText="No customers found. Add a customer first."
+          />
+        </Field>
+
+        {/* Product picker */}
+        <Field
+          label="Product"
+          isFilled={!!productId}
+        >
+          <SearchablePicker
+            value={productId}
+            onChange={setProductId}
+            candidates={form.productCandidates}
+            placeholder={form.productNameRaw ?? "Search product..."}
+            emptyText="No products found. Add a product first."
+            getSubtitle={(p) => p.unit ? `${p.unit}${p.sellingPrice ? ` · Rs. ${p.sellingPrice}` : ""}` : null}
+          />
+        </Field>
+
+        {/* Quantity + Unit (side by side on wider screens) */}
+        <div className="grid grid-cols-2 gap-2.5">
+          <Field label="Quantity" isFilled={isValidQuantity}>
+            <input
+              type="number"
+              inputMode="decimal"
+              step="any"
+              min="0"
+              value={quantityStr}
+              onChange={(e) => setQuantityStr(e.target.value)}
+              placeholder="0"
+              className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+            />
+          </Field>
+          <Field label="Unit" isFilled={!!unit}>
+            <div className="flex h-[42px] items-center rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-medium text-slate-700">
+              {unit ?? "—"}
+            </div>
+          </Field>
+        </div>
+
+        {/* Amount — auto-calculated, read-only */}
+        <div className="rounded-2xl bg-gradient-to-br from-brand-50 to-brand-100 p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-[11px] font-medium uppercase tracking-wide text-brand-700">Amount</p>
+              <p className="mt-0.5 text-2xl font-bold text-brand-900">
+                {amount != null ? formatMoney(amount) : "—"}
+              </p>
+            </div>
+            {unitPrice != null && isValidQuantity ? (
+              <p className="text-xs text-brand-600">
+                {quantityNum} × {formatMoney(unitPrice)}
+              </p>
+            ) : null}
+          </div>
+        </div>
+      </div>
+
+      {/* Actions */}
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={onCancel}
+          className="flex-1 rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 active:scale-[0.98]"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          onClick={handleSubmit}
+          disabled={!canSubmit}
+          className="flex-1 rounded-xl bg-brand-600 px-4 py-3 text-sm font-semibold text-white shadow-md shadow-brand-600/30 transition-colors hover:bg-brand-700 active:scale-[0.98] disabled:bg-brand-300 disabled:shadow-none"
+        >
+          <span className="flex items-center justify-center gap-1.5">
+            <Check className="h-4 w-4" />
+            Add to Khata
+          </span>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/** Field wrapper with label + filled-state indicator. */
+function Field({
+  label,
+  isFilled,
+  children,
+}: {
+  label: string;
+  isFilled: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <div>
+      <label className="mb-1 flex items-center gap-1.5 text-xs font-medium text-slate-600">
+        {label}
+        {isFilled ? (
+          <Check className="h-3 w-3 text-green-600" strokeWidth={3} />
+        ) : null}
+      </label>
+      {children}
+    </div>
+  );
+}
+
+/**
+ * SearchablePicker — a dropdown that lets the user search and pick from
+ * a list of candidates. Renders as a button showing the current selection
+ * (or placeholder), opens a small search overlay when tapped.
+ */
+function SearchablePicker<T extends { id: string; name: string }>({
+  value,
+  onChange,
+  candidates,
+  placeholder,
+  emptyText,
+  getSubtitle,
+}: {
+  value: string;
+  onChange: (id: string) => void;
+  candidates: T[];
+  placeholder: string;
+  emptyText: string;
+  getSubtitle?: (item: T) => string | null;
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+
+  const selected = candidates.find((c) => c.id === value);
+
+  // Filter candidates by query (case-insensitive contains)
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return candidates;
+    return candidates.filter((c) => c.name.toLowerCase().includes(q));
+  }, [candidates, query]);
+
+  // Close on Escape
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open]);
+
+  return (
+    <>
+      {/* Trigger button */}
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="flex w-full items-center justify-between gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-left text-sm font-medium text-slate-900 hover:border-brand-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+      >
+        <span className={selected ? "text-slate-900" : "text-slate-400"}>
+          {selected ? selected.name : placeholder}
+        </span>
+        <ChevronDown className="h-4 w-4 shrink-0 text-slate-400" />
+      </button>
+
+      {/* Search overlay */}
+      {open ? (
+        <>
+          <div
+            className="fixed inset-0 z-[100] bg-black/30"
+            onClick={() => setOpen(false)}
+            aria-hidden
+          />
+          <div className="fixed inset-x-0 bottom-0 z-[110] mx-auto flex max-h-[70dvh] w-full max-w-[640px] flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl"
+               style={{ animation: "se-slide-up 0.2s ease-out" }}>
+            {/* Search input */}
+            <div className="border-b border-slate-100 p-3">
+              <input
+                type="text"
+                autoFocus
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search..."
+                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+              />
+            </div>
+            {/* Results */}
+            <div className="flex-1 overflow-y-auto">
+              {filtered.length === 0 ? (
+                <p className="p-4 text-center text-sm text-slate-500">{emptyText}</p>
+              ) : (
+                filtered.map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => {
+                      onChange(c.id);
+                      setOpen(false);
+                      setQuery("");
+                    }}
+                    className={cn(
+                      "flex w-full items-center justify-between gap-2 border-b border-slate-50 px-4 py-3 text-left hover:bg-slate-50",
+                      c.id === value && "bg-brand-50",
+                    )}
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium text-slate-900">{c.name}</p>
+                      {getSubtitle ? (
+                        <p className="text-xs text-slate-500">{getSubtitle(c)}</p>
+                      ) : null}
+                    </div>
+                    {c.id === value ? <Check className="h-4 w-4 shrink-0 text-brand-600" /> : null}
+                  </button>
+                ))
+              )}
+            </div>
+            {/* Close button */}
+            <div className="border-t border-slate-100 p-2">
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                className="w-full rounded-lg py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
+              >
+                Close
+                </button>
+            </div>
+          </div>
+        </>
+      ) : null}
+    </>
   );
 }
 

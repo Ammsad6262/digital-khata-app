@@ -144,15 +144,42 @@ export async function interpretInput(
       transcript = result.transcript;
     }
   } catch (error) {
+    // ── Surface the EXACT Google error ────────────────────────────────────
+    // The user needs to see the real error code + message so they can diagnose
+    // whether it's a geo-block (400), a bad model (404), an auth issue (401/403),
+    // or a genuine internal error (500). We log the full error server-side and
+    // return a sanitized version to the client.
     const errMsg = error instanceof Error ? error.message : String(error);
-    console.error("[smart-entry] AI provider error:", errMsg);
+    console.error("[smart-entry] Gemini API error (full):", errMsg);
 
-    const isGeoBlocked = errMsg.includes("User location is not supported");
-    // When AI is geo-blocked (dev environment) or completely unavailable,
-    // we STILL show the editable form. The hint is friendly, not alarming.
-    const hint = isGeoBlocked
-      ? "Couldn't reach the AI service from this server. Fill the form below manually — it works the same way."
-      : "Couldn't process that with AI. Fill the form below manually.";
+    // Parse the Google error code from the error message
+    let googleErrorCode: number | null = null;
+    let googleErrorMessage: string = errMsg;
+    try {
+      // The @google/genai SDK throws ApiError with message = JSON string
+      const parsed = JSON.parse(errMsg);
+      if (parsed?.error?.code) googleErrorCode = parsed.error.code;
+      if (parsed?.error?.message) googleErrorMessage = parsed.error.message;
+    } catch {
+      // Not JSON — use the raw message
+    }
+
+    console.error("[smart-entry] Gemini API error code:", googleErrorCode);
+    console.error("[smart-entry] Gemini API error message:", googleErrorMessage);
+
+    // Build a user-friendly hint based on the EXACT error
+    let hint: string;
+    if (googleErrorCode === 400 && googleErrorMessage.includes("User location is not supported")) {
+      hint = "AI service is geo-blocked from this server. Deploy to Vercel (US region) or run locally from a supported country. You can still fill the form manually below.";
+    } else if (googleErrorCode === 401 || googleErrorCode === 403) {
+      hint = "Gemini API key is invalid or expired. Check GEMINI_API_KEY in .env. You can still fill the form manually below.";
+    } else if (googleErrorCode === 404) {
+      hint = `Gemini model not found: ${googleErrorMessage.slice(0, 100)}. Check that the model ID is current. You can still fill the form manually below.`;
+    } else if (googleErrorCode === 429) {
+      hint = "Gemini API rate limit reached. Try again in a minute. You can still fill the form manually below.";
+    } else {
+      hint = `Gemini API error ${googleErrorCode ?? "(unknown)"}: ${googleErrorMessage.slice(0, 150)}. You can still fill the form manually below.`;
+    }
 
     // Create a session row so the user can still fill the form manually
     const session = await prisma.smartEntrySession.create({

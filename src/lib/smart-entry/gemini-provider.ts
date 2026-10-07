@@ -35,7 +35,11 @@ import {
 } from "./schema";
 import type { AIProvider, AIContext } from "./ai-provider";
 
-const FLASH_MODEL = "gemini-3.5-flash";
+// Google's recommended latest model as of Oct 2026 (verified via Google's own
+// error message: "Please update your code to use models/gemini-3.8-flash").
+// Previous versions used gemini-3.5-flash (also valid) but Google now
+// recommends 3.8-flash for the latest features.
+const FLASH_MODEL = "gemini-3.8-flash";
 
 /**
  * The system prompt — hardcoded server-side, never user-controllable.

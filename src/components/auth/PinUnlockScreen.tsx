@@ -105,9 +105,7 @@ export function PinUnlockScreen({
     <div className="flex min-h-[100dvh] flex-col items-center justify-center bg-gradient-to-br from-brand-600 to-brand-800 p-6">
       {/* Logo / business name */}
       <div className="mb-8 text-center text-white">
-        <div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-2xl bg-white/15 backdrop-blur">
-          <Lock className="h-7 w-7" />
-        </div>
+        <img src="/icon.png" alt="Digital Khata" className="mx-auto mb-3 h-16 w-16 rounded-2xl shadow-lg" />
         <h1 className="text-lg font-bold">
           {businessName || t("app.name")}
         </h1>

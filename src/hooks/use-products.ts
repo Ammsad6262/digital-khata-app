@@ -44,8 +44,7 @@ export function useProducts() {
   return useQuery<ProductView[]>({
     queryKey: productKeys.list(false),
     queryFn: () => apiGet<ProductView[]>("/api/products"),
-    // Short staleTime for product lists — new products should appear quickly
-    staleTime: 30 * 1000, // 30 seconds — multi-device sync
+    staleTime: 120 * 1000, // 2 minutes — products change infrequently
   });
 }
 
@@ -54,7 +53,7 @@ export function useProductsWithStock() {
   return useQuery<ProductWithStock[]>({
     queryKey: productKeys.list(true),
     queryFn: () => apiGet<ProductWithStock[]>("/api/products?withStock=1"),
-    staleTime: 30 * 1000, // 30 seconds — multi-device sync
+    staleTime: 60 * 1000, // 1 minute — stock changes with sales, but 1 min is fine
   });
 }
 

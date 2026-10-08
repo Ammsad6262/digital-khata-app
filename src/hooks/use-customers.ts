@@ -53,13 +53,15 @@ export function useCustomers() {
   });
 }
 
-/** List all customers WITH their current balance (more expensive but richer). */
+/** List all customers WITH their current balance (more expensive but richer).
+ *  staleTime=120s — balances change infrequently, 2 min cache is fine for the
+ *  list view. The detail page always fetches fresh. */
 export function useCustomersWithBalance() {
   return useQuery<CustomerSearchResult[]>({
     queryKey: customerKeys.list(true),
     queryFn: () =>
       apiGet<CustomerSearchResult[]>("/api/customers?withBalances=1"),
-    staleTime: 30 * 1000, // 30 seconds — sync with global default
+    staleTime: 120 * 1000, // 2 minutes — balances change infrequently
   });
 }
 

@@ -19,7 +19,7 @@
     "test:e2e": "tsx scripts/test-e2e.ts"
   },
   "dependencies": {
-    "@google/genai": "^2.27.0",
+    "@google/genai": "^2.28.0",
     "@hookform/resolvers": "^3.9.1",
     "@prisma/client": "^5.22.0",
     "@tanstack/react-query": "^5.62.0",

@@ -34,6 +34,8 @@ import {
   AlertCircle,
   Sparkles,
   User,
+  UserPlus,
+  Plus,
   Package,
   ArrowRight,
   AlertTriangle,
@@ -800,6 +802,10 @@ function EditableFormView({
   const [unitPriceStr, setUnitPriceStr] = useState<string>(
     form.unitPrice != null ? String(form.unitPrice) : ""
   );
+  // V3: New customer inline creation
+  const [showNewCustomerForm, setShowNewCustomerForm] = useState(false);
+  const [newCustomerName, setNewCustomerName] = useState("");
+  const [newCustomerError, setNewCustomerError] = useState<string | null>(null);
 
   // Find the selected product (for unit + default price)
   const selectedProduct = form.productCandidates.find((p) => p.id === productId);
@@ -862,12 +868,53 @@ function EditableFormView({
         </div>
       ) : null}
 
-      {/* V3: New customer prompt */}
-      {form.isNewCustomer ? (
-        <div className="rounded-xl border border-blue-300 bg-blue-50 p-3 text-sm text-blue-800">
-          <p className="font-semibold">New customer found: {form.customerNameRaw}</p>
-          <p className="mt-0.5 text-xs">&ldquo;{form.customerNameRaw}&rdquo; is not in your Khata yet. Pick an existing customer or add them later.</p>
+      {/* V3: New customer prompt — with "Add" button */}
+      {form.isNewCustomer && !customerId && !showNewCustomerForm ? (
+        <div className="rounded-xl border border-blue-300 bg-blue-50 p-3.5 text-sm text-blue-900">
+          <p className="font-semibold flex items-center gap-2">
+            <UserPlus className="h-4 w-4 shrink-0" />
+            New customer detected
+          </p>
+          <p className="mt-1 text-xs text-blue-700">
+            &ldquo;{form.customerNameRaw}&rdquo; isn&rsquo;t in your Khata yet. Add them now or pick an existing customer.
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              setNewCustomerName(form.customerNameRaw ?? "");
+              setShowNewCustomerForm(true);
+            }}
+            className="mt-2.5 flex w-full items-center justify-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700 active:scale-[0.98]"
+          >
+            <Plus className="h-4 w-4" strokeWidth={2.5} />
+            Add {form.customerNameRaw}
+          </button>
         </div>
+      ) : null}
+
+      {/* V3: Inline new customer creation form */}
+      {showNewCustomerForm ? (
+        <NewCustomerForm
+          name={newCustomerName}
+          onCancel={() => {
+            setShowNewCustomerForm(false);
+            setNewCustomerName("");
+            setNewCustomerError(null);
+          }}
+          onCreated={(createdCustomer) => {
+            // Customer was created on the backend — now select it in the form
+            // and add it to the candidate list so the picker shows it
+            setCustomerId(createdCustomer.id);
+            // Also update the candidates list so the picker displays the name
+            form.customerCandidates = [
+              ...form.customerCandidates,
+              { id: createdCustomer.id, name: createdCustomer.name, phone: createdCustomer.phone ?? null },
+            ];
+            setShowNewCustomerForm(false);
+            setNewCustomerName("");
+            setNewCustomerError(null);
+          }}
+        />
       ) : null}
 
       {/* Hint */}
@@ -1138,6 +1185,131 @@ function SearchablePicker<T extends { id: string; name: string }>({
         </>
       ) : null}
     </>
+  );
+}
+
+// ── NewCustomerForm ─────────────────────────────────────────────────────────
+// Inline customer creation form shown inside the Smart Entry modal.
+// Calls POST /api/customers to create the customer on the backend.
+
+function NewCustomerForm({
+  name: initialName,
+  onCancel,
+  onCreated,
+}: {
+  name: string;
+  onCancel: () => void;
+  onCreated: (customer: { id: string; name: string; phone: string | null }) => void;
+}) {
+  const [name, setName] = useState(initialName);
+  const [phone, setPhone] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = async () => {
+    if (!name.trim()) {
+      setError("Name is required.");
+      return;
+    }
+    setIsSubmitting(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/customers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: name.trim(),
+          phone: phone.trim() || undefined,
+          openingBalance: 0,
+        }),
+      });
+      const json = await res.json();
+      if (!json.ok) {
+        setError(json.error?.message ?? "Failed to create customer.");
+        return;
+      }
+      // Success — call onCreated with the new customer
+      onCreated({
+        id: json.data.id,
+        name: json.data.name,
+        phone: json.data.phone ?? null,
+      });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Network error.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="rounded-xl border border-blue-200 bg-blue-50/50 p-4 space-y-3">
+      <div className="flex items-center gap-2">
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 text-white">
+          <UserPlus className="h-4 w-4" />
+        </div>
+        <h3 className="text-sm font-bold text-slate-900">Add New Customer</h3>
+      </div>
+
+      {/* Name field */}
+      <div>
+        <label className="mb-1 block text-xs font-medium text-slate-600">Name</label>
+        <input
+          type="text"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Customer name"
+          autoFocus
+          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+        />
+      </div>
+
+      {/* Phone field (optional) */}
+      <div>
+        <label className="mb-1 block text-xs font-medium text-slate-600">Phone <span className="text-slate-400">(optional)</span></label>
+        <input
+          type="tel"
+          value={phone}
+          onChange={(e) => setPhone(e.target.value)}
+          placeholder="0300 1234567"
+          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+        />
+      </div>
+
+      {/* Error message */}
+      {error ? (
+        <div className="flex items-center gap-2 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+          <AlertCircle className="h-4 w-4 shrink-0" />
+          <span>{error}</span>
+        </div>
+      ) : null}
+
+      {/* Action buttons */}
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={onCancel}
+          disabled={isSubmitting}
+          className="flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          onClick={handleSubmit}
+          disabled={isSubmitting || !name.trim()}
+          className="flex-1 rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 active:scale-[0.98] disabled:bg-blue-300"
+        >
+          {isSubmitting ? (
+            <span className="flex items-center justify-center gap-1.5">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Adding...
+            </span>
+          ) : (
+            "Add Customer"
+          )}
+        </button>
+      </div>
+    </div>
   );
 }
 

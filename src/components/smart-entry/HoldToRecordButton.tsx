@@ -1,316 +1,406 @@
 "use client";
 
 /**
- * HoldToRecordButton — WhatsApp-style press-and-hold voice button.
+ * HoldToRecordButton — compact, mobile-first WhatsApp-style press-and-hold.
  *
- * NORMAL TAP → opens SmartEntryModal (existing behavior)
- * PRESS + HOLD → starts recording immediately
- * RELEASE → stops + sends audio to Smart Entry pipeline
- * SWIPE UP → locks recording (continues without holding)
- * DRAG AWAY → cancel (discard audio)
+ * DESIGN RULES (from user spec):
+ *   - NO fullscreen overlay
+ *   - NO dashboard blur
+ *   - NO giant center microphone
+ *   - NO desktop hold-to-record (desktop = normal click → Smart Entry modal)
+ *   - Mobile: TAP → Smart Entry modal; HOLD → compact recording near button
  *
- * This component manages its OWN state locally (useHoldToRecord hook)
- * to avoid re-rendering the Dashboard. The SmartEntryModal is rendered
- * as a child and opened on tap OR when audio is processed.
+ * The button itself transforms into a recording control. A small pill appears
+ * above the button with timer + hint text. The Dashboard stays fully visible.
  *
- * PERFORMANCE:
- *   - The recording timer updates once per second (not 100ms)
- *   - The audio level uses requestAnimationFrame (no React re-render)
- *   - The button uses CSS transforms for animations (GPU-composited)
- *   - Only this component re-renders during recording, not the Dashboard
+ * LAYOUT (bottom-right, where the FAB lives):
+ *
+ *   ┌──────────────────────────┐
+ *   │  🔴 00:04   ↑ slide to lock │   ← small pill (only while recording)
+ *   └──────────────────────────┘
+ *   ┌────┐
+ *   │ 🎙 │   ← the button itself (turns red while recording)
+ *   └────┘
+ *
+ * When LOCKED:
+ *   ┌──────────────────────────┐
+ *   │  🔒 00:08    [Cancel] [Send] │  ← locked pill
+ *   └──────────────────────────┘
+ *   ┌────┐
+ *   │ 🔴 │
+ *   └────┘
+ *
+ * When CANCEL pending (finger dragged away):
+ *   ┌──────────────────────────┐
+ *   │  ✕ Release to cancel       │  ← cancel pill
+ *   └──────────────────────────┘
+ *   ┌────┐
+ *   │ 🎙 │
+ *   └────┘
  */
 
 import { useState, useCallback, useRef, useEffect } from "react";
-import { Mic, Sparkles, Lock, X, Send, Loader2, AlertCircle } from "lucide-react";
-import { useHoldToRecord } from "@/hooks/smart-entry/use-hold-to-record";
+import { Mic, Lock, X, Send, Loader2, Sparkles, AlertCircle } from "lucide-react";
 import { useSmartEntry } from "@/hooks/smart-entry/use-smart-entry";
 import { SmartEntryModal } from "@/components/smart-entry/SmartEntryModal";
 import { cn } from "@/lib/utils/cn";
 
+// ── Constants ────────────────────────────────────────────────────────────────
+const HOLD_THRESHOLD_MS = 150;
+const LOCK_THRESHOLD_PX = 80;
+const CANCEL_THRESHOLD_PX = 60;
+const MAX_RECORDING_MS = 30_000;
+
+// ── State ────────────────────────────────────────────────────────────────────
+type RecordState =
+  | "IDLE"
+  | "HOLD_PENDING"
+  | "RECORDING"
+  | "LOCKED"
+  | "CANCEL_PENDING"
+  | "PROCESSING"
+  | "ERROR";
+
 export function HoldToRecordButton() {
   const [modalOpen, setModalOpen] = useState(false);
   const smartEntry = useSmartEntry();
-  const holdToRecord = useHoldToRecord();
 
-  // ── Wire up callbacks ─────────────────────────────────────────────────────
-  // On tap → open Smart Entry modal
-  holdToRecord.setOnTap(useCallback(() => {
-    setModalOpen(true);
-  }, []));
+  // Recording state
+  const [recState, setRecState] = useState<RecordState>("IDLE");
+  const [recError, setRecError] = useState<string | null>(null);
+  const [recDuration, setRecDuration] = useState(0);
+  const [audioLevel, setAudioLevel] = useState(0);
 
-  // On audio ready → submit to the Smart Entry pipeline
-  holdToRecord.setOnAudioReady(useCallback((blob: Blob, mimeType: string) => {
-    smartEntry.submitAudio(blob, mimeType);
-  }, [smartEntry]));
+  // Refs — no re-renders
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const rafRef = useRef<number | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const holdTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const maxTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const startTimeRef = useRef(0);
+  const startPosRef = useRef<{ x: number; y: number } | null>(null);
+  const mimeTypeRef = useRef("audio/webm");
+  const isTouchRef = useRef(false);
+  const isPointerDownRef = useRef(false);
 
-  // When smartEntry reaches a terminal state (success/error/cancelled),
-  // reset holdToRecord to IDLE
+  // ── Detect touch device ───────────────────────────────────────────────────
+  // On desktop (mouse), we DON'T do hold-to-record — just normal click → modal.
+  // On touch (mobile/tablet), we DO the WhatsApp-style hold gesture.
   useEffect(() => {
-    if (smartEntry.state === "success" || smartEntry.state === "error" || smartEntry.state === "cancelled") {
-      if (holdToRecord.state === "PROCESSING") {
-        // Reset after a short delay so the user sees the result
-        setTimeout(() => {
-          holdToRecord.stopAndSend(); // this will just reset to IDLE since recorder is already stopped
-        }, 100);
-      }
+    const detectTouch = () => {
+      isTouchRef.current =
+        "ontouchstart" in window ||
+        navigator.maxTouchPoints > 0 ||
+        window.matchMedia("(pointer: coarse)").matches;
+    };
+    detectTouch();
+    window.addEventListener("touchstart", detectTouch, { once: true });
+    return () => window.removeEventListener("touchstart", detectTouch);
+  }, []);
+
+  // ── Cleanup ────────────────────────────────────────────────────────────────
+  const cleanup = useCallback(() => {
+    if (holdTimerRef.current) clearTimeout(holdTimerRef.current);
+    if (timerRef.current) clearInterval(timerRef.current);
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    if (maxTimerRef.current) clearTimeout(maxTimerRef.current);
+    if (audioContextRef.current?.state !== "closed") {
+      audioContextRef.current?.close().catch(() => {});
     }
-  }, [smartEntry.state, holdToRecord]);
+    audioContextRef.current = null;
+    analyserRef.current = null;
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
+    setAudioLevel(0);
+    setRecDuration(0);
+  }, []);
 
-  // ── Derived state ──────────────────────────────────────────────────────────
-  const isRecording = holdToRecord.state === "RECORDING" || holdToRecord.state === "LOCKED";
-  const isProcessing = holdToRecord.state === "PROCESSING" || smartEntry.state === "transcribing" || smartEntry.state === "interpreting";
-  const isError = holdToRecord.state === "ERROR";
-  const isLocked = holdToRecord.state === "LOCKED";
-  const isCancelPending = holdToRecord.state === "CANCEL_PENDING";
+  useEffect(() => () => cleanup(), [cleanup]);
 
-  // If smartEntry is showing the form (AI succeeded), open the modal
+  // ── Pick mimeType ──────────────────────────────────────────────────────────
+  const pickMimeType = (): string => {
+    const candidates = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4;codecs=mp4a.40.2", "audio/mp4"];
+    for (const t of candidates) {
+      if (typeof MediaRecorder !== "undefined" && MediaRecorder.isTypeSupported(t)) return t;
+    }
+    return "audio/webm";
+  };
+
+  // ── Start recording ───────────────────────────────────────────────────────
+  const startRecording = useCallback(async () => {
+    if (typeof MediaRecorder === "undefined" || !navigator.mediaDevices?.getUserMedia) {
+      setRecState("ERROR");
+      setRecError("Your browser doesn't support audio recording.");
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: true, noiseSuppression: true, channelCount: 1 },
+      });
+      streamRef.current = stream;
+      const mimeType = pickMimeType();
+      mimeTypeRef.current = mimeType;
+      const recorder = new MediaRecorder(stream, { mimeType });
+      mediaRecorderRef.current = recorder;
+      chunksRef.current = [];
+
+      recorder.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
+      recorder.onstop = () => {
+        const blob = new Blob(chunksRef.current, { type: mimeType });
+        cleanup();
+        if (blob.size < 1024) {
+          setRecState("ERROR");
+          setRecError("Recording too short. Please try again.");
+          return;
+        }
+        setRecState("PROCESSING");
+        smartEntry.submitAudio(blob, mimeType);
+      };
+      recorder.onerror = () => { cleanup(); setRecState("ERROR"); setRecError("Recording failed."); };
+
+      recorder.start();
+      setRecState("RECORDING");
+      startTimeRef.current = Date.now();
+
+      timerRef.current = setInterval(() => {
+        setRecDuration(Math.floor((Date.now() - startTimeRef.current) / 1000));
+      }, 1000);
+
+      // Audio level (requestAnimationFrame, no React re-render for the value itself)
+      try {
+        const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+        audioContextRef.current = ctx;
+        const source = ctx.createMediaStreamSource(stream);
+        const analyser = ctx.createAnalyser();
+        analyser.fftSize = 256;
+        source.connect(analyser);
+        analyserRef.current = analyser;
+        const data = new Uint8Array(analyser.frequencyBinCount);
+        const tick = () => {
+          if (!analyserRef.current) return;
+          analyserRef.current.getByteFrequencyData(data);
+          setAudioLevel(data.reduce((a, b) => a + b, 0) / data.length / 255);
+          rafRef.current = requestAnimationFrame(tick);
+        };
+        rafRef.current = requestAnimationFrame(tick);
+      } catch { /* non-fatal */ }
+
+      maxTimerRef.current = setTimeout(() => {
+        mediaRecorderRef.current?.state === "recording" && mediaRecorderRef.current.stop();
+      }, MAX_RECORDING_MS);
+    } catch (e) {
+      cleanup();
+      setRecState("ERROR");
+      setRecError(
+        e instanceof DOMException && (e.name === "NotAllowedError" || e.name === "SecurityError")
+          ? "Microphone permission denied."
+          : e instanceof Error ? e.message : "Failed to access microphone."
+      );
+    }
+  }, [cleanup, smartEntry]);
+
+  // ── Stop + send ─────────────────────────────────────────────────────────────
+  const stopAndSend = useCallback(() => {
+    if (mediaRecorderRef.current?.state === "recording") {
+      mediaRecorderRef.current.stop();
+    } else { cleanup(); setRecState("IDLE"); }
+  }, [cleanup]);
+
+  // ── Cancel ─────────────────────────────────────────────────────────────────
+  const cancelRecording = useCallback(() => {
+    if (mediaRecorderRef.current) {
+      mediaRecorderRef.current.onstop = null;
+      mediaRecorderRef.current.state === "recording" && mediaRecorderRef.current.stop();
+    }
+    cleanup();
+    setRecState("IDLE");
+  }, [cleanup]);
+
+  // ── Pointer handlers (only for touch devices) ──────────────────────────────
+  const onPointerDown = useCallback((e: React.PointerEvent) => {
+    // Only activate hold-to-record on touch devices
+    if (!isTouchRef.current) return;
+    if (recState !== "IDLE") return;
+    e.preventDefault();
+    (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
+    isPointerDownRef.current = true;
+    startPosRef.current = { x: e.clientX, y: e.clientY };
+    setRecState("HOLD_PENDING");
+    holdTimerRef.current = setTimeout(() => { startRecording(); }, HOLD_THRESHOLD_MS);
+  }, [recState, startRecording]);
+
+  const onPointerMove = useCallback((e: React.PointerEvent) => {
+    if (!startPosRef.current || !isPointerDownRef.current) return;
+    if (recState !== "RECORDING") return;
+    const dx = e.clientX - startPosRef.current.x;
+    const dy = e.clientY - startPosRef.current.y;
+    if (dy < -LOCK_THRESHOLD_PX) { setRecState("LOCKED"); return; }
+    if (Math.abs(dx) > CANCEL_THRESHOLD_PX || dy > CANCEL_THRESHOLD_PX) { setRecState("CANCEL_PENDING"); return; }
+  }, [recState]);
+
+  const onPointerUp = useCallback((e: React.PointerEvent) => {
+    (e.target as HTMLElement).releasePointerCapture?.(e.pointerId);
+    isPointerDownRef.current = false;
+    if (recState === "HOLD_PENDING") {
+      clearTimeout(holdTimerRef.current!);
+      setRecState("IDLE");
+      startPosRef.current = null;
+      setModalOpen(true); // TAP → open Smart Entry modal
+      return;
+    }
+    if (recState === "RECORDING") { stopAndSend(); startPosRef.current = null; return; }
+    if (recState === "CANCEL_PENDING") { cancelRecording(); startPosRef.current = null; return; }
+    if (recState === "ERROR") { setRecState("IDLE"); setRecError(null); }
+    startPosRef.current = null;
+  }, [recState, stopAndSend, cancelRecording]);
+
+  // ── Open modal when smartEntry reaches form/success/error ───────────────────
   useEffect(() => {
     if (smartEntry.state === "form" || smartEntry.state === "success" || smartEntry.state === "error" || smartEntry.state === "cancelled") {
       setModalOpen(true);
+      if (recState === "PROCESSING") setRecState("IDLE");
     }
-  }, [smartEntry.state]);
+  }, [smartEntry.state, recState]);
 
-  // ── Format timer ──────────────────────────────────────────────────────────
-  const formatTime = (seconds: number) => {
-    const m = Math.floor(seconds / 60);
-    const s = seconds % 60;
-    return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
-  };
+  // ── Normal click for desktop ───────────────────────────────────────────────
+  const onClick = useCallback(() => {
+    // On desktop (non-touch), a normal click opens the modal.
+    // On touch, the pointer handlers manage tap-vs-hold, so we skip the click.
+    if (!isTouchRef.current) {
+      setModalOpen(true);
+    }
+  }, []);
 
-  // ── Recording overlay ──────────────────────────────────────────────────────
-  const showOverlay = isRecording || isProcessing || isError;
+  // ── Format timer ───────────────────────────────────────────────────────────
+  const fmt = (s: number) => `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
+
+  // ── Derived ─────────────────────────────────────────────────────────────────
+  const showRec = recState !== "IDLE";
+  const isRec = recState === "RECORDING" || recState === "LOCKED";
+  const isLocked = recState === "LOCKED";
+  const isCancel = recState === "CANCEL_PENDING";
+  const isProcessing = recState === "PROCESSING" || smartEntry.state === "transcribing" || smartEntry.state === "interpreting";
+  const isError = recState === "ERROR";
 
   return (
     <>
-      {/* ── Main button ─────────────────────────────────────────────────────── */}
-      {!showOverlay ? (
-        <button
-          type="button"
-          onPointerDown={holdToRecord.onPointerDown}
-          onPointerMove={holdToRecord.onPointerMove}
-          onPointerUp={holdToRecord.onPointerUp}
-          onPointerLeave={holdToRecord.onPointerLeave}
-          className="group fixed bottom-[5.5rem] right-0 z-30 flex h-16 w-16 touch-none select-none items-center justify-center rounded-full bg-gradient-to-br from-brand-600 via-brand-700 to-purple-700 text-white shadow-xl shadow-brand-600/40 transition-transform hover:scale-110 active:scale-95"
-          style={{
-            right: "max(1rem, calc((100vw - 1024px) / 2 + 1rem))",
-            touchAction: "none", // prevent scrolling while holding
-          }}
-          aria-label="Smart Khata voice entry — tap for menu, hold to record"
+      {/* ── Compact recording pill (appears above the button) ────────────── */}
+      {showRec ? (
+        <div
+          className="fixed bottom-[9rem] z-[35] flex items-center gap-2 rounded-full bg-slate-900 px-4 py-2 shadow-lg"
+          style={{ right: "max(1rem, calc((100vw - 1024px) / 2 + 1rem))" }}
         >
+          {isError ? (
+            <>
+              <AlertCircle className="h-4 w-4 text-red-400" />
+              <span className="text-xs font-medium text-white">{recError}</span>
+            </>
+          ) : isProcessing ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin text-white" />
+              <span className="text-xs font-medium text-white">
+                {smartEntry.state === "transcribing" ? "Listening..." : "Understanding..."}
+              </span>
+            </>
+          ) : isLocked ? (
+            <>
+              <Lock className="h-3.5 w-3.5 text-white" />
+              <span className="font-mono text-sm font-bold text-white">{fmt(recDuration)}</span>
+              <button
+                type="button"
+                onClick={cancelRecording}
+                className="ml-2 flex items-center gap-1 rounded-full bg-white/20 px-2.5 py-1 text-xs font-semibold text-white hover:bg-white/30"
+              >Cancel</button>
+              <button
+                type="button"
+                onClick={stopAndSend}
+                className="flex items-center gap-1 rounded-full bg-brand-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-brand-700"
+              >Send</button>
+            </>
+          ) : isCancel ? (
+            <>
+              <X className="h-4 w-4 text-red-400" />
+              <span className="text-xs font-medium text-white">Release to cancel</span>
+            </>
+          ) : (
+            <>
+              <span className="h-2.5 w-2.5 rounded-full bg-red-500" style={{ animation: "rec-blink 1s infinite" }} />
+              <span className="font-mono text-sm font-bold text-white">{fmt(recDuration)}</span>
+              <span className="text-xs text-white/60">↑ lock</span>
+            </>
+          )}
+        </div>
+      ) : null}
+
+      {/* ── The button ───────────────────────────────────────────────────── */}
+      <button
+        type="button"
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onClick={onClick}
+        className={cn(
+          "fixed bottom-[5.5rem] right-0 z-30 flex h-16 w-16 touch-none select-none items-center justify-center rounded-full text-white shadow-xl transition-transform",
+          isRec
+            ? "bg-red-500 shadow-red-500/40 scale-110"
+            : "bg-gradient-to-br from-brand-600 via-brand-700 to-purple-700 shadow-brand-600/40 hover:scale-110 active:scale-95",
+        )}
+        style={{
+          right: "max(1rem, calc((100vw - 1024px) / 2 + 1rem))",
+          touchAction: "none",
+        }}
+        aria-label="Smart Khata voice entry — tap for menu, hold to record"
+      >
+        {/* Pulse ring (only when recording) */}
+        {isRec ? (
           <span
-            className="absolute inset-0 rounded-full bg-brand-500/40"
-            style={{
-              animation: "smart-mic-pulse 2.4s ease-out infinite",
-            }}
+            className="absolute inset-0 rounded-full bg-red-500/40"
+            style={{ animation: "smart-mic-pulse 1.5s ease-out infinite" }}
             aria-hidden
           />
+        ) : (
+          <span
+            className="absolute inset-0 rounded-full bg-brand-500/40"
+            style={{ animation: "smart-mic-pulse 2.4s ease-out infinite" }}
+            aria-hidden
+          />
+        )}
+
+        {/* Sparkles badge (only when idle) */}
+        {!showRec ? (
           <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-amber-400 text-white shadow-sm ring-2 ring-white">
             <Sparkles className="h-3 w-3" />
           </span>
-          <Mic className="relative h-7 w-7" strokeWidth={2.25} />
-          <style>{`
-            @keyframes smart-mic-pulse {
-              0%   { transform: scale(1);   opacity: 0.55; }
-              70%  { transform: scale(1.6); opacity: 0;    }
-              100% { transform: scale(1.6); opacity: 0;    }
-            }
-          `}</style>
-        </button>
-      ) : null}
+        ) : null}
 
-      {/* ── Recording overlay ──────────────────────────────────────────────── */}
-      {showOverlay ? (
-        <RecordingOverlay
-          state={holdToRecord.state}
-          error={holdToRecord.error}
-          duration={holdToRecord.recordingDuration}
-          audioLevel={holdToRecord.audioLevel}
-          smartEntryState={smartEntry.state}
-          onCancel={holdToRecord.cancelRecording}
-          onStopAndSend={holdToRecord.stopAndSend}
-          formatTime={formatTime}
-        />
-      ) : null}
+        {/* Icon */}
+        {isError ? (
+          <AlertCircle className="relative h-7 w-7" />
+        ) : isProcessing ? (
+          <Loader2 className="relative h-7 w-7 animate-spin" />
+        ) : (
+          <Mic className="relative h-7 w-7" strokeWidth={2.25} />
+        )}
+
+        <style>{`
+          @keyframes smart-mic-pulse {
+            0% { transform: scale(1); opacity: 0.55; }
+            70% { transform: scale(1.6); opacity: 0; }
+            100% { transform: scale(1.6); opacity: 0; }
+          }
+          @keyframes rec-blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+          }
+        `}</style>
+      </button>
 
       {/* ── Smart Entry Modal (opens on tap or after audio processing) ────── */}
-      <SmartEntryModal open={modalOpen} onClose={() => {
-        setModalOpen(false);
-        smartEntry.reset();
-      }} />
-    </>
-  );
-}
-
-// ────────────────────────────────────────────────────────────────────────────────
-// RecordingOverlay — the full-screen overlay shown during recording/processing
-// ────────────────────────────────────────────────────────────────────────────────
-
-function RecordingOverlay({
-  state,
-  error,
-  duration,
-  audioLevel,
-  smartEntryState,
-  onCancel,
-  onStopAndSend,
-  formatTime,
-}: {
-  state: string;
-  error: string | null;
-  duration: number;
-  audioLevel: number;
-  smartEntryState: string;
-  onCancel: () => void;
-  onStopAndSend: () => void;
-  formatTime: (s: number) => string;
-}) {
-  const isRecording = state === "RECORDING";
-  const isLocked = state === "LOCKED";
-  const isCancelPending = state === "CANCEL_PENDING";
-  const isProcessing = state === "PROCESSING" || smartEntryState === "transcribing" || smartEntryState === "interpreting";
-  const isError = state === "ERROR";
-
-  // Audio level → visual circle size
-  const circleSize = isRecording ? 80 + Math.min(30, audioLevel * 60) : 80;
-
-  return (
-    <>
-      {/* Backdrop */}
-      <div
-        className={cn(
-          "fixed inset-0 z-[80] transition-opacity duration-150",
-          isError ? "bg-red-900/40" : isCancelPending ? "bg-red-900/50" : "bg-black/50",
-        )}
-        style={{ backdropFilter: "blur(2px)" }}
-      />
-
-      {/* Center content */}
-      <div className="fixed inset-0 z-[90] flex flex-col items-center justify-center px-6">
-        {isError ? (
-          // ── Error state ──────────────────────────────────────────────────
-          <div className="max-w-xs rounded-2xl bg-white p-6 text-center shadow-2xl">
-            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-red-100">
-              <AlertCircle className="h-6 w-6 text-red-600" />
-            </div>
-            <p className="text-sm font-semibold text-slate-900">Recording Error</p>
-            <p className="mt-1 text-xs text-slate-500">{error ?? "Something went wrong."}</p>
-            <button
-              type="button"
-              onClick={onCancel}
-              className="mt-4 w-full rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700"
-            >
-              Dismiss
-            </button>
-          </div>
-        ) : isProcessing ? (
-          // ── Processing state ─────────────────────────────────────────────
-          <div className="flex flex-col items-center gap-4">
-            <div className="flex h-16 w-16 items-center justify-center">
-              <Loader2 className="h-8 w-8 animate-spin text-white" />
-            </div>
-            <p className="text-sm font-semibold text-white">
-              {smartEntryState === "transcribing" ? "Listening..." : "Understanding..."}
-            </p>
-          </div>
-        ) : isLocked ? (
-          // ── Locked recording ────────────────────────────────────────────
-          <div className="flex flex-col items-center gap-6">
-            {/* Lock indicator + timer */}
-            <div className="flex items-center gap-3 rounded-full bg-white/20 px-4 py-2 backdrop-blur">
-              <Lock className="h-4 w-4 text-white" />
-              <span className="font-mono text-lg font-bold text-white">{formatTime(duration)}</span>
-              <span
-                className="h-2.5 w-2.5 rounded-full bg-red-500"
-                style={{ animation: "rec-blink 1s ease-in-out infinite" }}
-              />
-            </div>
-
-            {/* Audio level indicator */}
-            <div
-              className="rounded-full bg-red-500/40 transition-transform duration-100"
-              style={{ width: circleSize, height: circleSize }}
-            >
-              <div className="flex h-full w-full items-center justify-center">
-                <Mic className="h-8 w-8 text-white" />
-              </div>
-            </div>
-
-            {/* Controls */}
-            <div className="flex gap-3">
-              <button
-                type="button"
-                onClick={onCancel}
-                className="flex items-center gap-2 rounded-xl bg-white/20 px-5 py-2.5 text-sm font-semibold text-white backdrop-blur hover:bg-white/30 active:scale-95"
-              >
-                <X className="h-4 w-4" />
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={onStopAndSend}
-                className="flex items-center gap-2 rounded-xl bg-brand-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg hover:bg-brand-700 active:scale-95"
-              >
-                <Send className="h-4 w-4" />
-                Send
-              </button>
-            </div>
-          </div>
-        ) : (
-          // ── Active recording (finger still down) ────────────────────────
-          <div className="flex flex-col items-center gap-4">
-            {/* Timer */}
-            <div className="flex items-center gap-2 rounded-full bg-white/20 px-4 py-1.5 backdrop-blur">
-              <span
-                className="h-2.5 w-2.5 rounded-full bg-red-500"
-                style={{ animation: "rec-blink 1s ease-in-out infinite" }}
-              />
-              <span className="font-mono text-base font-bold text-white">{formatTime(duration)}</span>
-            </div>
-
-            {/* Mic circle with audio level */}
-            <div className="relative flex items-center justify-center" style={{ height: 160 }}>
-              {/* Cancel indicator */}
-              {isCancelPending ? (
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="flex flex-col items-center gap-2">
-                    <div className="flex h-20 w-20 items-center justify-center rounded-full bg-red-500 text-white shadow-lg">
-                      <X className="h-8 w-8" strokeWidth={3} />
-                    </div>
-                    <span className="text-sm font-semibold text-white">Release to cancel</span>
-                  </div>
-                </div>
-              ) : (
-                <>
-                  {/* Pulse ring */}
-                  <div
-                    className="absolute rounded-full bg-red-500/30 transition-transform duration-100"
-                    style={{ width: circleSize, height: circleSize }}
-                  />
-                  {/* Inner circle */}
-                  <div className="relative flex h-20 w-20 items-center justify-center rounded-full bg-red-500 text-white shadow-lg shadow-red-500/40">
-                    <Mic className="h-8 w-8" />
-                  </div>
-                </>
-              )}
-            </div>
-
-            {/* Hint text */}
-            {!isCancelPending ? (
-              <div className="flex flex-col items-center gap-1">
-                <p className="text-sm font-medium text-white">Recording...</p>
-                <p className="text-xs text-white/60">↑ Swipe up to lock · ← Drag away to cancel</p>
-              </div>
-            ) : null}
-          </div>
-        )}
-      </div>
-
-      <style>{`
-        @keyframes rec-blink {
-          0%, 100% { opacity: 1; }
-          50%      { opacity: 0.3; }
-        }
-      `}</style>
+      <SmartEntryModal open={modalOpen} onClose={() => { setModalOpen(false); smartEntry.reset(); }} />
     </>
   );
 }

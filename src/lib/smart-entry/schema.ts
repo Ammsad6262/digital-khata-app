@@ -57,6 +57,10 @@ export const aiInterpretationSchema = z.object({
   // V3: explicit price fields from the user's speech
   explicitUnitPrice: z.number().finite().positive().nullable(),
   explicitTotal: z.number().finite().positive().nullable(),
+  // V4: amount the customer PAID (NOT the selling price or total!)
+  // e.g. "us ne 20 hazar diye" → explicitPaidAmount = 20000
+  // This is separate from explicitUnitPrice (selling rate) and explicitTotal (total sale).
+  explicitPaidAmount: z.number().finite().positive().nullable(),
   // Self-reported confidence 0..1
   confidence: z.number().min(0).max(1).optional(),
   needsClarification: z.boolean().default(false),
@@ -141,6 +145,13 @@ export const executeRequestSchema = z.object({
     .transform((v) => (typeof v === "string" ? Number(v) : v))
     .refine((v) => Number.isFinite(v) && v > 0, "Unit price must be a positive number.")
     .optional(),
+  // V4: amount the customer paid (partial payment). 0 = full credit sale.
+  // Backend validates paidAmount <= totalAmount.
+  paidAmount: z
+    .union([z.number(), z.string()])
+    .transform((v) => (typeof v === "string" ? Number(v) : v))
+    .refine((v) => Number.isFinite(v) && v >= 0, "Paid amount must be non-negative.")
+    .default(0),
 });
 
 export type ExecuteRequest = z.infer<typeof executeRequestSchema>;

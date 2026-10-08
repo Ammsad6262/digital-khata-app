@@ -777,19 +777,22 @@ function EditableFormView({
     unitRaw: string | null;
     explicitUnitPrice: number | null;
     explicitTotal: number | null;
+    explicitPaidAmount: number | null;
     resolvedCustomerId: string | null;
     resolvedProductId: string | null;
     unitPrice: number | null;
     totalAmount: number | null;
     priceSource: string;
     priceConflict: { unitPrice: number; total: number; calculatedTotal: number } | null;
+    paidAmount: number | null;
+    balance: number | null;
     isNewCustomer: boolean;
     customerCandidates: Array<{ id: string; name: string; phone?: string | null }>;
     productCandidates: Array<{ id: string; name: string; unit?: string | null; sellingPrice?: string | null }>;
     hint: string | null;
   };
   transcript: string | null;
-  onConfirm: (input: { customerId: string; productId: string; quantity: number; unitPrice?: number }) => void;
+  onConfirm: (input: { customerId: string; productId: string; quantity: number; unitPrice?: number; paidAmount?: number }) => void;
   onCancel: () => void;
 }) {
   // Local form state — initialized from the AI-resolved values, fully editable
@@ -801,6 +804,10 @@ function EditableFormView({
   // V3: unit price is editable — initialized from the backend-computed value
   const [unitPriceStr, setUnitPriceStr] = useState<string>(
     form.unitPrice != null ? String(form.unitPrice) : ""
+  );
+  // V4: paid amount is editable — initialized from the AI-extracted value
+  const [paidAmountStr, setPaidAmountStr] = useState<string>(
+    form.paidAmount != null && form.paidAmount > 0 ? String(form.paidAmount) : ""
   );
   // V3: New customer inline creation
   const [showNewCustomerForm, setShowNewCustomerForm] = useState(false);
@@ -822,16 +829,30 @@ function EditableFormView({
     ? quantityNum * unitPriceNum
     : null;
 
+  // V4: Paid amount + balance calculation
+  const paidAmountNum = Number(paidAmountStr || "0");
+  const isValidPaidAmount = Number.isFinite(paidAmountNum) && paidAmountNum >= 0;
+  const liveBalance = calculatedTotal != null && isValidPaidAmount
+    ? calculatedTotal - paidAmountNum
+    : null;
+
   // V3: If the AI provided an explicit total, show it alongside the calculated
   const explicitTotalDisplay = form.explicitTotal ?? null;
 
   // Validation: customer + product + valid quantity + valid unitPrice all required
-  const canSubmit = !!customerId && !!productId && isValidQuantity && isValidUnitPrice;
+  const canSubmit = !!customerId && !!productId && isValidQuantity && isValidUnitPrice && isValidPaidAmount;
 
   const handleSubmit = () => {
     if (!canSubmit) return;
     // V3: pass unitPrice to the backend — it re-validates + recomputes amount
-    onConfirm({ customerId, productId, quantity: quantityNum, unitPrice: unitPriceNum });
+    // V4: pass paidAmount to the backend — it validates paidAmount <= totalAmount
+    onConfirm({
+      customerId,
+      productId,
+      quantity: quantityNum,
+      unitPrice: unitPriceNum,
+      paidAmount: paidAmountNum,
+    });
   };
 
   // V3: Price source label for display
@@ -990,25 +1011,63 @@ function EditableFormView({
           />
         </Field>
 
-        {/* V3: Amount — auto-calculated from qty × unitPrice */}
-        <div className="rounded-2xl bg-gradient-to-br from-brand-50 to-brand-100 p-4">
+        {/* V4: Payment + Balance section */}
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-3">
+          {/* Total Amount */}
           <div className="flex items-center justify-between">
-            <div>
-              <p className="text-[11px] font-medium uppercase tracking-wide text-brand-700">Total Amount</p>
-              <p className="mt-0.5 text-2xl font-bold text-brand-900">
-                {calculatedTotal != null ? formatMoney(calculatedTotal) : "—"}
-              </p>
-            </div>
-            {isValidQuantity && isValidUnitPrice ? (
-              <p className="text-xs text-brand-600">
-                {quantityNum} × {formatMoney(unitPriceNum)}
-              </p>
-            ) : null}
+            <span className="text-xs font-medium uppercase tracking-wide text-slate-500">Total Amount</span>
+            <span className="text-lg font-bold text-slate-900">
+              {calculatedTotal != null ? formatMoney(calculatedTotal) : "—"}
+            </span>
           </div>
+
+          {/* Amount Paid (editable) */}
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs font-medium uppercase tracking-wide text-slate-500">Amount Paid</span>
+            <input
+              type="number"
+              inputMode="decimal"
+              step="any"
+              min="0"
+              value={paidAmountStr}
+              onChange={(e) => setPaidAmountStr(e.target.value)}
+              placeholder="0"
+              className="w-28 rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-right text-sm font-semibold text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+            />
+          </div>
+
+          {/* Divider */}
+          <div className="border-t-2 border-dashed border-slate-100" />
+
+          {/* Balance — HE OWES US / WE OWE HIM / FULLY PAID */}
+          {liveBalance != null ? (
+            liveBalance > 0 ? (
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold uppercase tracking-wide text-amber-700">He Owes Us</span>
+                <span className="text-lg font-bold text-amber-700">{formatMoney(liveBalance)}</span>
+              </div>
+            ) : liveBalance < 0 ? (
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold uppercase tracking-wide text-blue-700">We Owe Him</span>
+                <span className="text-lg font-bold text-blue-700">{formatMoney(Math.abs(liveBalance))}</span>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold uppercase tracking-wide text-green-700">Fully Paid</span>
+                <span className="text-lg font-bold text-green-700">{formatMoney(0)}</span>
+              </div>
+            )
+          ) : (
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium uppercase tracking-wide text-slate-400">Balance</span>
+              <span className="text-lg font-bold text-slate-400">—</span>
+            </div>
+          )}
+
           {/* Show explicit total if the user said one and it differs */}
           {explicitTotalDisplay != null && calculatedTotal != null &&
            Math.abs(explicitTotalDisplay - calculatedTotal) > 1 ? (
-            <p className="mt-2 border-t border-brand-200 pt-2 text-xs text-brand-700">
+            <p className="border-t border-slate-100 pt-2 text-xs text-slate-500">
               You said total: <span className="font-bold">Rs. {explicitTotalDisplay.toLocaleString()}</span>
               {" "}(effective rate: Rs. {(explicitTotalDisplay / quantityNum).toFixed(2)}/{unit})
             </p>

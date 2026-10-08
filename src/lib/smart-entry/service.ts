@@ -66,35 +66,37 @@ export type FormFieldState = {
   // V3: Price fields extracted by AI
   explicitUnitPrice: number | null;  // user said "950 per kg"
   explicitTotal: number | null;      // user said "total 24000"
+  // V4: Payment amount extracted by AI
+  explicitPaidAmount: number | null; // user said "he gave me 20000"
 
   // Resolved by BACKEND — pre-fill the form if exactly 1 match
   resolvedCustomerId: string | null;
   resolvedProductId: string | null;
 
   // V3: Computed price fields (backend applies pricing priority)
-  // These are what the form should display:
   unitPrice: number | null;    // the unit price to use (from priority)
   totalAmount: number | null;  // the total amount (qty × unitPrice OR explicitTotal)
   priceSource: "USER_TOTAL" | "USER_UNIT_PRICE" | "DEFAULT_PRODUCT_PRICE" | "MANUAL_INPUT" | "CONFLICT_RESOLVED" | "NONE";
 
-  // V3: If both unit price AND total were given but they conflict,
-  // this flag is set so the UI can show a clarification dialog.
+  // V4: Payment + balance
+  paidAmount: number | null;   // what the customer paid (0 = full credit)
+  balance: number | null;       // totalAmount - paidAmount (positive = customer owes us)
+
+  // V3: If both unit price AND total were given but they conflict
   priceConflict: {
     unitPrice: number;
     total: number;
-    calculatedTotal: number;  // qty × unitPrice
+    calculatedTotal: number;
   } | null;
 
   // V3: New customer detection
-  // If the AI extracted a customerName but NO existing customer matched,
-  // this is set so the UI can show "Add as new customer?" prompt.
   isNewCustomer: boolean;
 
   // All of the user's customers + products (for the searchable pickers)
   customerCandidates: EntityCandidate[];
   productCandidates: EntityCandidate[];
 
-  // Helpful hint for the user (e.g. "How much rice?")
+  // Helpful hint for the user
   hint: string | null;
 };
 
@@ -239,6 +241,9 @@ export async function interpretInput(
         totalAmount: null,
         priceSource: "NONE",
         priceConflict: null,
+        paidAmount: 0,
+        balance: null,
+        explicitPaidAmount: null,
         isNewCustomer: false,
         customerCandidates: customers,
         productCandidates: products,
@@ -273,11 +278,14 @@ export async function interpretInput(
         unitRaw: null,
         explicitUnitPrice: null,
         explicitTotal: null,
+        explicitPaidAmount: null,
         resolvedCustomerId: null,
         resolvedProductId: null,
         unitPrice: null,
         totalAmount: null,
         priceSource: "NONE",
+        paidAmount: 0,
+        balance: null,
         priceConflict: null,
         isNewCustomer: false,
         customerCandidates: customers,
@@ -374,6 +382,15 @@ export async function interpretInput(
   // PRIORITY 4: None → priceSource stays "NONE", unitPrice/totalAmount stay null
   // The UI will show "Price: —" and the user can type it manually.
 
+  // V4: Compute payment + balance
+  // paidAmount = what the customer paid (from AI, or 0 if not mentioned)
+  // balance = totalAmount - paidAmount
+  //   positive = customer owes us
+  //   0 = fully paid
+  //   negative = we owe the customer (overpayment)
+  const paidAmount = ai.explicitPaidAmount ?? 0;
+  const balance = totalAmount != null ? totalAmount - paidAmount : null;
+
   // Build a helpful hint based on what's missing
   const hint = buildHint(ai, priceSource, defaultUnitPrice);
 
@@ -411,11 +428,14 @@ export async function interpretInput(
       unitRaw: ai.unit ?? null,
       explicitUnitPrice: ai.explicitUnitPrice ?? null,
       explicitTotal: ai.explicitTotal ?? null,
+      explicitPaidAmount: ai.explicitPaidAmount ?? null,
       resolvedCustomerId,
       resolvedProductId,
       unitPrice,
       totalAmount,
       priceSource,
+      paidAmount,
+      balance,
       priceConflict,
       isNewCustomer,
       customerCandidates: customers,
@@ -459,11 +479,14 @@ export async function executeSession(
     productId: string;
     quantity: number;
     unitPrice?: number;
+    paidAmount?: number;
   },
 ): Promise<ExecuteResult> {
   const { sessionId, customerId, productId, quantity } = input;
   // V3: unitPrice is OPTIONAL — if not provided, backend uses product default
   const clientUnitPrice = input.unitPrice;
+  // V4: paidAmount is OPTIONAL — if not provided, defaults to 0 (full credit sale)
+  const clientPaidAmount = input.paidAmount ?? 0;
 
   // 1. Load + verify session belongs to this user
   const session = await loadAndVerifySession(userId, sessionId);
@@ -549,8 +572,15 @@ export async function executeSession(
     const amount = quantityDec.times(finalUnitPrice);
 
     // 9. Call existing SaleService.createSale() — the trusted path.
-    //    paidAmount = 0 (this is a CREDIT sale; V1 doesn't support paying
-    //    at sale time via Smart Entry).
+    //    V4: paidAmount can be > 0 (partial payment) or 0 (full credit sale).
+    //    Backend validates paidAmount <= totalAmount.
+    const paidAmountDec = new Decimal(clientPaidAmount);
+    if (paidAmountDec.gt(amount)) {
+      throw new BadRequestError(
+        `Paid amount (${paidAmountDec}) cannot exceed sale total (${amount}).`,
+      );
+    }
+
     const sale = await createSale(
       {
         customerId: customer.id,
@@ -561,7 +591,7 @@ export async function executeSession(
             unitPrice: finalUnitPrice.toNumber(),
           },
         ],
-        paidAmount: 0,
+        paidAmount: paidAmountDec.toNumber(),
         paymentMethod: "cash",
       },
       userId,

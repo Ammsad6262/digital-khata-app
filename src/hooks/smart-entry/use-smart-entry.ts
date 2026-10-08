@@ -175,6 +175,7 @@ export function useSmartEntry() {
     productId: string;
     quantity: number;
     unitPrice?: number;
+    paidAmount?: number;
   }) => {
     if (!state.sessionId) return;
     setState((s) => ({ ...s, state: "executing" }));
@@ -188,6 +189,7 @@ export function useSmartEntry() {
           productId: input.productId,
           quantity: input.quantity,
           unitPrice: input.unitPrice,
+          paidAmount: input.paidAmount,
         }),
       });
       const json = await res.json();

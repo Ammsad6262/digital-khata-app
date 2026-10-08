@@ -15,7 +15,8 @@
  * Tapping outside or the close button dismisses.
  */
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import {
   Plus,
@@ -84,7 +85,23 @@ const ACTIONS: Action[] = [
 
 export function QuickAddMenu() {
   const [isOpen, setIsOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const router = useRouter();
+
+  useEffect(() => setMounted(true), []);
+
+  // Lock body scroll when sheet is open
+  useEffect(() => {
+    if (!isOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setIsOpen(false); };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = prev;
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [isOpen]);
 
   const handleSelect = (href: string) => {
     setIsOpen(false);
@@ -112,21 +129,28 @@ export function QuickAddMenu() {
         <Plus className="h-5 w-5" strokeWidth={2.5} />
       </button>
 
-      {/* Bottom sheet overlay */}
-      {isOpen ? (
-        <>
-          {/* Backdrop — covers the entire viewport including bottom nav */}
-          <div
-            className="fixed inset-0 z-40 bg-black/30"
-            onClick={() => setIsOpen(false)}
-          />
+      {/* Bottom sheet — rendered to document.body via Portal */}
+      {mounted && isOpen
+        ? createPortal(
+            <>
+              {/* Backdrop */}
+              <div
+                className="fixed inset-0 z-[60] bg-black/40"
+                onClick={() => setIsOpen(false)}
+                style={{ animation: "dk-fade-in 0.15s ease-out" }}
+                aria-hidden
+              />
 
-          {/* Bottom sheet — scrolls if content exceeds viewport height.
-              max-h-[85dvh] keeps it within the viewport with room for the
-              status bar. overflow-y-auto makes the content area scrollable.
-              pb-[env(safe-area-inset-bottom)] handles iPhone notch/home bar. */}
-          <div className="fixed inset-x-0 bottom-0 z-50 mx-auto flex max-h-[85dvh] max-w-[480px] flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl"
-               style={{ animation: "slideUp 0.2s ease-out", paddingBottom: "env(safe-area-inset-bottom)" }}>
+              {/* Bottom sheet — z-[70] above BottomNav (z-30) */}
+              <div
+                role="dialog"
+                aria-modal="true"
+                aria-label="Quick add"
+                className="fixed inset-x-0 bottom-0 z-[70] mx-auto flex max-h-[90dvh] w-full max-w-[480px] flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl"
+                style={{
+                  animation: "dk-slide-up 0.2s ease-out",
+                  paddingBottom: "calc(env(safe-area-inset-bottom) + 1rem)",
+                }}>
             {/* Drag handle */}
             <div className="mx-auto mt-3 mb-2 h-1 w-10 shrink-0 rounded-full bg-slate-200" />
 
@@ -171,15 +195,21 @@ export function QuickAddMenu() {
             </div>
           </div>
 
-          {/* Inline keyframe — no need for a separate CSS file */}
-          <style>{`
-            @keyframes slideUp {
-              from { transform: translateY(100%); }
-              to { transform: translateY(0); }
-            }
-          `}</style>
-        </>
-      ) : null}
+              {/* Inline keyframes — namespaced */}
+              <style>{`
+                @keyframes dk-slide-up {
+                  from { transform: translateY(100%); }
+                  to   { transform: translateY(0); }
+                }
+                @keyframes dk-fade-in {
+                  from { opacity: 0; }
+                  to   { opacity: 1; }
+                }
+              `}</style>
+            </>,
+            document.body,
+          )
+        : null}
     </>
   );
 }

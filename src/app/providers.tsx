@@ -8,7 +8,9 @@
  *
  * On the Dashboard, renders TWO floating action buttons:
  *   - LEFT:   QuickAddMenu (+ button) — manual entry options sheet
- *   - RIGHT:  SmartKhataMicButton (microphone) — voice-driven Smart Khata Entry
+ *   - RIGHT:  HoldToRecordButton (microphone) — WhatsApp-style press-and-hold
+ *             voice recording. TAP opens Smart Entry modal; HOLD starts
+ *             recording immediately.
  *
  * The mic FAB is the primary, more prominent action; the + FAB is the
  * secondary, manual fallback.
@@ -24,7 +26,7 @@ import { AuthGate } from "@/providers/auth-gate";
 import { Screen } from "@/components/layout/Screen";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { QuickAddMenu } from "@/components/layout/QuickAddMenu";
-import { SmartKhataMicButton } from "@/components/smart-entry/SmartKhataMicButton";
+import { HoldToRecordButton } from "@/components/smart-entry/HoldToRecordButton";
 
 const PUBLIC_PAGES = ["/login", "/register"];
 
@@ -57,7 +59,7 @@ export function Providers({ children }: { children: ReactNode }) {
                   {showFab ? (
                     <>
                       <QuickAddMenu />
-                      <SmartKhataMicButton />
+                      <HoldToRecordButton />
                     </>
                   ) : null}
                 </Screen>

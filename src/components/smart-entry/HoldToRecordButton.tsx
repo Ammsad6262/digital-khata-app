@@ -13,35 +13,25 @@
  * The button itself transforms into a recording control. A small pill appears
  * above the button with timer + hint text. The Dashboard stays fully visible.
  *
- * LAYOUT (bottom-right, where the FAB lives):
+ * CRITICAL FIX (this commit):
+ *   HoldToRecordButton no longer creates its own useSmartEntry hook instance.
+ *   Instead, it receives `onAudioReady` callback from the parent (providers.tsx)
+ *   which passes the audio blob to the SINGLE shared useSmartEntry instance
+ *   owned by SmartEntryModal. This fixes the bug where the modal showed the
+ *   Text/Voice selection screen after hold-to-record finished processing —
+ *   because the two hook instances didn't share state.
  *
- *   ┌──────────────────────────┐
- *   │  🔴 00:04   ↑ slide to lock │   ← small pill (only while recording)
- *   └──────────────────────────┘
- *   ┌────┐
- *   │ 🎙 │   ← the button itself (turns red while recording)
- *   └────┘
+ *   OLD (BUGGY):
+ *     HoldToRecordButton → own useSmartEntry → submitAudio → state = "form"
+ *     SmartEntryModal → own useSmartEntry → state still "idle" → shows choice screen
  *
- * When LOCKED:
- *   ┌──────────────────────────┐
- *   │  🔒 00:08    [Cancel] [Send] │  ← locked pill
- *   └──────────────────────────┘
- *   ┌────┐
- *   │ 🔴 │
- *   └────┘
- *
- * When CANCEL pending (finger dragged away):
- *   ┌──────────────────────────┐
- *   │  ✕ Release to cancel       │  ← cancel pill
- *   └──────────────────────────┘
- *   ┌────┐
- *   │ 🎙 │
- *   └────┘
+ *   NEW (FIXED):
+ *     HoldToRecordButton → onAudioReady(blob) → passed to SmartEntryModal's hook
+ *     SmartEntryModal → useSmartEntry → submitAudio → state = "form" → shows form
  */
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import { Mic, Lock, X, Send, Loader2, Sparkles, AlertCircle } from "lucide-react";
-import { useSmartEntry } from "@/hooks/smart-entry/use-smart-entry";
 import { SmartEntryModal } from "@/components/smart-entry/SmartEntryModal";
 import { cn } from "@/lib/utils/cn";
 
@@ -61,11 +51,16 @@ type RecordState =
   | "PROCESSING"
   | "ERROR";
 
-export function HoldToRecordButton() {
-  const [modalOpen, setModalOpen] = useState(false);
-  const smartEntry = useSmartEntry();
-
-  // Recording state
+export function HoldToRecordButton({
+  modalOpen,
+  setModalOpen,
+  onAudioReady,
+}: {
+  modalOpen: boolean;
+  setModalOpen: (open: boolean) => void;
+  onAudioReady: (blob: Blob, mimeType: string) => void;
+}) {
+  // Recording state (local to this component — doesn't re-render Dashboard)
   const [recState, setRecState] = useState<RecordState>("IDLE");
   const [recError, setRecError] = useState<string | null>(null);
   const [recDuration, setRecDuration] = useState(0);
@@ -88,8 +83,6 @@ export function HoldToRecordButton() {
   const isPointerDownRef = useRef(false);
 
   // ── Detect touch device ───────────────────────────────────────────────────
-  // On desktop (mouse), we DON'T do hold-to-record — just normal click → modal.
-  // On touch (mobile/tablet), we DO the WhatsApp-style hold gesture.
   useEffect(() => {
     const detectTouch = () => {
       isTouchRef.current =
@@ -158,7 +151,9 @@ export function HoldToRecordButton() {
           return;
         }
         setRecState("PROCESSING");
-        smartEntry.submitAudio(blob, mimeType);
+        // Call the PARENT'S callback — passes the audio to the shared
+        // SmartEntryModal's useSmartEntry hook (NOT our own hook)
+        onAudioReady(blob, mimeType);
       };
       recorder.onerror = () => { cleanup(); setRecState("ERROR"); setRecError("Recording failed."); };
 
@@ -170,7 +165,7 @@ export function HoldToRecordButton() {
         setRecDuration(Math.floor((Date.now() - startTimeRef.current) / 1000));
       }, 1000);
 
-      // Audio level (requestAnimationFrame, no React re-render for the value itself)
+      // Audio level
       try {
         const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
         audioContextRef.current = ctx;
@@ -201,7 +196,7 @@ export function HoldToRecordButton() {
           : e instanceof Error ? e.message : "Failed to access microphone."
       );
     }
-  }, [cleanup, smartEntry]);
+  }, [cleanup, onAudioReady]);
 
   // ── Stop + send ─────────────────────────────────────────────────────────────
   const stopAndSend = useCallback(() => {
@@ -222,7 +217,6 @@ export function HoldToRecordButton() {
 
   // ── Pointer handlers (only for touch devices) ──────────────────────────────
   const onPointerDown = useCallback((e: React.PointerEvent) => {
-    // Only activate hold-to-record on touch devices
     if (!isTouchRef.current) return;
     if (recState !== "IDLE") return;
     e.preventDefault();
@@ -256,24 +250,18 @@ export function HoldToRecordButton() {
     if (recState === "CANCEL_PENDING") { cancelRecording(); startPosRef.current = null; return; }
     if (recState === "ERROR") { setRecState("IDLE"); setRecError(null); }
     startPosRef.current = null;
-  }, [recState, stopAndSend, cancelRecording]);
+  }, [recState, stopAndSend, cancelRecording, setModalOpen]);
 
-  // ── Open modal when smartEntry reaches form/success/error ───────────────────
-  useEffect(() => {
-    if (smartEntry.state === "form" || smartEntry.state === "success" || smartEntry.state === "error" || smartEntry.state === "cancelled") {
-      setModalOpen(true);
-      if (recState === "PROCESSING") setRecState("IDLE");
-    }
-  }, [smartEntry.state, recState]);
-
+  // ── When audio is processing, keep recState at PROCESSING until the
+  //    parent's SmartEntryModal hook reaches a terminal state.
+  //    The parent will call setModalOpen(true) when the form/success/error
+  //    appears, and we reset recState to IDLE.
   // ── Normal click for desktop ───────────────────────────────────────────────
   const onClick = useCallback(() => {
-    // On desktop (non-touch), a normal click opens the modal.
-    // On touch, the pointer handlers manage tap-vs-hold, so we skip the click.
     if (!isTouchRef.current) {
       setModalOpen(true);
     }
-  }, []);
+  }, [setModalOpen]);
 
   // ── Format timer ───────────────────────────────────────────────────────────
   const fmt = (s: number) => `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
@@ -283,7 +271,7 @@ export function HoldToRecordButton() {
   const isRec = recState === "RECORDING" || recState === "LOCKED";
   const isLocked = recState === "LOCKED";
   const isCancel = recState === "CANCEL_PENDING";
-  const isProcessing = recState === "PROCESSING" || smartEntry.state === "transcribing" || smartEntry.state === "interpreting";
+  const isProcessing = recState === "PROCESSING";
   const isError = recState === "ERROR";
 
   return (
@@ -302,9 +290,7 @@ export function HoldToRecordButton() {
           ) : isProcessing ? (
             <>
               <Loader2 className="h-4 w-4 animate-spin text-white" />
-              <span className="text-xs font-medium text-white">
-                {smartEntry.state === "transcribing" ? "Listening..." : "Understanding..."}
-              </span>
+              <span className="text-xs font-medium text-white">Listening...</span>
             </>
           ) : isLocked ? (
             <>
@@ -355,7 +341,7 @@ export function HoldToRecordButton() {
         }}
         aria-label="Smart Khata voice entry — tap for menu, hold to record"
       >
-        {/* Pulse ring (only when recording) */}
+        {/* Pulse ring */}
         {isRec ? (
           <span
             className="absolute inset-0 rounded-full bg-red-500/40"
@@ -398,9 +384,6 @@ export function HoldToRecordButton() {
           }
         `}</style>
       </button>
-
-      {/* ── Smart Entry Modal (opens on tap or after audio processing) ────── */}
-      <SmartEntryModal open={modalOpen} onClose={() => { setModalOpen(false); smartEntry.reset(); }} />
     </>
   );
 }

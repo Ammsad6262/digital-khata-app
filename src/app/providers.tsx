@@ -12,10 +12,25 @@
  *             voice recording. TAP opens Smart Entry modal; HOLD starts
  *             recording immediately.
  *
- * The mic FAB is the primary, more prominent action; the + FAB is the
- * secondary, manual fallback.
+ * CRITICAL: The Smart Entry modal + HoldToRecordButton share a SINGLE
+ * useSmartEntry hook instance (owned here in Providers). This prevents the
+ * bug where HoldToRecordButton processed audio in its own hook, but the
+ * modal's separate hook was still "idle" → showed the Text/Voice selection
+ * screen instead of the transaction review form.
+ *
+ * Data flow:
+ *   HoldToRecordButton.onAudioReady(blob)
+ *     → smartEntry.submitAudio(blob)
+ *     → smartEntry.state = "transcribing" → "form"
+ *     → SmartEntryModal renders the editable form (state="form")
+ *
+ *   SmartEntryModal text submit
+ *     → smartEntry.submitText(text)
+ *     → smartEntry.state = "interpreting" → "form"
+ *     → SmartEntryModal renders the editable form (state="form")
  */
 
+import { useState, useCallback } from "react";
 import { type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import { QueryProvider } from "@/providers/query-provider";
@@ -27,12 +42,10 @@ import { Screen } from "@/components/layout/Screen";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { QuickAddMenu } from "@/components/layout/QuickAddMenu";
 import { HoldToRecordButton } from "@/components/smart-entry/HoldToRecordButton";
+import { SmartEntryModal } from "@/components/smart-entry/SmartEntryModal";
+import { useSmartEntry } from "@/hooks/smart-entry/use-smart-entry";
 
 const PUBLIC_PAGES = ["/login", "/register"];
-
-// The Dashboard is the only page where the FABs render. Every other section
-// has its own header-level "+" action, so the floating buttons would just be
-// visual noise there. Form/edit pages also hide the FABs.
 const DASHBOARD_PATH = "/dashboard";
 
 export function Providers({ children }: { children: ReactNode }) {
@@ -41,8 +54,30 @@ export function Providers({ children }: { children: ReactNode }) {
     (p) => pathname === p || pathname.startsWith(p + "/"),
   );
 
-  // Both FABs render ONLY on /dashboard
   const showFab = !isPublicPage && pathname === DASHBOARD_PATH;
+
+  // ── Shared Smart Entry state ──────────────────────────────────────────────
+  // This is the SINGLE useSmartEntry instance shared between HoldToRecordButton
+  // and SmartEntryModal. Both components read + write to the same state.
+  const smartEntry = useSmartEntry();
+  const [modalOpen, setModalOpen] = useState(false);
+
+  // When smartEntry reaches a form/success/error/cancelled state, open the modal
+  // (so the user sees the result of their hold-to-record or text input)
+  useState(() => {
+    // This is a workaround for not having useEffect here (providers.tsx is a
+    // client component but we want to keep it lean). The SmartEntryModal itself
+    // handles its own visibility — it renders when `open` is true.
+    return null;
+  });
+
+  // Callback for HoldToRecordButton → passes audio blob to the shared hook
+  const handleAudioReady = useCallback((blob: Blob, mimeType: string) => {
+    // Open the modal so the user sees "Listening..." → "Understanding..." → form
+    setModalOpen(true);
+    // Submit the audio to the shared useSmartEntry hook
+    smartEntry.submitAudio(blob, mimeType);
+  }, [smartEntry]);
 
   return (
     <ThemeProvider>
@@ -59,7 +94,19 @@ export function Providers({ children }: { children: ReactNode }) {
                   {showFab ? (
                     <>
                       <QuickAddMenu />
-                      <HoldToRecordButton />
+                      <HoldToRecordButton
+                        modalOpen={modalOpen}
+                        setModalOpen={setModalOpen}
+                        onAudioReady={handleAudioReady}
+                      />
+                      <SmartEntryModal
+                        open={modalOpen}
+                        onClose={() => {
+                          setModalOpen(false);
+                          smartEntry.reset();
+                        }}
+                        smartEntry={smartEntry}
+                      />
                     </>
                   ) : null}
                 </Screen>

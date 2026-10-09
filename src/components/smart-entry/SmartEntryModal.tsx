@@ -48,8 +48,15 @@ import { formatMoney } from "@/lib/utils/money";
 import { cn } from "@/lib/utils/cn";
 import Link from "next/link";
 
-export function SmartEntryModal({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const smartEntry = useSmartEntry();
+export function SmartEntryModal({
+  open,
+  onClose,
+  smartEntry,
+}: {
+  open: boolean;
+  onClose: () => void;
+  smartEntry: ReturnType<typeof useSmartEntry>;
+}) {
   const recorder = useAudioRecorder();
   const [mounted, setMounted] = useState(false);
   const [textValue, setTextValue] = useState("");

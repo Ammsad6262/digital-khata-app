@@ -782,11 +782,15 @@ function EditableFormView({
     productNameRaw: string | null;
     quantityRaw: number | null;
     unitRaw: string | null;
+    batchNameRaw: string | null;
     explicitUnitPrice: number | null;
     explicitTotal: number | null;
     explicitPaidAmount: number | null;
     resolvedCustomerId: string | null;
     resolvedProductId: string | null;
+    resolvedBatchId: string | null;
+    batchCandidates: Array<{ id: string; batchName: string | null; remainingQuantity: string; unitCost: string | null; date: Date }>;
+    batchSelectionRequired: boolean;
     unitPrice: number | null;
     totalAmount: number | null;
     priceSource: string;
@@ -799,7 +803,7 @@ function EditableFormView({
     hint: string | null;
   };
   transcript: string | null;
-  onConfirm: (input: { customerId: string; productId: string; quantity: number; unitPrice?: number; paidAmount?: number }) => void;
+  onConfirm: (input: { customerId: string; productId: string; quantity: number; unitPrice?: number; paidAmount?: number; batchId?: string }) => void;
   onCancel: () => void;
 }) {
   // Local form state — initialized from the AI-resolved values, fully editable
@@ -816,6 +820,8 @@ function EditableFormView({
   const [paidAmountStr, setPaidAmountStr] = useState<string>(
     form.paidAmount != null && form.paidAmount > 0 ? String(form.paidAmount) : ""
   );
+  // V5: batch selection — initialized from the backend-resolved batch
+  const [batchId, setBatchId] = useState<string>(form.resolvedBatchId ?? "");
   // V3: New customer inline creation
   const [showNewCustomerForm, setShowNewCustomerForm] = useState(false);
   const [newCustomerName, setNewCustomerName] = useState("");
@@ -847,18 +853,22 @@ function EditableFormView({
   const explicitTotalDisplay = form.explicitTotal ?? null;
 
   // Validation: customer + product + valid quantity + valid unitPrice all required
-  const canSubmit = !!customerId && !!productId && isValidQuantity && isValidUnitPrice && isValidPaidAmount;
+  // V5: If batch selection is required and no batch selected → disable submit
+  const batchValid = !form.batchSelectionRequired || !!batchId;
+
+  // Validation: customer + product + valid quantity + valid unitPrice + valid batch
+  const canSubmit = !!customerId && !!productId && isValidQuantity && isValidUnitPrice && isValidPaidAmount && batchValid;
 
   const handleSubmit = () => {
     if (!canSubmit) return;
-    // V3: pass unitPrice to the backend — it re-validates + recomputes amount
-    // V4: pass paidAmount to the backend — it validates paidAmount <= totalAmount
+    // V5: pass batchId to the backend
     onConfirm({
       customerId,
       productId,
       quantity: quantityNum,
       unitPrice: unitPriceNum,
       paidAmount: paidAmountNum,
+      batchId: batchId || undefined,
     });
   };
 
@@ -979,6 +989,38 @@ function EditableFormView({
             getSubtitle={(p) => p.unit ? `${p.unit}${p.sellingPrice ? ` · Rs. ${p.sellingPrice}` : ""}` : null}
           />
         </Field>
+
+        {/* V5: Batch selector — shown when product has stock batches */}
+        {form.batchCandidates.length > 0 ? (
+          <Field
+            label={form.batchSelectionRequired ? "Stock Batch (required)" : "Stock Batch"}
+            isFilled={!!batchId}
+          >
+            <select
+              value={batchId}
+              onChange={(e) => setBatchId(e.target.value)}
+              className={`w-full rounded-xl border bg-white px-3 py-2.5 text-sm font-medium text-slate-900 focus:outline-none focus:ring-2 ${
+                form.batchSelectionRequired && !batchId
+                  ? "border-amber-400 focus:border-amber-500 focus:ring-amber-500/30"
+                  : "border-slate-300 focus:border-brand-500 focus:ring-brand-500/30"
+              }`}
+            >
+              <option value="">
+                {form.batchSelectionRequired ? "— Select a batch —" : "Auto (newest batch)"}
+              </option>
+              {form.batchCandidates.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.batchName ?? `Batch ${new Date(b.date).toLocaleDateString()}`}
+                  {" — "}Rs. {b.unitCost ?? "?"}/unit
+                  {" — "}Remaining: {b.remainingQuantity}
+                </option>
+              ))}
+            </select>
+            {form.batchSelectionRequired && !batchId ? (
+              <p className="mt-1 text-xs text-amber-600">Please select a stock batch.</p>
+            ) : null}
+          </Field>
+        ) : null}
 
         {/* Quantity + Unit */}
         <div className="grid grid-cols-2 gap-2.5">

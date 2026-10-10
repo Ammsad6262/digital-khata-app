@@ -146,12 +146,15 @@ export const executeRequestSchema = z.object({
     .refine((v) => Number.isFinite(v) && v > 0, "Unit price must be a positive number.")
     .optional(),
   // V4: amount the customer paid (partial payment). 0 = full credit sale.
-  // Backend validates paidAmount <= totalAmount.
   paidAmount: z
     .union([z.number(), z.string()])
     .transform((v) => (typeof v === "string" ? Number(v) : v))
     .refine((v) => Number.isFinite(v) && v >= 0, "Paid amount must be non-negative.")
     .default(0),
+  // V5: stock batch ID — which purchase batch to deduct stock from.
+  // Required when the product has multiple eligible batches.
+  // The backend validates: batch belongs to this product + user + has sufficient stock.
+  batchId: z.string().min(1).optional(),
 });
 
 export type ExecuteRequest = z.infer<typeof executeRequestSchema>;

@@ -66,23 +66,35 @@ export type FormFieldState = {
   batchNameRaw: string | null;
 
   // V3: Price fields extracted by AI
-  explicitUnitPrice: number | null;  // user said "950 per kg"
-  explicitTotal: number | null;      // user said "total 24000"
+  explicitUnitPrice: number | null;
+  explicitTotal: number | null;
   // V4: Payment amount extracted by AI
-  explicitPaidAmount: number | null; // user said "he gave me 20000"
+  explicitPaidAmount: number | null;
 
   // Resolved by BACKEND — pre-fill the form if exactly 1 match
   resolvedCustomerId: string | null;
   resolvedProductId: string | null;
+  // V5: Resolved batch ID (if AI named a batch that matches exactly 1)
+  resolvedBatchId: string | null;
+  // V5: Available batches for the resolved product (for the batch picker)
+  batchCandidates: Array<{
+    id: string;
+    batchName: string | null;
+    remainingQuantity: string;
+    unitCost: string | null;
+    date: Date;
+  }>;
+  // V5: Whether batch selection is required (product has 2+ eligible batches)
+  batchSelectionRequired: boolean;
 
   // V3: Computed price fields (backend applies pricing priority)
-  unitPrice: number | null;    // the unit price to use (from priority)
-  totalAmount: number | null;  // the total amount (qty × unitPrice OR explicitTotal)
+  unitPrice: number | null;
+  totalAmount: number | null;
   priceSource: "USER_TOTAL" | "USER_UNIT_PRICE" | "DEFAULT_PRODUCT_PRICE" | "MANUAL_INPUT" | "CONFLICT_RESOLVED" | "NONE";
 
   // V4: Payment + balance
-  paidAmount: number | null;   // what the customer paid (0 = full credit)
-  balance: number | null;       // totalAmount - paidAmount (positive = customer owes us)
+  paidAmount: number | null;
+  balance: number | null;
 
   // V3: If both unit price AND total were given but they conflict
   priceConflict: {
@@ -240,6 +252,9 @@ export async function interpretInput(
         explicitTotal: null,
         resolvedCustomerId: null,
         resolvedProductId: null,
+        resolvedBatchId: null,
+        batchCandidates: [],
+        batchSelectionRequired: false,
         unitPrice: null,
         totalAmount: null,
         priceSource: "NONE",
@@ -285,6 +300,9 @@ export async function interpretInput(
         explicitPaidAmount: null,
         resolvedCustomerId: null,
         resolvedProductId: null,
+        resolvedBatchId: null,
+        batchCandidates: [],
+        batchSelectionRequired: false,
         unitPrice: null,
         totalAmount: null,
         priceSource: "NONE",
@@ -316,6 +334,68 @@ export async function interpretInput(
     const matches = await findProductCandidates(userId, ai.productName);
     if (matches.length === 1) {
       resolvedProductId = matches[0]!.id;
+    }
+  }
+
+  // V5: Resolve batch — if AI extracted a batchName AND product is resolved,
+  // search for a matching StockMove batch for this product+user.
+  // - If exactly 1 match → auto-select it (resolvedBatchId)
+  // - If 0 matches → leave null (user picks manually or batch doesn't exist)
+  // - If 2+ matches → leave null (ambiguous — user picks manually)
+  let resolvedBatchId: string | null = null;
+  let batchCandidates: FormFieldState["batchCandidates"] = [];
+  let batchSelectionRequired = false;
+
+  if (resolvedProductId) {
+    // Fetch all eligible batches for this product (purchase + return, not voided, remaining > 0)
+    const batches = await prisma.stockMove.findMany({
+      where: {
+        productId: resolvedProductId,
+        userId,
+        voidedAt: null,
+        type: { in: ["purchase", "return"] },
+        remainingQuantity: { gt: 0 },
+      },
+      orderBy: { date: "desc" }, // newest first
+      select: {
+        id: true,
+        batchName: true,
+        remainingQuantity: true,
+        unitCost: true,
+        date: true,
+      },
+    });
+
+    batchCandidates = batches.map((b) => ({
+      id: b.id,
+      batchName: b.batchName,
+      remainingQuantity: b.remainingQuantity.toString(),
+      unitCost: b.unitCost ? b.unitCost.toString() : null,
+      date: b.date,
+    }));
+
+    // If AI named a batch, try to match it
+    if (ai.batchName) {
+      const batchMatches = batches.filter(
+        (b) => b.batchName?.toLowerCase() === ai.batchName!.toLowerCase()
+      );
+      if (batchMatches.length === 1) {
+        resolvedBatchId = batchMatches[0]!.id;
+      }
+      // If 0 or 2+ matches → leave null (user picks manually)
+    }
+
+    // Batch selection is required when:
+    // - Product has 2+ eligible batches
+    // - AND AI didn't resolve a specific batch
+    // (If 1 batch → auto-selected below)
+    if (batches.length > 1 && !resolvedBatchId) {
+      batchSelectionRequired = true;
+    }
+
+    // If exactly 1 eligible batch and no batch was named → auto-select it
+    if (batches.length === 1 && !resolvedBatchId) {
+      resolvedBatchId = batches[0]!.id;
     }
   }
 
@@ -438,6 +518,9 @@ export async function interpretInput(
       explicitPaidAmount: ai.explicitPaidAmount ?? null,
       resolvedCustomerId,
       resolvedProductId,
+      resolvedBatchId,
+      batchCandidates,
+      batchSelectionRequired,
       unitPrice,
       totalAmount,
       priceSource,
@@ -487,13 +570,13 @@ export async function executeSession(
     quantity: number;
     unitPrice?: number;
     paidAmount?: number;
+    batchId?: string;
   },
 ): Promise<ExecuteResult> {
   const { sessionId, customerId, productId, quantity } = input;
-  // V3: unitPrice is OPTIONAL — if not provided, backend uses product default
   const clientUnitPrice = input.unitPrice;
-  // V4: paidAmount is OPTIONAL — if not provided, defaults to 0 (full credit sale)
   const clientPaidAmount = input.paidAmount ?? 0;
+  const clientBatchId = input.batchId;
 
   // 1. Load + verify session belongs to this user
   const session = await loadAndVerifySession(userId, sessionId);
@@ -568,11 +651,55 @@ export async function executeSession(
       throw new BadRequestError("Quantity must be a positive number.");
     }
 
+    // V5: Validate batch selection
+    const quantityDec = new Decimal(quantity);
+
+    // 1. Fetch eligible batches for this product+user
+    const eligibleBatches = await prisma.stockMove.findMany({
+      where: {
+        productId: product.id,
+        userId,
+        voidedAt: null,
+        type: { in: ["purchase", "return"] },
+        remainingQuantity: { gt: 0 },
+      },
+      orderBy: { date: "desc" },
+      select: { id: true, batchName: true, remainingQuantity: true, unitCost: true },
+    });
+
+    // 2. If multiple eligible batches exist, batchId is REQUIRED
+    if (eligibleBatches.length > 1 && !clientBatchId) {
+      throw new BadRequestError(
+        "Please select a stock batch before adding to Khata. This product has multiple batches.",
+      );
+    }
+
+    // 3. If batchId is provided, validate it
+    let validatedBatchId: string | null = null;
+    if (clientBatchId) {
+      const batch = eligibleBatches.find((b) => b.id === clientBatchId);
+      if (!batch) {
+        throw new BadRequestError(
+          "The selected batch is not available for this product or has been depleted.",
+        );
+      }
+      // Check sufficient stock
+      const remaining = toDecimalOrZero(batch.remainingQuantity);
+      if (remaining.lt(quantityDec)) {
+        throw new BadRequestError(
+          `Batch has only ${remaining} units remaining, but sale demands ${quantityDec}.`,
+        );
+      }
+      validatedBatchId = batch.id;
+    } else if (eligibleBatches.length === 1) {
+      // Auto-select the single eligible batch
+      validatedBatchId = eligibleBatches[0]!.id;
+    }
+
     // V3: Determine final unit price (priority: client-provided > product default)
     // If the client provided a unitPrice (user explicitly set it in the form),
     // use it. Otherwise, fall back to the product's default sellingPrice.
     // The amount is ALWAYS computed server-side: amount = quantity × unitPrice
-    const quantityDec = new Decimal(quantity);
     const finalUnitPrice = clientUnitPrice != null && clientUnitPrice > 0
       ? toDecimal(clientUnitPrice)
       : toDecimal(product.sellingPrice);
@@ -596,6 +723,8 @@ export async function executeSession(
             productId: product.id,
             quantity: quantityDec.toNumber(),
             unitPrice: finalUnitPrice.toNumber(),
+            // V5: pass the validated batch ID so stock is deducted from the correct batch
+            batchId: validatedBatchId ?? undefined,
           },
         ],
         paidAmount: paidAmountDec.toNumber(),

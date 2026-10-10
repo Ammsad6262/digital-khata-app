@@ -55,12 +55,12 @@ export function HoldToRecordButton({
   modalOpen,
   setModalOpen,
   onAudioReady,
-  processingCompleteSignal,
+  smartEntryState,
 }: {
   modalOpen: boolean;
   setModalOpen: (open: boolean) => void;
   onAudioReady: (blob: Blob, mimeType: string) => void;
-  processingCompleteSignal: number;
+  smartEntryState: string;
 }) {
   // Recording state (local to this component — doesn't re-render Dashboard)
   const [recState, setRecState] = useState<RecordState>("IDLE");
@@ -116,16 +116,37 @@ export function HoldToRecordButton({
 
   useEffect(() => () => cleanup(), [cleanup]);
 
-  // ── Reset PROCESSING → IDLE when the parent signals completion ────────────
-  // The parent (providers.tsx) watches smartEntry.state. When it reaches a
-  // terminal state (form/success/error/cancelled), it increments
-  // processingCompleteSignal. We watch that signal here and reset our
-  // recState from "PROCESSING" → "IDLE" so the "Listening..." pill disappears.
+  // ── Reset PROCESSING → IDLE when smartEntry reaches a terminal state ───────
+  // This is the DIRECT fix for the stuck "Listening..." pill.
+  //
+  // We watch `smartEntryState` (passed as a prop from providers.tsx, which
+  // reads from the shared useSmartEntry hook). When it reaches ANY state
+  // other than "transcribing" or "interpreting" (the active processing states),
+  // we know the audio processing is done and we should stop showing the
+  // "Listening..." pill.
+  //
+  // States and what they mean for the pill:
+  //   "idle"          → no processing → pill should be gone
+  //   "transcribing"  → audio being transcribed → pill shows "Listening..."
+  //   "interpreting"  → AI interpreting text → pill shows "Listening..."
+  //   "form"          → form is ready → pill should be gone (form is in modal)
+  //   "executing"     → transaction being saved → pill should be gone
+  //   "success"       → transaction saved → pill should be gone
+  //   "error"         → processing failed → pill should be gone
+  //   "cancelled"     → user cancelled → pill should be gone
   useEffect(() => {
-    if (processingCompleteSignal > 0 && recState === "PROCESSING") {
-      setRecState("IDLE");
+    // Only reset if we're currently in PROCESSING state.
+    // If we're in RECORDING/LOCKED/etc, the smartEntry state change
+    // doesn't affect us (we manage our own recording state).
+    if (recState === "PROCESSING") {
+      // These are the states where processing is still actively happening.
+      // Everything else means processing is DONE → reset to IDLE.
+      const activeProcessingStates = ["transcribing", "interpreting"];
+      if (!activeProcessingStates.includes(smartEntryState)) {
+        setRecState("IDLE");
+      }
     }
-  }, [processingCompleteSignal, recState]);
+  }, [smartEntryState, recState]);
 
   // ── Pick mimeType ──────────────────────────────────────────────────────────
   const pickMimeType = (): string => {

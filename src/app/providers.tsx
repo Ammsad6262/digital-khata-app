@@ -30,7 +30,7 @@
  *     → SmartEntryModal renders the editable form (state="form")
  */
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback } from "react";
 import { type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import { QueryProvider } from "@/providers/query-provider";
@@ -61,22 +61,6 @@ export function Providers({ children }: { children: ReactNode }) {
   // and SmartEntryModal. Both components read + write to the same state.
   const smartEntry = useSmartEntry();
   const [modalOpen, setModalOpen] = useState(false);
-  // ── HoldToRecordButton processing reset signal ────────────────────────────
-  // When smartEntry reaches a terminal state, we signal HoldToRecordButton to
-  // reset its recState from "PROCESSING" → "IDLE" so the "Listening..." pill
-  // disappears. Without this, the pill stays stuck showing "Listening..."
-  // indefinitely after the audio is processed.
-  const [processingComplete, setProcessingComplete] = useState(0);
-
-  // Watch smartEntry.state — when it reaches a terminal state, signal the
-  // HoldToRecordButton to stop showing "Listening..."
-  useEffect(() => {
-    const terminalStates = ["form", "success", "error", "cancelled"];
-    if (terminalStates.includes(smartEntry.state)) {
-      // Increment to trigger HoldToRecordButton's useEffect (it watches this value)
-      setProcessingComplete((v) => v + 1);
-    }
-  }, [smartEntry.state]);
 
   // Callback for HoldToRecordButton → passes audio blob to the shared hook
   const handleAudioReady = useCallback((blob: Blob, mimeType: string) => {
@@ -103,7 +87,7 @@ export function Providers({ children }: { children: ReactNode }) {
                         modalOpen={modalOpen}
                         setModalOpen={setModalOpen}
                         onAudioReady={handleAudioReady}
-                        processingCompleteSignal={processingComplete}
+                        smartEntryState={smartEntry.state}
                       />
                       <SmartEntryModal
                         open={modalOpen}

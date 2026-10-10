@@ -355,6 +355,12 @@ model StockMove {
   reason    String?
   unitCost  Decimal?  // optional purchase cost (for V2 profit reports)
 
+  // ── Batch name (added 2026-10) ────────────────────────────────────────────
+  // User-defined name for this stock batch, e.g. "Old Rice", "October Cheap Rice".
+  // Only meaningful for type="purchase" batches. NULL for adjustments/returns.
+  // Used by Smart Entry to resolve named batches from voice/text input.
+  batchName String?
+
   // ── Batch tracking (added 2026-09) ────────────────────────────────────────
   // How much of THIS batch is still in stock. Decremented when a SaleItem
   // links to this StockMove; restored if that sale is voided.

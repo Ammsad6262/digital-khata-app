@@ -46,6 +46,7 @@ export function AddStockForm({ initialProductId }: { initialProductId?: string }
   const [selected, setSelected] = useState<ProductSearchResult | null>(null);
   const [quantity, setQuantity] = useState<string>("");
   const [unitCost, setUnitCost] = useState<string>("");
+  const [batchName, setBatchName] = useState<string>("");
   const [reason, setReason] = useState<string>("");
   const [date, setDate] = useState<string>(todayIsoLocal());
 
@@ -105,6 +106,7 @@ export function AddStockForm({ initialProductId }: { initialProductId?: string }
         type: "purchase",
         quantity,
         unitCost: unitCost || null,
+        batchName: batchName.trim() || null,
         reason: reason.trim() || null,
         date: isoDate,
       },
@@ -179,6 +181,24 @@ export function AddStockForm({ initialProductId }: { initialProductId?: string }
           </h2>
 
           <div className="rounded-xl border border-slate-200 bg-white p-3 space-y-3">
+            {/* Batch name (user-defined label for this stock purchase) */}
+            <div>
+              <label className="mb-1 block text-xs font-medium text-slate-600">
+                Batch Name <span className="text-slate-400">(e.g. "Old Rice", "October Cheap Rice")</span>
+              </label>
+              <input
+                type="text"
+                value={batchName}
+                onChange={(e) => setBatchName(e.target.value)}
+                placeholder="Name this batch (optional)"
+                maxLength={100}
+                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+              />
+              <p className="mt-1 text-[11px] text-slate-500">
+                Name this batch so you can select it during sales. If left empty, the date will be used.
+              </p>
+            </div>
+
             {/* Quantity */}
             <div>
               <label className="mb-1 block text-xs font-medium text-slate-600">

@@ -148,6 +148,11 @@ export function BatchPicker({
               )}
               aria-pressed={isSelected}
             >
+              {b.batchName ? (
+                <div className="mb-0.5 truncate text-[11px] font-semibold text-slate-900">
+                  {b.batchName}
+                </div>
+              ) : null}
               <div className="flex items-center gap-1.5">
                 <span className="rounded bg-brand-100 px-1 text-[9px] font-semibold text-brand-700">
                   #{idx + 1}

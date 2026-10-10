@@ -20,6 +20,8 @@ export const createStockMoveSchema = z
       .refine((v) => Number.isFinite(v) && v >= 0, "Unit cost must be a non-negative number.")
       .optional()
       .nullable(),
+    // V2: User-defined batch name for purchases (e.g. "Old Rice", "October Cheap Rice")
+    batchName: z.string().trim().min(1, "Batch name is required for purchases.").max(100, "Batch name too long.").optional().nullable(),
     reason: z.string().trim().max(300).optional().nullable(),
     date: z.string().datetime().optional(),
   })

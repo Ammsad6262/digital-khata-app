@@ -62,6 +62,8 @@ export type FormFieldState = {
   productNameRaw: string | null;
   quantityRaw: number | null;
   unitRaw: string | null;
+  // V2: Batch name extracted by AI (e.g. "Old Rice")
+  batchNameRaw: string | null;
 
   // V3: Price fields extracted by AI
   explicitUnitPrice: number | null;  // user said "950 per kg"
@@ -233,6 +235,7 @@ export async function interpretInput(
         productNameRaw: null,
         quantityRaw: null,
         unitRaw: null,
+        batchNameRaw: null,
         explicitUnitPrice: null,
         explicitTotal: null,
         resolvedCustomerId: null,
@@ -276,6 +279,7 @@ export async function interpretInput(
         productNameRaw: null,
         quantityRaw: null,
         unitRaw: null,
+        batchNameRaw: null,
         explicitUnitPrice: null,
         explicitTotal: null,
         explicitPaidAmount: null,
@@ -407,6 +411,8 @@ export async function interpretInput(
       productNameRaw: ai.productName,
       quantityRaw: ai.quantity ?? null,
       unitRaw: ai.unit ?? null,
+      // Note: batchName is NOT stored on SmartEntrySession — it's only in the
+      // form response. The AI's batchName is in rawAiResponse (the full AI JSON).
       resolvedCustomerId,
       resolvedProductId,
       resolvedUnitPrice: unitPrice != null ? new Decimal(unitPrice) : null,
@@ -426,6 +432,7 @@ export async function interpretInput(
       productNameRaw: ai.productName,
       quantityRaw: ai.quantity ?? null,
       unitRaw: ai.unit ?? null,
+      batchNameRaw: ai.batchName ?? null,
       explicitUnitPrice: ai.explicitUnitPrice ?? null,
       explicitTotal: ai.explicitTotal ?? null,
       explicitPaidAmount: ai.explicitPaidAmount ?? null,

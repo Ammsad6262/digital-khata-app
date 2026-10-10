@@ -54,12 +54,12 @@ export const aiInterpretationSchema = z.object({
   productName: z.string().min(1).max(200).nullable(),
   quantity: z.number().finite().positive().nullable(),
   unit: z.string().min(1).max(50).nullable(),
+  // V2: user-defined stock batch name (e.g. "Old Rice", "October Cheap Rice")
+  batchName: z.string().min(1).max(100).nullable(),
   // V3: explicit price fields from the user's speech
   explicitUnitPrice: z.number().finite().positive().nullable(),
   explicitTotal: z.number().finite().positive().nullable(),
   // V4: amount the customer PAID (NOT the selling price or total!)
-  // e.g. "us ne 20 hazar diye" → explicitPaidAmount = 20000
-  // This is separate from explicitUnitPrice (selling rate) and explicitTotal (total sale).
   explicitPaidAmount: z.number().finite().positive().nullable(),
   // Self-reported confidence 0..1
   confidence: z.number().min(0).max(1).optional(),

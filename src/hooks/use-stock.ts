@@ -53,6 +53,7 @@ export type AddStockMoveInput = {
   type: StockMoveType;
   quantity: number | string;
   unitCost?: number | string | null;
+  batchName?: string | null;
   reason?: string | null;
   date?: string;
 };

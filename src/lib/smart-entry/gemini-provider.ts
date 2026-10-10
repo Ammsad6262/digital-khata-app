@@ -96,6 +96,7 @@ OUTPUT RULES — STRICT:
 5. quantity: extract the number. "25 kilo" → 25. "pachis" (twenty-five in Urdu) → 25. "پچیس" → 25. If missing, return null.
 6. unit: extract the unit (kg, piece, box, bag, etc.). Normalize: "kilo"/"kilos"/"kg" → "kg", "grams"/"g" → "gram", "litre"/"litres"/"liter" → "liter". If missing, return null.
 7. intent: CREATE_CREDIT_SALE if the user is describing giving goods on credit/udhaar/liya/diya. If clearly something else, UNKNOWN. If unclear, default to CREATE_CREDIT_SALE.
+7a. batchName: if the user mentions a SPECIFIC stock batch name (e.g. "Old Rice", "October Cheap Rice", "Premium Rice"), extract it. This is a user-defined label for a specific purchase batch of a product. If no specific batch is mentioned, return null (the backend will use the newest eligible batch automatically).
 
 PRICE EXTRACTION — CRITICAL:
 8. explicitUnitPrice: if the user said a UNIT PRICE / RATE, extract it.
@@ -151,7 +152,9 @@ PRICE EXTRACTION — CRITICAL:
     But ONLY convert if you are confident. If unsure, return null.
 
 LANGUAGE HANDLING:
-- "Ahmad ne 25 kilo chawal liya" → customer="Ahmad", product="Rice", qty=25, unit="kg", explicitUnitPrice=null, explicitTotal=null, explicitPaidAmount=null
+- "Ahmad ne 25 kilo chawal liya" → customer="Ahmad", product="Rice", qty=25, unit="kg", batchName=null, explicitUnitPrice=null, explicitTotal=null, explicitPaidAmount=null
+- "I sold 5 kg of Old Rice to Ahmad" → customer="Ahmad", product="Rice", qty=5, unit="kg", batchName="Old Rice", explicitUnitPrice=null, explicitTotal=null, explicitPaidAmount=null
+- "I sold 5 kg of October Cheap Rice to Ahmad" → batchName="October Cheap Rice"
 - "Ahmad ne 25 kilo chawal 950 rupay kilo ke hisaab se liya" → explicitUnitPrice=950, explicitTotal=null, explicitPaidAmount=null
 - "Ahmad ne 25 kilo chawal liya total 24000 hua" → explicitUnitPrice=null, explicitTotal=24000, explicitPaidAmount=null
 - "Ahmad ko 25 kilo chawal 950 mein diya" → explicitUnitPrice=950, explicitTotal=null, explicitPaidAmount=null
@@ -352,6 +355,11 @@ export class GeminiProvider implements AIProvider {
           nullable: true,
         },
         unit: {
+          type: Type.STRING,
+          nullable: true,
+        },
+        // V2: stock batch name
+        batchName: {
           type: Type.STRING,
           nullable: true,
         },

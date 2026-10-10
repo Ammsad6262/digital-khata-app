@@ -55,10 +55,12 @@ export function HoldToRecordButton({
   modalOpen,
   setModalOpen,
   onAudioReady,
+  processingCompleteSignal,
 }: {
   modalOpen: boolean;
   setModalOpen: (open: boolean) => void;
   onAudioReady: (blob: Blob, mimeType: string) => void;
+  processingCompleteSignal: number;
 }) {
   // Recording state (local to this component — doesn't re-render Dashboard)
   const [recState, setRecState] = useState<RecordState>("IDLE");
@@ -113,6 +115,17 @@ export function HoldToRecordButton({
   }, []);
 
   useEffect(() => () => cleanup(), [cleanup]);
+
+  // ── Reset PROCESSING → IDLE when the parent signals completion ────────────
+  // The parent (providers.tsx) watches smartEntry.state. When it reaches a
+  // terminal state (form/success/error/cancelled), it increments
+  // processingCompleteSignal. We watch that signal here and reset our
+  // recState from "PROCESSING" → "IDLE" so the "Listening..." pill disappears.
+  useEffect(() => {
+    if (processingCompleteSignal > 0 && recState === "PROCESSING") {
+      setRecState("IDLE");
+    }
+  }, [processingCompleteSignal, recState]);
 
   // ── Pick mimeType ──────────────────────────────────────────────────────────
   const pickMimeType = (): string => {

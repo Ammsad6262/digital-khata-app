@@ -133,6 +133,22 @@ PRICE EXTRACTION — CRITICAL:
     The backend will validate they're consistent.
 13. NEVER calculate or estimate. If the user didn't say a price, return null.
     Do NOT use the product's default price — the backend handles that.
+14. NUMBER INTEGRITY — CRITICAL: NEVER change, round, or "correct" a number
+    from the transcript. If the transcript says 25, return 25 — NOT 50. If the
+    transcript says 40000, return 40000 — NOT 4000. If the transcript says
+    "پنځه ویشت" (twenty-five in Pashto), return 25. You are EXTRACTING numbers
+    from the transcript, NOT guessing or correcting them. If you are unsure
+    about a number, return null and let the backend ask the user for
+    clarification. NEVER silently replace a number with a different number.
+15. For Pashto/Urdu number words, convert them to numeric digits:
+    "پنځه ویشت" (Pashto: twenty-five) → 25
+    "پنځوس" (Pashto: fifty) → 50
+    "څلویښت زره" (Pashto: forty thousand) → 40000
+    "پچیس" (Roman Urdu: twenty-five) → 25
+    "پچاس" (Roman Urdu: fifty) → 50
+    "چل ہزار" (Roman Urdu: forty thousand) → 40000
+    "بیس" (Roman Urdu: twenty) → 20
+    But ONLY convert if you are confident. If unsure, return null.
 
 LANGUAGE HANDLING:
 - "Ahmad ne 25 kilo chawal liya" → customer="Ahmad", product="Rice", qty=25, unit="kg", explicitUnitPrice=null, explicitTotal=null, explicitPaidAmount=null

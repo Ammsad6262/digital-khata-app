@@ -3,7 +3,11 @@
  *
  * Every response from our API follows the shape:
  *   Success: { ok: true,  data: T }
- *   Error:   { ok: false, error: { code, message, details? } }
+ *   Error:   { ok: false, error: { code, message, details?, translationKey?, params? } }
+ *
+ * V13 (Urdu i18n): When `translationKey: true`, the message is a translation
+ * key (English text resolved from the key on the server). The frontend should
+ * re-translate using `t(messageKey, params)` in the user's selected language.
  *
  * This wrapper unwraps `data` on success and throws an `ApiError` on failure
  * so React Query's `error` state receives it cleanly.
@@ -13,13 +17,26 @@ export class ApiError extends Error {
   readonly code: string;
   readonly status: number;
   readonly details?: unknown;
+  /** True if `message` is a translation key the frontend should re-translate. */
+  readonly translationKey?: boolean;
+  /** Translation params for placeholder substitution. */
+  readonly params?: Record<string, string | number>;
 
-  constructor(message: string, code: string, status: number, details?: unknown) {
+  constructor(
+    message: string,
+    code: string,
+    status: number,
+    details?: unknown,
+    translationKey?: boolean,
+    params?: Record<string, string | number>,
+  ) {
     super(message);
     this.name = "ApiError";
     this.code = code;
     this.status = status;
     this.details = details;
+    this.translationKey = translationKey;
+    this.params = params;
   }
 }
 
@@ -34,6 +51,8 @@ interface ApiFailure {
     code: string;
     message: string;
     details?: unknown;
+    translationKey?: boolean;
+    params?: Record<string, string | number>;
   };
 }
 
@@ -62,9 +81,11 @@ async function fetchWithTimeout(
   } catch (error) {
     if (error instanceof DOMException && error.name === "AbortError") {
       throw new ApiError(
-        `Request timed out after ${REQUEST_TIMEOUT_MS / 1000}s. Please retry.`,
+        "auth.requestTimeout",
         "TIMEOUT",
         408,
+        undefined,
+        true,
       );
     }
     throw error;
@@ -142,7 +163,7 @@ async function unwrap<T>(res: Response, path: string): Promise<T> {
         window.location.href = "/login";
       }
     }
-    throw new ApiError("Please log in to continue.", "UNAUTHORIZED", 401);
+    throw new ApiError("auth.pleaseLoginContinue", "UNAUTHORIZED", 401, undefined, true);
   }
 
   let json: ApiResponse<T>;
@@ -165,5 +186,7 @@ async function unwrap<T>(res: Response, path: string): Promise<T> {
     json.error.code,
     res.status,
     json.error.details,
+    json.error.translationKey,
+    json.error.params,
   );
 }

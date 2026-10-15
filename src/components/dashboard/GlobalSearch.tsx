@@ -56,7 +56,7 @@ type SearchResult = {
 
 export function GlobalSearch() {
   const router = useRouter();
-  const { t } = useLanguage();
+  const { t, tParams } = useLanguage();
   const [query, setQuery] = useState("");
   const [isOpen, setIsOpen] = useState(false);
   const [results, setResults] = useState<SearchResult | null>(null);
@@ -137,7 +137,7 @@ export function GlobalSearch() {
           }}
           placeholder={t("dashboard.searchPlaceholder")}
           className="w-full rounded-xl border border-slate-300 bg-white py-3 pl-10 pr-9 text-sm text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
-          aria-label="Global search"
+          aria-label={t("common.globalSearchAria")}
           aria-expanded={isOpen}
           aria-controls="global-search-results"
         />
@@ -150,7 +150,7 @@ export function GlobalSearch() {
               setIsOpen(false);
             }}
             className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-slate-400 hover:text-slate-700"
-            aria-label="Clear search"
+            aria-label={t("common.clearSearchAria")}
           >
             <X className="h-4 w-4" />
           </button>
@@ -164,11 +164,11 @@ export function GlobalSearch() {
           className="absolute inset-x-0 top-full z-30 mt-1 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg shadow-slate-900/10"
         >
           {isLoading ? (
-            <p className="px-3 py-4 text-center text-xs text-slate-400">Searching...</p>
+            <p className="px-3 py-4 text-center text-xs text-slate-400">{t("common.searching")}</p>
           ) : !hasResults ? (
             <div className="p-3">
               <p className="mb-2 text-xs text-slate-500">
-                No matches for &ldquo;{q}&rdquo;
+                {tParams("search.noMatches", { query: q })}
               </p>
               <div className="flex gap-2">
                 <Link

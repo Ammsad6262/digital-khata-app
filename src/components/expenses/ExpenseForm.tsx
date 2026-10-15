@@ -31,6 +31,7 @@ import {
 import { ApiError } from "@/lib/utils/api-client";
 import { cn } from "@/lib/utils/cn";
 import { useLanguage } from "@/providers/language-provider";
+import { useCurrencySymbol } from "@/hooks/use-currency-symbol";
 
 type CategoryLabelKey = "expense.transport" | "expense.shop" | "expense.electricity" | "expense.packaging" | "expense.salary" | "expense.rent" | "payment.other";
 const CATEGORIES: Array<{
@@ -66,6 +67,7 @@ export function ExpenseForm({
   const router = useRouter();
   const toast = useToast();
   const { t } = useLanguage();
+  const symbol = useCurrencySymbol();
 
   // In edit mode, fetch existing expense to pre-fill.
   const { data: existing } = useExpense(mode === "edit" ? expenseId : null);
@@ -109,23 +111,23 @@ export function ExpenseForm({
   } = {};
 
   if (!name.trim()) {
-    errors.name = "Name is required.";
+    errors.name = t("expense.nameRequired");
   }
 
   const amt = parseFloat(amount);
   if (!amount || isNaN(amt) || amt <= 0) {
-    errors.amount = "Amount must be greater than 0.";
+    errors.amount = t("payment.amountGtZero");
   }
 
   if (!date) {
-    errors.date = "Date is required.";
+    errors.date = t("payment.dateRequired");
   }
 
   const hasErrors = !!errors.name || !!errors.amount || !!errors.date;
 
   const handleSubmit = () => {
     if (hasErrors) {
-      toast.error("Please fix the errors before saving.");
+      toast.error(t("common.fixErrorsBeforeSaving"));
       return;
     }
 
@@ -156,7 +158,7 @@ export function ExpenseForm({
         },
         onError: (error) => {
           if (error instanceof ApiError && error.code === "NOT_FOUND") {
-            toast.error("Expense not found.");
+            toast.error(t("expense.notFound"));
           } else {
             toast.error(error instanceof Error ? error.message : t("common.failed"));
           }
@@ -188,7 +190,7 @@ export function ExpenseForm({
             </label>
             <div className="relative">
               <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-medium text-slate-500">
-                Rs.
+                {symbol}
               </span>
               <input
                 type="number"

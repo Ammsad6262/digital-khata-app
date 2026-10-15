@@ -5,8 +5,17 @@
  *
  * Usage from any client component:
  *   const toast = useToast();
- *   toast.success("Customer added");
- *   toast.error("Phone number already exists");
+ *   toast.success("customer.customerAdded");   // ← translation key (auto-translated)
+ *   toast.success("Customer added");            // ← plain English (shown as-is)
+ *   toast.error("api.sale.notFound", { id: 123 }); // ← translation key + params
+ *   toast.error(err.message);                   // ← will auto-translate if it's a key
+ *
+ * Auto-translate behavior:
+ *   - If the message matches a known translation key (e.g. "api.sale.notFound"),
+ *     the toast displays the translated text using the user's selected language.
+ *   - If params are provided (or the message is from an ApiError with params),
+ *     {placeholder} tokens are interpolated.
+ *   - If the message is plain English (or unknown key), it's shown as-is.
  *
  * Toasts auto-dismiss after 3 seconds (success) or 5 seconds (error).
  * Tap to dismiss early.
@@ -21,6 +30,8 @@ import {
 } from "react";
 import { CheckCircle2, AlertCircle, X, Info } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
+import { useLanguage } from "@/providers/language-provider";
+import { translations, type TranslationKey } from "@/lib/i18n/translations";
 
 type ToastVariant = "success" | "error" | "info";
 
@@ -31,36 +42,52 @@ type Toast = {
 };
 
 type ToastContextValue = {
-  success: (message: string) => void;
-  error: (message: string) => void;
-  info: (message: string) => void;
+  success: (message: string, params?: Record<string, string | number>) => void;
+  error: (message: string, params?: Record<string, string | number>) => void;
+  info: (message: string, params?: Record<string, string | number>) => void;
 };
 
 const ToastContext = createContext<ToastContextValue | null>(null);
 
 let toastIdCounter = 0;
 
+/**
+ * Check if a string is a known translation key.
+ * Conservative: must contain a dot, no whitespace, AND be a key in `translations`.
+ */
+function isTranslationKey(s: string): s is TranslationKey {
+  if (!s || typeof s !== "string") return false;
+  if (!s.includes(".") || /\s/.test(s)) return false;
+  return Object.prototype.hasOwnProperty.call(translations, s);
+}
+
 export function ToastProvider({ children }: { children: ReactNode }) {
+  const { t, tParams } = useLanguage();
   const [toasts, setToasts] = useState<Toast[]>([]);
 
   const dismiss = useCallback((id: number) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id));
+    setToasts((prev) => prev.filter((to) => to.id !== id));
   }, []);
 
   const push = useCallback(
-    (variant: ToastVariant, message: string) => {
+    (variant: ToastVariant, message: string, params?: Record<string, string | number>) => {
       const id = ++toastIdCounter;
-      setToasts((prev) => [...prev, { id, variant, message }]);
+      // If the message is a known translation key, translate it.
+      let displayMessage = message;
+      if (isTranslationKey(message)) {
+        displayMessage = params ? tParams(message, params) : t(message);
+      }
+      setToasts((prev) => [...prev, { id, variant, message: displayMessage }]);
       const ttl = variant === "error" ? 5000 : 3000;
       setTimeout(() => dismiss(id), ttl);
     },
-    [dismiss],
+    [dismiss, t, tParams],
   );
 
   const value: ToastContextValue = {
-    success: (m) => push("success", m),
-    error: (m) => push("error", m),
-    info: (m) => push("info", m),
+    success: (m, p) => push("success", m, p),
+    error: (m, p) => push("error", m, p),
+    info: (m, p) => push("info", m, p),
   };
 
   return (
@@ -71,8 +98,8 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         aria-live="polite"
         aria-atomic="true"
       >
-        {toasts.map((t) => (
-          <ToastItem key={t.id} toast={t} onDismiss={() => dismiss(t.id)} />
+        {toasts.map((to) => (
+          <ToastItem key={to.id} toast={to} onDismiss={() => dismiss(to.id)} />
         ))}
       </div>
     </ToastContext.Provider>
@@ -80,6 +107,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 }
 
 function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: () => void }) {
+  const { t } = useLanguage();
   const config = {
     success: {
       icon: CheckCircle2,
@@ -114,7 +142,7 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: () => void }
         type="button"
         onClick={onDismiss}
         className="shrink-0 text-slate-400 hover:text-slate-700"
-        aria-label="Dismiss"
+        aria-label={t("common.dismiss")}
       >
         <X className="h-4 w-4" />
       </button>

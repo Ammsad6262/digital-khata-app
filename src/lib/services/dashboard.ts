@@ -70,7 +70,7 @@ export async function getDashboardStats(
   timezone: string = "Asia/Karachi",
 ): Promise<DashboardStats> {
   if (!userId) {
-    throw new UnauthorizedError("Authentication required to load dashboard.");
+    throw new UnauthorizedError("api.dashboard.authRequired");
   }
 
   // Return cached data if still fresh (per-user cache key)

@@ -53,8 +53,10 @@ export function usePullToRefresh({ onRefresh, enabled = true }: Options) {
     if (!enabled || isRefreshing) return;
     const el = containerRef.current;
     if (!el) return;
-    // Only start tracking if the user is at the top of the scroll container
-    if (el.scrollTop > 0) return;
+    // Only start tracking if the user is at the top of the page.
+    // Since the PullToRefresh container no longer scrolls itself (the body
+    // scrolls), we check window.scrollY instead of el.scrollTop.
+    if (window.scrollY > 0) return;
     // Only track touch pointers OR mouse (we'll filter by button === 0 for mouse)
     if (e.pointerType === "mouse" && e.button !== 0) return;
     startYRef.current = e.clientY;
@@ -64,10 +66,8 @@ export function usePullToRefresh({ onRefresh, enabled = true }: Options) {
   const handlePointerMove = useCallback((e: PointerEvent) => {
     if (!enabled || isRefreshing) return;
     if (!isDraggingRef.current || startYRef.current === null) return;
-    const el = containerRef.current;
-    if (!el) return;
     // If the user scrolled down (away from top) during the drag, cancel
-    if (el.scrollTop > 0) {
+    if (window.scrollY > 0) {
       startYRef.current = null;
       isDraggingRef.current = false;
       setPullDistance(0);

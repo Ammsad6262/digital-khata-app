@@ -21,7 +21,9 @@ import {
   type ExportableTable,
 } from "@/lib/services/backup";
 import { withCircuitBreaker } from "@/lib/utils/circuit-breaker";
-import { getCurrentUserId } from "@/lib/auth/get-current-user";
+import { BadRequestError } from "@/lib/errors";
+import { tServer } from "@/lib/i18n/server";
+import { requireUserId } from "@/lib/auth/get-current-user";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
@@ -34,18 +36,13 @@ export async function GET(
 ) {
   try {
     const { table } = await params;
-    const userId = await getCurrentUserId(req);
+    const userId = await requireUserId(req);
 
     if (!VALID_TABLES.has(table)) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error: {
-            code: "BAD_REQUEST",
-            message: `Unknown table '${table}'. Valid: ${[...VALID_TABLES].join(", ")}.`,
-          },
-        },
-        { status: 400 },
+      throw new BadRequestError(
+        "api.backup.csv.unknownTable",
+        undefined,
+        { table, valid: [...VALID_TABLES].join(", ") },
       );
     }
 
@@ -108,7 +105,7 @@ export async function GET(
   } catch (error) {
     console.error("[backup/csv] Failed:", error);
     return NextResponse.json(
-      { ok: false, error: { code: "INTERNAL", message: "Failed to export CSV." } },
+      { ok: false, error: { code: "INTERNAL", message: tServer("api.backup.csv.failed") } },
       { status: 500 },
     );
   }

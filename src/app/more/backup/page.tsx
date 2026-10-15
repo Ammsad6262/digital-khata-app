@@ -2,13 +2,12 @@
  * Backup page.
  *
  * Lazy-loads the BackupPage component to keep the initial bundle small.
+ * V13: Uses TranslatedHeader so the title is translated to user's language.
  */
 
 import dynamic from "next/dynamic";
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
-import { AppHeader } from "@/components/layout/AppHeader";
 import { ScreenContent } from "@/components/layout/Screen";
+import { TranslatedHeader } from "@/components/layout/TranslatedHeader";
 
 const BackupPage = dynamic(
   () => import("@/components/backup/BackupPage").then((m) => m.BackupPage),
@@ -25,18 +24,7 @@ const BackupPage = dynamic(
 export default function BackupRoutePage() {
   return (
     <>
-      <AppHeader
-        title="Backup & Export"
-        rightSlot={
-          <Link
-            href="/more/settings"
-            className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100"
-            aria-label="Back"
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </Link>
-        }
-      />
+      <TranslatedHeader titleKey="settings.backupExport" backHref="/more/settings" />
       <ScreenContent>
         <BackupPage />
       </ScreenContent>

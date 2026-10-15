@@ -99,33 +99,33 @@ export function ProductForm({
   } = {};
 
   if (!name.trim()) {
-    errors.name = "Name is required.";
+    errors.name = t("product.nameRequired");
   }
 
   const pp = parseDecimalSafe(purchasePrice);
   if (!purchasePrice || pp.lt(0) || !pp.isFinite()) {
-    errors.purchasePrice = "Purchase price must be a non-negative number.";
+    errors.purchasePrice = t("product.purchasePriceInvalid");
   }
 
   const sp = parseDecimalSafe(sellingPrice);
   if (!sellingPrice || sp.lt(0) || !sp.isFinite()) {
-    errors.sellingPrice = "Selling price must be a non-negative number.";
+    errors.sellingPrice = t("product.sellingPriceInvalid");
   }
 
   if (!unit.trim()) {
-    errors.unit = "Unit is required.";
+    errors.unit = t("product.unitRequired");
   }
 
   if (mode === "create") {
     const os = parseDecimalSafe(openingStock || "0");
     if (openingStock && (os.lt(0) || !os.isFinite())) {
-      errors.openingStock = "Opening stock must be a non-negative number.";
+      errors.openingStock = t("product.openingStockInvalid");
     }
   }
 
   const lst = parseInt(lowStockThreshold, 10);
   if (!Number.isFinite(lst) || lst < 0) {
-    errors.lowStockThreshold = "Low-stock threshold must be a non-negative integer.";
+    errors.lowStockThreshold = t("product.lowStockThresholdInvalid");
   }
 
   const hasErrors = !!errors.name || !!errors.purchasePrice || !!errors.sellingPrice ||
@@ -133,7 +133,7 @@ export function ProductForm({
 
   const handleSubmit = () => {
     if (hasErrors) {
-      toast.error("Please fix the errors before saving.");
+      toast.error(t("common.fixErrorsBeforeSaving"));
       return;
     }
 
@@ -156,7 +156,7 @@ export function ProductForm({
           },
           onError: (error) => {
             if (error instanceof ApiError && error.code === "CONFLICT") {
-              toast.error("A product with this SKU already exists.");
+              toast.error(t("product.skuExists"));
             } else {
               toast.error(error instanceof Error ? error.message : t("common.failed"));
             }
@@ -181,7 +181,7 @@ export function ProductForm({
           },
           onError: (error) => {
             if (error instanceof ApiError && error.code === "CONFLICT") {
-              toast.error("Another product already uses this SKU.");
+              toast.error(t("product.skuInUse"));
             } else {
               toast.error(error instanceof Error ? error.message : t("common.failed"));
             }
@@ -225,7 +225,7 @@ export function ProductForm({
               onChange={(e) => setPurchasePrice(e.target.value)}
               placeholder="0"
               error={errors.purchasePrice ?? null}
-              hint={`per ${unit || "unit"}`}
+              hint={`${t("product.per")} ${unit || t("product.unit")}`}
             />
             <TextField
               label={t("product.sellingPrice")}
@@ -278,7 +278,7 @@ export function ProductForm({
               value={openingStock}
               onChange={(e) => setOpeningStock(e.target.value)}
               placeholder="0"
-              hint="Set only when migrating from paper. Leave 0 for new products."
+              hint={t("product.openingStockHint")}
               error={errors.openingStock ?? null}
             />
           ) : null}

@@ -51,7 +51,7 @@ export function LowStockList({ products }: { products: LowStockProduct[] }) {
                     {product.name}
                   </p>
                   <p className="text-[11px] text-slate-500">
-                    Threshold: {product.lowStockThreshold} {product.unit}
+                    {t("product.lowStockThreshold")}: {product.lowStockThreshold} {product.unit}
                   </p>
                 </div>
               </div>
@@ -59,7 +59,7 @@ export function LowStockList({ products }: { products: LowStockProduct[] }) {
                 <p className="text-sm font-bold text-red-600">
                   {formatQuantity(product.currentStock, product.unit)}
                 </p>
-                <p className="text-[11px] text-red-500">left</p>
+                <p className="text-[11px] text-red-500">{t("stock.leftSuffix")}</p>
               </div>
             </div>
           </Link>

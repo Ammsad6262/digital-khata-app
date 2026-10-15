@@ -92,7 +92,7 @@ export async function getProduct(id: string, userId?: string | null): Promise<Pr
     where: { id, isDeleted: false, ...(userId && { userId }) },
   });
   if (!product) {
-    throw new NotFoundError("Product", id);
+    throw new NotFoundError("api.resource.product", id);
   }
   return toView(product);
 }
@@ -103,7 +103,7 @@ export async function getProductWithStock(id: string, userId?: string | null): P
     where: { id, isDeleted: false, ...(userId && { userId }) },
   });
   if (!product) {
-    throw new NotFoundError("Product", id);
+    throw new NotFoundError("api.resource.product", id);
   }
   const stock = await getProductStock(id);
   return {
@@ -260,6 +260,126 @@ export async function createProduct(input: unknown, userId?: string | null): Pro
   return toView(product);
 }
 
+/**
+ * V6 (Smart Entry): Create a product AND optionally an opening-batch StockMove
+ * in a single atomic database transaction.
+ *
+ * Why this exists:
+ *   The standard createProduct() stores `openingStock` as a column on Product
+ *   (used only for paper-khata migration). But the Smart Entry inline Add
+ *   Product flow needs an actual StockMove batch so that:
+ *     - The new product shows up in the batch picker for batch selection
+ *     - SaleItem can link to a real batch (stockMoveId)
+ *     - remainingQuantity tracking works correctly
+ *     - The Transaction ledger is updated
+ *
+ * Behavior:
+ *   - If openingStock > 0: creates Product (openingStock=0 — NOT the migration
+ *     column, to avoid double-counting) + StockMove (type="purchase",
+ *     batchName="Opening Stock", unitCost=purchasePrice) + Transaction ledger row.
+ *   - If openingStock is 0: creates only Product, no StockMove.
+ *   - Returns { product, stockMove }.
+ *
+ * Atomic: if any step fails, all roll back via prisma.$transaction.
+ *
+ * Tenant isolation: userId is ALWAYS taken from the JWT-verified request on
+ * the API route — never from the client body.
+ */
+export type CreateProductWithOpeningStockResult = {
+  product: ProductView;
+  stockMove: {
+    id: string;
+    batchName: string | null;
+    quantity: string;
+    remainingQuantity: string;
+    unitCost: string | null;
+    date: Date;
+  } | null;
+};
+
+export async function createProductWithOpeningStock(
+  input: unknown,
+  userId?: string | null,
+): Promise<CreateProductWithOpeningStockResult> {
+  const data = createProductSchema.parse(input);
+
+  const result = await prisma.$transaction(async (tx) => {
+    // 1. Create the Product with openingStock=0 (the migration column stays
+    //    0 because the opening quantity is tracked via the StockMove below).
+    //    This avoids double-counting in getProductStock().
+    const product = await tx.product.create({
+      data: {
+        name: data.name,
+        category: data.category ?? null,
+        purchasePrice: data.purchasePrice,
+        sellingPrice: data.sellingPrice,
+        unit: data.unit,
+        sku: data.sku ?? null,
+        openingStock: 0,
+        lowStockThreshold: data.lowStockThreshold,
+        ...(userId && { userId }),
+      },
+    });
+
+    // 2. If opening stock was provided, create an opening-batch StockMove +
+    //    Transaction ledger row. (Mirrors the logic in stock.ts addStockMove.)
+    let stockMove: Prisma.StockMoveGetPayload<{}> | null = null;
+
+    const openingQty = toDecimalOrZero(data.openingStock);
+    if (openingQty.gt(0)) {
+      const unitCost = new Decimal(data.purchasePrice);
+      const moveAmount = openingQty.times(unitCost);
+
+      stockMove = await tx.stockMove.create({
+        data: {
+          ...(userId && { userId }),
+          productId: product.id,
+          type: "purchase",
+          quantity: openingQty,
+          reason: "Opening stock (added via Smart Entry)",
+          unitCost,
+          batchName: "Opening Stock",
+          remainingQuantity: openingQty,
+          date: new Date(),
+        },
+      });
+
+      await tx.transaction.create({
+        data: {
+          ...(userId && { userId }),
+          type: "stock_move",
+          refType: "StockMove",
+          refId: stockMove.id,
+          productId: product.id,
+          amount: moveAmount,
+          direction: "debit",
+          date: stockMove.date,
+        },
+      });
+    }
+
+    return { product, stockMove };
+  });
+
+  invalidateCache("products");
+  invalidateCache("dashboard");
+  invalidateCache("profit-loss");
+
+  return {
+    product: toView(result.product),
+    stockMove: result.stockMove
+      ? {
+          id: result.stockMove.id,
+          batchName: result.stockMove.batchName,
+          quantity: result.stockMove.quantity.toString(),
+          remainingQuantity: result.stockMove.remainingQuantity.toString(),
+          unitCost: result.stockMove.unitCost ? result.stockMove.unitCost.toString() : null,
+          date: result.stockMove.date,
+        }
+      : null,
+  };
+}
+
 /** Update a product. */
 export async function updateProduct(id: string, input: unknown, userId?: string | null): Promise<ProductView> {
   // Verify ownership — throws 404 if not owned by this user
@@ -307,7 +427,9 @@ export async function deleteProduct(id: string, userId?: string | null): Promise
   const total = saleItemCount + stockMoveCount;
   if (total > 0) {
     throw new BadRequestError(
-      `Cannot delete product with active transactions (${saleItemCount} sale items, ${stockMoveCount} stock moves). Void them first.`,
+      "api.product.deleteBlocked",
+      undefined,
+      { saleItems: saleItemCount, stockMoves: stockMoveCount },
     );
   }
 

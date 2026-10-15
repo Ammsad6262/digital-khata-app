@@ -243,7 +243,7 @@ export function NewSaleForm() {
       {/* Customer section */}
       <section className="space-y-2">
         <h2 className="px-1 text-sm font-semibold text-slate-700">
-          1. {t("sale.customer")}
+          <span dir="ltr">1.</span> {t("sale.customer")}
         </h2>
         <CustomerPicker
           selected={customer}
@@ -255,7 +255,7 @@ export function NewSaleForm() {
       {/* Line items section */}
       <section className="space-y-2">
         <h2 className="px-1 text-sm font-semibold text-slate-700">
-          2. {t("sale.products")}
+          <span dir="ltr">2.</span> {t("sale.products")}
         </h2>
         <ProductPicker
           alreadyAddedProductIds={addedProductIds}
@@ -389,7 +389,7 @@ export function NewSaleForm() {
       {items.length > 0 ? (
         <section className="space-y-2">
           <h2 className="px-1 text-sm font-semibold text-slate-700">
-            3. {t("sale.payment")}
+            <span dir="ltr">3.</span> {t("sale.payment")}
           </h2>
 
           <div className="rounded-xl border border-slate-200 bg-white p-3">

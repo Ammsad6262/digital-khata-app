@@ -15,6 +15,7 @@ import { useState } from "react";
 import {
   ArrowLeft,
   AlertCircle,
+  ChevronRight,
   Phone,
   Wallet,
   Ban,
@@ -143,7 +144,7 @@ export function PaymentDetail({ paymentId }: { paymentId: string }) {
               {payment.customerPhone}
             </p>
           </div>
-          <span className="text-xs text-brand-600">{t("common.viewKhata")} →</span>
+          <span className="text-xs text-brand-600">{t("common.viewKhata")} <ChevronRight className="inline h-3 w-3 rtl-flip" /></span>
         </div>
       </Link>
 
@@ -163,7 +164,7 @@ export function PaymentDetail({ paymentId }: { paymentId: string }) {
         >
           <div className="flex items-center justify-between text-sm">
             <span className="text-slate-500">{t("payment.linkedToSale")}</span>
-            <span className="font-medium text-brand-600">{t("common.viewSale")} →</span>
+            <span className="font-medium text-brand-600">{t("common.viewSale")} <ChevronRight className="inline h-3 w-3 rtl-flip" /></span>
           </div>
         </Link>
       ) : null}

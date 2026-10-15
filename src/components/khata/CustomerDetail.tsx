@@ -216,7 +216,7 @@ export function CustomerDetail({ customerId }: { customerId: string }) {
                 router.push("/khata");
               },
               onError: (err) => {
-                setDeleteError(err instanceof Error ? err.message : "Failed to delete customer.");
+                setDeleteError(err instanceof Error ? err.message : t("customer.deleteFailed"));
               },
             });
           }}
@@ -284,6 +284,7 @@ function TransactionRow({
   tx: CustomerTransaction;
   isFirst: boolean;
 }) {
+  const { t } = useLanguage();
   const config = TX_TYPE_CONFIG[tx.type];
   const Icon = config.icon;
 
@@ -317,7 +318,7 @@ function TransactionRow({
             {formatDate(new Date(tx.date))} · {formatTime(new Date(tx.date))}
           </p>
           <p className="text-[11px] font-medium text-slate-500">
-            Balance: <span className="tabular-nums">
+            {t("customer.currentBalance")}: <span className="tabular-nums">
               <Money value={tx.runningBalance} />
             </span>
           </p>

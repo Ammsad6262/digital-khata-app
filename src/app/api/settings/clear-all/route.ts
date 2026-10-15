@@ -15,38 +15,40 @@ import { NextRequest } from "next/server";
 import { z } from "zod";
 import { clearAllData, getOwnerPinHash } from "@/lib/services/settings";
 import { verifyPin } from "@/lib/auth/pin";
-import { UnauthorizedError } from "@/lib/errors";
+import { BadRequestError, UnauthorizedError } from "@/lib/errors";
 import { ok, fail, parseJsonBody } from "@/lib/utils/api";
+import { requireUserId } from "@/lib/auth/get-current-user";
 
 export const dynamic = "force-dynamic";
 
 const clearSchema = z.object({
   confirm: z.boolean().refine((v) => v === true, {
-    message: "confirm must be true to clear all data.",
+    message: "api.clearAll.confirmRequired",
   }),
   currentPin: z.string().optional(),
 });
 
 export async function DELETE(req: NextRequest) {
   try {
+    const userId = await requireUserId(req);
     const { data, error } = await parseJsonBody<unknown>(req);
     if (error) return fail(new Error(error));
 
     const parsed = clearSchema.parse(data);
 
     // If a PIN is set, require it for this destructive action
-    const existingHash = await getOwnerPinHash();
+    const existingHash = await getOwnerPinHash(userId);
     if (existingHash) {
       if (!parsed.currentPin) {
-        throw new UnauthorizedError("PIN is required to clear all data.");
+        throw new BadRequestError("api.clearAll.pinRequired");
       }
       const valid = await verifyPin(parsed.currentPin, existingHash);
       if (!valid) {
-        throw new UnauthorizedError("PIN is incorrect.");
+        throw new BadRequestError("api.clearAll.pinIncorrect");
       }
     }
 
-    const result = await clearAllData();
+    const result = await clearAllData(userId);
 
     return ok(result);
   } catch (error) {

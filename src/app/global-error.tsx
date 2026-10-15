@@ -6,6 +6,10 @@
  * This component renders OUTSIDE the root layout and its providers, so it
  * CANNOT use any context hooks (useLanguage, useTheme, useToast, etc.).
  *
+ * To still serve Urdu text when the user's language is Urdu, we render both
+ * English and Urdu strings and toggle them via CSS based on the <html lang>
+ * attribute (which is set by the language provider in the root layout).
+ *
  * `export const dynamic = "force-dynamic"` prevents Next.js 16 from trying
  * to statically prerender this page — which fails with
  * "invariant expected layout router to be mounted" because the
@@ -13,6 +17,13 @@
  */
 
 export const dynamic = "force-dynamic";
+
+const bilingualStyles = `
+  .en-text { display: inline; }
+  .ur-text { display: none; }
+  html[lang="ur"] .en-text { display: none; }
+  html[lang="ur"] .ur-text { display: inline; }
+`;
 
 export default function GlobalError({
   error,
@@ -23,6 +34,9 @@ export default function GlobalError({
 }) {
   return (
     <html lang="en">
+      <head>
+        <style dangerouslySetInnerHTML={{ __html: bilingualStyles }} />
+      </head>
       <body style={{ margin: 0, fontFamily: "system-ui, sans-serif" }}>
         <div
           style={{
@@ -36,10 +50,12 @@ export default function GlobalError({
         >
           <div style={{ maxWidth: "28rem", textAlign: "center" }}>
             <h1 style={{ fontSize: "1.25rem", fontWeight: 600, color: "#0f172a", marginBottom: "0.5rem" }}>
-              Something went wrong
+              <span className="en-text">Something went wrong</span>
+              <span className="ur-text">کوئی خرابی پیش آ گئی</span>
             </h1>
             <p style={{ fontSize: "0.875rem", color: "#64748b", marginBottom: "1.5rem" }}>
-              {error.message || "An unexpected error occurred."}
+              <span className="en-text">{error.message || "An unexpected error occurred."}</span>
+              <span className="ur-text">{error.message || "ایک غیر متوقع خرابی پیش آئی۔"}</span>
             </p>
             <button
               type="button"
@@ -55,7 +71,8 @@ export default function GlobalError({
                 cursor: "pointer",
               }}
             >
-              Try again
+              <span className="en-text">Try again</span>
+              <span className="ur-text">دوبارہ کوشش کریں</span>
             </button>
           </div>
         </div>

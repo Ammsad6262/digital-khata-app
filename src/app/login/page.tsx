@@ -4,13 +4,14 @@
  * Login page — email + password.
  * On success → redirect to /dashboard.
  * Has a link to /register for new users.
+ *
+ * V13: Wired into i18n — all visible text uses t().
  */
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Wallet, Mail, Lock, Loader2, AlertCircle } from "lucide-react";
+import { Mail, Lock, Loader2, AlertCircle } from "lucide-react";
 import { useToast } from "@/providers/toast-provider";
-import { ApiError } from "@/lib/utils/api-client";
 import { useLanguage } from "@/providers/language-provider";
 
 export default function LoginPage() {
@@ -27,7 +28,7 @@ export default function LoginPage() {
     setError(null);
 
     if (!email.trim() || !password) {
-      setError("Email and password are required.");
+      setError(t("auth.emailPasswordRequired"));
       return;
     }
 
@@ -41,13 +42,13 @@ export default function LoginPage() {
       const json = await res.json();
 
       if (!res.ok || !json.ok) {
-        throw new Error(json.error?.message || "Login failed.");
+        throw new Error(json.error?.message || t("auth.loginFailed"));
       }
 
-      toast.success("Welcome back!");
+      toast.success(t("auth.welcomeBack"));
       router.push("/dashboard");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Login failed.");
+      setError(e instanceof Error ? e.message : t("auth.loginFailed"));
     } finally {
       setIsPending(false);
     }
@@ -58,11 +59,9 @@ export default function LoginPage() {
       <div className="w-full max-w-sm">
         {/* Logo + title */}
         <div className="mb-8 text-center">
-          <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-600 text-white shadow-lg shadow-brand-600/20">
-            <Wallet className="h-7 w-7" />
-          </div>
-          <h1 className="text-xl font-bold text-slate-900">Digital Khata</h1>
-          <p className="mt-1 text-sm text-slate-500">Log in to your account</p>
+          <img src="/icon.png" alt={t("app.name")} className="mx-auto mb-3 h-14 w-14 rounded-2xl shadow-lg" />
+          <h1 className="text-xl font-bold text-slate-900">{t("app.name")}</h1>
+          <p className="mt-1 text-sm text-slate-500">{t("auth.loginSubtitle")}</p>
         </div>
 
         {/* Form */}
@@ -75,14 +74,14 @@ export default function LoginPage() {
           ) : null}
 
           <div>
-            <label className="mb-1 block text-xs font-medium text-slate-600">Email</label>
+            <label className="mb-1 block text-xs font-medium text-slate-600">{t("auth.email")}</label>
             <div className="relative">
               <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
+                placeholder={t("auth.emailPlaceholder")}
                 autoComplete="email"
                 autoFocus
                 className="w-full rounded-lg border border-slate-300 bg-white py-2.5 pl-10 pr-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
@@ -91,7 +90,7 @@ export default function LoginPage() {
           </div>
 
           <div>
-            <label className="mb-1 block text-xs font-medium text-slate-600">Password</label>
+            <label className="mb-1 block text-xs font-medium text-slate-600">{t("auth.password")}</label>
             <div className="relative">
               <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <input
@@ -113,19 +112,19 @@ export default function LoginPage() {
             {isPending ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Logging in...
+                {t("auth.loggingIn")}
               </>
             ) : (
-              "Log in"
+              t("auth.login")
             )}
           </button>
         </form>
 
         {/* Register link */}
         <p className="mt-6 text-center text-sm text-slate-500">
-          Don&apos;t have an account?{" "}
+          {t("auth.noAccountQuestion")}{" "}
           <a href="/register" className="font-semibold text-brand-600 hover:underline">
-            Sign up
+            {t("auth.signUp")}
           </a>
         </p>
       </div>

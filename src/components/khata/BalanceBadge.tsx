@@ -6,11 +6,14 @@
  *   Positive balance → red (customer owes money)
  *   Zero balance     → slate (settled)
  *   Negative balance → blue (advance payment — customer paid extra)
+ *
+ * V13: Wired into i18n — label and title use translation keys.
  */
 
 import { Decimal } from "@/lib/utils/decimal";
 import { formatMoney } from "@/lib/utils/money";
 import { cn } from "@/lib/utils/cn";
+import { useLanguage } from "@/providers/language-provider";
 
 export function BalanceBadge({
   balance,
@@ -21,6 +24,7 @@ export function BalanceBadge({
   className?: string;
   size?: "sm" | "md" | "lg";
 }) {
+  const { t } = useLanguage();
   const d = new Decimal(balance);
   const isPositive = d.gt(0);
   const isNegative = d.lt(0);
@@ -38,10 +42,16 @@ export function BalanceBadge({
   }[size];
 
   const label = isPositive
-    ? "owes"
+    ? t("customer.owes")
     : isNegative
-      ? "advance"
-      : "settled";
+      ? t("customer.advance")
+      : t("customer.settled");
+
+  const title = isPositive
+    ? t("customer.outstandingBalance")
+    : isNegative
+      ? t("customer.advancePayment")
+      : t("customer.noBalance");
 
   return (
     <span
@@ -51,7 +61,7 @@ export function BalanceBadge({
         sizeClasses,
         className,
       )}
-      title={isPositive ? "Customer owes this amount" : isNegative ? "Customer has paid in advance" : "No outstanding balance"}
+      title={title}
     >
       {formatMoney(d.abs())}
       {size !== "lg" ? <span className="opacity-70">· {label}</span> : null}

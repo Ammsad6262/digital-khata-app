@@ -1,9 +1,17 @@
 "use client";
 
 /**
- * useAudioRecorder — browser microphone recorder.
- * Uses MediaRecorder API + Web Audio API for silence detection + level meter.
- * Releases mic on stop/unmount.
+ * useAudioRecorder — browser microphone recorder with auto-stop on silence.
+ *
+ * Uses the MediaRecorder API to capture audio from the user's microphone,
+ * detects the best-supported mimeType (webm/opus preferred, falls back to
+ * mp4 or wav), and exposes start/stop + the recorded Blob.
+ *
+ * Also implements simple silence detection via the Web Audio API: if the
+ * audio level stays below a threshold for >2 seconds, auto-stop recording.
+ *
+ * Always releases the microphone stream when recording stops or the
+ * component unmounts — never keep mic access active after the user is done.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -15,7 +23,7 @@ export function useAudioRecorder() {
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [audioMimeType, setAudioMimeType] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [levels, setLevels] = useState<number>(0);
+  const [levels, setLevels] = useState<number>(0); // 0..1 instantaneous audio level
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -26,29 +34,48 @@ export function useAudioRecorder() {
   const silenceTimerRef = useRef<number | null>(null);
   const onStopCallbackRef = useRef<((blob: Blob, mimeType: string) => void) | null>(null);
 
+  /** Detect the best-supported audio mimeType the browser can record. */
   const pickMimeType = useCallback((): string => {
-    const candidates = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4;codecs=mp4a.40.2", "audio/mp4", "audio/ogg;codecs=opus", "audio/wav"];
+    const candidates = [
+      "audio/webm;codecs=opus",
+      "audio/webm",
+      "audio/mp4;codecs=mp4a.40.2",
+      "audio/mp4",
+      "audio/ogg;codecs=opus",
+      "audio/wav",
+    ];
     for (const type of candidates) {
-      if (typeof MediaRecorder !== "undefined" && MediaRecorder.isTypeSupported(type)) return type;
+      if (typeof MediaRecorder !== "undefined" && MediaRecorder.isTypeSupported(type)) {
+        return type;
+      }
     }
-    return "audio/webm";
+    return "audio/webm"; // last-ditch fallback
   }, []);
 
   const cleanup = useCallback(() => {
-    if (silenceTimerRef.current) { clearTimeout(silenceTimerRef.current); silenceTimerRef.current = null; }
-    if (rafRef.current) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
+    if (silenceTimerRef.current) {
+      clearTimeout(silenceTimerRef.current);
+      silenceTimerRef.current = null;
+    }
+    if (rafRef.current) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
     if (audioContextRef.current && audioContextRef.current.state !== "closed") {
       audioContextRef.current.close().catch(() => {});
     }
     audioContextRef.current = null;
     analyserRef.current = null;
+
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((track) => track.stop());
       streamRef.current = null;
     }
   }, []);
 
-  useEffect(() => () => cleanup(), [cleanup]);
+  useEffect(() => {
+    return () => cleanup();
+  }, [cleanup]);
 
   const start = useCallback(async (onStop?: (blob: Blob, mimeType: string) => void) => {
     setError(null);
@@ -58,7 +85,7 @@ export function useAudioRecorder() {
 
     if (typeof MediaRecorder === "undefined" || !navigator.mediaDevices?.getUserMedia) {
       setState("unsupported");
-      setError("Your browser doesn't support audio recording.");
+      setError("smartentry.micError.unsupportedLong");
       return;
     }
 
@@ -66,15 +93,19 @@ export function useAudioRecorder() {
     let stream: MediaStream;
     try {
       stream = await navigator.mediaDevices.getUserMedia({
-        audio: { echoCancellation: true, noiseSuppression: true, channelCount: 1 },
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          channelCount: 1, // mono is enough for voice
+        },
       });
     } catch (e) {
       if (e instanceof DOMException && (e.name === "NotAllowedError" || e.name === "SecurityError")) {
         setState("denied");
-        setError("Microphone permission denied. Please allow it in your browser settings.");
+        setError("smartentry.micError.deniedWithSettings");
       } else {
         setState("error");
-        setError(e instanceof Error ? e.message : "Failed to access microphone.");
+        setError(e instanceof Error ? e.message : "smartentry.micError.accessFailed");
       }
       return;
     }
@@ -87,42 +118,52 @@ export function useAudioRecorder() {
     mediaRecorderRef.current = recorder;
     chunksRef.current = [];
 
-    recorder.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
+    recorder.ondataavailable = (e) => {
+      if (e.data.size > 0) {
+        chunksRef.current.push(e.data);
+      }
+    };
 
     recorder.onstop = () => {
       const blob = new Blob(chunksRef.current, { type: mimeType });
-      const callback = onStopCallbackRef.current;
-      onStopCallbackRef.current = null;
       setAudioBlob(blob);
       cleanup();
       setState("idle");
-      if (callback) queueMicrotask(() => callback(blob, mimeType));
+      onStopCallbackRef.current?.(blob, mimeType);
     };
 
     recorder.onerror = () => {
-      setError("Recording failed. Please try again.");
+      setError("smartentry.recording.failedRetry");
       setState("error");
       cleanup();
     };
 
-    // Web Audio API for silence detection + level meter
+    // Set up Web Audio API for silence detection + level meter
     try {
-      const audioContext = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
       audioContextRef.current = audioContext;
       const source = audioContext.createMediaStreamSource(stream);
       const analyser = audioContext.createAnalyser();
       analyser.fftSize = 256;
       source.connect(analyser);
       analyserRef.current = analyser;
+
       const data = new Uint8Array(analyser.frequencyBinCount);
       const tick = () => {
         if (!analyserRef.current) return;
         analyserRef.current.getByteFrequencyData(data);
-        const avg = data.reduce((a, b) => a + b, 0) / data.length / 255;
+        // Compute average level 0..1
+        const sum = data.reduce((a, b) => a + b, 0);
+        const avg = sum / data.length / 255;
         setLevels(avg);
+
+        // Reset silence timer if we hear sound
         if (avg > 0.05) {
-          if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+          if (silenceTimerRef.current) {
+            clearTimeout(silenceTimerRef.current);
+          }
           silenceTimerRef.current = window.setTimeout(() => {
+            // Auto-stop after 2s of silence
             if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
               mediaRecorderRef.current.stop();
             }
@@ -131,12 +172,14 @@ export function useAudioRecorder() {
         rafRef.current = requestAnimationFrame(tick);
       };
       rafRef.current = requestAnimationFrame(tick);
-    } catch { /* non-fatal */ }
+    } catch {
+      // Web Audio API failure is non-fatal — recording still works, just no silence detection
+    }
 
     recorder.start();
     setState("recording");
 
-    // Hard cap at 30 seconds
+    // Hard cap at 30 seconds — never let a user record more than that
     setTimeout(() => {
       if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
         mediaRecorderRef.current.stop();
@@ -154,6 +197,14 @@ export function useAudioRecorder() {
     }
   }, [cleanup]);
 
+  /**
+   * Cancel an in-flight recording WITHOUT firing the onStop callback.
+   *
+   * Used when the user taps "Cancel" during recording — we want to stop
+   * the mic and discard the audio, NOT submit it to the API. The recorder's
+   * own onstop handler will still fire (browser behavior), but because we
+   * null out onStopCallbackRef first, the audio won't be submitted.
+   */
   const cancel = useCallback(() => {
     onStopCallbackRef.current = null;
     setState("stopping");
@@ -165,6 +216,12 @@ export function useAudioRecorder() {
     }
   }, [cleanup]);
 
+  /**
+   * Reset the recorder back to idle, clearing any error/denied state.
+   * Used by the SmartEntryModal when the user clicks "Try again" on the
+   * mic-error screen — without this, the recorder stays in the error
+   * state and the UI keeps showing the error screen even after smartEntry.reset().
+   */
   const reset = useCallback(() => {
     cleanup();
     setState("idle");
@@ -174,5 +231,15 @@ export function useAudioRecorder() {
     setLevels(0);
   }, [cleanup]);
 
-  return { state, audioBlob, audioMimeType, error, levels, start, stop, cancel, reset };
+  return {
+    state,
+    audioBlob,
+    audioMimeType,
+    error,
+    levels,
+    start,
+    stop,
+    cancel,
+    reset,
+  };
 }

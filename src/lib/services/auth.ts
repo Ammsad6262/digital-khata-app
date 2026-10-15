@@ -125,17 +125,35 @@ export async function registerUser(input: {
   const email = input.email.trim().toLowerCase();
   const password = input.password;
 
-  if (!name) throw new BadRequestError("Name is required.");
-  if (!email || !email.includes("@")) throw new BadRequestError("A valid email is required.");
-  if (!password || password.length < 6) throw new BadRequestError("Password must be at least 6 characters.");
+  if (!name) throw new BadRequestError("api.auth.nameRequired");
+  if (!email || !email.includes("@")) throw new BadRequestError("api.auth.emailRequired");
+  if (!password || password.length < 6) throw new BadRequestError("api.auth.passwordTooShort");
 
   // Check if email already exists
   const existing = await prisma.user.findUnique({ where: { email } });
-  if (existing) throw new BadRequestError("An account with this email already exists.");
+  if (existing) throw new BadRequestError("api.auth.emailInUse");
 
   const passwordHash = await hashPassword(password);
-  const user = await prisma.user.create({
-    data: { name, email, passwordHash },
+
+  // Create user + trial subscription atomically
+  const user = await prisma.$transaction(async (tx) => {
+    const newUser = await tx.user.create({
+      data: { name, email, passwordHash },
+    });
+
+    // Create a 30-day free trial subscription
+    const now = new Date();
+    const trialExpires = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+    await tx.userSubscription.create({
+      data: {
+        userId: newUser.id,
+        status: "TRIAL_ACTIVE",
+        trialStartedAt: now,
+        trialExpiresAt: trialExpires,
+      },
+    });
+
+    return newUser;
   });
 
   const token = await signToken({ userId: user.id });
@@ -153,13 +171,13 @@ export async function loginUser(input: {
   const email = input.email.trim().toLowerCase();
   const password = input.password;
 
-  if (!email || !password) throw new BadRequestError("Email and password are required.");
+  if (!email || !password) throw new BadRequestError("api.auth.credentialsRequired");
 
   const user = await prisma.user.findUnique({ where: { email } });
-  if (!user) throw new UnauthorizedError("Invalid email or password.");
+  if (!user) throw new UnauthorizedError("api.auth.invalidCredentials");
 
   const valid = await verifyPassword(password, user.passwordHash);
-  if (!valid) throw new UnauthorizedError("Invalid email or password.");
+  if (!valid) throw new UnauthorizedError("api.auth.invalidCredentials");
 
   const token = await signToken({ userId: user.id });
 

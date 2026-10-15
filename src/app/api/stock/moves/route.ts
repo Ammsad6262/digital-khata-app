@@ -14,11 +14,11 @@ import {
   addStockMove,
 } from "@/lib/services/stock";
 import { ok, fail, parseJsonBody, getQueryParam } from "@/lib/utils/api";
-import { getCurrentUserId } from "@/lib/auth/get-current-user";
+import { requireActiveAccess } from "@/lib/auth/get-current-user";
 
 export async function GET(req: NextRequest) {
   try {
-    const userId = await getCurrentUserId(req);
+    const userId = await requireActiveAccess(req);
     const productId = getQueryParam(req, "productId");
 
     if (productId) {
@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const userId = await getCurrentUserId(req);
+    const userId = await requireActiveAccess(req);
     const { data, error } = await parseJsonBody<unknown>(req);
     if (error) return fail(new Error(error));
 

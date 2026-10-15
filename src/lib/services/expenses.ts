@@ -18,10 +18,12 @@ import { prisma } from "@/lib/db/prisma";
 import { NotFoundError, BadRequestError } from "@/lib/errors";
 import { createExpenseSchema } from "@/lib/schemas/expense";
 import { invalidateCache } from "@/lib/utils/cache";
+import { Decimal } from "@/lib/utils/decimal";
 import {
   startOfTodayInTz,
   startOfWeekInTz,
   startOfMonthInTz,
+  getDateRangeForFilter,
 } from "@/lib/utils/date";
 import type { Prisma } from "@prisma/client";
 
@@ -41,7 +43,7 @@ export type ExpenseView = {
   updatedAt: Date;
 };
 
-export type ExpenseFilter = "today" | "week" | "month" | "all";
+export type ExpenseFilter = "today" | "yesterday" | "week" | "lastWeek" | "month" | "lastMonth" | "year" | "all";
 
 // ────────────────────────────────────────────────────────────────────────────
 // Mappers
@@ -93,20 +95,18 @@ export async function listExpensesFiltered(
   userId?: string | null,
 ): Promise<ExpenseView[]> {
   const { limit = 200, timezone = "Asia/Karachi" } = options;
-  let startDate: Date | undefined;
-
-  switch (filter) {
-    case "today": startDate = startOfTodayInTz(timezone); break;
-    case "week":  startDate = startOfWeekInTz(timezone); break;
-    case "month": startDate = startOfMonthInTz(timezone); break;
-    case "all":   startDate = undefined; break;
-  }
+  const range = getDateRangeForFilter(filter, timezone);
 
   const expenses = await prisma.expense.findMany({
     where: {
       voidedAt: null,
       ...(userId && { userId }),
-      ...(startDate && { date: { gte: startDate } }),
+      ...((range.start || range.end) && {
+        date: {
+          ...(range.start && { gte: range.start }),
+          ...(range.end && { lt: range.end }),
+        },
+      }),
     },
     orderBy: { date: "desc" },
     take: limit,
@@ -119,7 +119,7 @@ export async function listExpensesFiltered(
 export async function getExpense(id: string, userId?: string | null): Promise<ExpenseView> {
   const expense = await prisma.expense.findFirst({ where: { id, ...(userId && { userId }) } });
   if (!expense || expense.voidedAt) {
-    throw new NotFoundError("Expense", id);
+    throw new NotFoundError("api.resource.expense", id);
   }
   return toView(expense);
 }
@@ -209,8 +209,8 @@ export async function updateExpense(id: string, input: unknown, userId?: string 
 export async function voidExpense(id: string, userId?: string | null): Promise<{ id: string; voidedAt: Date }> {
   const result = await prisma.$transaction(async (tx) => {
     const expense = await tx.expense.findFirst({ where: { id, ...(userId && { userId }) } });
-    if (!expense) throw new NotFoundError("Expense", id);
-    if (expense.voidedAt) throw new BadRequestError("Expense is already voided.");
+    if (!expense) throw new NotFoundError("api.resource.expense", id);
+    if (expense.voidedAt) throw new BadRequestError("api.expense.alreadyVoided");
 
     const now = new Date();
     await tx.expense.update({
@@ -230,4 +230,158 @@ export async function voidExpense(id: string, userId?: string | null): Promise<{
   invalidateCache("profit-loss");
 
   return result;
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// V2 — Summary (totals + per-category breakdown)
+// ────────────────────────────────────────────────────────────────────────────
+
+export type ExpenseSummaryCategory = {
+  category: string;
+  total: string;
+  count: number;
+  // Percentage of grand total (0-100). Computed in JS (Decimal-safe) so
+  // the UI doesn't have to do math.
+  percentage: number;
+};
+
+export type ExpenseSummary = {
+  /** Filter the summary was computed for (mirrors input). */
+  filter: ExpenseFilter;
+  /** Total amount across all (non-voided) expenses matching the filter. */
+  total: string;
+  /** Count of (non-voided) expenses matching the filter. */
+  count: number;
+  /**
+   * Today's expenses total — independent of the selected filter, so the UI
+   * can show "Today" + the filtered period side by side. Always computed in
+   * the business timezone.
+   */
+  todayTotal: string;
+  todayCount: number;
+  /**
+   * This month's expenses total — independent of the selected filter, so
+   * the UI can show "This month" alongside the filter.
+   */
+  monthTotal: string;
+  monthCount: number;
+  /** Per-category breakdown for the selected filter. */
+  byCategory: ExpenseSummaryCategory[];
+};
+
+/**
+ * Compute a summary of expenses: total, count, today's total, this month's
+ * total, and per-category breakdown. All amounts are decimal-safe (no float
+ * math). Filtered to the authenticated user's expenses only.
+ *
+ * The summary is NOT cached (it depends on the filter + current time). The
+ * UI is expected to fetch it via React Query with a reasonable staleTime.
+ */
+export async function getExpensesSummary(
+  filter: ExpenseFilter = "all",
+  options: { timezone?: string } = {},
+  userId?: string | null,
+): Promise<ExpenseSummary> {
+  const { timezone = "Asia/Karachi" } = options;
+
+  // Compute the start date for the selected filter (for the per-filter total
+  // + per-category breakdown).
+  let filterStartDate: Date | undefined;
+  switch (filter) {
+    case "today": filterStartDate = startOfTodayInTz(timezone); break;
+    case "week":  filterStartDate = startOfWeekInTz(timezone); break;
+    case "month": filterStartDate = startOfMonthInTz(timezone); break;
+    case "all":   filterStartDate = undefined; break;
+  }
+
+  // Today's window — always shown regardless of selected filter.
+  const todayStart = startOfTodayInTz(timezone);
+  // This-month window — always shown regardless of selected filter.
+  const monthStart = startOfMonthInTz(timezone);
+
+  // Parallel queries — 3 separate SUM + COUNT aggregations + 1 grouped.
+  // Doing them in parallel avoids serial round-trips.
+  const [filterAgg, todayAgg, monthAgg, byCategoryAgg] = await Promise.all([
+    // 1. Total + count for the selected filter
+    prisma.expense.aggregate({
+      _sum: { amount: true },
+      _count: { _all: true },
+      where: {
+        voidedAt: null,
+        ...(userId && { userId }),
+        ...(filterStartDate && { date: { gte: filterStartDate } }),
+      },
+    }),
+    // 2. Today's total + count
+    prisma.expense.aggregate({
+      _sum: { amount: true },
+      _count: { _all: true },
+      where: {
+        voidedAt: null,
+        ...(userId && { userId }),
+        date: { gte: todayStart },
+      },
+    }),
+    // 3. This month's total + count
+    prisma.expense.aggregate({
+      _sum: { amount: true },
+      _count: { _all: true },
+      where: {
+        voidedAt: null,
+        ...(userId && { userId }),
+        date: { gte: monthStart },
+      },
+    }),
+    // 4. Per-category breakdown for the selected filter
+    prisma.expense.groupBy({
+      by: ["category"],
+      _sum: { amount: true },
+      _count: { _all: true },
+      where: {
+        voidedAt: null,
+        ...(userId && { userId }),
+        ...(filterStartDate && { date: { gte: filterStartDate } }),
+      },
+      orderBy: { category: "asc" },
+    }),
+  ]);
+
+  // ── Convert to decimal-safe strings + compute percentages ───────────────
+  const filterTotal = toDecimalOrZero(filterAgg._sum.amount);
+  const todayTotal = toDecimalOrZero(todayAgg._sum.amount);
+  const monthTotal = toDecimalOrZero(monthAgg._sum.amount);
+
+  const byCategory: ExpenseSummaryCategory[] = byCategoryAgg
+    .map((row) => {
+      const total = toDecimalOrZero(row._sum.amount);
+      return {
+        category: row.category,
+        total: total.toString(),
+        count: row._count._all,
+        // Percentage: 0 if grand total is 0 (avoids div-by-zero)
+        percentage: filterTotal.gt(0)
+          ? Number(total.div(filterTotal).times(100).toFixed(1))
+          : 0,
+      };
+    })
+    // Sort by total descending (so the biggest category shows first in UI)
+    .sort((a, b) => (new Decimal(b.total).gt(new Decimal(a.total)) ? 1 : -1));
+
+  return {
+    filter,
+    total: filterTotal.toString(),
+    count: filterAgg._count._all,
+    todayTotal: todayTotal.toString(),
+    todayCount: todayAgg._count._all,
+    monthTotal: monthTotal.toString(),
+    monthCount: monthAgg._count._all,
+    byCategory,
+  };
+}
+
+// Tiny helper — converts a Prisma Decimal | null to our Decimal utility (0
+// if null). Keeps the summary code free of `?? 0` boilerplate.
+function toDecimalOrZero(value: Prisma.Decimal | null): Decimal {
+  if (!value) return new Decimal(0);
+  return new Decimal(value.toString());
 }

@@ -153,8 +153,8 @@ export function StockOverview() {
           />
         ) : stockFilter !== "all" ? (
           <EmptyState
-            title={stockFilter === "low-stock" ? t("stock.noLowStock") : "No products in this filter"}
-            description={stockFilter === "low-stock" ? t("stock.noLowStockDesc") : "Try a different filter."}
+            title={stockFilter === "low-stock" ? t("stock.noLowStock") : t("stock.noProductsInFilter")}
+            description={stockFilter === "low-stock" ? t("stock.noLowStockDesc") : t("stock.tryDifferentFilter")}
             icon={<Package className="h-6 w-6" />}
           />
         ) : (
@@ -166,7 +166,7 @@ export function StockOverview() {
           <div className="flex items-center gap-1.5 px-1">
             <Package className="h-4 w-4 text-slate-400" />
             <p className="text-xs text-slate-500">
-              {filtered.length} {filtered.length === 1 ? "item" : "items"}
+              {filtered.length} {filtered.length === 1 ? t("stock.item") : t("stock.items")}
             </p>
           </div>
 
@@ -228,7 +228,7 @@ function ProductStockRow({
         </p>
         <p className="text-[11px] text-slate-500">
           {product.category ?? t("stock.uncategorized")} · {product.unit}
-          {product.sku ? ` · SKU: ${product.sku}` : ""}
+          {product.sku ? ` · ${t("product.skuLabel")} ${product.sku}` : ""}
         </p>
       </div>
 
@@ -247,10 +247,10 @@ function ProductStockRow({
         </p>
         {isLow || isOut ? (
           <p className="text-[10px] font-medium text-amber-600">
-            {isNegative ? t("stock.belowZero") : isOut ? "Out of stock" : t("stock.low")}
+            {isNegative ? t("stock.belowZero") : isOut ? t("stock.outOfStock") : t("stock.low")}
           </p>
         ) : (
-          <p className="text-[10px] font-medium text-brand-600">In stock</p>
+          <p className="text-[10px] font-medium text-brand-600">{t("stock.inStockLabel")}</p>
         )}
       </div>
     </Link>

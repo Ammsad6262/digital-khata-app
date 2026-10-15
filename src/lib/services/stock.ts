@@ -22,6 +22,7 @@ export type StockMoveView = {
   quantity: string;
   reason: string | null;
   unitCost: string | null;
+  batchName: string | null;  // user-defined batch name (e.g. "Old Rice")
   remainingQuantity: string;  // how much of this batch is still in stock
   date: Date;
   voidedAt: Date | null;
@@ -36,6 +37,7 @@ function toView(m: Prisma.StockMoveGetPayload<{}>): StockMoveView {
     quantity: m.quantity.toString(),
     reason: m.reason,
     unitCost: m.unitCost ? m.unitCost.toString() : null,
+    batchName: m.batchName,
     remainingQuantity: m.remainingQuantity.toString(),
     date: m.date,
     voidedAt: m.voidedAt,
@@ -79,7 +81,7 @@ export async function addStockMove(input: unknown, userId?: string | null): Prom
       },
     });
     if (!product) {
-      throw new NotFoundError("Product", data.productId);
+      throw new NotFoundError("api.resource.product", data.productId);
     }
 
     // For purchases and returns (batch-like moves), initialize remainingQuantity = quantity.
@@ -95,6 +97,8 @@ export async function addStockMove(input: unknown, userId?: string | null): Prom
         quantity: data.quantity,
         reason: data.reason ?? null,
         unitCost: data.unitCost ?? null,
+        // V2: Save user-defined batch name (only for purchases)
+        batchName: data.type === "purchase" ? (data.batchName ?? null) : null,
         // Initialize remainingQuantity. For purchases/returns: starts at full quantity,
         // decreases as SaleItems link to this batch. For adjustments: 0 (not tracked).
         remainingQuantity: initialRemaining,
@@ -142,12 +146,12 @@ export async function addStockMove(input: unknown, userId?: string | null): Prom
 export async function voidStockMove(id: string, userId?: string | null): Promise<{ id: string; voidedAt: Date }> {
   return await prisma.$transaction(async (tx) => {
     const move = await tx.stockMove.findUnique({ where: { id } });
-    if (!move) throw new NotFoundError("StockMove", id);
+    if (!move) throw new NotFoundError("api.resource.stockMove", id);
     // Tenant isolation: a user can only void their own stock moves.
     if (userId && move.userId && move.userId !== userId) {
-      throw new NotFoundError("StockMove", id);
+      throw new NotFoundError("api.resource.stockMove", id);
     }
-    if (move.voidedAt) throw new BadRequestError("StockMove is already voided.");
+    if (move.voidedAt) throw new BadRequestError("api.stockMove.alreadyVoided");
 
     const now = new Date();
     await tx.stockMove.update({
@@ -170,6 +174,7 @@ export async function voidStockMove(id: string, userId?: string | null): Promise
 
 export type ProductBatch = {
   id: string;            // StockMove.id
+  batchName: string | null;  // user-defined batch name (e.g. "Old Rice")
   date: Date;            // when this batch was purchased/added
   quantity: string;      // original batch size
   remainingQuantity: string; // how much is still in stock from this batch
@@ -201,7 +206,7 @@ export async function listProductBatches(productId: string, userId?: string | nu
     select: { id: true },
   });
   if (!product) {
-    throw new NotFoundError("Product", productId);
+    throw new NotFoundError("api.resource.product", productId);
   }
 
   const moves = await prisma.stockMove.findMany({
@@ -216,6 +221,7 @@ export async function listProductBatches(productId: string, userId?: string | nu
     orderBy: { date: "asc" }, // OLDEST first — FIFO-friendly default
     select: {
       id: true,
+      batchName: true,
       date: true,
       quantity: true,
       remainingQuantity: true,
@@ -227,6 +233,7 @@ export async function listProductBatches(productId: string, userId?: string | nu
 
   return moves.map((m) => ({
     id: m.id,
+    batchName: m.batchName,
     date: m.date,
     quantity: m.quantity.toString(),
     remainingQuantity: m.remainingQuantity.toString(),

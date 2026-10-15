@@ -7,6 +7,7 @@
  * - Applies `dir="rtl"` on <html> when Urdu is selected
  * - Applies `lang="ur"` on <html>
  * - Provides `t()` function for translations
+ * - Provides `tParams()` for parameterised translations
  * - Anti-FOUC: inline script in layout.tsx sets dir before first paint
  */
 
@@ -19,17 +20,22 @@ import {
   type ReactNode,
 } from "react";
 import { translations, type Language, type TranslationKey } from "@/lib/i18n/translations";
+import { interpolate } from "@/lib/i18n/interpolate";
 
 type LanguageContextValue = {
   lang: Language;
   dir: "ltr" | "rtl";
   setLang: (lang: Language) => void;
   t: (key: TranslationKey) => string;
+  /** Translate a key with parameter interpolation. {placeholder} → params.placeholder */
+  tParams: (key: TranslationKey, params: Record<string, string | number>) => string;
 };
 
 const LanguageContext = createContext<LanguageContextValue | null>(null);
 
 const STORAGE_KEY = "digital-khata-lang";
+
+// interpolate() lives in @/lib/i18n/interpolate (shared with server.ts)
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
   const [lang, setLangState] = useState<Language>("en");
@@ -72,10 +78,20 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     [lang],
   );
 
+  const tParams = useCallback(
+    (key: TranslationKey, params: Record<string, string | number>): string => {
+      const entry = translations[key];
+      if (!entry) return key;
+      const template = entry[lang] ?? entry.en ?? key;
+      return interpolate(template, params);
+    },
+    [lang],
+  );
+
   const dir = lang === "ur" ? "rtl" : "ltr";
 
   return (
-    <LanguageContext.Provider value={{ lang, dir, setLang, t }}>
+    <LanguageContext.Provider value={{ lang, dir, setLang, t, tParams }}>
       {children}
     </LanguageContext.Provider>
   );
@@ -93,6 +109,7 @@ export function useLanguage(): LanguageContextValue {
       dir: "ltr",
       setLang: () => {},
       t: (key: TranslationKey) => key as string,
+      tParams: (key: TranslationKey) => key as string,
     };
   }
   return ctx;

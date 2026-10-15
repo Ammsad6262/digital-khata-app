@@ -3,15 +3,16 @@
 /**
  * Bottom navigation — fixed at the bottom of every screen.
  *
- * 5 tabs per the V1 architecture:
- *   Dashboard | Khata | Sales | Stock | More
+ * 5 tabs (V2 — Expenses replaces More in the bottom nav; More moves to the
+ * top-right of every page header as a slide-out drawer trigger):
+ *   Dashboard | Khata | Sales | Stock | Expenses
  *
  * Highlights the active tab based on the current pathname.
  */
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, BookOpen, ShoppingCart, Package, Menu } from "lucide-react";
+import { LayoutDashboard, BookOpen, ShoppingCart, Package, Receipt } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { useLanguage } from "@/providers/language-provider";
 
@@ -20,7 +21,7 @@ const TABS = [
   { href: "/khata", labelKey: "nav.khata", icon: BookOpen },
   { href: "/sales", labelKey: "nav.sales", icon: ShoppingCart },
   { href: "/stock", labelKey: "nav.stock", icon: Package },
-  { href: "/more", labelKey: "nav.more", icon: Menu },
+  { href: "/expenses", labelKey: "nav.expenses", icon: Receipt },
 ] as const;
 
 export function BottomNav() {
@@ -37,7 +38,17 @@ export function BottomNav() {
       aria-label="Main navigation"
     >
       {TABS.map((tab) => {
+        // /expenses should also be active when the user is on /expenses/new,
+        // /expenses/[id], /more/expenses/* (legacy expense routes still
+        // redirect to the new /expenses view).
+        const isExpensesActive =
+          tab.href === "/expenses" &&
+          (pathname === "/expenses" ||
+            pathname.startsWith("/expenses/") ||
+            pathname.startsWith("/more/expenses"));
+
         const isActive =
+          isExpensesActive ||
           pathname === tab.href ||
           (tab.href !== "/dashboard" && pathname.startsWith(tab.href));
 

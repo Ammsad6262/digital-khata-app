@@ -15,11 +15,13 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { getSettings, getOwnerPinHash } from "@/lib/services/settings";
+import { getOwnerPinHash } from "@/lib/services/settings";
 import { verifyPin } from "@/lib/auth/pin";
 import { createSession } from "@/lib/auth/session";
 import { checkRateLimit, recordFailure, recordSuccess, getClientIp } from "@/lib/auth/rate-limiter";
 import { fail } from "@/lib/utils/api";
+import { tServer } from "@/lib/i18n/server";
+import { requireUserId } from "@/lib/auth/get-current-user";
 
 export const dynamic = "force-dynamic";
 
@@ -29,6 +31,7 @@ const unlockSchema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
+    const userId = await requireUserId(req);
     const ip = getClientIp(req);
 
     // Check rate limit
@@ -39,7 +42,9 @@ export async function POST(req: NextRequest) {
           ok: false,
           error: {
             code: "RATE_LIMITED",
-            message: `Too many failed attempts. Try again in ${retryAfter} seconds.`,
+            message: tServer("api.auth.unlock.rateLimited", { seconds: retryAfter }),
+            translationKey: true,
+            params: { seconds: retryAfter },
           },
         },
         {
@@ -51,27 +56,27 @@ export async function POST(req: NextRequest) {
 
     const body = (await req.json().catch(() => ({}))) as unknown;
     const parsed = unlockSchema.parse(body);
-    const settings = await getSettings();
 
-    // If no PIN is set, auto-grant session (app is unprotected)
-    if (!settings.hasPin) {
-      const { cookie } = await createSession();
-      const res = NextResponse.json({ ok: true, data: { unlocked: true } });
-      res.headers.set("Set-Cookie", cookie);
-      return res;
-    }
-
-    // PIN is set — verify it
-    const pinHash = await getOwnerPinHash();
+    // If no PIN is set for this user, auto-grant session (app is unprotected)
+    const pinHash = await getOwnerPinHash(userId);
     if (!pinHash) {
-      // Race condition: PIN was cleared between getSettings and getOwnerPinHash
       const { cookie } = await createSession();
       const res = NextResponse.json({ ok: true, data: { unlocked: true } });
       res.headers.set("Set-Cookie", cookie);
       return res;
     }
 
-    const valid = await verifyPin(parsed.pin, pinHash);
+    // PIN is set — verify it (re-fetch to handle race condition)
+    const currentPinHash = await getOwnerPinHash(userId);
+    if (!currentPinHash) {
+      // Race condition: PIN was cleared between checks
+      const { cookie } = await createSession();
+      const res = NextResponse.json({ ok: true, data: { unlocked: true } });
+      res.headers.set("Set-Cookie", cookie);
+      return res;
+    }
+
+    const valid = await verifyPin(parsed.pin, currentPinHash);
     if (!valid) {
       recordFailure(ip);
       return NextResponse.json(
@@ -79,7 +84,8 @@ export async function POST(req: NextRequest) {
           ok: false,
           error: {
             code: "UNAUTHORIZED",
-            message: "Incorrect PIN.",
+            message: tServer("api.auth.unlock.incorrectPin"),
+            translationKey: true,
           },
         },
         { status: 401 },

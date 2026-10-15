@@ -22,6 +22,7 @@ import { Calendar, Layers, Package } from "lucide-react";
 import { useProductBatches } from "@/hooks/use-products";
 import { Money } from "@/components/shared/Money";
 import { useLanguage } from "@/providers/language-provider";
+import { useCurrencySymbol } from "@/hooks/use-currency-symbol";
 import { formatDate } from "@/lib/utils/date";
 import { Decimal } from "@/lib/utils/decimal";
 import { cn } from "@/lib/utils/cn";
@@ -44,6 +45,7 @@ export function BatchPicker({
 }) {
   const { data, isLoading, isError } = useProductBatches(productId);
   const { t } = useLanguage();
+  const symbol = useCurrencySymbol();
 
   // Filter to batches with remaining > 0 (sorted oldest-first by API)
   const availableBatches = useMemo(() => {
@@ -71,7 +73,7 @@ export function BatchPicker({
     return (
       <div className="rounded-md bg-slate-50 px-2 py-1.5 text-[11px] text-slate-500">
         <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-slate-400" />
-        <span className="ml-1">Loading batches…</span>
+        <span className="ml-1">{t("stock.loadingBatches")}</span>
       </div>
     );
   }
@@ -80,7 +82,7 @@ export function BatchPicker({
   if (isError) {
     return (
       <div className="rounded-md bg-red-50 px-2 py-1.5 text-[11px] text-red-700">
-        Couldn't load batches — sale will be untracked.
+        {t("stock.batchesLoadFailed")}
       </div>
     );
   }
@@ -148,12 +150,17 @@ export function BatchPicker({
               )}
               aria-pressed={isSelected}
             >
+              {b.batchName ? (
+                <div className="mb-0.5 truncate text-[11px] font-semibold text-slate-900">
+                  {b.batchName}
+                </div>
+              ) : null}
               <div className="flex items-center gap-1.5">
                 <span className="rounded bg-brand-100 px-1 text-[9px] font-semibold text-brand-700">
                   #{idx + 1}
                 </span>
                 <span className="font-semibold tabular-nums text-slate-900">
-                  Rs. {b.unitCost ?? "—"}
+                  {symbol} {b.unitCost ?? "—"}
                 </span>
               </div>
               <div className="mt-0.5 flex items-center gap-1 text-[10px] text-slate-500">
@@ -170,7 +177,7 @@ export function BatchPicker({
               </div>
               {insufficient ? (
                 <div className="mt-0.5 text-[9px] text-amber-700">
-                  ⚠ short by {formatQuantity(requested.minus(remaining), productUnit)}
+                  ⚠ {t("sale.shortBy")} {formatQuantity(requested.minus(remaining), productUnit)}
                 </div>
               ) : null}
             </button>
@@ -199,6 +206,7 @@ function BatchSummary({
   requested: Decimal;
 }) {
   const { t } = useLanguage();
+  const symbol = useCurrencySymbol();
   const remainingDec = new Decimal(remaining);
   const insufficient = requested.gt(remainingDec) && requested.gt(0);
 
@@ -206,7 +214,7 @@ function BatchSummary({
     <div className="mt-0.5 space-y-0.5">
       <div className="flex items-center gap-2 text-[11px]">
         <span className="font-semibold text-slate-900">
-          {t("sale.batchBoughtAt")} Rs. {unitCost ?? t("sale.batchNoCost")}
+          {t("sale.batchBoughtAt")} {symbol} {unitCost ?? t("sale.batchNoCost")}
         </span>
         <span className="text-slate-400">·</span>
         <span className="text-slate-500">
@@ -223,7 +231,7 @@ function BatchSummary({
         {formatQuantity(remainingDec, unit)} {t("sale.batchRemaining")}
         {insufficient ? (
           <span className="ml-1 text-amber-700">
-            ⚠ short by {formatQuantity(requested.minus(remainingDec), unit)}
+            ⚠ {t("sale.shortBy")} {formatQuantity(requested.minus(remainingDec), unit)}
           </span>
         ) : null}
       </div>

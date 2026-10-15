@@ -16,12 +16,13 @@
  */
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiGet, apiPost, ApiError } from "@/lib/utils/api-client";
+import { apiGet, apiPost, apiPatch, ApiError } from "@/lib/utils/api-client";
 import type {
   PaymentView,
   PaymentListItem,
   PaymentDetail,
   PaymentFilter,
+  UpdatePaymentInput,
 } from "@/lib/services/payments";
 import { saleKeys } from "@/hooks/use-sales";
 
@@ -159,6 +160,37 @@ export function useVoidPayment() {
       queryClient.invalidateQueries({ queryKey: ["customers"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       queryClient.invalidateQueries({ queryKey: ["transactions"] });
+    },
+  });
+}
+
+/**
+ * Update a payment — amount / method / date / notes. The customer + saleId
+ * are NOT editable (those identify the payment; if they need to change, the
+ * owner should void + re-record).
+ *
+ * If the amount changes AND the payment is linked to a sale, the sale's
+ * denormalized paidAmount + outstanding columns are recomputed atomically
+ * on the backend (in a single prisma.$transaction).
+ */
+export function useUpdatePayment(id: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: UpdatePaymentInput) =>
+      apiPatch<PaymentDetail>(`/api/payments/${id}`, input),
+
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: paymentKeys.detail(id) });
+      queryClient.invalidateQueries({ queryKey: paymentKeys.all });
+      queryClient.invalidateQueries({ queryKey: ["customers"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["transactions"] });
+      // If the linked sale's outstanding may have changed, invalidate its
+      // cache so the Sale Detail page refetches.
+      if (data.saleId) {
+        queryClient.invalidateQueries({ queryKey: saleKeys.detail(data.saleId) });
+      }
     },
   });
 }

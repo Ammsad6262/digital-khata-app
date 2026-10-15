@@ -1,13 +1,25 @@
 /**
- * Smart Entry — Zod schemas for AI output + API requests.
+ * Smart Khata Entry — Zod schemas (V10: multi-intent).
  *
- * The AI is FORBIDDEN from returning database IDs. Backend resolves names
- * → IDs against the CURRENT USER's records only.
+ * V10 CHANGES:
+ *   - Expanded intent enum: CREATE_CREDIT_SALE, CREATE_EXPENSE, RECORD_PAYMENT,
+ *     CREATE_CUSTOMER, CREATE_PRODUCT, STOCK_INTAKE, QUERY, UNKNOWN
+ *   - New fields: expenseName, expenseCategory, queryType, queryEntity
+ *   - The backend routes by intent to the appropriate form/execute function
+ *
+ * The AI is FORBIDDEN from returning:
+ *   - customerId, productId, userId, expenseId, paymentId
+ *   - SQL or any executable instruction
+ *
+ * Backend resolves names → IDs against the CURRENT USER's records only,
+ * and computes the final amount server-side using Decimal (no float math).
  */
 
 import { z } from "zod";
 
-// ── Intent enum ──────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────────────────
+// AI output schema — what the LLM is allowed to return
+// ────────────────────────────────────────────────────────────────────────────
 
 export const intentSchema = z.enum([
   "CREATE_CREDIT_SALE",
@@ -21,10 +33,25 @@ export const intentSchema = z.enum([
 ]);
 export type Intent = z.infer<typeof intentSchema>;
 
-// ── AI output schema ─────────────────────────────────────────────────────────
-
+/**
+ * V10: The strict schema the AI must return.
+ *
+ * New intent categories:
+ *   - CREATE_CREDIT_SALE: "Ahmad bought 25 kg rice" → sale form
+ *   - CREATE_EXPENSE: "I spent 500 on electricity" → expense form
+ *   - RECORD_PAYMENT: "Ahmad paid me 5000" → payment form
+ *   - CREATE_CUSTOMER: "Add a customer named Ali" → customer creation form
+ *   - CREATE_PRODUCT: "Add a product called tea" → product creation wizard
+ *   - STOCK_INTAKE: "I bought 50 kg rice at 900 per kg" → stock intake form
+ *   - QUERY: "How much did I spend today?" → query result display
+ *   - UNKNOWN: intent unclear → ask for clarification
+ *
+ * Fields are shared across intents. The AI fills whichever fields are
+ * relevant to the detected intent. Irrelevant fields are null.
+ */
 export const aiInterpretationSchema = z.object({
   intent: intentSchema,
+  // Sale fields
   customerName: z.string().min(1).max(200).nullable(),
   productName: z.string().min(1).max(200).nullable(),
   quantity: z.number().finite().positive().nullable(),
@@ -32,12 +59,16 @@ export const aiInterpretationSchema = z.object({
   batchName: z.string().min(1).max(100).nullable(),
   explicitUnitPrice: z.number().finite().positive().nullable(),
   explicitTotal: z.number().finite().positive().nullable(),
-  explicitPaidAmount: z.number().finite().min(0).nullable(),
+  explicitPaidAmount: z.number().finite().positive().nullable(),
+
+  // Expense fields (V10)
   expenseName: z.string().min(1).max(200).nullable(),
   expenseCategory: z.enum([
     "transport", "shop", "electricity", "packaging",
     "salary", "rent", "other",
   ]).nullable().optional(),
+
+  // Query fields (V10)
   queryType: z.enum([
     "TODAYS_EXPENSES", "TODAYS_SALES", "CUSTOMER_BALANCES",
     "STOCK_LEVEL", "EXPENSES_SUMMARY", "SALES_SUMMARY",
@@ -45,6 +76,8 @@ export const aiInterpretationSchema = z.object({
   ]).nullable().optional(),
   queryEntity: z.string().max(200).nullable().optional(),
   queryDateRange: z.enum(["today", "yesterday", "week", "month", "all"]).nullable().optional(),
+
+  // Self-reported confidence 0..1
   confidence: z.number().min(0).max(1).optional(),
   needsClarification: z.boolean().default(false),
   clarificationQuestion: z.string().max(500).nullable().optional(),
@@ -53,15 +86,32 @@ export const aiInterpretationSchema = z.object({
 
 export type AiInterpretation = z.infer<typeof aiInterpretationSchema>;
 
-// ── Interpret request ────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────────────────
+// Price source tracking
+// ────────────────────────────────────────────────────────────────────────────
+
+export const priceSourceSchema = z.enum([
+  "USER_TOTAL",
+  "USER_UNIT_PRICE",
+  "DEFAULT_PRODUCT_PRICE",
+  "MANUAL_INPUT",
+  "CONFLICT_RESOLVED",
+]);
+export type PriceSource = z.infer<typeof priceSourceSchema>;
+
+// ────────────────────────────────────────────────────────────────────────────
+// Interpret request
+// ────────────────────────────────────────────────────────────────────────────
 
 export const interpretRequestSchema = z
   .object({
-    text: z.string().trim().min(2).max(500).optional(),
-    audio: z.object({
-      base64: z.string().min(10),
-      mimeType: z.string().min(5).max(100),
-    }).optional(),
+    text: z.string().trim().min(2, "Too short.").max(500, "Too long.").optional(),
+    audio: z
+      .object({
+        base64: z.string().min(10),
+        mimeType: z.string().min(5).max(100),
+      })
+      .optional(),
   })
   .refine(
     (data) => (data.text ? !data.audio : data.audio ? !data.text : false),
@@ -70,8 +120,19 @@ export const interpretRequestSchema = z
 
 export type InterpretRequest = z.infer<typeof interpretRequestSchema>;
 
-// ── Execute request ──────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────────────────
+// Execute request — V10: supports multiple intent types
+// ────────────────────────────────────────────────────────────────────────────
 
+/**
+ * V10: The client sends the final form values. The `intentType` field tells
+ * the backend which execute function to call.
+ *
+ * For CREATE_CREDIT_SALE: customerId, productId, quantity, unitPrice, paidAmount, batchId
+ * For CREATE_EXPENSE: expenseName, amount, category, notes, date
+ * For RECORD_PAYMENT: customerId, amount, method, notes, date
+ * For STOCK_INTAKE: productId, quantity, unitCost, batchName, date
+ */
 export const executeRequestSchema = z.object({
   sessionId: z.string().min(1),
   intentType: z.enum([
@@ -83,38 +144,76 @@ export const executeRequestSchema = z.object({
     "CREATE_CUSTOMER",
   ]).default("CREATE_CREDIT_SALE"),
 
+  // Sale fields
   customerId: z.string().min(1).optional(),
   productId: z.string().min(1).optional(),
-  quantity: z.union([z.number(), z.string()]).transform((v) => typeof v === "string" ? Number(v) : v).optional(),
-  unitPrice: z.union([z.number(), z.string()]).transform((v) => typeof v === "string" ? Number(v) : v).optional(),
-  paidAmount: z.union([z.number(), z.string()]).transform((v) => typeof v === "string" ? Number(v) : v).optional(),
+  quantity: z
+    .union([z.number(), z.string()])
+    .transform((v) => (typeof v === "string" ? Number(v) : v))
+    .optional(),
+  unitPrice: z
+    .union([z.number(), z.string()])
+    .transform((v) => (typeof v === "string" ? Number(v) : v))
+    .optional(),
+  paidAmount: z
+    .union([z.number(), z.string()])
+    .transform((v) => (typeof v === "string" ? Number(v) : v))
+    .optional(),
   batchId: z.string().min(1).optional(),
 
+  // Expense fields
   expenseName: z.string().min(1).max(200).optional(),
-  amount: z.union([z.number(), z.string()]).transform((v) => typeof v === "string" ? Number(v) : v).optional(),
-  expenseCategory: z.enum(["transport", "shop", "electricity", "packaging", "salary", "rent", "other"]).optional(),
+  amount: z
+    .union([z.number(), z.string()])
+    .transform((v) => (typeof v === "string" ? Number(v) : v))
+    .optional(),
+  expenseCategory: z.enum([
+    "transport", "shop", "electricity", "packaging",
+    "salary", "rent", "other",
+  ]).optional(),
   notes: z.string().max(500).optional(),
   date: z.string().optional(),
+
+  // Payment fields
   method: z.enum(["cash", "bank", "cheque", "jazzcash", "easypaisa", "other"]).optional(),
-  unitCost: z.union([z.number(), z.string()]).transform((v) => typeof v === "string" ? Number(v) : v).optional(),
+
+  // Stock intake fields
+  unitCost: z
+    .union([z.number(), z.string()])
+    .transform((v) => (typeof v === "string" ? Number(v) : v))
+    .optional(),
   batchName: z.string().max(100).optional().nullable(),
 
+  // V13: CREATE_PRODUCT fields
   name: z.string().min(1).max(200).optional(),
   unit: z.string().min(1).max(20).optional(),
-  purchasePrice: z.union([z.number(), z.string()]).transform((v) => typeof v === "string" ? Number(v) : v).optional(),
-  sellingPrice: z.union([z.number(), z.string()]).transform((v) => typeof v === "string" ? Number(v) : v).optional(),
-  openingStock: z.union([z.number(), z.string()]).transform((v) => typeof v === "string" ? Number(v) : v).optional(),
+  purchasePrice: z.union([z.number(), z.string()]).transform((v) => (typeof v === "string" ? Number(v) : v)).optional(),
+  sellingPrice: z.union([z.number(), z.string()]).transform((v) => (typeof v === "string" ? Number(v) : v)).optional(),
+  openingStock: z.union([z.number(), z.string()]).transform((v) => (typeof v === "string" ? Number(v) : v)).optional(),
   lowStockThreshold: z.number().int().min(0).max(1_000_000).optional(),
   category: z.string().max(50).optional().nullable(),
   sku: z.string().max(50).optional().nullable(),
+  // V13: CREATE_CUSTOMER fields
   phone: z.string().max(20).optional().nullable(),
   address: z.string().max(300).optional().nullable(),
-  openingBalance: z.union([z.number(), z.string()]).transform((v) => typeof v === "string" ? Number(v) : v).optional(),
+  openingBalance: z.union([z.number(), z.string()]).transform((v) => (typeof v === "string" ? Number(v) : v)).optional(),
 });
 
 export type ExecuteRequest = z.infer<typeof executeRequestSchema>;
 
-// ── Entity candidate ─────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────────────────
+// Statuses
+// ────────────────────────────────────────────────────────────────────────────
+
+export const interpretStatusSchema = z.enum([
+  "FORM",
+  "FAILED",
+]);
+export type InterpretStatus = z.infer<typeof interpretStatusSchema>;
+
+// ────────────────────────────────────────────────────────────────────────────
+// Entity candidate
+// ────────────────────────────────────────────────────────────────────────────
 
 export const entityCandidateSchema = z.object({
   id: z.string(),

@@ -61,7 +61,7 @@ export function CustomerPicker({
                 {selected.phone}
               </p>
             ) : (
-              <p className="text-xs text-slate-400">No phone</p>
+              <p className="text-xs text-slate-400">{t("customer.noPhone")}</p>
             )}
             {owes ? (
               <p className="mt-1 text-xs">
@@ -190,7 +190,7 @@ export function CustomerPicker({
                     {customer.name}
                   </p>
                   <p className="truncate text-xs text-slate-500">
-                    {customer.phone || "No phone"}
+                    {customer.phone || t("customer.noPhone")}
                   </p>
                 </div>
                 {new Decimal(customer.balance).gt(0) ? (

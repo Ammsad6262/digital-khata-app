@@ -114,7 +114,7 @@ export function ExpensesList() {
           description={
             filter === "all"
               ? t("expense.noExpensesDesc")
-              : "Try a different time range, or record a new expense."
+              : t("expense.noExpensesPeriodDesc")
           }
           icon={<Receipt className="h-6 w-6" />}
           action={

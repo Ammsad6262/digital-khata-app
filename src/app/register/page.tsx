@@ -27,12 +27,12 @@ export default function RegisterPage() {
     setError(null);
 
     if (!name.trim() || !email.trim() || !password) {
-      setError("All fields are required.");
+      setError(t("auth.allFieldsRequired"));
       return;
     }
 
     if (password.length < 6) {
-      setError("Password must be at least 6 characters.");
+      setError(t("auth.passwordTooShort"));
       return;
     }
 
@@ -46,13 +46,13 @@ export default function RegisterPage() {
       const json = await res.json();
 
       if (!res.ok || !json.ok) {
-        throw new Error(json.error?.message || "Registration failed.");
+        throw new Error(json.error?.message || t("auth.registerFailed"));
       }
 
-      toast.success("Account created! Welcome to Digital Khata.");
+      toast.success(t("auth.accountCreated"));
       router.push("/dashboard");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Registration failed.");
+      setError(e instanceof Error ? e.message : t("auth.registerFailed"));
     } finally {
       setIsPending(false);
     }
@@ -63,11 +63,9 @@ export default function RegisterPage() {
       <div className="w-full max-w-sm">
         {/* Logo + title */}
         <div className="mb-8 text-center">
-          <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-600 text-white shadow-lg shadow-brand-600/20">
-            <Wallet className="h-7 w-7" />
-          </div>
-          <h1 className="text-xl font-bold text-slate-900">Digital Khata</h1>
-          <p className="mt-1 text-sm text-slate-500">Create your account</p>
+          <img src="/icon.png" alt={t("app.name")} className="mx-auto mb-3 h-14 w-14 rounded-2xl shadow-lg" />
+          <h1 className="text-xl font-bold text-slate-900">{t("app.name")}</h1>
+          <p className="mt-1 text-sm text-slate-500">{t("auth.createAccountSubtitle")}</p>
         </div>
 
         {/* Form */}
@@ -80,14 +78,14 @@ export default function RegisterPage() {
           ) : null}
 
           <div>
-            <label className="mb-1 block text-xs font-medium text-slate-600">Name</label>
+            <label className="mb-1 block text-xs font-medium text-slate-600">{t("auth.name")}</label>
             <div className="relative">
               <User className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <input
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="Your name"
+                placeholder={t("auth.yourNamePlaceholder")}
                 autoComplete="name"
                 autoFocus
                 className="w-full rounded-lg border border-slate-300 bg-white py-2.5 pl-10 pr-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
@@ -96,14 +94,14 @@ export default function RegisterPage() {
           </div>
 
           <div>
-            <label className="mb-1 block text-xs font-medium text-slate-600">Email</label>
+            <label className="mb-1 block text-xs font-medium text-slate-600">{t("auth.email")}</label>
             <div className="relative">
               <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
+                placeholder={t("auth.emailPlaceholder")}
                 autoComplete="email"
                 className="w-full rounded-lg border border-slate-300 bg-white py-2.5 pl-10 pr-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
               />
@@ -111,14 +109,14 @@ export default function RegisterPage() {
           </div>
 
           <div>
-            <label className="mb-1 block text-xs font-medium text-slate-600">Password</label>
+            <label className="mb-1 block text-xs font-medium text-slate-600">{t("auth.password")}</label>
             <div className="relative">
               <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="At least 6 characters"
+                placeholder={t("auth.passwordMinPlaceholder")}
                 autoComplete="new-password"
                 className="w-full rounded-lg border border-slate-300 bg-white py-2.5 pl-10 pr-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
               />
@@ -133,19 +131,19 @@ export default function RegisterPage() {
             {isPending ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Creating account...
+                {t("auth.creatingAccount")}
               </>
             ) : (
-              "Sign up"
+              t("auth.signUp")
             )}
           </button>
         </form>
 
         {/* Login link */}
         <p className="mt-6 text-center text-sm text-slate-500">
-          Already have an account?{" "}
+          {t("auth.haveAccountQuestion")}{" "}
           <a href="/login" className="font-semibold text-brand-600 hover:underline">
-            Log in
+            {t("auth.login")}
           </a>
         </p>
       </div>

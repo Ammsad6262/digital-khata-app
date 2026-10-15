@@ -1,14 +1,15 @@
 import { NextRequest } from "next/server";
 import { getSale, voidSale } from "@/lib/services/sales";
 import { ok, fail } from "@/lib/utils/api";
-import { getCurrentUserId } from "@/lib/auth/get-current-user";
+import { BadRequestError } from "@/lib/errors";
+import { requireActiveAccess } from "@/lib/auth/get-current-user";
 
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const userId = await getCurrentUserId(req);
+    const userId = await requireActiveAccess(req);
     const { id } = await params;
     const sale = await getSale(id, userId);
     return ok(sale);
@@ -22,7 +23,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const userId = await getCurrentUserId(req);
+    const userId = await requireActiveAccess(req);
     const { id } = await params;
     const url = new URL(req.url);
     const action = url.searchParams.get("action");
@@ -30,7 +31,7 @@ export async function POST(
       const result = await voidSale(id, userId);
       return ok(result);
     }
-    return fail(new Error("Unknown action. Use ?action=void to void a sale."));
+    throw new BadRequestError("api.sale.unknownAction");
   } catch (error) {
     return fail(error);
   }

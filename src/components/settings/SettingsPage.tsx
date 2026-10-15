@@ -30,6 +30,7 @@ import {
   X,
   UserCircle,
   LogOut,
+  Crown,
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
@@ -112,6 +113,7 @@ export function SettingsPage() {
   return (
     <div className="space-y-4">
       <AccountSection />
+      <SubscriptionCard />
       <BusinessInfoSection initial={settings} />
       <CurrencySection initial={settings} />
       <LanguageSection />
@@ -160,11 +162,11 @@ function AccountSection() {
       <section className="rounded-xl border border-slate-200 bg-white p-4">
         <div className="flex items-center gap-2 mb-2">
           <UserCircle className="h-4 w-4 text-slate-500" />
-          <h2 className="text-sm font-semibold text-slate-900">Account</h2>
+          <h2 className="text-sm font-semibold text-slate-900">{t("settings.account")}</h2>
         </div>
-        <p className="text-sm text-slate-500 mb-3">Could not load account data.</p>
+        <p className="text-sm text-slate-500 mb-3">{t("settings.accountLoadFailed")}</p>
         <Button onClick={() => refetch()} variant="outline" size="sm">
-          Retry
+          {t("common.retry")}
         </Button>
       </section>
     );
@@ -182,29 +184,35 @@ function AccountSection() {
 
     updateProfile.mutate(input, {
       onSuccess: () => {
-        toast.success("Profile updated.");
+        toast.success("settings.profileUpdated");
         setEditingProfile(false);
       },
-      onError: (e) => toast.error(e instanceof Error ? e.message : "Failed to update profile."),
+      onError: (e) => {
+        const msg = e instanceof Error ? e.message : t("settings.profileUpdateFailed");
+        toast.error(msg);
+      },
     });
   };
 
   const handleChangePassword = () => {
     if (newPassword !== confirmPassword) {
-      toast.error("New passwords don't match.");
+      toast.error("settings.passwordsDontMatch");
       return;
     }
     changePassword.mutate(
       { currentPassword, newPassword },
       {
         onSuccess: () => {
-          toast.success("Password changed.");
+          toast.success("settings.passwordChanged");
           setShowChangePassword(false);
           setCurrentPassword("");
           setNewPassword("");
           setConfirmPassword("");
         },
-        onError: (e) => toast.error(e instanceof Error ? e.message : "Failed to change password."),
+        onError: (e) => {
+          const msg = e instanceof Error ? e.message : t("settings.passwordChangeFailed");
+          toast.error(msg);
+        },
       },
     );
   };
@@ -213,7 +221,7 @@ function AccountSection() {
     deleteAccount.mutate(
       { password: deletePassword },
       {
-        onError: (e) => toast.error(e instanceof Error ? e.message : "Failed to delete account."),
+        onError: () => toast.error("settings.accountDeleteFailed"),
       },
     );
   };
@@ -222,7 +230,7 @@ function AccountSection() {
     <section className="rounded-xl border border-slate-200 bg-white p-4">
       <div className="flex items-center gap-2 mb-3">
         <UserCircle className="h-4 w-4 text-slate-500" />
-        <h2 className="text-sm font-semibold text-slate-900">Account</h2>
+        <h2 className="text-sm font-semibold text-slate-900">{t("settings.account")}</h2>
       </div>
 
       {/* Profile display / edit */}
@@ -244,7 +252,7 @@ function AccountSection() {
             }}
             className="shrink-0 rounded-lg px-2 py-1 text-xs font-medium text-brand-600 hover:bg-brand-50"
           >
-            Edit
+            {t("common.edit")}
           </button>
         </div>
       ) : (
@@ -253,22 +261,22 @@ function AccountSection() {
             type="text"
             value={editName}
             onChange={(e) => setEditName(e.target.value)}
-            placeholder="Name"
+            placeholder={t("settings.namePlaceholder")}
             className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
           />
           <input
             type="email"
             value={editEmail}
             onChange={(e) => setEditEmail(e.target.value)}
-            placeholder="Email"
+            placeholder={t("settings.emailPlaceholder")}
             className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
           />
           <div className="flex gap-2">
             <button type="button" onClick={() => setEditingProfile(false)} className="flex-1 rounded-lg border border-slate-300 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50">
-              Cancel
+              {t("common.cancel")}
             </button>
             <button type="button" onClick={handleSaveProfile} disabled={updateProfile.isPending} className="flex-1 rounded-lg bg-brand-600 py-2 text-xs font-medium text-white hover:bg-brand-700 disabled:bg-brand-300">
-              {updateProfile.isPending ? "Saving..." : "Save"}
+              {updateProfile.isPending ? t("common.saving") : t("common.save")}
             </button>
           </div>
         </div>
@@ -277,21 +285,21 @@ function AccountSection() {
       {/* Change password */}
       {!showChangePassword ? (
         <button type="button" onClick={() => setShowChangePassword(true)} className="flex w-full items-center justify-between rounded-lg border border-slate-200 px-3 py-2.5 text-sm text-slate-700 hover:bg-slate-50">
-          <span>Change password</span>
+          <span>{t("settings.changePassword")}</span>
           <ChevronRight className="h-4 w-4 text-slate-300" />
         </button>
       ) : (
         <div className="space-y-2 mb-3 rounded-lg border border-slate-200 p-3">
-          <p className="text-xs font-medium text-slate-600">Change password</p>
-          <input type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} placeholder="Current password" className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30" />
-          <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="New password (min 6 chars)" className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30" />
-          <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Confirm new password" className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30" />
+          <p className="text-xs font-medium text-slate-600">{t("settings.changePassword")}</p>
+          <input type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} placeholder={t("settings.currentPassword")} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30" />
+          <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder={t("settings.newPasswordPlaceholder")} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30" />
+          <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder={t("settings.confirmPasswordPlaceholder")} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30" />
           <div className="flex gap-2">
             <button type="button" onClick={() => { setShowChangePassword(false); setCurrentPassword(""); setNewPassword(""); setConfirmPassword(""); }} className="flex-1 rounded-lg border border-slate-300 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50">
-              Cancel
+              {t("common.cancel")}
             </button>
             <button type="button" onClick={handleChangePassword} disabled={changePassword.isPending || !currentPassword || !newPassword} className="flex-1 rounded-lg bg-brand-600 py-2 text-xs font-medium text-white hover:bg-brand-700 disabled:bg-brand-300">
-              {changePassword.isPending ? "Changing..." : "Change"}
+              {changePassword.isPending ? t("settings.changingPassword") : t("settings.change")}
             </button>
           </div>
         </div>
@@ -300,25 +308,25 @@ function AccountSection() {
       {/* Logout */}
       <button type="button" onClick={() => logout.mutate()} disabled={logout.isPending} className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg border border-slate-200 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50">
         <LogOut className="h-4 w-4" />
-        {logout.isPending ? "Logging out..." : "Log out"}
+        {logout.isPending ? t("auth.loggingOut") : t("auth.logout")}
       </button>
 
       {/* Delete account */}
       {!showDeleteConfirm ? (
         <button type="button" onClick={() => setShowDeleteConfirm(true)} className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg border border-red-200 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50">
           <Trash2 className="h-4 w-4" />
-          Delete account
+          {t("settings.deleteAccount")}
         </button>
       ) : (
         <div className="mt-2 space-y-2 rounded-lg border border-red-200 bg-red-50/30 p-3">
-          <p className="text-xs font-medium text-red-900">This permanently deletes your account and ALL your data. This cannot be undone.</p>
-          <input type="password" value={deletePassword} onChange={(e) => setDeletePassword(e.target.value)} placeholder="Enter your password to confirm" className="w-full rounded-lg border border-red-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/30" />
+          <p className="text-xs font-medium text-red-900">{t("settings.deleteAccountWarning")}</p>
+          <input type="password" value={deletePassword} onChange={(e) => setDeletePassword(e.target.value)} placeholder={t("settings.deleteAccountPasswordPlaceholder")} className="w-full rounded-lg border border-red-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/30" />
           <div className="flex gap-2">
             <button type="button" onClick={() => { setShowDeleteConfirm(false); setDeletePassword(""); }} className="flex-1 rounded-lg border border-slate-300 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50">
-              Cancel
+              {t("common.cancel")}
             </button>
             <button type="button" onClick={handleDeleteAccount} disabled={deleteAccount.isPending || !deletePassword} className="flex-1 rounded-lg bg-red-600 py-2 text-xs font-medium text-white hover:bg-red-700 disabled:bg-red-300">
-              {deleteAccount.isPending ? "Deleting..." : "Delete forever"}
+              {deleteAccount.isPending ? t("common.deleting") : t("settings.deleteForever")}
             </button>
           </div>
         </div>
@@ -366,7 +374,7 @@ function BusinessInfoSection({
         <div className="flex items-center justify-between">
           <div>
             <p className="text-sm font-medium text-slate-900">
-              {initial.businessName || "Not set"}
+              {initial.businessName || t("settings.notSet")}
             </p>
             <p className="text-xs text-slate-500">{t("settings.businessName")}</p>
           </div>
@@ -445,7 +453,7 @@ function CurrencySection({
 
   const handleSaveCustomSymbol = () => {
     if (!customSymbol.trim()) {
-      toast.error("Currency symbol cannot be empty.");
+      toast.error("settings.currencySymbolEmpty");
       return;
     }
     updateSettings.mutate(
@@ -522,13 +530,13 @@ function CurrencySection({
 // ────────────────────────────────────────────────────────────────────────────
 
 function LanguageSection() {
-  const { lang, setLang } = useLanguage();
+  const { lang, setLang, t } = useLanguage();
 
   return (
     <section className="rounded-xl border border-slate-200 bg-white p-4">
       <div className="flex items-center gap-2 mb-3">
         <Languages className="h-4 w-4 text-slate-500" />
-        <h2 className="text-sm font-semibold text-slate-900">Language / زبان</h2>
+        <h2 className="text-sm font-semibold text-slate-900">{t("settings.language")}</h2>
       </div>
 
       <div className="space-y-2">
@@ -546,8 +554,8 @@ function LanguageSection() {
             EN
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium text-slate-900">English</p>
-            <p className="text-[11px] text-slate-500">Left-to-right layout</p>
+            <p className="text-sm font-medium text-slate-900">{t("settings.english")}</p>
+            <p className="text-[11px] text-slate-500">{t("settings.ltrLayout")}</p>
           </div>
           {lang === "en" ? (
             <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand-600">
@@ -582,7 +590,7 @@ function LanguageSection() {
       </div>
 
       <p className="mt-2 text-[11px] text-slate-500">
-        Language changes the entire app interface. Noto Nastaliq Urdu font is used for Urdu text.
+        {t("settings.languageHint")}
       </p>
     </section>
   );
@@ -638,17 +646,17 @@ function ThemeSection() {
               <div
                 className="h-8 w-8 rounded-lg border border-slate-200"
                 style={{ backgroundColor: themeOpt.preview.bg }}
-                title="Background"
+                title={t("settings.themeBackground")}
               />
               <div
                 className="h-8 w-8 rounded-lg border border-slate-200"
                 style={{ backgroundColor: themeOpt.preview.accent }}
-                title="Accent"
+                title={t("settings.themeAccent")}
               />
               <div
                 className="h-8 w-8 rounded-lg border border-slate-200"
                 style={{ backgroundColor: themeOpt.preview.dark }}
-                title="Dark"
+                title={t("settings.themeDark")}
               />
             </div>
 
@@ -690,7 +698,7 @@ function UnitsSection({ initial }: { initial: { customUnits: string[] } }) {
     const trimmed = newUnit.trim().toLowerCase();
     if (!trimmed) return;
     if (BUILTIN_UNITS.includes(trimmed) || customUnits.includes(trimmed)) {
-      toast.error("This unit already exists.");
+      toast.error("stock.unitAlreadyExists");
       return;
     }
     const updated = [...customUnits, trimmed];
@@ -731,7 +739,7 @@ function UnitsSection({ initial }: { initial: { customUnits: string[] } }) {
       </div>
       <p className="text-xs text-slate-500 mb-3">{t("stock.manageUnitsDesc")}</p>
       <div className="mb-3">
-        <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400 mb-1.5">Built-in</p>
+        <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400 mb-1.5">{t("stock.builtinUnits")}</p>
         <div className="flex flex-wrap gap-1.5">
           {BUILTIN_UNITS.map((u) => (
             <span key={u} className="rounded-md bg-slate-100 px-2 py-1 text-xs font-medium text-slate-600">{u}</span>
@@ -747,7 +755,7 @@ function UnitsSection({ initial }: { initial: { customUnits: string[] } }) {
             {customUnits.map((u) => (
               <span key={u} className="inline-flex items-center gap-1 rounded-md bg-brand-50 px-2 py-1 text-xs font-medium text-brand-700">
                 {u}
-                <button type="button" onClick={() => handleRemoveUnit(u)} className="text-brand-400 hover:text-red-600" aria-label={`Remove ${u}`}>
+                <button type="button" onClick={() => handleRemoveUnit(u)} className="text-brand-400 hover:text-red-600" aria-label={`${t("settings.remove")} ${u}`}>
                   <X className="h-3 w-3" />
                 </button>
               </span>
@@ -790,7 +798,7 @@ function SecuritySection({ hasPin }: { hasPin: boolean }) {
 
   const handleSetPin = () => {
     if (newPin.length < 4 || newPin.length > 6 || !/^\d+$/.test(newPin)) {
-      toast.error("PIN must be 4-6 digits (numbers only).");
+      toast.error("settings.pinInvalid");
       return;
     }
 
@@ -1093,6 +1101,31 @@ function BackupSection() {
           <p className="text-[11px] text-slate-500">
             {t("settings.backupDesc")}
           </p>
+        </div>
+        <ChevronRight className="h-4 w-4 shrink-0 text-slate-300" />
+      </div>
+    </Link>
+  );
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Subscription Card — compact subscription status on the Settings page
+// ────────────────────────────────────────────────────────────────────────────
+
+function SubscriptionCard() {
+  const { t } = useLanguage();
+  return (
+    <Link
+      href="/more/subscription"
+      className="block rounded-xl border border-slate-200 bg-white p-4 transition-colors hover:bg-slate-50 active:bg-slate-100"
+    >
+      <div className="flex items-center gap-3">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-50 text-amber-600">
+          <Crown className="h-5 w-5" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold text-slate-900">{t("subscription.title")}</p>
+          <p className="text-[11px] text-slate-500">{t("subscription.subtitle")}</p>
         </div>
         <ChevronRight className="h-4 w-4 shrink-0 text-slate-300" />
       </div>

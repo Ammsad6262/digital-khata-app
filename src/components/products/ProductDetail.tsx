@@ -38,6 +38,7 @@ import { formatQuantity } from "@/lib/utils/money";
 import { formatDate, formatTime } from "@/lib/utils/date";
 import { cn } from "@/lib/utils/cn";
 import { useLanguage } from "@/providers/language-provider";
+import type { TranslationKey } from "@/lib/i18n/translations";
 
 export function ProductDetail({ productId }: { productId: string }) {
   const { data: product, isLoading, isError, error, refetch } = useProduct(productId);
@@ -69,8 +70,8 @@ export function ProductDetail({ productId }: { productId: string }) {
   if (!product) {
     return (
       <EmptyState
-        title="Product not found"
-        description="This product may have been deleted."
+        title={t("product.notFound")}
+        description={t("product.notFoundDesc")}
         icon={<AlertCircle className="h-6 w-6" />}
       />
     );
@@ -100,7 +101,7 @@ export function ProductDetail({ productId }: { productId: string }) {
           {formatQuantity(stock, product.unit)}
         </p>
         <p className="mt-1 text-xs opacity-80">
-          Threshold: {product.lowStockThreshold} {product.unit}
+          {t("product.lowStockThreshold")}: {product.lowStockThreshold} {product.unit}
         </p>
       </div>
 
@@ -109,7 +110,7 @@ export function ProductDetail({ productId }: { productId: string }) {
         <h2 className="text-base font-semibold text-slate-900">{product.name}</h2>
         <div className="mt-1 space-y-0.5 text-xs text-slate-500">
           <p>{product.category ?? t("stock.uncategorized")} · {product.unit}</p>
-          {product.sku ? <p>SKU: {product.sku}</p> : null}
+          {product.sku ? <p>{t("product.skuLabel")} {product.sku}</p> : null}
         </div>
 
         <div className="mt-3 grid grid-cols-2 gap-2 border-t border-slate-100 pt-3">
@@ -177,7 +178,7 @@ export function ProductDetail({ productId }: { productId: string }) {
                 label={t("product.openingStock")}
                 quantity={product.openingStock}
                 unit={product.unit}
-                date={product.createdAt.toISOString()}
+                date={new Date(product.createdAt).toISOString()}
                 isFirst
               />
             ) : null}
@@ -189,7 +190,7 @@ export function ProductDetail({ productId }: { productId: string }) {
                 <MovementRow
                   key={move.id}
                   type={move.type}
-                  label={move.reason || labelForType(move.type)}
+                  label={move.reason || labelForType(move.type, t)}
                   quantity={qty.toString()}
                   unit={product.unit}
                   date={new Date(move.date).toISOString()}
@@ -202,9 +203,7 @@ export function ProductDetail({ productId }: { productId: string }) {
         )}
 
         <p className="px-1 text-[11px] text-slate-400">
-          Note: Stock reductions from sales aren&apos;t shown here — they appear
-          on the Sales page. Use the search box on the Sales tab to filter by
-          product.
+          {t("stock.salesReductionNote")}
         </p>
       </section>
 
@@ -220,7 +219,7 @@ export function ProductDetail({ productId }: { productId: string }) {
                 router.push("/stock");
               },
               onError: (err) => {
-                setDeleteError(err instanceof Error ? err.message : "Failed to delete product.");
+                setDeleteError(err instanceof Error ? err.message : t("product.deleteFailed"));
               },
             });
           }}
@@ -230,12 +229,12 @@ export function ProductDetail({ productId }: { productId: string }) {
   );
 }
 
-function labelForType(type: string): string {
+function labelForType(type: string, t: (key: TranslationKey) => string): string {
   switch (type) {
-    case "purchase": return "Stock purchase from supplier";
-    case "adjustment": return "Stock adjustment";
-    case "return": return "Customer return";
-    default: return "Stock movement";
+    case "purchase": return t("stock.purchaseFromSupplier");
+    case "adjustment": return t("stock.adjustment");
+    case "return": return t("stock.customerReturn");
+    default: return t("stock.movement");
   }
 }
 
@@ -256,6 +255,7 @@ function MovementRow({
   voidedAt?: string | null;
   isFirst: boolean;
 }) {
+  const { t } = useLanguage();
   const qty = new Decimal(quantity);
   const isPositive = qty.gte(0);
   const Icon = isPositive ? TrendingUp : TrendingDown;
@@ -294,7 +294,7 @@ function MovementRow({
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium text-slate-900">
           {label}
-          {isVoided ? <span className="ml-1.5 text-[10px] font-semibold text-slate-500">(voided)</span> : null}
+          {isVoided ? <span className="ml-1.5 text-[10px] font-semibold text-slate-500">({t("sale.voided").toLowerCase()})</span> : null}
         </p>
         <p className="text-[11px] text-slate-400">
           {formatDate(new Date(date))} · {formatTime(new Date(date))}
@@ -316,7 +316,7 @@ function MovementRow({
           {formatQuantity(qty, unit)}
         </p>
         <p className="text-[10px] text-slate-400">
-          {type === "opening" ? "start" : type}
+          {type === "opening" ? t("stock.openingBadge") : type}
         </p>
       </div>
     </div>

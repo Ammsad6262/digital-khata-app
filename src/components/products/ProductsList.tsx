@@ -40,14 +40,14 @@ export function ProductsList() {
             onChange={(e) => setQuery(e.target.value)}
             placeholder={t("stock.searchPlaceholder")}
             className="w-full rounded-lg border border-slate-300 bg-white py-2.5 pl-9 pr-9 text-sm text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
-            aria-label="Search products"
+            aria-label={t("common.searchProductsAria")}
           />
           {query ? (
             <button
               type="button"
               onClick={() => setQuery("")}
               className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-slate-400 hover:text-slate-700"
-              aria-label="Clear search"
+              aria-label={t("common.clearSearchAria")}
             >
               <X className="h-4 w-4" />
             </button>
@@ -78,7 +78,7 @@ export function ProductsList() {
         query.trim() ? (
           <EmptyState
             title={t("product.noProductsMatch")}
-            description={`No products found for "${query.trim()}".`}
+            description={`${t("stock.noProductsForQueryPrefix")} "${query.trim()}". ${t("stock.noProductsForQuerySuffix")}`}
             icon={<Search className="h-6 w-6" />}
             action={
               <Link href="/more/products/new">
@@ -112,7 +112,7 @@ export function ProductsList() {
                 </>
               ) : (
                 <>
-                  {data?.length} {data?.length === 1 ? t("product.productName") : t("more.products")} {t("customer.total")}
+                  {data?.length} {data?.length === 1 ? t("product.product") : t("more.products")} {t("customer.total")}
                 </>
               )}
             </p>

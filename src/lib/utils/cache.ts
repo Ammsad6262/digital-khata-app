@@ -21,8 +21,6 @@
  * after a mutation, not after the dashboard's 5s TTL expires.
  */
 
-import { clearDashboardCache } from "@/lib/services/dashboard";
-
 type CacheEntry<T> = {
   data: T;
   expiresAt: number;
@@ -73,16 +71,14 @@ export function invalidateCache(keyOrPrefix: string): void {
     }
   }
 
-  // Special case: when "dashboard" is invalidated, also clear the dashboard
-  // service's own in-memory cache so the next read gets fresh data.
-  // (The dashboard service uses a separate Map for short-TTL caching.)
-  if (keyOrPrefix === "dashboard") {
-    clearDashboardCache();
-  }
+  // Note: dashboard cache clearing is handled separately by the dashboard
+  // service's own clearDashboardCache() function, which is called directly
+  // by mutation services (sales, payments, expenses, etc.) alongside
+  // invalidateCache("dashboard"). This avoids a circular import between
+  // cache.ts and dashboard.ts.
 }
 
 /** Invalidate ALL cache entries (used after major mutations). */
 export function invalidateAllCache(): void {
   cache.clear();
-  clearDashboardCache();
 }

@@ -20,6 +20,7 @@
 import Link from "next/link";
 import {
   AlertCircle,
+  ChevronRight,
   Phone,
   RefreshCw,
   TrendingDown,
@@ -155,7 +156,7 @@ export function OutstandingCustomersList() {
                       {c.phone}
                     </p>
                   ) : (
-                    <p className="text-xs text-slate-300">No phone</p>
+                    <p className="text-xs text-slate-300">{t("customer.noPhone")}</p>
                   )}
                 </div>
                 <div className="shrink-0 text-right">
@@ -171,7 +172,7 @@ export function OutstandingCustomersList() {
               {/* Bottom row: stats grid — opening / sales / payments / last activity */}
               <div className="grid grid-cols-4 gap-1 border-t border-slate-100 bg-slate-50/60 px-3 py-2 text-center">
                 <Stat
-                  label={t("customer.outstandingBalance")}
+                  label={t("customer.opening")}
                   value={<Money value={c.openingBalance} />}
                   icon={<Wallet className="h-3 w-3" />}
                 />
@@ -203,7 +204,7 @@ export function OutstandingCustomersList() {
                   {t("outstanding.openedOn")}: {since}
                 </span>
                 <span className="font-medium text-brand-600">
-                  {t("outstanding.viewKhata")} →
+                  {t("outstanding.viewKhata")} <ChevronRight className="inline h-3 w-3 rtl-flip" />
                 </span>
               </div>
             </Link>

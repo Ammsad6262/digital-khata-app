@@ -8,8 +8,14 @@
  * recent activity feed.
  *
  * Handles loading (skeleton), error (retry), and empty states.
+ *
+ * PERFORMANCE: prefetches commonly needed data (customers, products) in the
+ * background so that when the user navigates to Khata or Stock, the data
+ * is already in the React Query cache and appears instantly.
  */
 
+import { useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { AlertCircle, RefreshCw } from "lucide-react";
 import { useDashboard } from "@/hooks/use-dashboard";
 import { Money } from "@/components/shared/Money";
@@ -24,6 +30,9 @@ import { RecentTransactions } from "@/components/dashboard/RecentTransactions";
 import { DashboardSkeleton } from "@/components/dashboard/DashboardSkeleton";
 import { GlobalSearch } from "@/components/dashboard/GlobalSearch";
 import { ProfitLossCard } from "@/components/dashboard/ProfitLossCard";
+import { customerKeys } from "@/hooks/use-customers";
+import { productKeys } from "@/hooks/use-products";
+import { apiGet } from "@/lib/utils/api-client";
 import {
   ShoppingCart,
   Wallet,
@@ -37,6 +46,30 @@ import { useLanguage } from "@/providers/language-provider";
 export function Dashboard() {
   const { data, isLoading, isError, error, refetch, isFetching } = useDashboard();
   const { t } = useLanguage();
+  const queryClient = useQueryClient();
+
+  // ── Prefetch commonly needed data in the background ────────────────────────
+  // When the user is on the Dashboard, they're likely to navigate to Khata
+  // (customers) or Stock (products) next. Prefetch these in the background
+  // so the data is already cached when they navigate.
+  useEffect(() => {
+    // Only prefetch if we have dashboard data (user is logged in + loaded)
+    if (!data) return;
+
+    // Prefetch customers WITH balances (used by Khata page)
+    queryClient.prefetchQuery({
+      queryKey: customerKeys.list(true),
+      queryFn: () => apiGet("/api/customers?withBalances=1"),
+      staleTime: 120 * 1000,
+    });
+
+    // Prefetch products WITH stock (used by Stock page)
+    queryClient.prefetchQuery({
+      queryKey: productKeys.list(true),
+      queryFn: () => apiGet("/api/products?withStock=1"),
+      staleTime: 60 * 1000,
+    });
+  }, [data, queryClient]);
 
   if (isLoading) {
     return <DashboardSkeleton />;

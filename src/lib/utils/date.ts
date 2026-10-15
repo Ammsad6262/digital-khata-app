@@ -50,7 +50,7 @@ export function startOfMonthInTz(timezone: string = "Asia/Karachi"): Date {
  */
 function startOfPeriodInTz(
   timezone: string,
-  period: "day" | "week" | "month",
+  period: "day" | "week" | "month" | "year",
 ): Date {
   const now = new Date();
 
@@ -96,6 +96,9 @@ function startOfPeriodInTz(
     }
   } else if (period === "month") {
     targetDay = 1;
+  } else if (period === "year") {
+    targetDay = 1;
+    targetMonth = 1;
   }
   // For "day", targetDay stays as-is
 
@@ -141,11 +144,94 @@ export function startNDaysAgoInTz(n: number, timezone: string = "Asia/Karachi"):
 }
 
 // ────────────────────────────────────────────────────────────────────────────
+// V12: Additional date-range helpers for complete filter support
+// ────────────────────────────────────────────────────────────────────────────
+
+/** Returns the start of yesterday in the given timezone. */
+export function startOfYesterdayInTz(timezone: string = "Asia/Karachi"): Date {
+  return startNDaysAgoInTz(1, timezone);
+}
+
+/** Returns the end of yesterday (start of today, exclusive) in the given timezone. */
+export function endOfYesterdayInTz(timezone: string = "Asia/Karachi"): Date {
+  return startOfTodayInTz(timezone);
+}
+
+/** Returns the start of last week (the Monday of the previous week) in the given TZ. */
+export function startOfLastWeekInTz(timezone: string = "Asia/Karachi"): Date {
+  const thisWeekStart = startOfWeekInTz(timezone);
+  const lastWeekStart = new Date(thisWeekStart);
+  lastWeekStart.setUTCDate(lastWeekStart.getUTCDate() - 7);
+  return lastWeekStart;
+}
+
+/** Returns the end of last week (start of this week, exclusive) in the given TZ. */
+export function endOfLastWeekInTz(timezone: string = "Asia/Karachi"): Date {
+  return startOfWeekInTz(timezone);
+}
+
+/** Returns the start of last month (first day of previous month) in the given TZ. */
+export function startOfLastMonthInTz(timezone: string = "Asia/Karachi"): Date {
+  const thisMonthStart = startOfMonthInTz(timezone);
+  const lastMonthStart = new Date(thisMonthStart);
+  lastMonthStart.setUTCMonth(lastMonthStart.getUTCMonth() - 1);
+  return lastMonthStart;
+}
+
+/** Returns the end of last month (start of this month, exclusive) in the given TZ. */
+export function endOfLastMonthInTz(timezone: string = "Asia/Karachi"): Date {
+  return startOfMonthInTz(timezone);
+}
+
+/** Returns the start of the current year (Jan 1) in the given timezone. */
+export function startOfYearInTz(timezone: string = "Asia/Karachi"): Date {
+  return startOfPeriodInTz(timezone, "year");
+}
+
+/**
+ * Compute a date range { start, end } for a given filter preset.
+ * Returns { start: Date, end?: Date } where:
+ *   - start = inclusive start of the period
+ *   - end = exclusive end (start of the NEXT period), or undefined for "all"
+ *
+ * This is the single source of truth for date-range computation across all
+ * filter implementations in the app. All services should use this to ensure
+ * consistent filtering.
+ */
+export function getDateRangeForFilter(
+  filter: string,
+  timezone: string = "Asia/Karachi",
+): { start: Date; end?: Date } {
+  switch (filter) {
+    case "today":
+      return { start: startOfTodayInTz(timezone) };
+    case "yesterday":
+      return { start: startOfYesterdayInTz(timezone), end: endOfYesterdayInTz(timezone) };
+    case "week":
+      return { start: startOfWeekInTz(timezone) };
+    case "lastWeek":
+      return { start: startOfLastWeekInTz(timezone), end: endOfLastWeekInTz(timezone) };
+    case "month":
+      return { start: startOfMonthInTz(timezone) };
+    case "lastMonth":
+      return { start: startOfLastMonthInTz(timezone), end: endOfLastMonthInTz(timezone) };
+    case "year":
+      return { start: startOfYearInTz(timezone) };
+    case "all":
+      return { start: new Date(0) }; // epoch = include everything
+    default:
+      return { start: new Date(0) };
+  }
+}
+
+// ────────────────────────────────────────────────────────────────────────────
 // Display formatters
 // ────────────────────────────────────────────────────────────────────────────
 
-/** Format a Date for display in the business TZ: "16 Sep 2026, 2:30 PM". */
-export function formatDateTime(date: Date, timezone: string = "Asia/Karachi"): string {
+/** Format a Date for display in the business TZ: "16 Sep 2026, 2:30 PM".
+ *  Accepts Date, string (ISO), or number (epoch). Normalizes to Date first. */
+export function formatDateTime(date: Date | string | number, timezone: string = "Asia/Karachi"): string {
+  const d = typeof date === "string" || typeof date === "number" ? new Date(date) : date;
   return new Intl.DateTimeFormat("en-GB", {
     timeZone: timezone,
     day: "2-digit",
@@ -154,33 +240,39 @@ export function formatDateTime(date: Date, timezone: string = "Asia/Karachi"): s
     hour: "numeric",
     minute: "2-digit",
     hour12: true,
-  }).format(date);
+  }).format(d);
 }
 
-/** Format a Date for display: "16 Sep 2026" (no time). */
-export function formatDate(date: Date, timezone: string = "Asia/Karachi"): string {
+/** Format a Date for display: "16 Sep 2026" (no time).
+ *  Accepts Date, string (ISO), or number (epoch). */
+export function formatDate(date: Date | string | number, timezone: string = "Asia/Karachi"): string {
+  const d = typeof date === "string" || typeof date === "number" ? new Date(date) : date;
   return new Intl.DateTimeFormat("en-GB", {
     timeZone: timezone,
     day: "2-digit",
     month: "short",
     year: "numeric",
-  }).format(date);
+  }).format(d);
 }
 
-/** Format a Date for display: "2:30 PM" (no date). */
-export function formatTime(date: Date, timezone: string = "Asia/Karachi"): string {
+/** Format a Date for display: "2:30 PM" (no date).
+ *  Accepts Date, string (ISO), or number (epoch). */
+export function formatTime(date: Date | string | number, timezone: string = "Asia/Karachi"): string {
+  const d = typeof date === "string" || typeof date === "number" ? new Date(date) : date;
   return new Intl.DateTimeFormat("en-GB", {
     timeZone: timezone,
     hour: "numeric",
     minute: "2-digit",
     hour12: true,
-  }).format(date);
+  }).format(d);
 }
 
-/** Relative time: "5 min ago", "2 hours ago", "Yesterday", or absolute date. */
-export function formatRelative(date: Date, timezone: string = "Asia/Karachi"): string {
+/** Relative time: "5 min ago", "2 hours ago", "Yesterday", or absolute date.
+ *  Accepts Date, string (ISO), or number (epoch). */
+export function formatRelative(date: Date | string | number, timezone: string = "Asia/Karachi"): string {
+  const d = typeof date === "string" || typeof date === "number" ? new Date(date) : date;
   const now = Date.now();
-  const diffMs = now - date.getTime();
+  const diffMs = now - d.getTime();
   const diffMin = Math.floor(diffMs / 60_000);
   const diffHr = Math.floor(diffMin / 60);
   const diffDay = Math.floor(diffHr / 24);
@@ -190,5 +282,5 @@ export function formatRelative(date: Date, timezone: string = "Asia/Karachi"): s
   if (diffHr < 24) return `${diffHr} hr ago`;
   if (diffDay === 1) return "yesterday";
   if (diffDay < 7) return `${diffDay} days ago`;
-  return formatDate(date, timezone);
+  return formatDate(d, timezone);
 }

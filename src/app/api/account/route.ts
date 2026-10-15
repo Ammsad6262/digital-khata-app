@@ -24,7 +24,7 @@ export const dynamic = "force-dynamic";
 export async function GET(req: NextRequest) {
   try {
     const userId = await getCurrentUserId(req);
-    if (!userId) throw new UnauthorizedError("Not authenticated.");
+    if (!userId) throw new UnauthorizedError("api.account.notAuthenticated");
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
       },
     });
 
-    if (!user) throw new UnauthorizedError("Account not found.");
+    if (!user) throw new UnauthorizedError("api.account.notFound");
 
     return ok(user);
   } catch (error) {
@@ -48,14 +48,14 @@ export async function GET(req: NextRequest) {
 // ── PATCH: update profile ──────────────────────────────────────────────────
 
 const updateProfileSchema = z.object({
-  name: z.string().trim().min(1, "Name is required.").max(100).optional(),
-  email: z.string().trim().toLowerCase().email("Valid email required.").optional(),
+  name: z.string().trim().min(1, "api.account.nameRequired").max(100).optional(),
+  email: z.string().trim().toLowerCase().email("api.account.emailInvalid").optional(),
 });
 
 export async function PATCH(req: NextRequest) {
   try {
     const userId = await getCurrentUserId(req);
-    if (!userId) throw new UnauthorizedError("Not authenticated.");
+    if (!userId) throw new UnauthorizedError("api.account.notAuthenticated");
 
     const { data, error } = await parseJsonBody<unknown>(req);
     if (error) return fail(new Error(error));
@@ -68,7 +68,7 @@ export async function PATCH(req: NextRequest) {
         where: { email: parsed.email },
       });
       if (existing && existing.id !== userId) {
-        throw new ConflictError("This email is already used by another account.");
+        throw new ConflictError("api.account.emailInUse");
       }
     }
 
@@ -96,13 +96,13 @@ export async function PATCH(req: NextRequest) {
 // ── DELETE: delete account + all data ──────────────────────────────────────
 
 const deleteAccountSchema = z.object({
-  password: z.string().min(1, "Password is required to confirm deletion."),
+  password: z.string().min(1, "api.account.passwordRequired"),
 });
 
 export async function DELETE(req: NextRequest) {
   try {
     const userId = await getCurrentUserId(req);
-    if (!userId) throw new UnauthorizedError("Not authenticated.");
+    if (!userId) throw new UnauthorizedError("api.account.notAuthenticated");
 
     const { data, error } = await parseJsonBody<unknown>(req);
     if (error) return fail(new Error(error));
@@ -117,7 +117,7 @@ export async function DELETE(req: NextRequest) {
 
     const passwordValid = await bcrypt.compare(parsed.password, user.passwordHash);
     if (!passwordValid) {
-      throw new BadRequestError("Incorrect password. Account was not deleted.");
+      throw new BadRequestError("api.account.incorrectPassword");
     }
 
     // Delete the user — CASCADE will remove all their data

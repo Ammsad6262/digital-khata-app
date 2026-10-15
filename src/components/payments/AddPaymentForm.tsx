@@ -49,6 +49,7 @@ import { formatMoney } from "@/lib/utils/money";
 import { formatDateTime } from "@/lib/utils/date";
 import { cn } from "@/lib/utils/cn";
 import { useLanguage } from "@/providers/language-provider";
+import { useCurrencySymbol } from "@/hooks/use-currency-symbol";
 
 type Method = "cash" | "bank" | "cheque" | "jazzcash" | "easypaisa" | "other";
 
@@ -75,6 +76,7 @@ export function AddPaymentForm() {
   const toast = useToast();
   const recordPayment = useRecordPayment();
   const { t } = useLanguage();
+  const symbol = useCurrencySymbol();
 
   // ?saleId=X (from Sale Detail → "Record Payment") — if present, we lock
   // the customer + sale and pre-fill the amount with the sale's outstanding.
@@ -277,7 +279,7 @@ export function AddPaymentForm() {
               </label>
               <div className="relative">
                 <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-medium text-slate-500">
-                  Rs.
+                  {symbol}
                 </span>
                 <input
                   type="number"

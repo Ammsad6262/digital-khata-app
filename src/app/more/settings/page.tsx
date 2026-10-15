@@ -3,11 +3,12 @@
  *
  * Lazy-loads the SettingsPage component (which includes currency picker,
  * theme picker, PIN forms, backup section) to keep the initial bundle small.
+ * V13: Uses TranslatedHeader so the title is translated to user's language.
  */
 
 import dynamic from "next/dynamic";
-import { AppHeader } from "@/components/layout/AppHeader";
 import { ScreenContent } from "@/components/layout/Screen";
+import { TranslatedHeader } from "@/components/layout/TranslatedHeader";
 
 const SettingsPage = dynamic(
   () => import("@/components/settings/SettingsPage").then((m) => m.SettingsPage),
@@ -25,7 +26,7 @@ const SettingsPage = dynamic(
 export default function SettingsRoutePage() {
   return (
     <>
-      <AppHeader title="Settings" />
+      <TranslatedHeader titleKey="settings.title" backHref="/dashboard" />
       <ScreenContent>
         <SettingsPage />
       </ScreenContent>

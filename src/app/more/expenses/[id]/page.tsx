@@ -9,11 +9,14 @@
  *   - Void action (with confirmation)
  *
  * NOTE: In Next.js 16, `params` is a Promise that must be awaited.
+ * V13: Page is a server component but uses a client wrapper for the
+ *      translated title. The TranslationBoundary below reads the language
+ *      from localStorage on the client and renders the translated title.
  */
 
-import { AppHeader } from "@/components/layout/AppHeader";
 import { ScreenContent } from "@/components/layout/Screen";
 import { ExpenseDetail as ExpenseDetailComponent } from "@/components/expenses/ExpenseDetail";
+import { TranslatedHeader } from "@/components/layout/TranslatedHeader";
 
 export const dynamic = "force-dynamic";
 
@@ -25,7 +28,7 @@ export default async function ExpenseDetailPage({
   const { id } = await params;
   return (
     <>
-      <AppHeader title="Expense Detail" />
+      <TranslatedHeader titleKey="expense.expenseDetail" />
       <ScreenContent>
         <ExpenseDetailComponent expenseId={id} />
       </ScreenContent>

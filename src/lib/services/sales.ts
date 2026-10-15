@@ -21,6 +21,7 @@ import {
   startOfTodayInTz,
   startOfWeekInTz,
   startOfMonthInTz,
+  getDateRangeForFilter,
 } from "@/lib/utils/date";
 import type { Prisma } from "@prisma/client";
 
@@ -111,7 +112,7 @@ export type SaleListItem = {
   voidedAt: Date | null;
 };
 
-export type SaleFilter = "today" | "week" | "month" | "all";
+export type SaleFilter = "today" | "yesterday" | "week" | "lastWeek" | "month" | "lastMonth" | "year" | "all";
 
 /**
  * List sales (without items — fast for the list view) with date filtering.
@@ -138,20 +139,18 @@ export async function listSalesFiltered(
   const cacheKey = `sales:list:${filter}:${customerId ?? "all"}:${limit}:${userId ?? "all"}`;
 
   return cached(cacheKey, async () => {
-    let startDate: Date | undefined;
-
-    switch (filter) {
-      case "today": startDate = startOfTodayInTz(timezone); break;
-      case "week":  startDate = startOfWeekInTz(timezone); break;
-      case "month": startDate = startOfMonthInTz(timezone); break;
-      case "all":   startDate = undefined; break;
-    }
+    const range = getDateRangeForFilter(filter, timezone);
 
     const sales = await prisma.sale.findMany({
       where: {
         voidedAt: null,
         ...(userId && { userId }),
-        ...(startDate && { date: { gte: startDate } }),
+        ...((range.start || range.end) && {
+          date: {
+            ...(range.start && { gte: range.start }),
+            ...(range.end && { lt: range.end }),
+          },
+        }),
         ...(customerId && { customerId }),
       },
       include: { customer: true },
@@ -184,12 +183,12 @@ export async function getSale(id: string, userId?: string | null): Promise<SaleW
     },
   });
   if (!sale || sale.voidedAt) {
-    throw new NotFoundError("Sale", id);
+    throw new NotFoundError("api.resource.sale", id);
   }
   // Tenant isolation: if a userId is provided and the sale belongs to a different
   // user, treat it as not found (avoids leaking record existence across tenants).
   if (userId && sale.userId && sale.userId !== userId) {
-    throw new NotFoundError("Sale", id);
+    throw new NotFoundError("api.resource.sale", id);
   }
   return {
     ...toView(sale),
@@ -245,7 +244,7 @@ export async function createSale(input: unknown, userId?: string | null): Promis
       },
     });
     if (!customer) {
-      throw new NotFoundError("Customer", data.customerId);
+      throw new NotFoundError("api.resource.customer", data.customerId);
     }
 
     // 2. Validate all products exist AND belong to the authenticated user.
@@ -265,7 +264,7 @@ export async function createSale(input: unknown, userId?: string | null): Promis
     if (products.length !== uniqueProductIds.length) {
       const foundIds = new Set(products.map((p) => p.id));
       const missing = uniqueProductIds.filter((id) => !foundIds.has(id));
-      throw new NotFoundError("Product", missing[0]);
+      throw new NotFoundError("api.resource.product", missing[0]);
     }
 
     // 3. Compute totals using Decimal (no float math for money)
@@ -285,7 +284,9 @@ export async function createSale(input: unknown, userId?: string | null): Promis
     // 4. Verify paidAmount <= totalAmount
     if (paidAmount.gt(totalAmount)) {
       throw new BadRequestError(
-        `Paid amount (${paidAmount}) cannot exceed sale total (${totalAmount}).`,
+        "api.sale.paidExceedsTotal",
+        undefined,
+        { paid: paidAmount.toString(), total: totalAmount.toString() },
       );
     }
 
@@ -335,7 +336,9 @@ export async function createSale(input: unknown, userId?: string | null): Promis
         const batch = batchMap.get(batchId);
         if (!batch) {
           throw new BadRequestError(
-            `Batch ${batchId} not found, voided, or not a purchase/return batch.`,
+            "api.sale.batchNotFound",
+            undefined,
+            { batchId },
           );
         }
         // Check the batch belongs to the product on whose line it was used.
@@ -344,13 +347,17 @@ export async function createSale(input: unknown, userId?: string | null): Promis
         const productMismatch = itemsUsingBatch.find((i) => i.productId !== batch.productId);
         if (productMismatch) {
           throw new BadRequestError(
-            `Batch ${batchId} belongs to a different product than the sale line.`,
+            "api.sale.batchProductMismatch",
+            undefined,
+            { batchId },
           );
         }
         const remaining = toDecimalOrZero(batch.remainingQuantity);
         if (demanded.gt(remaining)) {
           throw new BadRequestError(
-            `Batch has only ${remaining} units remaining, but sale demands ${demanded}.`,
+            "api.sale.batchInsufficientStock",
+            undefined,
+            { remaining: remaining.toString(), demanded: demanded.toString() },
           );
         }
       }
@@ -518,9 +525,9 @@ export async function voidSale(id: string, userId?: string | null): Promise<{ id
         },
       },
     });
-    if (!sale) throw new NotFoundError("Sale", id);
+    if (!sale) throw new NotFoundError("api.resource.sale", id);
     if (sale.voidedAt) {
-      throw new BadRequestError("Sale is already voided.");
+      throw new BadRequestError("api.sale.alreadyVoided");
     }
 
     const now = new Date();

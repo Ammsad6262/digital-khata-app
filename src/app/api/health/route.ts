@@ -13,6 +13,7 @@
 import { NextResponse } from "next/server";
 import { withCircuitBreaker, getCircuitBreakerState } from "@/lib/utils/circuit-breaker";
 import { rawPrisma } from "@/lib/db/prisma";
+import { tServer } from "@/lib/i18n/server";
 
 export const dynamic = "force-dynamic";
 
@@ -26,7 +27,7 @@ export async function GET(): Promise<NextResponse> {
         ok: false,
         error: {
           code: "DATABASE_ERROR",
-          message: "Database circuit breaker is open. Please retry in a few seconds.",
+          message: tServer("api.health.circuitOpen"),
         },
       },
       { status: 503 },
@@ -47,7 +48,7 @@ export async function GET(): Promise<NextResponse> {
           ok: false,
           error: {
             code: "DATABASE_ERROR",
-            message: "Database connection failed.",
+            message: tServer("api.health.dbFailed"),
           },
         },
         { status: 503 },
@@ -75,7 +76,7 @@ export async function GET(): Promise<NextResponse> {
         ok: false,
         error: {
           code: "DATABASE_ERROR",
-          message: "Database connection failed.",
+          message: tServer("api.health.dbFailed"),
         },
       },
       { status: 503 },

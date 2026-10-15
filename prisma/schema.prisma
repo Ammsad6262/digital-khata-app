@@ -61,15 +61,79 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  customers    Customer[]
-  products     Product[]
-  sales        Sale[]
-  payments     Payment[]
-  expenses     Expense[]
-  stockMoves   StockMove[]
-  transactions Transaction[]
-  adjustments  CustomerAdjustment[]
+  customers       Customer[]
+  products        Product[]
+  sales           Sale[]
+  payments        Payment[]
+  expenses        Expense[]
+  stockMoves      StockMove[]
+  transactions    Transaction[]
+  adjustments     CustomerAdjustment[]
   smartEntrySessions SmartEntrySession[]
+  subscription    UserSubscription?
+  redemptions     RedeemCodeRedemption[]
+  settings        Setting?
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// SMART ENTRY SESSION — pending AI-interpreted Khata operation awaiting
+// user confirmation. AI is an interpreter only; the resolved IDs in this
+// row are computed by the BACKEND (never trusted from the AI/client).
+// ────────────────────────────────────────────────────────────────────────────
+
+model SmartEntrySession {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Lifecycle: INTERPRETING → AWAITING_CONFIRMATION → COMPLETED | CANCELLED | EXPIRED | FAILED
+  //            (or → CLARIFICATION_NEEDED → user re-records → back to AWAITING_CONFIRMATION)
+  status          String   @default("INTERPRETING")
+
+  // "text" or "voice" — how the user originally entered their input
+  inputType        String
+
+  // What the user said (text input OR the transcript from speech)
+  transcript       String?
+
+  // Raw structured AI response (for debugging/audit). Never used as source
+  // of truth — only the resolved* fields below are trusted.
+  rawAiResponse    Json?
+
+  // ── Interpreted fields (from AI, validated by Zod) ────────────────────────
+  intent           String?   // "CREATE_CREDIT_SALE" in V1
+  customerNameRaw  String?   // what AI heard
+  productNameRaw   String?   // what AI heard
+  quantityRaw      Decimal?  @db.Decimal(12, 3)
+  unitRaw          String?
+
+  // ── Resolved fields (set by BACKEND, never by AI) ─────────────────────────
+  resolvedCustomerId  String?
+  resolvedCustomer    Customer? @relation("SmartEntryCustomer", fields: [resolvedCustomerId], references: [id], onDelete: SetNull)
+  resolvedProductId   String?
+  resolvedProduct     Product?  @relation("SmartEntryProduct",  fields: [resolvedProductId],  references: [id], onDelete: SetNull)
+  resolvedUnit        String?
+  resolvedQuantity    Decimal?  @db.Decimal(12, 3)
+  resolvedUnitPrice   Decimal?  @db.Decimal(12, 2)   // snapshot from product
+  resolvedAmount      Decimal?  @db.Decimal(12, 2)   // qty × unitPrice (backend computed)
+
+  // AI provider used + self-reported confidence (informational only)
+  provider         String?   // "gemini-3.5-flash"
+  confidence       Float?
+
+  // After execution: link to the created sale
+  createdSaleId    String?
+
+  // 5-minute TTL — sessions auto-expire to prevent stale data
+  expiresAt        DateTime
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  completedAt      DateTime?
+
+  @@index([userId, createdAt])
+  @@index([status, expiresAt])
+  @@index([resolvedCustomerId])
+  @@index([resolvedProductId])
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -98,6 +162,8 @@ model Customer {
   payments    Payment[]
   adjustments CustomerAdjustment[]
   transactions Transaction[]
+  // Back-relation: SmartEntrySessions that resolved to this customer.
+  smartEntrySessions SmartEntrySession[] @relation("SmartEntryCustomer")
 
   @@index([name])
   @@index([phone])
@@ -132,6 +198,8 @@ model Product {
   saleItems SaleItem[]
   stockMoves StockMove[]
   transactions Transaction[]
+  // Back-relation: SmartEntrySessions that resolved to this product.
+  smartEntrySessions SmartEntrySession[] @relation("SmartEntryProduct")
 
   @@index([name])
   @@index([category])
@@ -287,6 +355,12 @@ model StockMove {
   reason    String?
   unitCost  Decimal?  // optional purchase cost (for V2 profit reports)
 
+  // ── Batch name (added 2026-10) ────────────────────────────────────────────
+  // User-defined name for this stock batch, e.g. "Old Rice", "October Cheap Rice".
+  // Only meaningful for type="purchase" batches. NULL for adjustments/returns.
+  // Used by Smart Entry to resolve named batches from voice/text input.
+  batchName String?
+
   // ── Batch tracking (added 2026-09) ────────────────────────────────────────
   // How much of THIS batch is still in stock. Decremented when a SaleItem
   // links to this StockMove; restored if that sale is voided.
@@ -389,57 +463,68 @@ model Transaction {
 // ────────────────────────────────────────────────────────────────────────────
 
 model Setting {
-  id              String  @id @default("singleton")
+  id              String  @id @default(cuid())
+  userId          String  @unique
+  user            User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   businessName    String?
-  currency        String  @default("PKR")     // ISO 4217 code
+  currency        String  @default("PKR")
   currencySymbol  String  @default("Rs.")
-  ownerPinHash    String?                     // bcrypt hash of owner's PIN
+  ownerPinHash    String?
   timezone        String  @default("Asia/Karachi")
-  customUnits     String[] @default([])      // user-defined units beyond the defaults
-  theme           String  @default("monochrome") // "monochrome" | "default" | "leaf"
+  customUnits     String[] @default([])
+  theme           String  @default("monochrome")
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 }
 
 // ────────────────────────────────────────────────────────────────────────────
-// SMART ENTRY SESSION — AI-powered voice/text entry (V13)
+// SUBSCRIPTION / ACCESS — trial + redeem-code system
 // ────────────────────────────────────────────────────────────────────────────
-// Tracks each Smart Entry interaction: the transcript, AI interpretation,
-// resolved entities, and execution status. Used for:
-//   - Atomic execution (prevents double-submit)
-//   - Idempotent re-execute (returns same result if already completed)
-//   - Audit trail of AI-assisted entries
-//   - Rate limiting per user
 
-model SmartEntrySession {
-  id                  String   @id @default(cuid())
-  userId              String
-  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  status              String   @default("AWAITING_CONFIRMATION") // AWAITING_CONFIRMATION | EXECUTING | COMPLETED | CANCELLED | EXPIRED | FAILED
-  inputType           String   // "text" | "voice"
-  transcript          String?
-  rawAiResponse       Json?
-  intent              String?  // CREATE_CREDIT_SALE | CREATE_EXPENSE | RECORD_PAYMENT | CREATE_PRODUCT | CREATE_CUSTOMER | STOCK_INTAKE | QUERY | UNKNOWN
-  customerNameRaw     String?
-  productNameRaw      String?
-  quantityRaw          Decimal? @db.Decimal(10, 3)
-  unitRaw              String?
-  resolvedCustomerId  String?
-  resolvedProductId   String?
-  resolvedBatchId     String?
-  resolvedUnit        String?
-  resolvedQuantity    Decimal? @db.Decimal(10, 3)
-  resolvedUnitPrice   Decimal? @db.Decimal(12, 2)
-  resolvedAmount      Decimal? @db.Decimal(12, 2)
-  createdSaleId       String?
-  provider            String?  // which Gemini model was used
-  confidence          Float?
-  expiresAt           DateTime
-  completedAt         DateTime?
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+model UserSubscription {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status          String   @default("TRIAL_ACTIVE")
+  trialStartedAt  DateTime
+  trialExpiresAt  DateTime
+  accessStartedAt  DateTime?
+  accessExpiresAt  DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   @@index([userId])
   @@index([status])
-  @@index([intent])
+}
+
+model RedeemCode {
+  id              String   @id @default(cuid())
+  codeHash        String   @unique
+  durationDays    Int
+  maxRedemptions  Int      @default(1)
+  redemptionCount Int      @default(0)
+  active          Boolean  @default(true)
+  expiresAt       DateTime?
+  createdBy       String   @default("admin")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  redemptions     RedeemCodeRedemption[]
+
+  @@index([codeHash])
+  @@index([active])
+}
+
+model RedeemCodeRedemption {
+  id              String   @id @default(cuid())
+  redeemCodeId    String
+  redeemCode      RedeemCode @relation(fields: [redeemCodeId], references: [id], onDelete: Cascade)
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  durationDays    Int
+  previousAccessExpiresAt  DateTime?
+  newAccessExpiresAt       DateTime
+  redeemedAt      DateTime @default(now())
+
+  @@index([redeemCodeId])
+  @@index([userId])
 }

@@ -48,14 +48,14 @@ export function KhataList() {
               onChange={(e) => setQuery(e.target.value)}
               placeholder={t("customer.searchPlaceholder")}
               className="w-full rounded-lg border border-slate-300 bg-white py-2.5 pl-9 pr-9 text-sm text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
-              aria-label="Search customers"
+              aria-label={t("common.searchCustomerAria")}
             />
             {query ? (
               <button
                 type="button"
                 onClick={() => setQuery("")}
                 className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-slate-400 hover:text-slate-700"
-                aria-label="Clear search"
+                aria-label={t("common.clearSearchAria")}
               >
                 <X className="h-4 w-4" />
               </button>
@@ -214,7 +214,7 @@ function EmptyCustomersState() {
       >
         <Lightbulb className="h-4 w-4 shrink-0 text-brand-500" />
         <span className="flex-1">
-          You can also create a customer from any transaction.
+          {t("customer.createFromTransactionHint")}
         </span>
         <ChevronRight className="h-3.5 w-3.5 shrink-0 text-slate-400" />
       </Link>

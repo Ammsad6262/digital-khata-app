@@ -3,12 +3,24 @@
 /**
  * Providers — wraps all client-side context providers.
  *
- * V13: Adds Smart Entry (HoldToTalkFab + SmartEntryModal) on the Dashboard.
- * The FAB + modal share the same useSmartEntry + useAudioRecorder instances
- * (lifted to this level so they stay in sync).
+ * V9: Restores the Dashboard FAB as the primary hold-to-talk control.
+ *
+ * Architecture:
+ *   - useSmartEntry + useAudioRecorder are BOTH lifted to providers.tsx
+ *   - HoldToTalkFab uses the shared recorder + smartEntry
+ *   - SmartEntryModal receives the shared recorder as a prop (no longer
+ *     creates its own)
+ *   - Single recording path, single state machine
+ *
+ * Data flow:
+ *   HOLD the FAB → recorder.start() → recorder.stop() → smartEntry.submitAudio()
+ *     → state = "transcribing" → modal opens → form
+ *   SHORT TAP the FAB → modal opens → ChoiceView (text entry only)
+ *   Text: smartEntry.submitText() → state = "interpreting" → form
  */
 
-import { useState, useCallback, type ReactNode } from "react";
+import { useState, useCallback } from "react";
+import { type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import { QueryProvider } from "@/providers/query-provider";
 import { ToastProvider } from "@/providers/toast-provider";
@@ -32,19 +44,22 @@ export function Providers({ children }: { children: ReactNode }) {
     (p) => pathname === p || pathname.startsWith(p + "/"),
   );
 
+  const showFab = !isPublicPage && pathname === DASHBOARD_PATH;
+
   // ── Shared Smart Entry state + recorder ──────────────────────────────────
+  // Both are owned HERE so the FAB and modal share the same instances.
   const smartEntry = useSmartEntry();
   const recorder = useAudioRecorder();
   const [modalOpen, setModalOpen] = useState(false);
 
-  const handleModalOpen = useCallback(() => setModalOpen(true), []);
+  const handleModalOpen = useCallback(() => {
+    setModalOpen(true);
+  }, []);
+
   const handleClose = useCallback(() => {
     setModalOpen(false);
     smartEntry.reset();
   }, [smartEntry]);
-
-  // Show Smart Entry FAB only on Dashboard
-  const showSmartEntry = !isPublicPage && pathname === DASHBOARD_PATH;
 
   return (
     <ThemeProvider>
@@ -58,7 +73,7 @@ export function Providers({ children }: { children: ReactNode }) {
                 <Screen>
                   {children}
                   <BottomNav />
-                  {showSmartEntry ? (
+                  {showFab ? (
                     <>
                       <QuickAddMenu />
                       <HoldToTalkFab

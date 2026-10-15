@@ -92,7 +92,7 @@ export function ProfitLossCard() {
         className={cn(
           "rounded-2xl p-4 text-white shadow-lg",
           isProfit
-            ? "bg-gradient-to-br from-green-500 to-emerald-600"
+            ? "bg-gradient-to-br from-brand-600 to-brand-800"
             : "bg-gradient-to-br from-red-500 to-rose-600",
         )}
       >
@@ -116,7 +116,7 @@ export function ProfitLossCard() {
       {/* Breakdown card */}
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
         {/* Revenue */}
-        <Row label={t("pnl.revenue")} value={p.revenue} sub={`${p.salesCount} sales`} tone="blue" />
+        <Row label={t("pnl.revenue")} value={p.revenue} sub={`${p.salesCount} ${t("transactions.sales")}`} tone="blue" />
 
         {/* COGS */}
         <Row label={t("pnl.cogs")} value={`−${p.cogs}`} tone="amber" />
@@ -132,7 +132,7 @@ export function ProfitLossCard() {
         </div>
 
         {/* Expenses */}
-        <Row label={t("pnl.expenses")} value={`−${p.expenses}`} sub={`${p.expenseCount} expenses`} tone="amber" />
+        <Row label={t("pnl.expenses")} value={`−${p.expenses}`} sub={`${p.expenseCount} ${t("transactions.expenses")}`} tone="amber" />
 
         {/* Net Profit total */}
         <div className="border-t-2 border-slate-300 bg-slate-50">

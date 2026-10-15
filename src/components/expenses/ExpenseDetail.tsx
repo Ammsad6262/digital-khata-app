@@ -68,8 +68,8 @@ export function ExpenseDetail({ expenseId }: { expenseId: string }) {
   if (!expense) {
     return (
       <EmptyState
-        title="Expense not found"
-        description="This expense may have been deleted."
+        title={t("expense.notFound")}
+        description={t("expense.notFoundDesc")}
         icon={<AlertCircle className="h-6 w-6" />}
         action={
           <Link href="/more/expenses">
@@ -154,8 +154,7 @@ export function ExpenseDetail({ expenseId }: { expenseId: string }) {
       {isVoided ? (
         <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-center">
           <p className="text-xs text-slate-500">
-            This expense was voided{expense.voidedAt ? ` on ${formatDateTime(new Date(expense.voidedAt))}` : ""}.
-            It does not affect the dashboard expense totals.
+            {t("expense.voidedOnPrefix")}{expense.voidedAt ? ` ${formatDateTime(new Date(expense.voidedAt))}` : ""}. {t("expense.voidedOnSuffix")}
           </p>
         </div>
       ) : confirmVoid ? (
@@ -164,8 +163,7 @@ export function ExpenseDetail({ expenseId }: { expenseId: string }) {
             <p className="text-sm font-semibold text-red-900">{t("expense.voidConfirm")}</p>
             <p className="mt-1 text-xs text-red-700">
               {t("expense.voidDesc")}
-              Use void for: incorrectly entered amounts, duplicates, or expenses that
-              were never actually paid.
+              {t("expense.voidUseCases")}
             </p>
           </div>
           <div className="flex gap-2">

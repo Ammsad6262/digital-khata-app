@@ -102,13 +102,16 @@
   html[dir="rtl"] .ml-1 { margin-right: 0.25rem; margin-left: 0; }
   html[dir="rtl"] .ml-2 { margin-right: 0.5rem; margin-left: 0; }
   html[dir="rtl"] .ml-3 { margin-right: 0.75rem; margin-left: 0; }
+  html[dir="rtl"] .ml-4 { margin-right: 1rem; margin-left: 0; }
   html[dir="rtl"] .ml-auto { margin-right: auto; margin-left: 0; }
   html[dir="rtl"] .mr-1 { margin-left: 0.25rem; margin-right: 0; }
   html[dir="rtl"] .mr-2 { margin-left: 0.5rem; margin-right: 0; }
   html[dir="rtl"] .mr-3 { margin-left: 0.75rem; margin-right: 0; }
+  html[dir="rtl"] .mr-4 { margin-left: 1rem; margin-right: 0; }
   html[dir="rtl"] .pl-1 { padding-right: 0.25rem; padding-left: 0; }
   html[dir="rtl"] .pl-2 { padding-right: 0.5rem; padding-left: 0; }
   html[dir="rtl"] .pl-3 { padding-right: 0.75rem; padding-left: 0; }
+  html[dir="rtl"] .pl-4 { padding-right: 1rem; padding-left: 0; }
   html[dir="rtl"] .pl-9 { padding-right: 2.25rem; padding-left: 0; }
   html[dir="rtl"] .pl-10 { padding-right: 2.5rem; padding-left: 0; }
   html[dir="rtl"] .pr-1 { padding-left: 0.25rem; padding-right: 0; }
@@ -117,13 +120,54 @@
   html[dir="rtl"] .pr-9 { padding-left: 2.25rem; padding-right: 0; }
 
   /* RTL: flip absolute positioning */
+  html[dir="rtl"] .left-0 { right: 0; left: auto; }
   html[dir="rtl"] .left-3 { right: 0.75rem; left: auto; }
+  html[dir="rtl"] .left-4 { right: 1rem; left: auto; }
+  html[dir="rtl"] .right-0 { left: 0; right: auto; }
   html[dir="rtl"] .right-2 { left: 0.5rem; right: auto; }
   html[dir="rtl"] .right-3 { left: 0.75rem; right: auto; }
+  html[dir="rtl"] .right-4 { left: 1rem; right: auto; }
 
   /* RTL: flip border radius (rounded-l → rounded-r) */
   html[dir="rtl"] .rounded-l-lg { border-radius: 0 0.5rem 0.5rem 0; }
   html[dir="rtl"] .rounded-r-lg { border-radius: 0.5rem 0 0 0.5rem; }
+  html[dir="rtl"] .rounded-l-md { border-radius: 0 0.375rem 0.375rem 0; }
+  html[dir="rtl"] .rounded-r-md { border-radius: 0.375rem 0 0 0.375rem; }
+  html[dir="rtl"] .rounded-l { border-radius: 0 0.25rem 0.25rem 0; }
+  html[dir="rtl"] .rounded-r { border-radius: 0.25rem 0 0 0.25rem; }
+  html[dir="rtl"] .rounded-l-xl { border-radius: 0 0.75rem 0.75rem 0; }
+  html[dir="rtl"] .rounded-r-xl { border-radius: 0.75rem 0 0 0.75rem; }
+
+  /* RTL: flip border sides (border-l → border-r and vice versa) */
+  html[dir="rtl"] .border-l { border-right-width: 1px; border-left-width: 0; }
+  html[dir="rtl"] .border-l-2 { border-right-width: 2px; border-left-width: 0; }
+  html[dir="rtl"] .border-r { border-left-width: 1px; border-right-width: 0; }
+  html[dir="rtl"] .border-r-2 { border-left-width: 2px; border-right-width: 0; }
+
+  /* RTL: flip space-x — gap between horizontally-arranged children.
+     Tailwind's space-x-* adds margin-left to children. In RTL we want margin-right. */
+  html[dir="rtl"] .space-x-1 > :not([hidden]) ~ :not([hidden]) { margin-right: 0.25rem; margin-left: 0; }
+  html[dir="rtl"] .space-x-2 > :not([hidden]) ~ :not([hidden]) { margin-right: 0.5rem; margin-left: 0; }
+  html[dir="rtl"] .space-x-3 > :not([hidden]) ~ :not([hidden]) { margin-right: 0.75rem; margin-left: 0; }
+  html[dir="rtl"] .space-x-4 > :not([hidden]) ~ :not([hidden]) { margin-right: 1rem; margin-left: 0; }
+
+  /* RTL: slide-in drawers should slide from the LEFT in RTL */
+  html[dir="rtl"] .translate-x-full { transform: translateX(-100%); }
+  html[dir="rtl"] .translate-x-0 { transform: translateX(0); }
+
+  /* RTL: tracking-wide + uppercase has no effect on Urdu (no case) and widens
+     text unnecessarily. Drop tracking and uppercase for Urdu text. */
+  html[dir="rtl"] .uppercase { text-transform: none; letter-spacing: 0; }
+  html[dir="rtl"] .tracking-wide { letter-spacing: 0; }
+  html[dir="rtl"] .tracking-wider { letter-spacing: 0; }
+
+  /* RTL: rotate directional icons that should point the other way in RTL.
+     lucide-react ChevronRight → flip horizontally to point left in RTL.
+     Apply class "rtl-flip" to any icon that should auto-flip. */
+  html[dir="rtl"] .rtl-flip { transform: scaleX(-1); }
+
+  /* RTL: ensure <pre>, <code>, and number-prefixed text stays LTR */
+  html[dir="rtl"] [dir="ltr"] { direction: ltr; }
 
   /* Prevent iOS zoom-on-focus by enforcing 16px font on inputs */
   input,

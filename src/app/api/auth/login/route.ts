@@ -7,13 +7,14 @@
 import { NextRequest } from "next/server";
 import { loginUser, AUTH_COOKIE_NAME } from "@/lib/services/auth";
 import { ok, fail, parseJsonBody } from "@/lib/utils/api";
+import { tServer } from "@/lib/i18n/server";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
   try {
     const { data, error } = await parseJsonBody<{ email: string; password: string }>(req);
-    if (error || !data) return fail(new Error(error || "Invalid request body."));
+    if (error || !data) return fail(new Error(error || tServer("api.errors.invalidBody")));
 
     const result = await loginUser(data!);
 

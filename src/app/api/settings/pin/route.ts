@@ -14,20 +14,22 @@ import { getOwnerPinHash, setOwnerPinHash, clearOwnerPinHash } from "@/lib/servi
 import { hashPin, verifyPin, isValidPinFormat } from "@/lib/auth/pin";
 import { BadRequestError, UnauthorizedError } from "@/lib/errors";
 import { ok, fail, parseJsonBody } from "@/lib/utils/api";
+import { requireUserId } from "@/lib/auth/get-current-user";
 
 export const dynamic = "force-dynamic";
 
 const setPinSchema = z.object({
-  pin: z.string().min(4, "PIN must be at least 4 digits.").max(6, "PIN must be at most 6 digits."),
+  pin: z.string().min(4, "api.pin.tooShort").max(6, "api.pin.tooLong"),
   currentPin: z.string().optional(),
 });
 
 const removePinSchema = z.object({
-  currentPin: z.string().min(1, "Current PIN is required to remove PIN lock."),
+  currentPin: z.string().min(1, "api.pin.currentRequiredToRemove"),
 });
 
 export async function POST(req: NextRequest) {
   try {
+    const userId = await requireUserId(req);
     const { data, error } = await parseJsonBody<unknown>(req);
     if (error) return fail(new Error(error));
 
@@ -35,24 +37,24 @@ export async function POST(req: NextRequest) {
 
     // Validate PIN format (digits only, 4-6 chars)
     if (!isValidPinFormat(parsed.pin)) {
-      throw new BadRequestError("PIN must be 4-6 digits (numbers only).");
+      throw new BadRequestError("api.pin.invalidFormat");
     }
 
     // If a PIN is already set, verify the current PIN before allowing change
-    const existingHash = await getOwnerPinHash();
+    const existingHash = await getOwnerPinHash(userId);
     if (existingHash) {
       if (!parsed.currentPin) {
-        throw new UnauthorizedError("Current PIN is required to change PIN.");
+        throw new UnauthorizedError("api.pin.currentRequiredToChange");
       }
       const valid = await verifyPin(parsed.currentPin, existingHash);
       if (!valid) {
-        throw new UnauthorizedError("Current PIN is incorrect.");
+        throw new UnauthorizedError("api.pin.incorrectCurrent");
       }
     }
 
     // Hash + store the new PIN
     const hash = await hashPin(parsed.pin);
-    await setOwnerPinHash(hash);
+    await setOwnerPinHash(userId, hash);
 
     return ok({ hasPin: true });
   } catch (error) {
@@ -62,23 +64,24 @@ export async function POST(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   try {
+    const userId = await requireUserId(req);
     const { data, error } = await parseJsonBody<unknown>(req);
     if (error) return fail(new Error(error));
 
     const parsed = removePinSchema.parse(data);
 
     // Verify current PIN before removing
-    const existingHash = await getOwnerPinHash();
+    const existingHash = await getOwnerPinHash(userId);
     if (!existingHash) {
-      throw new BadRequestError("No PIN is set — nothing to remove.");
+      throw new BadRequestError("api.pin.noneSet");
     }
 
     const valid = await verifyPin(parsed.currentPin, existingHash);
     if (!valid) {
-      throw new UnauthorizedError("Current PIN is incorrect.");
+      throw new UnauthorizedError("api.pin.incorrectCurrent");
     }
 
-    await clearOwnerPinHash();
+    await clearOwnerPinHash(userId);
 
     return ok({ hasPin: false });
   } catch (error) {

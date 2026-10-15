@@ -17,7 +17,8 @@
 import { NextRequest } from "next/server";
 import { exportBackup } from "@/lib/services/backup";
 import { withCircuitBreaker } from "@/lib/utils/circuit-breaker";
-import { getCurrentUserId } from "@/lib/auth/get-current-user";
+import { tServer } from "@/lib/i18n/server";
+import { requireUserId } from "@/lib/auth/get-current-user";
 
 export const dynamic = "force-dynamic";
 
@@ -26,7 +27,7 @@ export const maxDuration = 60;
 
 export async function GET(req: NextRequest) {
   try {
-    const userId = await getCurrentUserId(req);
+    const userId = await requireUserId(req);
     const dateStr = new Date().toISOString().slice(0, 10);
     const filename = `digital-khata-backup-${dateStr}.json`;
 
@@ -39,7 +40,7 @@ export async function GET(req: NextRequest) {
 
     if (!backup) {
       return new Response(
-        JSON.stringify({ ok: false, error: { code: "DATABASE_ERROR", message: "Database unavailable." } }),
+        JSON.stringify({ ok: false, error: { code: "DATABASE_ERROR", message: tServer("api.backup.export.unavailable") } }),
         { status: 503, headers: { "Content-Type": "application/json" } },
       );
     }
@@ -90,7 +91,7 @@ export async function GET(req: NextRequest) {
   } catch (error) {
     console.error("[backup/export] Failed:", error);
     return new Response(
-      JSON.stringify({ ok: false, error: { code: "INTERNAL", message: "Failed to export backup." } }),
+      JSON.stringify({ ok: false, error: { code: "INTERNAL", message: tServer("api.backup.export.failed") } }),
       { status: 500, headers: { "Content-Type": "application/json" } },
     );
   }

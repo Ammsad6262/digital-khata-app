@@ -15,14 +15,14 @@ import bcrypt from "bcryptjs";
 export const dynamic = "force-dynamic";
 
 const changePasswordSchema = z.object({
-  currentPassword: z.string().min(1, "Current password is required."),
-  newPassword: z.string().min(6, "New password must be at least 6 characters."),
+  currentPassword: z.string().min(1, "api.password.currentRequired"),
+  newPassword: z.string().min(6, "api.password.tooShort"),
 });
 
 export async function PATCH(req: NextRequest) {
   try {
     const userId = await getCurrentUserId(req);
-    if (!userId) throw new UnauthorizedError("Not authenticated.");
+    if (!userId) throw new UnauthorizedError("api.account.notAuthenticated");
 
     const { data, error } = await parseJsonBody<unknown>(req);
     if (error) return fail(new Error(error));
@@ -37,7 +37,7 @@ export async function PATCH(req: NextRequest) {
 
     const currentValid = await bcrypt.compare(parsed.currentPassword, user.passwordHash);
     if (!currentValid) {
-      throw new BadRequestError("Current password is incorrect.");
+      throw new BadRequestError("api.password.incorrectCurrent");
     }
 
     // Hash new password

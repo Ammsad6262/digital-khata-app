@@ -17,6 +17,7 @@ import { useState } from "react";
 import {
   ArrowLeft,
   AlertCircle,
+  ChevronRight,
   Phone,
   ShoppingCart,
   CheckCircle2,
@@ -180,7 +181,7 @@ export function SaleDetail({ saleId }: { saleId: string }) {
               {sale.customerPhone}
             </p>
           </div>
-          <span className="text-xs text-brand-600">{t("common.viewKhata")} →</span>
+          <span className="text-xs text-brand-600">{t("common.viewKhata")} <ChevronRight className="inline h-3 w-3 rtl-flip" /></span>
         </div>
       </Link>
 

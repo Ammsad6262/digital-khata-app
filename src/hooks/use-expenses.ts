@@ -22,6 +22,7 @@ import { apiGet, apiPost, apiPatch, ApiError } from "@/lib/utils/api-client";
 import type {
   ExpenseView,
   ExpenseFilter,
+  ExpenseSummary,
 } from "@/lib/services/expenses";
 
 export const expenseKeys = {
@@ -29,6 +30,7 @@ export const expenseKeys = {
   lists: () => [...expenseKeys.all, "list"] as const,
   list: (filter: ExpenseFilter) => [...expenseKeys.lists(), { filter }] as const,
   recent: () => [...expenseKeys.all, "recent"] as const,
+  summary: (filter: ExpenseFilter) => [...expenseKeys.all, "summary", { filter }] as const,
   details: () => [...expenseKeys.all, "detail"] as const,
   detail: (id: string) => [...expenseKeys.details(), id] as const,
 };
@@ -43,6 +45,18 @@ export function useExpensesList(filter: ExpenseFilter = "all") {
     queryKey: expenseKeys.list(filter),
     queryFn: () =>
       apiGet<ExpenseView[]>(`/api/expenses?filter=${encodeURIComponent(filter)}`),
+  });
+}
+
+/** Expenses summary (totals + per-category breakdown) for the selected filter. */
+export function useExpensesSummary(filter: ExpenseFilter = "all") {
+  return useQuery<ExpenseSummary>({
+    queryKey: expenseKeys.summary(filter),
+    queryFn: () =>
+      apiGet<ExpenseSummary>(`/api/expenses/summary?filter=${encodeURIComponent(filter)}`),
+    // 30s — totals change when expenses are added/edited/voided, but 30s
+    // is fine for repeat loads (we also invalidate on mutation).
+    staleTime: 30 * 1000,
   });
 }
 
@@ -117,7 +131,9 @@ export function useRecordExpense() {
     },
 
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: expenseKeys.lists() });
+      // Invalidate all expense-related caches (list + summary + detail).
+      // expenseKeys.all = ["expenses"] — matches all keys starting with "expenses".
+      queryClient.invalidateQueries({ queryKey: expenseKeys.all });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       queryClient.invalidateQueries({ queryKey: ["transactions"] });
     },
@@ -134,7 +150,7 @@ export function useUpdateExpense(id: string) {
 
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: expenseKeys.detail(id) });
-      queryClient.invalidateQueries({ queryKey: expenseKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: expenseKeys.all });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       queryClient.invalidateQueries({ queryKey: ["transactions"] });
     },

@@ -102,7 +102,7 @@ export async function exportBackup(userId?: string | null): Promise<BackupFile> 
     expenses,
     transactions,
   ] = await Promise.all([
-    prisma.setting.findMany(),
+    prisma.setting.findMany({ where: userWhere }),
     prisma.customer.findMany({ where: userWhere }),
     prisma.product.findMany({ where: userWhere }),
     prisma.sale.findMany({ where: userWhere }),
@@ -287,27 +287,29 @@ export function parseBackupFile(content: string): BackupFile {
   try {
     parsed = JSON.parse(content);
   } catch {
-    throw new BadRequestError("File is not valid JSON. Cannot import.");
+    throw new BadRequestError("api.backup.invalidJson");
   }
 
   if (typeof parsed !== "object" || parsed === null) {
-    throw new BadRequestError("Backup file is not a valid JSON object.");
+    throw new BadRequestError("api.backup.notObject");
   }
 
   const obj = parsed as Record<string, unknown>;
 
   if (typeof obj.version !== "number") {
-    throw new BadRequestError("Backup file is missing a 'version' field.");
+    throw new BadRequestError("api.backup.missingVersion");
   }
 
   if (obj.version !== BACKUP_VERSION) {
     throw new BadRequestError(
-      `Backup file version (${obj.version}) is not supported. Expected version ${BACKUP_VERSION}.`,
+      "api.backup.unsupportedVersion",
+      undefined,
+      { version: String(obj.version), expected: String(BACKUP_VERSION) },
     );
   }
 
   if (!obj.data || typeof obj.data !== "object") {
-    throw new BadRequestError("Backup file is missing the 'data' object.");
+    throw new BadRequestError("api.backup.missingData");
   }
 
   const data = obj.data as Record<string, unknown>;
@@ -316,7 +318,9 @@ export function parseBackupFile(content: string): BackupFile {
   for (const table of REQUIRED_TABLES) {
     if (!Array.isArray(data[table])) {
       throw new BadRequestError(
-        `Backup file is missing the '${table}' table (or it's not an array).`,
+        "api.backup.missingTable",
+        undefined,
+        { table },
       );
     }
   }
@@ -347,9 +351,7 @@ export async function importBackup(
   userId?: string | null,
 ): Promise<ImportResult> {
   if (!options.confirmReplace) {
-    throw new BadRequestError(
-      "Import requires explicit confirmation. Set confirmReplace: true to proceed.",
-    );
+    throw new BadRequestError("api.backup.confirmRequired");
   }
 
   const backup = parseBackupFile(content);
@@ -375,22 +377,24 @@ export async function importBackup(
     await tx.customerAdjustment.deleteMany({ where: userWhere });
     await tx.customer.deleteMany({ where: userWhere });
     await tx.product.deleteMany({ where: userWhere });
-    // Setting is a global singleton — always wiped on import (single tenant per
-    // business). We intentionally do NOT scope this by userId.
-    await tx.setting.deleteMany({});
+    // Setting is per-user — only delete and import for this user.
+    if (userId) {
+      await tx.setting.deleteMany({ where: { userId } });
+    }
 
     // Insert in dependency order (parents first, children last).
     // Every create stamps the row with `userId` so the imported data belongs
     // to the authenticated user. NEVER trust userId from the backup file body —
     // always overwrite with the server-provided id.
-    // 1. Settings (singleton)
-    if (backup.data.settings.length > 0) {
-      // Only insert the first setting (singleton pattern). We already
-      // deleted all settings above, so no skipDuplicates needed.
+    // 1. Settings (per-user) — upsert to be safe
+    if (backup.data.settings.length > 0 && userId) {
       const firstSetting = backup.data.settings[0];
       if (firstSetting) {
-        await tx.setting.create({
-          data: deserializeSetting(firstSetting),
+        const deserialized = deserializeSetting(firstSetting);
+        await tx.setting.upsert({
+          where: { userId },
+          create: { ...deserialized, userId },
+          update: { ...deserialized, userId },
         });
       }
     }
@@ -510,7 +514,9 @@ function verifyIntegrity(backup: BackupFile): void {
   for (const s of backup.data.sales) {
     if (!customerIds.has(s.customerId as string)) {
       throw new BadRequestError(
-        `Sale ${s.id} references customer ${s.customerId} which doesn't exist in the backup.`,
+        "api.backup.fkSaleCustomer",
+        undefined,
+        { saleId: String(s.id), customerId: String(s.customerId) },
       );
     }
   }
@@ -519,12 +525,16 @@ function verifyIntegrity(backup: BackupFile): void {
   for (const si of backup.data.saleItems) {
     if (!saleIds.has(si.saleId as string)) {
       throw new BadRequestError(
-        `SaleItem ${si.id} references sale ${si.saleId} which doesn't exist in the backup.`,
+        "api.backup.fkSaleItemSale",
+        undefined,
+        { id: String(si.id), saleId: String(si.saleId) },
       );
     }
     if (!productIds.has(si.productId as string)) {
       throw new BadRequestError(
-        `SaleItem ${si.id} references product ${si.productId} which doesn't exist in the backup.`,
+        "api.backup.fkSaleItemProduct",
+        undefined,
+        { id: String(si.id), productId: String(si.productId) },
       );
     }
   }
@@ -533,13 +543,17 @@ function verifyIntegrity(backup: BackupFile): void {
   for (const p of backup.data.payments) {
     if (!customerIds.has(p.customerId as string)) {
       throw new BadRequestError(
-        `Payment ${p.id} references customer ${p.customerId} which doesn't exist in the backup.`,
+        "api.backup.fkPaymentCustomer",
+        undefined,
+        { id: String(p.id), customerId: String(p.customerId) },
       );
     }
     // Payment.saleId is optional — only check if present
     if (p.saleId && !saleIds.has(p.saleId as string)) {
       throw new BadRequestError(
-        `Payment ${p.id} references sale ${p.saleId} which doesn't exist in the backup.`,
+        "api.backup.fkPaymentSale",
+        undefined,
+        { id: String(p.id), saleId: String(p.saleId) },
       );
     }
   }
@@ -548,7 +562,9 @@ function verifyIntegrity(backup: BackupFile): void {
   for (const a of backup.data.customerAdjustments) {
     if (!customerIds.has(a.customerId as string)) {
       throw new BadRequestError(
-        `CustomerAdjustment ${a.id} references customer ${a.customerId} which doesn't exist in the backup.`,
+        "api.backup.fkAdjustmentCustomer",
+        undefined,
+        { id: String(a.id), customerId: String(a.customerId) },
       );
     }
   }
@@ -557,7 +573,9 @@ function verifyIntegrity(backup: BackupFile): void {
   for (const m of backup.data.stockMoves) {
     if (!productIds.has(m.productId as string)) {
       throw new BadRequestError(
-        `StockMove ${m.id} references product ${m.productId} which doesn't exist in the backup.`,
+        "api.backup.fkStockMoveProduct",
+        undefined,
+        { id: String(m.id), productId: String(m.productId) },
       );
     }
   }
@@ -566,12 +584,16 @@ function verifyIntegrity(backup: BackupFile): void {
   for (const t of backup.data.transactions) {
     if (t.customerId && !customerIds.has(t.customerId as string)) {
       throw new BadRequestError(
-        `Transaction ${t.id} references customer ${t.customerId} which doesn't exist in the backup.`,
+        "api.backup.fkTransactionCustomer",
+        undefined,
+        { id: String(t.id), customerId: String(t.customerId) },
       );
     }
     if (t.productId && !productIds.has(t.productId as string)) {
       throw new BadRequestError(
-        `Transaction ${t.id} references product ${t.productId} which doesn't exist in the backup.`,
+        "api.backup.fkTransactionProduct",
+        undefined,
+        { id: String(t.id), productId: String(t.productId) },
       );
     }
   }
@@ -589,12 +611,13 @@ function deserializeDate(value: unknown): Date {
 
 function deserializeSetting(row: Record<string, unknown>) {
   return {
-    id: row.id as string,
     businessName: row.businessName as string | null,
     currency: row.currency as string,
     currencySymbol: row.currencySymbol as string,
     ownerPinHash: (row.ownerPinHash as string | null) ?? null,
     timezone: row.timezone as string,
+    customUnits: (row.customUnits as string[]) ?? [],
+    theme: (row.theme as string) ?? "monochrome",
     createdAt: deserializeDate(row.createdAt),
     updatedAt: deserializeDate(row.updatedAt),
   };

@@ -70,7 +70,7 @@ export async function getCustomer(id: string, userId?: string | null): Promise<C
     where: { id, isDeleted: false, ...(userId && { userId }) },
   });
   if (!customer) {
-    throw new NotFoundError("Customer", id);
+    throw new NotFoundError("api.resource.customer", id);
   }
   return toView(customer);
 }
@@ -299,7 +299,9 @@ export async function deleteCustomer(id: string, userId?: string | null): Promis
   const total = saleCount + paymentCount + adjustmentCount;
   if (total > 0) {
     throw new BadRequestError(
-      `Cannot delete customer with active transactions (${saleCount} sales, ${paymentCount} payments, ${adjustmentCount} adjustments). Void or transfer them first.`,
+      "api.customer.deleteBlocked",
+      undefined,
+      { sales: saleCount, payments: paymentCount, adjustments: adjustmentCount },
     );
   }
 

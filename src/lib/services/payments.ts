@@ -29,8 +29,10 @@ import {
   startOfTodayInTz,
   startOfWeekInTz,
   startOfMonthInTz,
+  getDateRangeForFilter,
 } from "@/lib/utils/date";
 import type { Prisma } from "@prisma/client";
+import { z } from "zod";
 
 // ────────────────────────────────────────────────────────────────────────────
 // View types
@@ -67,7 +69,7 @@ export type PaymentDetail = PaymentView & {
   customerPhone: string | null;
 };
 
-export type PaymentFilter = "today" | "week" | "month" | "all";
+export type PaymentFilter = "today" | "yesterday" | "week" | "lastWeek" | "month" | "lastMonth" | "year" | "all";
 
 // ────────────────────────────────────────────────────────────────────────────
 // Mappers
@@ -122,20 +124,18 @@ export async function listPaymentsFiltered(
   userId?: string | null,
 ): Promise<PaymentListItem[]> {
   const { customerId, limit = 100, timezone = "Asia/Karachi" } = options;
-  let startDate: Date | undefined;
-
-  switch (filter) {
-    case "today": startDate = startOfTodayInTz(timezone); break;
-    case "week":  startDate = startOfWeekInTz(timezone); break;
-    case "month": startDate = startOfMonthInTz(timezone); break;
-    case "all":   startDate = undefined; break;
-  }
+  const range = getDateRangeForFilter(filter, timezone);
 
   const payments = await prisma.payment.findMany({
     where: {
       voidedAt: null,
       ...(userId && { userId }),
-      ...(startDate && { date: { gte: startDate } }),
+      ...((range.start || range.end) && {
+        date: {
+          ...(range.start && { gte: range.start }),
+          ...(range.end && { lt: range.end }),
+        },
+      }),
       ...(customerId && { customerId }),
     },
     include: { customer: true },
@@ -173,7 +173,7 @@ export async function getPayment(id: string, userId?: string | null): Promise<Pa
     include: { customer: true },
   });
   if (!payment || payment.voidedAt) {
-    throw new NotFoundError("Payment", id);
+    throw new NotFoundError("api.resource.payment", id);
   }
   return {
     ...toView(payment),
@@ -211,7 +211,7 @@ export async function recordPayment(input: unknown, userId?: string | null): Pro
       },
     });
     if (!customer) {
-      throw new NotFoundError("Customer", data.customerId);
+      throw new NotFoundError("api.resource.customer", data.customerId);
     }
 
     if (data.saleId) {
@@ -225,10 +225,10 @@ export async function recordPayment(input: unknown, userId?: string | null): Pro
         },
       });
       if (!sale || sale.voidedAt) {
-        throw new NotFoundError("Sale", data.saleId);
+        throw new NotFoundError("api.resource.sale", data.saleId);
       }
       if (sale.customerId !== data.customerId) {
-        throw new BadRequestError("Sale does not belong to this customer.");
+        throw new BadRequestError("api.payment.saleCustomerMismatch");
       }
       // Update the sale's denormalized paidAmount/outstanding columns so they
       // stay consistent with the actual payment records. Without this, the
@@ -298,8 +298,8 @@ export async function recordPayment(input: unknown, userId?: string | null): Pro
 export async function voidPayment(id: string, userId?: string | null): Promise<{ id: string; voidedAt: Date }> {
   const result = await prisma.$transaction(async (tx) => {
     const payment = await tx.payment.findFirst({ where: { id, ...(userId && { userId }) } });
-    if (!payment) throw new NotFoundError("Payment", id);
-    if (payment.voidedAt) throw new BadRequestError("Payment is already voided.");
+    if (!payment) throw new NotFoundError("api.resource.payment", id);
+    if (payment.voidedAt) throw new BadRequestError("api.payment.alreadyVoided");
 
     const now = new Date();
 
@@ -344,4 +344,129 @@ export async function voidPayment(id: string, userId?: string | null): Promise<{
   invalidateCache("profit-loss");
 
   return result;
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// V2 — Update payment (amount / method / date / notes)
+// ────────────────────────────────────────────────────────────────────────────
+//
+// Editing is restricted to: amount, method, date, notes. The customer + saleId
+// are NOT editable (changing the customer would be a different payment — the
+// owner should void + re-record).
+//
+// If the payment is linked to a sale AND the amount changes, the sale's
+// denormalized paidAmount + outstanding columns are recomputed (in the same
+// transaction) so they stay consistent.
+//
+// Atomic: all changes (Payment row + Transaction ledger row + Sale columns)
+// happen in one prisma.$transaction. If any step fails, all roll back.
+
+export type UpdatePaymentInput = {
+  amount?: number | string;
+  method?: "cash" | "bank" | "cheque" | "jazzcash" | "easypaisa" | "other";
+  notes?: string | null;
+  date?: string;
+};
+
+export async function updatePayment(
+  id: string,
+  input: unknown,
+  userId?: string | null,
+): Promise<PaymentDetail> {
+  // Verify ownership first — throws 404 if not owned by this user / voided.
+  const existing = await getPayment(id, userId);
+
+  // Zod-validate the input
+  const schema = z.object({
+    amount: z
+      .union([z.number(), z.string()])
+      .transform((v) => (typeof v === "string" ? Number(v) : v))
+      .refine((v) => Number.isFinite(v) && v > 0, "api.payment.amountMustBePositive")
+      .optional(),
+    method: z.enum(["cash", "bank", "cheque", "jazzcash", "easypaisa", "other"]).optional(),
+    notes: z.string().trim().max(500).optional().nullable(),
+    date: z.string().datetime().optional(),
+  });
+  const data = schema.parse(input);
+
+  const result = await prisma.$transaction(async (tx) => {
+    // If amount changes AND the payment is linked to a sale, recompute the
+    // sale's denormalized paidAmount + outstanding columns.
+    let newSalePaidAmount: Decimal | undefined;
+    let newSaleOutstanding: Decimal | undefined;
+    if (data.amount !== undefined && existing.saleId) {
+      const sale = await tx.sale.findUnique({ where: { id: existing.saleId } });
+      if (sale && !sale.voidedAt) {
+        // Recompute from the source of truth: SUM of all non-voided payments
+        // for this sale (excluding the current payment, then re-adding the
+        // new amount). This avoids drift if other payments were edited
+        // concurrently.
+        const otherPayments = await tx.payment.aggregate({
+          _sum: { amount: true },
+          where: {
+            saleId: sale.id,
+            voidedAt: null,
+            id: { not: id },
+          },
+        });
+        const otherSum = otherPayments._sum.amount
+          ? new Decimal(otherPayments._sum.amount.toString())
+          : new Decimal(0);
+        newSalePaidAmount = otherSum.plus(new Decimal(data.amount));
+        newSaleOutstanding = sale.totalAmount.minus(newSalePaidAmount);
+      }
+    }
+
+    // Update the Payment row
+    const updated = await tx.payment.update({
+      where: { id },
+      data: {
+        ...(data.amount !== undefined && { amount: data.amount }),
+        ...(data.method !== undefined && { method: data.method }),
+        ...(data.notes !== undefined && { notes: data.notes }),
+        ...(data.date !== undefined && { date: new Date(data.date) }),
+      },
+    });
+
+    // Update the Transaction ledger row (keep in sync)
+    await tx.transaction.updateMany({
+      where: { refType: "Payment", refId: id },
+      data: {
+        ...(data.amount !== undefined && { amount: data.amount }),
+        ...(data.date !== undefined && { date: new Date(data.date) }),
+      },
+    });
+
+    // Update the Sale's denormalized columns (if recomputed above)
+    if (existing.saleId && newSalePaidAmount !== undefined && newSaleOutstanding !== undefined) {
+      await tx.sale.update({
+        where: { id: existing.saleId },
+        data: {
+          paidAmount: newSalePaidAmount.lt(0) ? new Decimal(0) : newSalePaidAmount,
+          outstanding: newSaleOutstanding.lt(0) ? new Decimal(0) : newSaleOutstanding,
+        },
+      });
+    }
+
+    return updated;
+  });
+
+  // Invalidate caches (a payment change affects customer balance, dashboard,
+  // sale detail if linked, P&L).
+  invalidateCache("customers");
+  invalidateCache("dashboard");
+  invalidateCache("sales");
+  invalidateCache("profit-loss");
+
+  // Re-fetch with customer relation for the response.
+  const withCustomer = await prisma.payment.findUniqueOrThrow({
+    where: { id: result.id },
+    include: { customer: true },
+  });
+
+  return {
+    ...toView(withCustomer),
+    customerName: withCustomer.customer.name,
+    customerPhone: withCustomer.customer.phone ?? null,
+  };
 }

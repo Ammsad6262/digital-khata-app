@@ -130,8 +130,8 @@ async function main() {
     a(saveBtn >= 1, "Payment form renders (Save Payment button)");
     a((await page.locator('button:has-text("Add to Khata")').count()) === 0, "Sale form NOT shown for RECORD_PAYMENT");
     // Check outstanding balance display
-    const modalText = await page.locator('[role="dialog"]').first().textContent();
-    a(modalText?.includes("20,000") || modalText?.includes("Outstanding") || modalText?.includes("Balance"), "Outstanding balance displayed");
+    const modalText = await page.locator('[role="dialog"][aria-label="Smart Khata Entry"]').first().textContent();
+    a(modalText?.includes("20,000") || modalText?.includes("Outstanding") || modalText?.includes("Balance") || modalText?.includes("بقایا") || modalText?.includes("بیلنس"), "Outstanding balance displayed", modalText?.slice(0, 80));
     await ctx.close();
   }
 
@@ -163,8 +163,8 @@ async function main() {
     const { page, ctx } = await mockAndSubmit(ua.cookie.split("=")[1], "CREATE_CUSTOMER", {
       customerCreationForm: { name: "Ali", phone: null, address: null, notes: null, openingBalance: null, hint: null },
     }, "Add a customer named Ali");
-    const modalText = await page.locator('[role="dialog"]').first().textContent();
-    a(modalText?.includes("Ali") || modalText?.includes("Add Customer"), "Customer creation form renders");
+    const modalText = await page.locator('[role="dialog"][aria-label="Smart Khata Entry"]').first().textContent();
+    a(modalText?.includes("Ali") || modalText?.includes("Add Customer") || modalText?.includes("گاہک"), "Customer creation form renders", modalText?.slice(0, 80));
     a((await page.locator('button:has-text("Add to Khata")').count()) === 0, "Sale form NOT shown for CREATE_CUSTOMER");
     await ctx.close();
   }
@@ -175,8 +175,8 @@ async function main() {
     const { page, ctx } = await mockAndSubmit(ua.cookie.split("=")[1], "UNKNOWN", {
       clarification: { question: "I didn't understand. Try: 'Ahmad bought 25 kg rice'", suggestions: ["Ahmad bought 25 kg rice", "Add a product called sugar"] },
     }, "blah blah random text");
-    const modalText = await page.locator('[role="dialog"]').first().textContent();
-    a(modalText?.includes("didn't understand") || modalText?.includes("Try"), "Clarification view shows question");
+    const modalText = await page.locator('[role="dialog"][aria-label="Smart Khata Entry"]').first().textContent();
+    a(modalText?.includes("didn't understand") || modalText?.includes("Try") || modalText?.includes("سمجھ") || modalText?.includes("دوبارہ"), "Clarification view shows question", modalText?.slice(0, 80));
     a((await page.locator('button:has-text("Add to Khata")').count()) === 0, "Sale form NOT shown for UNKNOWN");
     await ctx.close();
   }

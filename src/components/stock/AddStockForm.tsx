@@ -29,6 +29,7 @@ import { Decimal } from "@/lib/utils/decimal";
 import { formatQuantity } from "@/lib/utils/money";
 import type { ProductSearchResult } from "@/lib/services/products";
 import { useLanguage } from "@/providers/language-provider";
+import { useCurrencySymbol } from "@/hooks/use-currency-symbol";
 
 function todayIsoLocal(): string {
   const now = new Date();
@@ -41,11 +42,13 @@ export function AddStockForm({ initialProductId }: { initialProductId?: string }
   const router = useRouter();
   const toast = useToast();
   const addStockMove = useAddStockMove();
-  const { t } = useLanguage();
+  const { t, tParams } = useLanguage();
+  const symbol = useCurrencySymbol();
 
   const [selected, setSelected] = useState<ProductSearchResult | null>(null);
   const [quantity, setQuantity] = useState<string>("");
   const [unitCost, setUnitCost] = useState<string>("");
+  const [batchName, setBatchName] = useState<string>("");
   const [reason, setReason] = useState<string>("");
   const [date, setDate] = useState<string>(todayIsoLocal());
 
@@ -79,7 +82,7 @@ export function AddStockForm({ initialProductId }: { initialProductId?: string }
       // millions in losses due to data entry errors.
       const selling = parseDecimalSafe(selected.sellingPrice);
       if (selling.gt(0) && cost.gt(selling.times(5))) {
-        errors.costWarning = `⚠ This cost (Rs. ${cost.toFixed(0)}) is much higher than the selling price (Rs. ${selling.toFixed(0)}). Are you sure? Check for typos — this directly affects your profit calculations.`;
+        errors.costWarning = tParams("stock.costWarning", { cost: cost.toFixed(0), selling: selling.toFixed(0) });
       }
     }
     return errors;
@@ -105,6 +108,7 @@ export function AddStockForm({ initialProductId }: { initialProductId?: string }
         type: "purchase",
         quantity,
         unitCost: unitCost || null,
+        batchName: batchName.trim() || null,
         reason: reason.trim() || null,
         date: isoDate,
       },
@@ -179,6 +183,24 @@ export function AddStockForm({ initialProductId }: { initialProductId?: string }
           </h2>
 
           <div className="rounded-xl border border-slate-200 bg-white p-3 space-y-3">
+            {/* Batch name (user-defined label for this stock purchase) */}
+            <div>
+              <label className="mb-1 block text-xs font-medium text-slate-600">
+                {t("stock.batchNameLabel")} <span className="text-slate-400">{t("stock.batchNameHintExample")}</span>
+              </label>
+              <input
+                type="text"
+                value={batchName}
+                onChange={(e) => setBatchName(e.target.value)}
+                placeholder={t("stock.batchNamePlaceholder")}
+                maxLength={100}
+                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+              />
+              <p className="mt-1 text-[11px] text-slate-500">
+                {t("stock.batchNameHint")}
+              </p>
+            </div>
+
             {/* Quantity */}
             <div>
               <label className="mb-1 block text-xs font-medium text-slate-600">
@@ -211,7 +233,7 @@ export function AddStockForm({ initialProductId }: { initialProductId?: string }
               </label>
               <div className="relative">
                 <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-medium text-slate-500">
-                  Rs.
+                  {symbol}
                 </span>
                 <input
                   type="number"

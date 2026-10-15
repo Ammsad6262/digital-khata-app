@@ -15,7 +15,8 @@
  * Tapping outside or the close button dismisses.
  */
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import {
   Plus,
@@ -28,10 +29,12 @@ import {
   Box,
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
+import { useLanguage } from "@/providers/language-provider";
+import type { TranslationKey } from "@/lib/i18n/translations";
 
 type Action = {
   icon: typeof Plus;
-  label: string;
+  labelKey: TranslationKey;
   href: string;
   color: string;
   bgColor: string;
@@ -40,42 +43,42 @@ type Action = {
 const ACTIONS: Action[] = [
   {
     icon: ShoppingCart,
-    label: "Sold something",
+    labelKey: "quickadd.soldSomething",
     href: "/sales/new",
     color: "text-green-600",
     bgColor: "bg-green-50",
   },
   {
     icon: Wallet,
-    label: "Received money",
+    labelKey: "quickadd.receivedMoney",
     href: "/payments/new",
     color: "text-blue-600",
     bgColor: "bg-blue-50",
   },
   {
     icon: Receipt,
-    label: "Spent money",
+    labelKey: "quickadd.spentMoney",
     href: "/more/expenses/new",
     color: "text-amber-600",
     bgColor: "bg-amber-50",
   },
   {
     icon: Package,
-    label: "Added stock",
+    labelKey: "quickadd.addedStock",
     href: "/stock/add",
     color: "text-purple-600",
     bgColor: "bg-purple-50",
   },
   {
     icon: UserPlus,
-    label: "New customer",
+    labelKey: "quickadd.newCustomer",
     href: "/more/customers/new",
     color: "text-brand-600",
     bgColor: "bg-brand-50",
   },
   {
     icon: Box,
-    label: "New product",
+    labelKey: "quickadd.newProduct",
     href: "/more/products/new",
     color: "text-slate-600",
     bgColor: "bg-slate-100",
@@ -83,8 +86,25 @@ const ACTIONS: Action[] = [
 ];
 
 export function QuickAddMenu() {
+  const { t } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const router = useRouter();
+
+  useEffect(() => setMounted(true), []);
+
+  // Lock body scroll when sheet is open
+  useEffect(() => {
+    if (!isOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setIsOpen(false); };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = prev;
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [isOpen]);
 
   const handleSelect = (href: string) => {
     setIsOpen(false);
@@ -93,57 +113,67 @@ export function QuickAddMenu() {
 
   return (
     <>
-      {/* Floating + button — always visible on Dashboard + Sales pages.
-          On desktop (max-width: 1024px container), the button aligns to the
-          right edge of the centered app shell instead of the viewport edge,
-          so it doesn't float disconnected in the desktop margin. */}
+      {/* Floating + button — on the LEFT side of the dashboard.
+          Moved left to make room for the prominent Smart Khata microphone
+          button on the right. This button opens the manual "What happened?"
+          action sheet (Sale / Payment / Expense / Stock / Customer / Product).
+          On desktop, aligns to the left edge of the centered 1024px app shell. */}
       <button
         type="button"
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-20 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-brand-600 text-white shadow-lg shadow-brand-600/30 transition-transform hover:scale-105 active:scale-95"
+        className="fixed bottom-20 z-30 flex h-12 w-12 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-md shadow-slate-900/5 transition-transform hover:scale-105 active:scale-95"
         style={{
-          // On mobile (≤1024px), 1rem from the right edge of the viewport.
-          // On desktop (>1024px), aligned to the right edge of the centered
-          // app shell (1024px wide, centered) + 1rem padding.
-          right: "max(1rem, calc((100vw - 1024px) / 2 + 1rem))",
+          // On mobile, 1rem from the left edge. On desktop, aligned to
+          // the left edge of the centered 1024px app shell.
+          left: "max(1rem, calc((100vw - 1024px) / 2 + 1rem))",
         }}
-        aria-label="Quick add"
+        aria-label={t("quickadd.ariaLabel")}
       >
-        <Plus className="h-6 w-6" />
+        <Plus className="h-5 w-5" strokeWidth={2.5} />
       </button>
 
-      {/* Bottom sheet overlay */}
-      {isOpen ? (
-        <>
-          {/* Backdrop */}
-          <div
-            className="fixed inset-0 z-40 bg-black/30"
-            onClick={() => setIsOpen(false)}
-          />
+      {/* Bottom sheet — rendered to document.body via Portal */}
+      {mounted && isOpen
+        ? createPortal(
+            <>
+              {/* Backdrop */}
+              <div
+                className="fixed inset-0 z-[60] bg-black/40"
+                onClick={() => setIsOpen(false)}
+                style={{ animation: "dk-fade-in 0.15s ease-out" }}
+                aria-hidden
+              />
 
-          {/* Bottom sheet */}
-          <div className="fixed inset-x-0 bottom-0 z-50 mx-auto max-w-[480px] rounded-t-2xl bg-white p-4 pb-8 shadow-2xl"
-               style={{ animation: "slideUp 0.2s ease-out" }}>
+              {/* Bottom sheet — z-[70] above BottomNav (z-30) */}
+              <div
+                role="dialog"
+                aria-modal="true"
+                aria-label={t("quickadd.quickAddAria")}
+                className="fixed inset-x-0 bottom-0 z-[70] mx-auto flex max-h-[90dvh] w-full max-w-[480px] flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl"
+                style={{
+                  animation: "dk-slide-up 0.2s ease-out",
+                  paddingBottom: "calc(env(safe-area-inset-bottom) + 1rem)",
+                }}>
             {/* Drag handle */}
-            <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-slate-200" />
+            <div className="mx-auto mt-3 mb-2 h-1 w-10 shrink-0 rounded-full bg-slate-200" />
 
-            {/* Header */}
-            <div className="mb-4 flex items-center justify-between">
+            {/* Header — sticky, doesn't scroll */}
+            <div className="flex shrink-0 items-center justify-between px-4 pb-3">
               <h3 className="text-base font-semibold text-slate-900">
-                What happened?
+                {t("quickadd.whatHappened")}
               </h3>
               <button
                 type="button"
                 onClick={() => setIsOpen(false)}
                 className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100"
-                aria-label="Close"
+                aria-label={t("common.close")}
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            {/* Action grid */}
-            <div className="grid grid-cols-3 gap-3">
+            {/* Action grid — scrolls if needed */}
+            <div className="grid grid-cols-3 gap-3 overflow-y-auto px-4 pb-6">
               {ACTIONS.map((action) => {
                 const Icon = action.icon;
                 return (
@@ -160,7 +190,7 @@ export function QuickAddMenu() {
                       <Icon className={cn("h-5 w-5", action.color)} />
                     </div>
                     <span className="text-center text-[11px] font-medium leading-tight text-slate-700">
-                      {action.label}
+                      {t(action.labelKey)}
                     </span>
                   </button>
                 );
@@ -168,15 +198,21 @@ export function QuickAddMenu() {
             </div>
           </div>
 
-          {/* Inline keyframe — no need for a separate CSS file */}
-          <style>{`
-            @keyframes slideUp {
-              from { transform: translateY(100%); }
-              to { transform: translateY(0); }
-            }
-          `}</style>
-        </>
-      ) : null}
+              {/* Inline keyframes — namespaced */}
+              <style>{`
+                @keyframes dk-slide-up {
+                  from { transform: translateY(100%); }
+                  to   { transform: translateY(0); }
+                }
+                @keyframes dk-fade-in {
+                  from { opacity: 0; }
+                  to   { opacity: 1; }
+                }
+              `}</style>
+            </>,
+            document.body,
+          )
+        : null}
     </>
   );
 }

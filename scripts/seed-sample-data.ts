@@ -19,7 +19,13 @@
  */
 
 import { PrismaClient } from "@prisma/client";
+import bcrypt from "bcryptjs";
+import * as fs from "fs";
+import * as path from "path";
 import { Decimal } from "../src/lib/utils/decimal";
+
+const DEMO_EMAIL = process.argv[2] ?? "demo@example.com";
+const DEMO_PASSWORD = "password";
 
 const prisma = new PrismaClient();
 
@@ -108,17 +114,38 @@ const PRODUCTS: ProductSeed[] = [
 async function main() {
   console.log("🌱 Seeding sample data for Digital Khata App...\n");
 
+  // 1. Create or reuse user
+  let user = await prisma.user.findUnique({ where: { email: DEMO_EMAIL } });
+  if (!user) {
+    console.log(`  Creating user ${DEMO_EMAIL}...`);
+    const passwordHash = await bcrypt.hash(DEMO_PASSWORD, 10);
+    user = await prisma.user.create({
+      data: { name: "Demo User", email: DEMO_EMAIL, passwordHash },
+    });
+  }
+  const userId = user.id;
+  console.log(`  User ID: ${userId}`);
+
   await cleanup();
 
   // ── Create settings ─────────────────────────────────────────────────
-  console.log("⚙️  Creating settings...");
-  await prisma.setting.create({
-    data: {
-      id: "singleton",
+  console.log("⚙️  Upserting settings...");
+  await prisma.setting.upsert({
+    where: { userId },
+    create: {
+      userId,
       businessName: "Zafar Wholesale Trader",
       currency: "PKR",
       currencySymbol: "Rs.",
       timezone: "Asia/Karachi",
+      customUnits: ["carton", "dozen"],
+    },
+    update: {
+      businessName: "Zafar Wholesale Trader",
+      currency: "PKR",
+      currencySymbol: "Rs.",
+      timezone: "Asia/Karachi",
+      customUnits: ["carton", "dozen"],
     },
   });
 

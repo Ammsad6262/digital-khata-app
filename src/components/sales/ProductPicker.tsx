@@ -28,6 +28,7 @@ import { useToast } from "@/providers/toast-provider";
 import { ApiError } from "@/lib/utils/api-client";
 import type { ProductSearchResult } from "@/lib/services/products";
 import { useLanguage } from "@/providers/language-provider";
+import { useCurrencySymbol } from "@/hooks/use-currency-symbol";
 
 const UNITS = ["piece", "kg", "box", "dozen", "litre", "pack", "bag", "bottle", "carton"];
 
@@ -41,6 +42,7 @@ export function ProductPicker({
   const { query, setQuery, data, isLoading, isError } = useProductSearch();
   const [showQuickAdd, setShowQuickAdd] = useState(false);
   const { t } = useLanguage();
+  const symbol = useCurrencySymbol();
 
   // Inline quick-add form
   if (showQuickAdd) {
@@ -71,7 +73,7 @@ export function ProductPicker({
           onChange={(e) => setQuery(e.target.value)}
           placeholder={t("sale.searchProduct")}
           className="w-full rounded-lg border border-slate-300 bg-white py-2.5 pl-9 pr-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
-          aria-label={t("common.searchProductAria")}
+          aria-label={t("common.searchProductsAria")}
           autoFocus
         />
       </div>
@@ -195,6 +197,7 @@ function QuickAddProduct({
   const toast = useToast();
   const createProduct = useCreateProduct();
   const { t } = useLanguage();
+  const symbol = useCurrencySymbol();
   const [name, setName] = useState(initialName);
   const [sellingPrice, setSellingPrice] = useState("");
   const [unit, setUnit] = useState("piece");
@@ -265,7 +268,7 @@ function QuickAddProduct({
         <div>
           <label className="mb-1 block text-xs font-medium text-slate-600">{t("product.sellingPrice")}</label>
           <div className="relative">
-            <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-xs text-slate-500">Rs.</span>
+            <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-xs text-slate-500">{symbol}</span>
             <input
               type="number"
               inputMode="decimal"

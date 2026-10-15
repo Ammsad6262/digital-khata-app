@@ -3,14 +3,12 @@
 /**
  * Providers — wraps all client-side context providers.
  *
- * Uses usePathname() to detect if we're on a public page (login/register)
- * and skips the Screen/BottomNav wrapper for those pages.
- *
- * Also adds the universal QuickAddMenu (floating + button) on all
- * authenticated pages.
+ * V13: Adds Smart Entry (HoldToTalkFab + SmartEntryModal) on the Dashboard.
+ * The FAB + modal share the same useSmartEntry + useAudioRecorder instances
+ * (lifted to this level so they stay in sync).
  */
 
-import { type ReactNode } from "react";
+import { useState, useCallback, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import { QueryProvider } from "@/providers/query-provider";
 import { ToastProvider } from "@/providers/toast-provider";
@@ -20,34 +18,13 @@ import { AuthGate } from "@/providers/auth-gate";
 import { Screen } from "@/components/layout/Screen";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { QuickAddMenu } from "@/components/layout/QuickAddMenu";
+import { HoldToTalkFab } from "@/components/smart-entry/HoldToTalkFab";
+import { SmartEntryModal } from "@/components/smart-entry/SmartEntryModal";
+import { useSmartEntry } from "@/hooks/smart-entry/use-smart-entry";
+import { useAudioRecorder } from "@/hooks/smart-entry/use-audio-recorder";
 
 const PUBLIC_PAGES = ["/login", "/register"];
-
-// Pages where the floating + button should NOT appear.
-//
-// The FAB is shown on the Dashboard only — that's the screen where quick
-// access to "what just happened" (sale / payment / expense / stock) is most
-// useful. On every other screen (Khata, Sales, Payments, Expenses, Stock,
-// More), the page header already has a "+" action in the top-right, so the
-// FAB would be redundant and just add visual noise.
-//
-// Form/create/edit pages also hide the FAB (the user is already on a form).
-const NO_FAB_PAGES = [
-  "/khata",
-  "/sales",
-  "/payments",
-  "/more",
-  "/stock",
-  "/sales/new",
-  "/payments/new",
-  "/more/expenses/new",
-  "/more/customers/new",
-  "/more/products/new",
-  "/stock/add",
-  "/stock/adjust",
-  "/more/expenses/",
-  "/more/products/",
-];
+const DASHBOARD_PATH = "/dashboard";
 
 export function Providers({ children }: { children: ReactNode }) {
   const pathname = usePathname();
@@ -55,10 +32,19 @@ export function Providers({ children }: { children: ReactNode }) {
     (p) => pathname === p || pathname.startsWith(p + "/"),
   );
 
-  // Don't show the FAB on form/create/edit pages
-  const showFab = !isPublicPage && !NO_FAB_PAGES.some(
-    (p) => pathname === p || (pathname.startsWith(p) && pathname.includes("/edit")),
-  );
+  // ── Shared Smart Entry state + recorder ──────────────────────────────────
+  const smartEntry = useSmartEntry();
+  const recorder = useAudioRecorder();
+  const [modalOpen, setModalOpen] = useState(false);
+
+  const handleModalOpen = useCallback(() => setModalOpen(true), []);
+  const handleClose = useCallback(() => {
+    setModalOpen(false);
+    smartEntry.reset();
+  }, [smartEntry]);
+
+  // Show Smart Entry FAB only on Dashboard
+  const showSmartEntry = !isPublicPage && pathname === DASHBOARD_PATH;
 
   return (
     <ThemeProvider>
@@ -72,7 +58,22 @@ export function Providers({ children }: { children: ReactNode }) {
                 <Screen>
                   {children}
                   <BottomNav />
-                  {showFab ? <QuickAddMenu /> : null}
+                  {showSmartEntry ? (
+                    <>
+                      <QuickAddMenu />
+                      <HoldToTalkFab
+                        recorder={recorder}
+                        smartEntry={smartEntry}
+                        onModalOpen={handleModalOpen}
+                      />
+                      <SmartEntryModal
+                        open={modalOpen}
+                        onClose={handleClose}
+                        smartEntry={smartEntry}
+                        recorder={recorder}
+                      />
+                    </>
+                  ) : null}
                 </Screen>
               </AuthGate>
             )}

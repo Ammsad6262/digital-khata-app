@@ -69,6 +69,7 @@ model User {
   stockMoves   StockMove[]
   transactions Transaction[]
   adjustments  CustomerAdjustment[]
+  smartEntrySessions SmartEntrySession[]
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -398,4 +399,47 @@ model Setting {
   theme           String  @default("monochrome") // "monochrome" | "default" | "leaf"
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// SMART ENTRY SESSION — AI-powered voice/text entry (V13)
+// ────────────────────────────────────────────────────────────────────────────
+// Tracks each Smart Entry interaction: the transcript, AI interpretation,
+// resolved entities, and execution status. Used for:
+//   - Atomic execution (prevents double-submit)
+//   - Idempotent re-execute (returns same result if already completed)
+//   - Audit trail of AI-assisted entries
+//   - Rate limiting per user
+
+model SmartEntrySession {
+  id                  String   @id @default(cuid())
+  userId              String
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status              String   @default("AWAITING_CONFIRMATION") // AWAITING_CONFIRMATION | EXECUTING | COMPLETED | CANCELLED | EXPIRED | FAILED
+  inputType           String   // "text" | "voice"
+  transcript          String?
+  rawAiResponse       Json?
+  intent              String?  // CREATE_CREDIT_SALE | CREATE_EXPENSE | RECORD_PAYMENT | CREATE_PRODUCT | CREATE_CUSTOMER | STOCK_INTAKE | QUERY | UNKNOWN
+  customerNameRaw     String?
+  productNameRaw      String?
+  quantityRaw          Decimal? @db.Decimal(10, 3)
+  unitRaw              String?
+  resolvedCustomerId  String?
+  resolvedProductId   String?
+  resolvedBatchId     String?
+  resolvedUnit        String?
+  resolvedQuantity    Decimal? @db.Decimal(10, 3)
+  resolvedUnitPrice   Decimal? @db.Decimal(12, 2)
+  resolvedAmount      Decimal? @db.Decimal(12, 2)
+  createdSaleId       String?
+  provider            String?  // which Gemini model was used
+  confidence          Float?
+  expiresAt           DateTime
+  completedAt         DateTime?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@index([intent])
 }

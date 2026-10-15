@@ -33,7 +33,7 @@ import { useLanguage } from "@/providers/language-provider";
 import type { useAudioRecorder } from "@/hooks/smart-entry/use-audio-recorder";
 import type { useSmartEntry } from "@/hooks/smart-entry/use-smart-entry";
 
-const HOLD_THRESHOLD_MS = 300;
+const HOLD_THRESHOLD_MS = 150;
 const LOCK_THRESHOLD_PX = 60;
 const MAX_RECORDING_MS = 30_000;
 
@@ -81,10 +81,16 @@ export function HoldToTalkFab({
     }
   }, [recorder.state, gestureState]);
 
-  // ── Watch smartEntry state — when it leaves transcribing/interpreting,
-  //    open the modal so the user sees the form/result.
+  // ── Watch smartEntry state — open modal DURING processing so user sees progress.
+  // V13: Open during transcribing/interpreting too (not just form/error/success).
   useEffect(() => {
-    if (smartEntry.state === "form" || smartEntry.state === "error" || smartEntry.state === "success") {
+    if (
+      smartEntry.state === "transcribing" ||
+      smartEntry.state === "interpreting" ||
+      smartEntry.state === "form" ||
+      smartEntry.state === "error" ||
+      smartEntry.state === "success"
+    ) {
       onModalOpen();
     }
   }, [smartEntry.state, onModalOpen]);

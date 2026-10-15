@@ -126,10 +126,19 @@ export function useAudioRecorder() {
 
     recorder.onstop = () => {
       const blob = new Blob(chunksRef.current, { type: mimeType });
+      // V13: Call the onStop callback FIRST, before any React state updates.
+      // This eliminates the re-render latency between "recording stopped"
+      // and "submitAudio called" — the user sees the processing state immediately.
+      const callback = onStopCallbackRef.current;
+      onStopCallbackRef.current = null; // clear so it can't fire twice (idempotent)
       setAudioBlob(blob);
       cleanup();
       setState("idle");
-      onStopCallbackRef.current?.(blob, mimeType);
+      // Fire the callback AFTER state is set so the component re-renders
+      // with "idle" before the async submit kicks in.
+      if (callback) {
+        queueMicrotask(() => callback(blob, mimeType));
+      }
     };
 
     recorder.onerror = () => {

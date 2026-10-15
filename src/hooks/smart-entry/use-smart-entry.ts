@@ -1,39 +1,36 @@
 "use client";
 
 /**
- * useSmartEntry — React hook for Smart Khata Entry (V3: stale-request protection).
+ * useSmartEntry — React hook for Smart Khata Entry.
  *
- * V3 state machine:
- *   idle → recording → transcribing → form → executing → success
- *                                  ↑           ↓
- *                                  ← error ←───┘
+ * V13 state machine:
+ *   idle → recording → transcribing → interpreting → form → executing → success
+ *                                                    ↑           ↓
+ *                                                    ← error ←───┘
  *
- * V3 CHANGES (bug fixes):
- *   - Added `requestIdRef` to prevent stale API responses from overwriting
- *     the current state. Each submitText/submitAudio increments the request ID.
- *     When the API response arrives, it checks if the request ID matches.
- *     If not (user cancelled + started a new session), the response is discarded.
- *   - `cancel()` now properly resets the in-flight guard so the user can
+ * V13 CHANGES (bug fixes):
+ *   - Added AbortController to /interpret and /execute fetch calls so
+ *     cancelling actually aborts the in-flight request (not just ignores
+ *     the response). This prevents the server from doing wasted work and
+ *     prevents stale responses from racing newer ones.
+ *   - Preserves transcript + intent when transitioning to error state so
+ *     the UI can show "You said: ..." even on error.
+ *   - Stale-request protection via requestIdRef (V3) is preserved.
+ *   - Duplicate-submission guard via inFlightRef (V3) is preserved.
+ *   - Cancel properly resets the in-flight guard so the user can
  *     immediately start a new session after cancelling.
- *   - `reset()` also clears the in-flight guard.
- *
- * The "form" state is the normal state — AI returns partial fields, the user
- * reviews/edits in an editable form, then clicks "Add to Khata" to execute.
  */
 
 import { useCallback, useRef, useState } from "react";
-import type { InterpretResult, FormFieldState, ExpenseFormState, PaymentFormState, QueryResultState, StockIntakeFormState, ProductCreationFormState, CustomerCreationFormState, ClarificationState } from "@/lib/smart-entry/service";
+import type {
+  InterpretResult, FormFieldState, ExpenseFormState, PaymentFormState,
+  QueryResultState, StockIntakeFormState, ProductCreationFormState,
+  CustomerCreationFormState, ClarificationState,
+} from "@/lib/smart-entry/service";
 
 export type SmartEntryState =
-  | "idle"
-  | "recording"
-  | "transcribing"
-  | "interpreting"
-  | "form"
-  | "executing"
-  | "success"
-  | "cancelled"
-  | "error";
+  | "idle" | "recording" | "transcribing" | "interpreting"
+  | "form" | "executing" | "success" | "cancelled" | "error";
 
 type State = {
   state: SmartEntryState;
@@ -56,23 +53,11 @@ type State = {
 };
 
 const INITIAL: State = {
-  state: "idle",
-  sessionId: null,
-  transcript: null,
-  intent: null,
-  form: null,
-  expenseForm: null,
-  paymentForm: null,
-  queryResult: null,
-  stockIntakeForm: null,
-  productCreationForm: null,
-  customerCreationForm: null,
-  clarification: null,
-  message: null,
-  error: null,
-  createdSaleId: null,
-  createdProductId: null,
-  createdCustomerId: null,
+  state: "idle", sessionId: null, transcript: null, intent: null,
+  form: null, expenseForm: null, paymentForm: null, queryResult: null,
+  stockIntakeForm: null, productCreationForm: null, customerCreationForm: null,
+  clarification: null, message: null, error: null,
+  createdSaleId: null, createdProductId: null, createdCustomerId: null,
 };
 
 function mapStatusToState(status: InterpretResult["status"]): SmartEntryState {
@@ -84,22 +69,16 @@ export function useSmartEntry() {
   const [state, setState] = useState<State>(INITIAL);
 
   // ── Duplicate-submission guard ────────────────────────────────────────────
-  // Prevents the same user action from triggering multiple API requests.
   const inFlightRef = useRef(false);
 
   // ── Stale-request protection ──────────────────────────────────────────────
-  // Each submitText/submitAudio call gets a unique request ID. When the API
-  // response arrives, we check if the request ID matches the current one.
-  // If not (user cancelled + started a new session, or the component re-rendered
-  // and a new request was started), the stale response is discarded.
-  //
-  // This prevents the bug where:
-  //   1. User records audio → API starts processing
-  //   2. User cancels → state resets to idle
-  //   3. User starts a new text entry → API starts processing
-  //   4. Old audio API response arrives → overwrites the new state with the
-  //      old interpretation → UI flashes to an unexpected screen
   const requestIdRef = useRef(0);
+
+  // ── AbortController for in-flight fetch ────────────────────────────────────
+  // V13: Allows cancel() to actually abort the network request, not just
+  // ignore the response. This prevents the server from doing wasted work
+  // and prevents stale responses from racing newer ones.
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const applyInterpretResult = useCallback((result: InterpretResult, expectedRequestId: number) => {
     if (requestIdRef.current !== expectedRequestId) {
@@ -134,23 +113,32 @@ export function useSmartEntry() {
     }
     inFlightRef.current = true;
 
-    // Increment request ID for this new session
+    // Abort any previous in-flight request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     const myRequestId = ++requestIdRef.current;
 
-    setState({ ...INITIAL, state: "interpreting" });
+    // V13: Preserve transcript in the state so the UI shows "You said: ..."
+    // even while interpreting and on error.
+    setState({ ...INITIAL, state: "interpreting", transcript: text });
     try {
       const res = await fetch("/api/smart-entry/interpret", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text }),
+        signal: controller.signal,
       });
       const json = await res.json();
       if (!json.ok) {
-        // Check if this response is still current
         if (requestIdRef.current !== myRequestId) return;
         setState({
           ...INITIAL,
           state: "error",
+          transcript: text,
           error: json.error?.message ?? "smartentry.error.interpretFailed",
           message: json.error?.message ?? "smartentry.error.couldntUnderstand",
         });
@@ -158,19 +146,25 @@ export function useSmartEntry() {
       }
       applyInterpretResult(json.data as InterpretResult, myRequestId);
     } catch (e) {
+      // AbortError is expected when the user cancels — don't show an error
+      if (e instanceof DOMException && e.name === "AbortError") {
+        if (requestIdRef.current === myRequestId) {
+          setState({ ...INITIAL, state: "cancelled" });
+        }
+        return;
+      }
       if (requestIdRef.current !== myRequestId) return;
       setState({
         ...INITIAL,
         state: "error",
+        transcript: text,
         error: e instanceof Error ? e.message : "smartentry.error.network",
         message: "smartentry.error.networkMessage",
       });
     } finally {
-      // Only clear the in-flight guard if this request is still current.
-      // If a newer request was started, the newer request's finally block
-      // will clear it.
       if (requestIdRef.current === myRequestId) {
         inFlightRef.current = false;
+        abortControllerRef.current = null;
       }
     }
   }, [applyInterpretResult]);
@@ -182,7 +176,12 @@ export function useSmartEntry() {
     }
     inFlightRef.current = true;
 
-    // Increment request ID for this new session
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     const myRequestId = ++requestIdRef.current;
 
     setState({ ...INITIAL, state: "transcribing" });
@@ -201,6 +200,7 @@ export function useSmartEntry() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ audio: { base64, mimeType } }),
+        signal: controller.signal,
       });
       const json = await res.json();
       if (!json.ok) {
@@ -215,6 +215,12 @@ export function useSmartEntry() {
       }
       applyInterpretResult(json.data as InterpretResult, myRequestId);
     } catch (e) {
+      if (e instanceof DOMException && e.name === "AbortError") {
+        if (requestIdRef.current === myRequestId) {
+          setState({ ...INITIAL, state: "cancelled" });
+        }
+        return;
+      }
       if (requestIdRef.current !== myRequestId) return;
       setState({
         ...INITIAL,
@@ -225,6 +231,7 @@ export function useSmartEntry() {
     } finally {
       if (requestIdRef.current === myRequestId) {
         inFlightRef.current = false;
+        abortControllerRef.current = null;
       }
     }
   }, [applyInterpretResult]);
@@ -237,17 +244,14 @@ export function useSmartEntry() {
     unitPrice?: number;
     paidAmount?: number;
     batchId?: string;
-    // Expense fields
     expenseName?: string;
     amount?: number;
     expenseCategory?: string;
     notes?: string | null;
     date?: string;
     method?: string;
-    // Stock intake fields
     unitCost?: number;
     batchName?: string | null;
-    // V13: Product creation fields
     name?: string;
     unit?: string;
     purchasePrice?: number;
@@ -256,12 +260,18 @@ export function useSmartEntry() {
     lowStockThreshold?: number;
     category?: string | null;
     sku?: string | null;
-    // V13: Customer creation fields
     phone?: string | null;
     address?: string | null;
     openingBalance?: number;
   }) => {
     if (!state.sessionId) return;
+    // Abort any previous execute request (defensive — shouldn't happen)
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     setState((s) => ({ ...s, state: "executing" }));
     try {
       const res = await fetch("/api/smart-entry/execute", {
@@ -296,6 +306,7 @@ export function useSmartEntry() {
           address: input.address,
           openingBalance: input.openingBalance,
         }),
+        signal: controller.signal,
       });
       const json = await res.json();
       if (!json.ok) {
@@ -307,7 +318,6 @@ export function useSmartEntry() {
         }));
         return;
       }
-      // V10: Handle different result types
       const data = json.data;
       setState({
         ...INITIAL,
@@ -318,25 +328,33 @@ export function useSmartEntry() {
         message: data.message ?? "smartentry.success.defaultMessage",
       });
     } catch (e) {
+      if (e instanceof DOMException && e.name === "AbortError") return;
       setState((s) => ({
         ...s,
         state: "error",
         error: e instanceof Error ? e.message : "smartentry.error.network",
         message: "smartentry.error.networkMessage",
       }));
+    } finally {
+      abortControllerRef.current = null;
     }
   }, [state.sessionId]);
 
   const cancel = useCallback(async () => {
     // Increment request ID to invalidate any in-flight API response
     requestIdRef.current++;
-    // Clear in-flight guard so the user can start a new session immediately
     inFlightRef.current = false;
+    // V13: Abort any in-flight fetch
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
 
     if (!state.sessionId) {
       setState(INITIAL);
       return;
     }
+    // Fire-and-forget the cancel API call — don't block the UI
     fetch("/api/smart-entry/cancel", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -346,10 +364,12 @@ export function useSmartEntry() {
   }, [state.sessionId]);
 
   const reset = useCallback(() => {
-    // Increment request ID to invalidate any in-flight API response
     requestIdRef.current++;
-    // Clear in-flight guard
     inFlightRef.current = false;
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
     setState(INITIAL);
   }, []);
 

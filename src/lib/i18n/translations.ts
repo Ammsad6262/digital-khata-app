@@ -1,5 +1,5 @@
 /**
- * Complete Urdu translations for the Digital Khata app.
+ * Complete Urdu translations for the Dukhata app.
  *
  * Every user-facing string in the app is defined here in both English and Urdu.
  * The `t()` function in useLanguage() hook looks up keys from this file.
@@ -12,7 +12,7 @@ export type Language = "en" | "ur";
 
 export const translations = {
   // ─── App / Navigation ───
-  "app.name": { en: "Digital Khata", ur: "ڈیجیٹل کھاتہ" },
+  "app.name": { en: "Dukhata", ur: "دکھاتہ" },
   "nav.dashboard": { en: "Dashboard", ur: "ڈیش بورڈ" },
   "nav.khata": { en: "Khata", ur: "کھاتہ" },
   "nav.khataSubtitle": { en: "Manage your customers", ur: "اپنے گاہکوں کو منظم کریں" },
@@ -42,7 +42,7 @@ export const translations = {
   "dashboard.recentActivity": { en: "Recent Activity", ur: "حالیہ سرگرمی" },
   "dashboard.viewAll": { en: "View all", ur: "سب دیکھیں" },
   "dashboard.searchPlaceholder": { en: "Search customers, products...", ur: "گاہک، مصنوعات تلاش کریں..." },
-  "dashboard.welcomeTitle": { en: "Welcome to Digital Khata", ur: "ڈیجیٹل کھاتہ میں خوش آمدید" },
+  "dashboard.welcomeTitle": { en: "Welcome to Dukhata", ur: "دکھاتہ میں خوش آمدید" },
   "dashboard.welcomeDesc": { en: "Record your first sale, payment, or expense using the quick actions above.", ur: "اوپر دیے گئے فوری اقدامات کا استعمال کرتے ہوئے اپنی پہلی فروخت، ادائیگی، یا خرچ درج کریں۔" },
   "dashboard.updating": { en: "Updating", ur: "اپڈیٹ ہو رہا ہے" },
   "dashboard.tapToSeeDetails": { en: "Tap to see who owes you", ur: "کس کس کو قرض ہے دیکھیں" },
@@ -381,7 +381,7 @@ export const translations = {
 
   // ─── Subscription & Access ───
   "subscription.title": { en: "Subscription & Access", ur: "سبسکرپشن اور رسائی" },
-  "subscription.subtitle": { en: "Manage your Digital Khata access", ur: "ڈیجیٹل کھاتے کی رسائی کا انتظام" },
+  "subscription.subtitle": { en: "Manage your Dukhata access", ur: "ڈیجیٹل کھاتے کی رسائی کا انتظام" },
   "subscription.freeTrial": { en: "Free Trial", ur: "مفت آزمائش" },
   "subscription.activeAccess": { en: "Active Access", ur: "فعال رسائی" },
   "subscription.trialEnded": { en: "Your free trial has ended", ur: "آپ کی مفت آزمائش ختم ہو گئی ہے" },
@@ -403,15 +403,15 @@ export const translations = {
   "subscription.redeemAnother": { en: "Redeem Another Code", ur: "ایک اور کوڈ ریڈیم کریں" },
   "subscription.enterCode": { en: "Enter Redeem Code", ur: "کوڈ درج کریں" },
   "subscription.redeemTitle": { en: "Redeem your code", ur: "اپنا کوڈ ریڈیم کریں" },
-  "subscription.redeemDesc": { en: "Have an activation code from Digital Khata? Enter it below to activate your access.", ur: "ڈیجیٹل کھاتہ سے ایکٹیویشن کوڈ ہے؟ اپنی رسائی فعال کرنے کے لیے نیچے درج کریں۔" },
+  "subscription.redeemDesc": { en: "Have an activation code from Dukhata? Enter it below to activate your access.", ur: "دکھاتہ سے ایکٹیویشن کوڈ ہے؟ اپنی رسائی فعال کرنے کے لیے نیچے درج کریں۔" },
   "subscription.codePlaceholder": { en: "DKH-XXXX-XXXX-XXXX", ur: "DKH-XXXX-XXXX-XXXX" },
   "subscription.needCode": { en: "Need a code?", ur: "کوڈ کی ضرورت ہے؟" },
   "subscription.redeeming": { en: "Redeeming...", ur: "ریڈیم ہو رہا ہے..." },
   "subscription.redeemSuccess": { en: "Access Activated", ur: "رسائی فعال ہوگئی" },
-  "subscription.redeemSuccessDesc": { en: "Your Digital Khata access has been successfully activated.", ur: "آپ کی ڈیجیٹل کھاتہ رسائی کامیابی سے فعال ہوگئی ہے۔" },
+  "subscription.redeemSuccessDesc": { en: "Your Dukhata access has been successfully activated.", ur: "آپ کی دکھاتہ رسائی کامیابی سے فعال ہوگئی ہے۔" },
   "subscription.duration": { en: "Duration", ur: "مدت" },
   "subscription.accessUntil": { en: "Access until", ur: "رسائی تک" },
-  "subscription.continue": { en: "Continue to Digital Khata", ur: "ڈیجیٹل کھاتہ پر جاری رکھیں" },
+  "subscription.continue": { en: "Continue to Dukhata", ur: "دکھاتہ پر جاری رکھیں" },
   "subscription.viewSubscription": { en: "View Subscription", ur: "سبسکرپشن دیکھیں" },
   "subscription.activationHistory": { en: "Activation History", ur: "ایکٹیویشن کی تاریخ" },
   "subscription.view": { en: "View", ur: "دیکھیں" },
@@ -517,7 +517,7 @@ export const translations = {
   "common.viewSale": { en: "View sale", ur: "فروخت دیکھیں" },
   "common.edit": { en: "Edit", ur: "ترمیم" },
   "common.about": { en: "About", ur: "تعارف" },
-  "common.aboutDesc": { en: "Digital Khata & Wholesale Business App — V1. Built for small wholesale businesses to replace paper khata registers.", ur: "ڈیجیٹل کھاتہ و تھوک کاروبار ایپ — V1۔ چھوٹے تھوک کاروبار کے لیے بنائی گئی۔" },
+  "common.aboutDesc": { en: "Dukhata & Wholesale Business App — V1. Built for small wholesale businesses to replace paper khata registers.", ur: "دکھاتہ و تھوک کاروبار ایپ — V1۔ چھوٹے تھوک کاروبار کے لیے بنائی گئی۔" },
   "common.lock": { en: "Lock", ur: "لاک" },
   "common.unlock": { en: "Unlock", ur: "کھولیں" },
   "common.enterPin": { en: "Enter your PIN to unlock", ur: "کھولنے کے لیے اپنا PIN درج کریں" },
@@ -622,7 +622,7 @@ export const translations = {
   "auth.loginSubtitle": { en: "Log in to your account", ur: "اپنے اکاؤنٹ میں لاگ ان کریں" },
   "auth.createAccountSubtitle": { en: "Create your account", ur: "اپنا اکاؤنٹ بنائیں" },
   "auth.welcomeBack": { en: "Welcome back!", ur: "خوش آمدید!" },
-  "auth.accountCreated": { en: "Account created! Welcome to Digital Khata.", ur: "اکاؤنٹ بنا! ڈیجیٹل کھاتہ میں خوش آمدید۔" },
+  "auth.accountCreated": { en: "Account created! Welcome to Dukhata.", ur: "اکاؤنٹ بنا! دکھاتہ میں خوش آمدید۔" },
   "auth.loginFailed": { en: "Login failed.", ur: "لاگ ان ناکام۔" },
   "auth.registerFailed": { en: "Registration failed.", ur: "رجسٹریشن ناکام۔" },
   "auth.emailPasswordRequired": { en: "Email and password are required.", ur: "ای میل اور پاس ورڈ درکار ہے۔" },
@@ -789,7 +789,7 @@ export const translations = {
   "search.noMatches": { en: "No matches for \"{query}\"", ur: "\"{query}\" کے لیے کوئی نتیجہ نہیں" },
 
   // ─── App description ───
-  "app.description": { en: "Digital khata & wholesale business management", ur: "ڈیجیٹل کھاتہ اور تھوک کاروبار کا انتظام" },
+  "app.description": { en: "Digital khata & wholesale business management", ur: "دکھاتہ اور تھوک کاروبار کا انتظام" },
 
   // ─── Global error boundary ───
   "error.genericTitle": { en: "Something went wrong", ur: "کچھ غلطی ہو گئی" },

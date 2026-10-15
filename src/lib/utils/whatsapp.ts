@@ -6,5 +6,5 @@ export function getWhatsAppLink(message?: string): string {
 }
 export function getDefaultWhatsAppMessage(userName?: string): string {
   const name = userName ? ` My name is ${userName}.` : "";
-  return `Hello Digital Khata, my free trial has ended and I would like an activation code.${name}`;
+  return `Hello Dukhata, my free trial has ended and I would like an activation code.${name}`;
 }

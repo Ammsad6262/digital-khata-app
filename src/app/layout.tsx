@@ -42,7 +42,7 @@ const nastaliq = Noto_Nastaliq_Urdu({
 });
 
 export const metadata: Metadata = {
-  title: "Digital Khata",
+  title: "Dukhata",
   description: "Digital khata & wholesale business management",
   manifest: "/manifest.json",
   icons: {

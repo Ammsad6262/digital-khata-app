@@ -33,6 +33,7 @@ export type TransactionView = {
   refId: string;
   customerId: string | null;
   productId: string | null;
+  supplierId: string | null;
   amount: string;
   direction: string;
   date: Date;
@@ -56,6 +57,7 @@ export type TransactionType =
   | "payment"
   | "expense"
   | "stock_move"
+  | "supplier_payment"
   | "balance_adjustment";
 
 function toView(t: Prisma.TransactionGetPayload<{}>): TransactionView {
@@ -66,6 +68,7 @@ function toView(t: Prisma.TransactionGetPayload<{}>): TransactionView {
     refId: t.refId,
     customerId: t.customerId,
     productId: t.productId,
+    supplierId: t.supplierId,
     amount: t.amount.toString(),
     direction: t.direction,
     date: t.date,
@@ -336,6 +339,9 @@ export async function getTransactionSummary(
     if (g.type === "payment") {
       totalIn = totalIn.plus(amount);
     } else if (g.type === "expense") {
+      totalOut = totalOut.plus(amount);
+    } else if (g.type === "supplier_payment") {
+      // Money paid to a supplier is money leaving the business.
       totalOut = totalOut.plus(amount);
     } else if (g.type === "sale") {
       // Sales show as full amount (debit on customer)

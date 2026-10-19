@@ -1,6 +1,6 @@
 # Build Status — Platform Expansion
 
-Last updated: Stage 1 (2026-10-19)
+Last updated: Stage 2 complete (2026-10-20). Resume at Stage 3 (Reminders).
 
 ## Environment
 
@@ -50,6 +50,66 @@ Last updated: Stage 1 (2026-10-19)
 
 ---
 
+## ✅ Completed in Stage 2 (2026-10-20)
+
+### Supplier UI (usable end-to-end)
+- `/more/suppliers` — searchable list with payable per supplier (owes / advance / settled)
+- `/more/suppliers/new` — add supplier (name, phone, email, address, notes, opening balance)
+- `/more/suppliers/[id]` — detail: payable, totals, purchase history, payment history
+- `/more/suppliers/[id]/edit` — edit (opening balance locked, same rule as customers)
+- `/more/suppliers/[id]/purchase/new` — add purchase
+- `/more/suppliers/[id]/payment/new` — record payment
+- "Suppliers" added to the More drawer.
+
+### Purchases (stock in)
+- `src/lib/schemas/purchase.ts`, `src/lib/services/purchases.ts`
+- API: `GET/POST /api/suppliers/[id]/purchases`, `GET/DELETE /api/purchases/[id]`
+- Atomic: purchase + items + StockMove (batch) + ledger rows in one transaction.
+- Stock comes from the linked StockMove; voiding the purchase removes it.
+- Guards: paid ≤ total, tenant isolation, duplicate-submit (60s window),
+  cannot void if any batch has already been (partly) sold.
+
+### Supplier payments (money out)
+- `src/lib/schemas/supplier-payment.ts`, `src/lib/services/supplier-payments.ts`
+- API: `GET/POST /api/suppliers/[id]/payments`, `GET/DELETE /api/supplier-payments/[id]`
+- Writes a ledger row (`type: "supplier_payment"`, direction `credit`) and
+  deletes it when the payment is voided.
+- Guards: cannot overpay an invoice, duplicate-submit, tenant isolation.
+
+### Payable model (important)
+Payable is DERIVED, never stored:
+`openingBalance + SUM(purchase.outstanding) − SUM(supplierPayment.amount)`
+Using `outstanding` (not `totalAmount`) means money paid at purchase time is
+counted exactly once. Applied in `getSupplierBalance`, `listSuppliersWithBalance`,
+`searchSuppliers`.
+
+### Transaction ledger
+- `supplier_payment` added to `TransactionType`, the transactions filter, both
+  transaction list components, and counted as money-out in the summary.
+
+### AI provider fixed
+- `gemini-3.8-flash` **times out** with the configured key; `gemini-3.5-flash`
+  and `gemini-flash-latest` work.
+- Reordered `MODEL_CHAIN` and made fallback also trigger on 404 / timeout /
+  non-HTTP errors (previously only 429/503/500, so a dead model broke Smart Entry).
+- Verified a real call: "Ahmed bought 5 boxes of Rice at 1200 per box, paid 2000"
+  → `CREATE_CREDIT_SALE`, Ahmed, Rice, 5 box, 1200, paid 2000.
+
+### Verification
+- `scripts/verify-purchases.ts` → **27/27 passed** — stock in/out, payable math,
+  part-payment, overpay guard, duplicate guard, tenant isolation ×3, void guards,
+  ledger sync.
+- `scripts/verify-platform.ts` → **9/9 passed**
+- `scripts/verify-ai.ts` → real Gemini call OK
+- `npm run typecheck` → clean
+- `npm run build` → clean (exit 0)
+
+### Git
+`feat/platform-expansion` pushed to GitHub. **`main` was NOT pushed**, so Vercel
+has not deployed anything.
+
+---
+
 ## 🚨 Critical finding: migrations are unusable
 
 Every file in `prisma/migrations/` uses **SQLite DDL** (`DATETIME`, etc.). They
@@ -75,8 +135,8 @@ from `schema.prisma` and reconcile it against the live DB. Do not run
 
 | Stage | Scope |
 |---|---|
-| 2 | Supplier UI (list/add/detail), purchases, supplier payments |
-| 3 | Reminders module (UI + API + linking) |
+| ~~2~~ | ~~Supplier UI (list/add/detail), purchases, supplier payments~~ ✅ done |
+| 3 | Reminders module (UI + API + linking) — **next** |
 | 4 | Universal voice-assistant action system |
 | 5 | AI Sales Growth Assistant |
 | 6 | Evidence-based AI business insights |

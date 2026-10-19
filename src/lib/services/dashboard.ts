@@ -39,7 +39,7 @@ export type LowStockProduct = {
 
 export type RecentTransaction = {
   id: string;
-  type: "sale" | "payment" | "expense" | "stock_move" | "balance_adjustment";
+  type: "sale" | "payment" | "expense" | "stock_move" | "supplier_payment" | "balance_adjustment";
   refType: string;
   refId: string;
   amount: string;

@@ -37,6 +37,7 @@ export type SupplierView = {
 export type SupplierWithBalance = SupplierView & {
   balance: string; // signed: positive = we owe the supplier
   totalPurchases: string;
+  totalOutstanding: string;
   totalPayments: string;
 };
 
@@ -82,13 +83,14 @@ export async function getSupplier(id: string, userId?: string | null): Promise<S
 export async function getSupplierBalance(supplierId: string): Promise<{
   openingBalance: string;
   totalPurchases: string;
+  totalOutstanding: string;
   totalPayments: string;
   balance: string;
 }> {
   const [supplier, purchasesAgg, paymentsAgg] = await Promise.all([
     prisma.supplier.findUniqueOrThrow({ where: { id: supplierId } }),
     prisma.purchase.aggregate({
-      _sum: { totalAmount: true },
+      _sum: { totalAmount: true, outstanding: true },
       where: { supplierId, voidedAt: null },
     }),
     prisma.supplierPayment.aggregate({
@@ -99,12 +101,15 @@ export async function getSupplierBalance(supplierId: string): Promise<{
 
   const opening = toDecimalOrZero(supplier.openingBalance);
   const purchases = toDecimalOrZero(purchasesAgg._sum.totalAmount);
+  const outstanding = toDecimalOrZero(purchasesAgg._sum.outstanding);
   const payments = toDecimalOrZero(paymentsAgg._sum.amount);
-  const balance = opening.plus(purchases).minus(payments);
+  // Money owed = opening + unpaid part of purchases − payments made since.
+  const balance = opening.plus(outstanding).minus(payments);
 
   return {
     openingBalance: opening.toString(),
     totalPurchases: purchases.toString(),
+    totalOutstanding: outstanding.toString(),
     totalPayments: payments.toString(),
     balance: balance.toString(),
   };
@@ -127,7 +132,7 @@ export async function listSuppliersWithBalance(
     const [purchasesBySupplier, paymentsBySupplier] = await Promise.all([
       prisma.purchase.groupBy({
         by: ["supplierId"],
-        _sum: { totalAmount: true },
+        _sum: { totalAmount: true, outstanding: true },
         where: { supplierId: { in: supplierIds }, voidedAt: null },
       }),
       prisma.supplierPayment.groupBy({
@@ -140,6 +145,9 @@ export async function listSuppliersWithBalance(
     const purchasesMap = new Map(
       purchasesBySupplier.map((p) => [p.supplierId, toDecimalOrZero(p._sum.totalAmount)]),
     );
+    const outstandingMap = new Map(
+      purchasesBySupplier.map((p) => [p.supplierId, toDecimalOrZero(p._sum.outstanding)]),
+    );
     const paymentsMap = new Map(
       paymentsBySupplier.map((p) => [p.supplierId, toDecimalOrZero(p._sum.amount)]),
     );
@@ -147,12 +155,14 @@ export async function listSuppliersWithBalance(
     return suppliers.map((s) => {
       const opening = toDecimalOrZero(s.openingBalance);
       const purchases = purchasesMap.get(s.id) ?? new Decimal(0);
+      const outstanding = outstandingMap.get(s.id) ?? new Decimal(0);
       const payments = paymentsMap.get(s.id) ?? new Decimal(0);
       return {
         ...toView(s),
         totalPurchases: purchases.toString(),
+        totalOutstanding: outstanding.toString(),
         totalPayments: payments.toString(),
-        balance: opening.plus(purchases).minus(payments).toString(),
+        balance: opening.plus(outstanding).minus(payments).toString(),
       };
     });
   });
@@ -181,7 +191,7 @@ export async function searchSuppliers(
   const [purchasesBySupplier, paymentsBySupplier] = await Promise.all([
     prisma.purchase.groupBy({
       by: ["supplierId"],
-      _sum: { totalAmount: true },
+      _sum: { totalAmount: true, outstanding: true },
       where: { supplierId: { in: supplierIds }, voidedAt: null },
     }),
     prisma.supplierPayment.groupBy({
@@ -194,6 +204,9 @@ export async function searchSuppliers(
   const purchasesMap = new Map(
     purchasesBySupplier.map((p) => [p.supplierId, toDecimalOrZero(p._sum.totalAmount)]),
   );
+  const outstandingMap = new Map(
+    purchasesBySupplier.map((p) => [p.supplierId, toDecimalOrZero(p._sum.outstanding)]),
+  );
   const paymentsMap = new Map(
     paymentsBySupplier.map((p) => [p.supplierId, toDecimalOrZero(p._sum.amount)]),
   );
@@ -201,12 +214,14 @@ export async function searchSuppliers(
   return suppliers.map((s) => {
     const opening = toDecimalOrZero(s.openingBalance);
     const purchases = purchasesMap.get(s.id) ?? new Decimal(0);
+    const outstanding = outstandingMap.get(s.id) ?? new Decimal(0);
     const payments = paymentsMap.get(s.id) ?? new Decimal(0);
     return {
       ...toView(s),
       totalPurchases: purchases.toString(),
+      totalOutstanding: outstanding.toString(),
       totalPayments: payments.toString(),
-      balance: opening.plus(purchases).minus(payments).toString(),
+      balance: opening.plus(outstanding).minus(payments).toString(),
     };
   });
 }

@@ -20,6 +20,7 @@ import {
   Receipt,
   Package,
   Scale,
+  Truck,
   ArrowUpRight,
   ArrowDownLeft,
 } from "lucide-react";
@@ -35,6 +36,7 @@ type TxTypeInfo = {
     | "transactions.payments"
     | "transactions.expenses"
     | "transactions.stock"
+    | "transactions.supplierPayments"
     | "transactions.adjustments";
   icon: typeof ShoppingCart;
   iconBg: string;
@@ -65,6 +67,12 @@ const TX_TYPE_INFO: Record<RecentTransaction["type"], TxTypeInfo> = {
     icon: Package,
     iconBg: "bg-purple-100",
     iconColor: "text-purple-700",
+  },
+  supplier_payment: {
+    labelKey: "transactions.supplierPayments",
+    icon: Truck,
+    iconBg: "bg-orange-100",
+    iconColor: "text-orange-700",
   },
   balance_adjustment: {
     labelKey: "transactions.adjustments",

@@ -54,9 +54,9 @@ async function main() {
     const aResults = await searchCustomers("Zaid Traders", userA.id);
     const bResults = await searchCustomers("Zaid Traders", userB.id);
 
-    check("business A search returns only A's customer", aResults.length === 1 && aResults[0].name === "Zaid Traders A",
+    check("business A search returns only A's customer", aResults.length === 1 && aResults[0]?.name === "Zaid Traders A",
       `got ${aResults.map((r) => r.name).join(", ") || "(none)"}`);
-    check("business B search returns only B's customer", bResults.length === 1 && bResults[0].name === "Zaid Traders B",
+    check("business B search returns only B's customer", bResults.length === 1 && bResults[0]?.name === "Zaid Traders B",
       `got ${bResults.map((r) => r.name).join(", ") || "(none)"}`);
     check("A cannot see B's customer row", !aResults.some((r) => r.name === "Zaid Traders B"));
 
@@ -68,10 +68,10 @@ async function main() {
     const aSuppliers = await listSuppliersWithBalance(userA.id);
     const bSuppliers = await listSuppliersWithBalance(userB.id);
     check("A's supplier list contains only A's supplier",
-      aSuppliers.length === 1 && aSuppliers[0].name === "Supplier A Only",
+      aSuppliers.length === 1 && aSuppliers[0]?.name === "Supplier A Only",
       `got ${aSuppliers.map((s) => s.name).join(", ")}`);
     check("B's supplier list contains only B's supplier",
-      bSuppliers.length === 1 && bSuppliers[0].name === "Supplier B Only",
+      bSuppliers.length === 1 && bSuppliers[0]?.name === "Supplier B Only",
       `got ${bSuppliers.map((s) => s.name).join(", ")}`);
 
     const aSearch = await searchSuppliers("Supplier", userA.id);

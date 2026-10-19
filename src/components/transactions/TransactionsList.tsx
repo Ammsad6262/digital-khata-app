@@ -31,6 +31,7 @@ import {
   Receipt,
   Package,
   Scale,
+  Truck,
   Calendar,
 } from "lucide-react";
 import { useTransactionsList } from "@/hooks/use-transactions";
@@ -52,13 +53,14 @@ const DATE_FILTERS: Array<{ value: TransactionFilter; labelKey: DateFilterKey }>
   { value: "custom", labelKey: "transactions.custom" },
 ];
 
-type TypeFilterKey = "transactions.allTypes" | "transactions.sales" | "transactions.payments" | "transactions.expenses" | "transactions.stock" | "transactions.adjustments";
+type TypeFilterKey = "transactions.allTypes" | "transactions.sales" | "transactions.payments" | "transactions.expenses" | "transactions.stock" | "transactions.supplierPayments" | "transactions.adjustments";
 const TYPE_FILTERS: Array<{ value: TransactionType | "all"; labelKey: TypeFilterKey }> = [
   { value: "all", labelKey: "transactions.allTypes" },
   { value: "sale", labelKey: "transactions.sales" },
   { value: "payment", labelKey: "transactions.payments" },
   { value: "expense", labelKey: "transactions.expenses" },
   { value: "stock_move", labelKey: "transactions.stock" },
+  { value: "supplier_payment", labelKey: "transactions.supplierPayments" },
   { value: "balance_adjustment", labelKey: "transactions.adjustments" },
 ];
 
@@ -98,6 +100,13 @@ const TX_TYPE_INFO: Record<string, TxTypeInfo> = {
     iconBg: "bg-purple-50",
     iconColor: "text-purple-700",
     href: (tx) => tx.productId ? `/more/products/${tx.productId}` : "/stock",
+  },
+  supplier_payment: {
+    labelKey: "transactions.supplierPayments",
+    icon: Truck,
+    iconBg: "bg-orange-50",
+    iconColor: "text-orange-700",
+    href: (tx) => tx.supplierId ? `/more/suppliers/${tx.supplierId}` : "/more/suppliers",
   },
   balance_adjustment: {
     labelKey: "transactions.adjustments",
@@ -307,7 +316,7 @@ function TransactionRow({
   // - stock_move: X (slate) — movement cost or quantity
   // - balance_adjustment: ±X based on direction
   const isMoneyIn = tx.type === "payment";
-  const isMoneyOut = tx.type === "expense";
+  const isMoneyOut = tx.type === "expense" || tx.type === "supplier_payment";
   const isAdjustment = tx.type === "balance_adjustment";
 
   const amountDisplay = (() => {

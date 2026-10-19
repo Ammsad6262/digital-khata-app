@@ -38,23 +38,23 @@ import type { AIProvider, AIContext } from "./ai-provider";
 // ── Model fallback chain ────────────────────────────────────────────────────
 //
 // Different Gemini models have SEPARATE rate limits on the free tier.
-// If the primary model (gemini-3.8-flash) hits its 429 rate limit, we
+// If a model hits its 429 rate limit — or is unavailable/times out — we
 // automatically fall back to the next model in the chain. Each model is
 // tried EXACTLY ONCE — this is NOT a retry loop.
 //
-// Order (strongest → weakest):
-//   1. gemini-3.8-flash  (Google's recommended latest — best quality)
-//   2. gemini-3.5-flash  (previous gen — still good, separate quota)
-//   3. gemini-flash-latest (alias — rotates to whatever Google serves)
+// Order (verified against the live API key, 2026-10-19):
+//   1. gemini-3.5-flash    (confirmed working)
+//   2. gemini-flash-latest (alias — rotates to whatever Google serves)
+//   3. gemini-3.8-flash    (last resort; timed out during verification)
 //
-// IMPORTANT: we ONLY fall back on TRANSIENT errors (429 rate limit, 503
-// service unavailable). We do NOT fall back on PERMANENT errors (400 bad
-// request, 401/403 auth, 404 model not found) — those won't be fixed by
-// switching models.
+// IMPORTANT: model-selection failures (429 rate limit, 503 unavailable,
+// 500 internal, 404 model-not-found, and non-HTTP network/timeout errors)
+// fall through to the next model. Permanent request errors (400 bad request,
+// 401/403 auth) are NOT retried — switching models cannot fix those.
 const MODEL_CHAIN = [
-  "gemini-3.8-flash",
   "gemini-3.5-flash",
   "gemini-flash-latest",
+  "gemini-3.8-flash",
 ] as const;
 
 const PRIMARY_MODEL = MODEL_CHAIN[0];
@@ -356,16 +356,24 @@ export class GeminiProvider implements AIProvider {
   }
 
   /**
-   * Is this error "transient" — meaning a different model might succeed?
+   * Should we try the next model in the chain after this error?
    *   429 = rate limit (different models have separate quotas)
-   *   503 = service unavailable (temporary, might work on another model)
-   *   500 = internal error (might be model-specific, worth trying another)
+   *   503 = service unavailable (temporary)
+   *   500 = internal error (might be model-specific)
+   *   404 = this model name is not available to this API key
+   *   null = the SDK threw a non-HTTP error (timeout / network failure)
    *
-   * Permanent errors (400 bad request, 401/403 auth, 404 model not found)
-   * are NOT transient — switching models won't help.
+   * Permanent request errors (400 bad request, 401/403 auth) are NOT
+   * fallback-worthy — switching models won't help.
    */
   private isTransient(errorCode: number | null): boolean {
-    return errorCode === 429 || errorCode === 503 || errorCode === 500;
+    return (
+      errorCode === 429 ||
+      errorCode === 503 ||
+      errorCode === 500 ||
+      errorCode === 404 ||
+      errorCode === null
+    );
   }
 
   // ──────────────────────────────────────────────────────────────────────────

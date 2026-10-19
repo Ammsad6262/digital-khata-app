@@ -346,8 +346,11 @@ export async function searchCustomers(query: string | null | undefined, userId?:
   }
 
   const customers = await prisma.customer.findMany({
+    // SECURITY: must be scoped to the owner. Without `userId` this query
+    // returned every tenant's customers (names + phones) — a cross-tenant leak.
     where: {
       isDeleted: false,
+      ...(userId && { userId }),
       OR: [
         { name: { contains: q } },
         { phone: { contains: q } },

@@ -9,6 +9,7 @@
  * NOTE: In Next.js 16, `params` is a Promise that must be awaited.
  */
 
+import { use } from "react";
 import { AppHeader } from "@/components/layout/AppHeader";
 import { ScreenContent } from "@/components/layout/Screen";
 import { CustomerDetail } from "@/components/khata/CustomerDetail";
@@ -16,13 +17,13 @@ import { useLanguage } from "@/providers/language-provider";
 
 export const dynamic = "force-dynamic";
 
-export default async function CustomerDetailPage({
+export default function CustomerDetailPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
   const { t } = useLanguage();
-  const { id } = await params;
+  const { id } = use(params);
   return (
     <>
       <AppHeader title={t("customer.customerKhata")} />

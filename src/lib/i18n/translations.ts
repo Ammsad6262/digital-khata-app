@@ -1080,6 +1080,7 @@ export const translations = {
 
   // Resources
   "api.resource.customer": { en: "Customer", ur: "گاہک" },
+  "api.resource.supplier": { en: "Supplier", ur: "سپلائر" },
   "api.resource.sale": { en: "Sale", ur: "فروخت" },
   "api.resource.payment": { en: "Payment", ur: "ادائیگی" },
   "api.resource.expense": { en: "Expense", ur: "خرچ" },
@@ -1119,6 +1120,8 @@ export const translations = {
   // Customer
   "api.customer.notFound": { en: "Customer not found.", ur: "گاہک نہیں ملا۔" },
   "api.customer.deleteBlocked": { en: "Cannot delete customer with active transactions ({sales} sales, {payments} payments, {adjustments} adjustments). Void or transfer them first.", ur: "فعال لین دین ({sales} فروخت، {payments} ادائیگیاں، {adjustments} ترامیم) کے ساتھ گاہک حذف نہیں ہو سکتا۔ پہلے منسوخ یا منتقل کریں۔" },
+  "api.supplier.notFound": { en: "Supplier not found.", ur: "سپلائر نہیں ملا۔" },
+  "api.supplier.deleteBlocked": { en: "Cannot delete supplier with active purchases or payments ({purchases} purchases, {payments} payments). Void them first.", ur: "فعال خریداری یا ادائیگیوں ({purchases} خریداری، {payments} ادائیگیاں) کے ساتھ سپلائر حذف نہیں ہو سکتا۔ پہلے منسوخ کریں۔" },
   "api.customer.history.saleOf": { en: "Sale of {amount}", ur: "{amount} کی فروخت" },
   "api.customer.history.paymentForSale": { en: "Payment for sale", ur: "فروخت کی ادائیگی" },
   "api.customer.history.paymentReceived": { en: "Payment received ({method})", ur: "ادائیگی وصول ہوئی ({method})" },

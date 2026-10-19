@@ -73,6 +73,10 @@ model User {
   subscription    UserSubscription?
   redemptions     RedeemCodeRedemption[]
   settings        Setting?
+  suppliers       Supplier[]
+  purchases       Purchase[]
+  supplierPayments SupplierPayment[]
+  reminders       Reminder[]
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -145,7 +149,9 @@ model Customer {
   userId         String?
   user           User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
   name           String
-  phone          String?  @unique
+  // NOTE: phone is unique *per business* (see @@unique below), not globally —
+  // two different shops may legitimately store the same customer phone number.
+  phone          String?
   address        String?
   notes          String?
 
@@ -155,6 +161,9 @@ model Customer {
   openingBalance Decimal @db.Decimal(12, 2)    @default(0)
 
   isDeleted      Boolean  @default(false) // soft-delete flag (used in V2; V1 blocks hard delete)
+
+  // Optional next follow-up date — surfaced in the Reminders / follow-up views.
+  nextFollowUpAt DateTime?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
@@ -162,11 +171,14 @@ model Customer {
   payments    Payment[]
   adjustments CustomerAdjustment[]
   transactions Transaction[]
+  reminders   Reminder[]
   // Back-relation: SmartEntrySessions that resolved to this customer.
   smartEntrySessions SmartEntrySession[] @relation("SmartEntryCustomer")
 
+  @@unique([userId, phone])
   @@index([name])
   @@index([phone])
+  @@index([userId])
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -183,7 +195,8 @@ model Product {
   purchasePrice Decimal   // cost price (for future profit reports)
   sellingPrice  Decimal   // default selling price
   unit          String  @default("piece") // piece, kg, box, dozen, etc.
-  sku           String? @unique           // optional product code
+  // Optional product code — unique *per business* (see @@unique below).
+  sku           String?
 
   // Opening stock — set ONCE when the product is migrated from paper register.
   // Represents the stock count at the moment the product was added to the app.
@@ -198,12 +211,16 @@ model Product {
   saleItems SaleItem[]
   stockMoves StockMove[]
   transactions Transaction[]
+  purchaseItems PurchaseItem[]
+  reminders   Reminder[]
   // Back-relation: SmartEntrySessions that resolved to this product.
   smartEntrySessions SmartEntrySession[] @relation("SmartEntryProduct")
 
+  @@unique([userId, sku])
   @@index([name])
   @@index([category])
   @@index([sku])
+  @@index([userId])
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -381,6 +398,8 @@ model StockMove {
   // SaleItems linked to this batch (one StockMove → many SaleItems over time,
   // because a single purchase can be sold off across many separate sales).
   saleItems SaleItem[]
+  // Purchase lines that created this batch (usually exactly one).
+  purchaseItems PurchaseItem[]
 
   @@index([productId])
   @@index([type])
@@ -445,6 +464,9 @@ model Transaction {
   productId  String?  // set if transaction involves a product (stock moves)
   product    Product?  @relation(fields: [productId], references: [id], onDelete: Cascade)
 
+  supplierId String?  // set if transaction involves a supplier (purchases/payments)
+  supplier   Supplier? @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+
   amount     Decimal   // always positive; direction tells you sign
   direction  String   // "debit" | "credit" — semantic per type, see docs
   date       DateTime @default(now())
@@ -454,6 +476,7 @@ model Transaction {
   @@index([type])
   @@index([customerId])
   @@index([productId])
+  @@index([supplierId])
   @@index([date])
   @@index([refType, refId])
 }
@@ -527,4 +550,171 @@ model RedeemCodeRedemption {
 
   @@index([redeemCodeId])
   @@index([userId])
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// SUPPLIER  (who the business buys stock from — mirror of Customer)
+// ────────────────────────────────────────────────────────────────────────────
+//
+// Derivation of what the business OWES the supplier:
+//   openingBalance
+// + SUM(purchase.totalAmount)   [credit purchases increase what we owe]
+// - SUM(supplierPayment.amount) [payments decrease what we owe]
+// = current payable
+// ────────────────────────────────────────────────────────────────────────────
+
+model Supplier {
+  id        String  @id @default(cuid())
+  userId    String?
+  user      User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  phone     String?
+  email     String?
+  address   String?
+  notes     String?
+
+  // Amount the business already owed this supplier before going digital.
+  openingBalance Decimal @db.Decimal(12, 2) @default(0)
+
+  // Optional next follow-up date (surfaced in Reminders).
+  nextFollowUpAt DateTime?
+
+  isDeleted Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  purchases    Purchase[]
+  payments     SupplierPayment[]
+  transactions Transaction[]
+  reminders    Reminder[]
+
+  @@index([name])
+  @@index([phone])
+  @@index([userId])
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// PURCHASE  (stock bought from a supplier — mirror of Sale)
+// ────────────────────────────────────────────────────────────────────────────
+
+model Purchase {
+  id         String   @id @default(cuid())
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  supplierId String
+  supplier   Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+
+  // Total of all PurchaseItem.total — denormalized for fast display
+  totalAmount Decimal @db.Decimal(12, 2)
+  // Money paid to the supplier at purchase time (may be 0 for credit purchase)
+  paidAmount  Decimal @db.Decimal(12, 2) @default(0)
+  // totalAmount - paidAmount
+  outstanding Decimal @db.Decimal(12, 2)
+
+  notes     String?
+  date      DateTime @default(now()) // can be backdated
+  voidedAt  DateTime? // null = active; set when voided
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  items    PurchaseItem[]
+  payments SupplierPayment[]
+
+  @@index([supplierId])
+  @@index([date])
+  @@index([voidedAt])
+  @@index([userId])
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// PURCHASE ITEM  (one line in a purchase)
+// ────────────────────────────────────────────────────────────────────────────
+
+model PurchaseItem {
+  id         String   @id @default(cuid())
+  purchaseId String
+  purchase   Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  productId  String
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  quantity Decimal @db.Decimal(12, 3) // supports kg / meters / fractions
+  unitCost Decimal @db.Decimal(12, 2) // cost per unit at time of purchase (snapshot)
+  total    Decimal @db.Decimal(12, 2) // quantity * unitCost
+
+  // The purchase batch (StockMove) created for this line — increases stock.
+  // Only meaningful for the "add to stock" flow.
+  stockMoveId String?    @unique
+  stockMove   StockMove? @relation(fields: [stockMoveId], references: [id], onDelete: SetNull)
+
+  @@index([purchaseId])
+  @@index([productId])
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// SUPPLIER PAYMENT  (money PAID to a supplier — decreases what we owe)
+// ────────────────────────────────────────────────────────────────────────────
+
+model SupplierPayment {
+  id         String   @id @default(cuid())
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  supplierId String
+  supplier   Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+
+  // Optional link to a specific Purchase invoice.
+  purchaseId String?
+  purchase   Purchase? @relation(fields: [purchaseId], references: [id], onDelete: SetNull)
+
+  amount    Decimal  @db.Decimal(12, 2)
+  method    String   @default("cash") // cash | bank | cheque | jazzcash | easypaisa | other
+  notes     String?
+  date      DateTime @default(now())
+  voidedAt  DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([supplierId])
+  @@index([purchaseId])
+  @@index([date])
+  @@index([userId])
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// REMINDER  (follow-ups, payment collection, reorder alerts, custom tasks)
+// ────────────────────────────────────────────────────────────────────────────
+//
+// type:
+//   "payment_collection" — chase a customer for money they owe
+//   "supplier_payment"   — pay a supplier
+//   "customer_followup"  — general customer relationship follow-up
+//   "stock_reorder"      — reorder a low-stock product
+//   "custom"             — any other business task
+// ────────────────────────────────────────────────────────────────────────────
+
+model Reminder {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  title       String
+  notes       String?
+  type        String    @default("custom")
+  dueAt       DateTime
+  completedAt DateTime?
+  priority    String    @default("normal") // low | normal | high
+
+  // Optional links to the record this reminder is about.
+  customerId  String?
+  customer    Customer? @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  supplierId  String?
+  supplier    Supplier? @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  productId   String?
+  product     Product?  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([userId, dueAt])
+  @@index([completedAt])
+  @@index([type])
 }

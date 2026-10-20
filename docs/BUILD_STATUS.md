@@ -1,6 +1,6 @@
 # Build Status — Platform Expansion
 
-Last updated: Stage 3 complete (2026-10-20). Resume at Stage 4 (voice assistant).
+Last updated: Stage 3 + Insights complete (2026-10-20). Resume at Stage 4 (voice assistant).
 
 ## Environment
 
@@ -134,6 +134,28 @@ has not deployed anything.
 
 ---
 
+## ✅ Completed (2026-10-20) — Evidence-based Insights
+
+- `src/lib/services/insights.ts` — deterministic engine built only from the
+  business's own records:
+  - top 5 products by revenue over the last 30 days (quantity + revenue)
+  - slow movers: in stock but unsold for 30 days, with stock value at cost
+  - low stock (below each product's threshold)
+  - sales trend: this month vs last month and this week vs last week
+  - receivables (total + customer count) and payables (total + supplier count)
+  - inactive customers who still owe money (no activity for 30+ days)
+- `GET /api/insights` (active-access gated).
+- UI `/more/insights` (`InsightsView`) + entry in the More drawer.
+- No estimates anywhere: an empty business returns zeros and empty lists, and
+  a missing baseline returns `changePct: null` instead of inventing a number.
+
+### Verification
+- `scripts/verify-insights.ts` → **24/24 passed** — 30-day window boundaries,
+  top-product ordering, slow-mover stock value, month totals, receivables,
+  payables, inactive-customer detection, empty business, tenant isolation.
+
+---
+
 ## 🚨 Critical finding: migrations are unusable
 
 Every file in `prisma/migrations/` uses **SQLite DDL** (`DATETIME`, etc.). They
@@ -161,10 +183,10 @@ from `schema.prisma` and reconcile it against the live DB. Do not run
 |---|---|
 | ~~2~~ | ~~Supplier UI (list/add/detail), purchases, supplier payments~~ ✅ done |
 | 3 | Reminders module (UI + API + linking) ✅ done |
-| 4 | Universal voice-assistant action system — **next** |
-| 5 | AI Sales Growth Assistant |
-| 6 | Evidence-based AI business insights |
-| 7 | Premium/AI plan gating (backend-enforced) |
+| 4 | Universal voice-assistant action system — **mostly pre-existing**: 8 intents already live (sale, expense, payment, customer, product, stock intake, query, clarify); still missing purchase / supplier-payment / reminder intents. **next** |
+| 5 | AI Sales Growth Assistant — the deterministic evidence engine now exists (see Insights); the AI narration layer is not built yet |
+| 6 | Evidence-based AI business insights ✅ deterministic core done |
+| 7 | Premium/AI plan gating (backend-enforced) — subscription/trial gate exists on every API; no separate AI plan tier yet |
 | 8 | UX polish + full acceptance-workflow testing |
 
 ---

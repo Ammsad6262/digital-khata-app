@@ -175,6 +175,32 @@ drifted:
 from `schema.prisma` and reconcile it against the live DB. Do not run
 `prisma migrate deploy` against production until this is done.
 
+### ✅ Production delta is ready (prepared, not yet applied)
+
+`prisma/production/20261020_stage2_3_delta.sql` contains the exact additive
+delta from the currently deployed schema to the new one:
+
+- new tables: `Supplier`, `Purchase`, `PurchaseItem`, `SupplierPayment`, `Reminder`
+- new columns: `Transaction.supplierId`, `Customer.nextFollowUpAt`
+  (`Supplier.nextFollowUpAt` ships with its new table)
+- per-business uniqueness: `Customer(userId, phone)` and `Product(userId, sku)`;
+  the old global `Customer_phone_key` / `Product_sku_key` are dropped
+- all 14 foreign keys
+
+Safety properties, verified on a scratch Postgres database:
+
+- wrapped in `BEGIN … COMMIT` (rolls back entirely on any error)
+- idempotent — applied **twice** with zero errors
+- after applying, `prisma migrate diff --from-url <scratch> --to-schema-datamodel
+  prisma/schema.prisma` returns “this is an empty migration” (**exact match**)
+- no `DELETE`, `UPDATE` or `DROP TABLE` — only the two old unique indexes are
+  dropped, which only relaxes constraints
+
+Before applying, run the duplicate pre-checks in the file header (phone numbers
+and SKUs per business). Then apply via the Supabase SQL editor or `psql` with
+the DB password. **Not applied yet — requires the production DB password or
+approval to run DDL through the Supabase Management API.**
+
 ---
 
 ## ⏭️ Remaining stages

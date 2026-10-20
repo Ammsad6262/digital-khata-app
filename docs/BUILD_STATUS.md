@@ -1,6 +1,6 @@
 # Build Status — Platform Expansion
 
-Last updated: Stage 2 complete (2026-10-20). Resume at Stage 3 (Reminders).
+Last updated: Stage 3 complete (2026-10-20). Resume at Stage 4 (voice assistant).
 
 ## Environment
 
@@ -110,6 +110,30 @@ has not deployed anything.
 
 ---
 
+## ✅ Completed in Stage 3 (2026-10-20) — Reminders
+
+- `src/lib/schemas/reminder.ts`, `src/lib/services/reminders.ts`
+- API: `GET/POST /api/reminders`, `GET/PATCH/DELETE /api/reminders/[id]`
+  (`PATCH` accepts `completed: boolean` to toggle, or any field to edit).
+- UI: `/more/reminders` (filter tabs Today / Overdue / Upcoming / Completed / All
+  with live counts), `/more/reminders/new`, `/more/reminders/[id]` (edit + delete).
+- Optional links to a customer, supplier or product; all links are
+  tenant-verified.
+- `Customer.nextFollowUpAt` / `Supplier.nextFollowUpAt` are kept in sync with the
+  EARLIEST open linked reminder (derived cache, recomputed on create / edit /
+  complete / reopen / delete / re-link).
+- Dashboard card (`RemindersCard`) shows overdue + due-today counts and hides
+  itself when nothing is due.
+- Added to the More drawer.
+
+### Verification
+- `scripts/verify-reminders.ts` → **24/24 passed** — filters, counts, next-follow-up
+  sync on every mutation, delete, tenant isolation ×6.
+- `npm run typecheck` → clean
+- `npm run build` → clean (exit 0)
+
+---
+
 ## 🚨 Critical finding: migrations are unusable
 
 Every file in `prisma/migrations/` uses **SQLite DDL** (`DATETIME`, etc.). They
@@ -136,8 +160,8 @@ from `schema.prisma` and reconcile it against the live DB. Do not run
 | Stage | Scope |
 |---|---|
 | ~~2~~ | ~~Supplier UI (list/add/detail), purchases, supplier payments~~ ✅ done |
-| 3 | Reminders module (UI + API + linking) — **next** |
-| 4 | Universal voice-assistant action system |
+| 3 | Reminders module (UI + API + linking) ✅ done |
+| 4 | Universal voice-assistant action system — **next** |
 | 5 | AI Sales Growth Assistant |
 | 6 | Evidence-based AI business insights |
 | 7 | Premium/AI plan gating (backend-enforced) |

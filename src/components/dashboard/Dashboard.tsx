@@ -25,6 +25,7 @@ import { Button } from "@/components/ui/Button";
 import { HeroCard } from "@/components/dashboard/HeroCard";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { QuickActions } from "@/components/dashboard/QuickActions";
+import { RemindersCard } from "@/components/dashboard/RemindersCard";
 import { LowStockList } from "@/components/dashboard/LowStockList";
 import { RecentTransactions } from "@/components/dashboard/RecentTransactions";
 import { DashboardSkeleton } from "@/components/dashboard/DashboardSkeleton";
@@ -125,6 +126,9 @@ export function Dashboard() {
 
       {/* Quick actions — appear right under hero for fastest access */}
       <QuickActions />
+
+      {/* Overdue / due-today reminders (hidden when there are none) */}
+      <RemindersCard />
 
       {/* Today's stats — 2×2 grid */}
       <section className="space-y-2">

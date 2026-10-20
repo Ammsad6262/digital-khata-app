@@ -35,6 +35,8 @@ import { recordPayment } from "@/lib/services/payments";
 import { addStockMove } from "@/lib/services/stock";
 import { createProductWithOpeningStock } from "@/lib/services/products";
 import { createCustomer } from "@/lib/services/customers";
+import { listSuppliersWithBalance } from "@/lib/services/suppliers";
+import { listReminders, getReminderCounts } from "@/lib/services/reminders";
 import { invalidateCache } from "@/lib/utils/cache";
 import { tServer } from "@/lib/i18n/server";
 import { getAIProvider, AIUnavailableError } from "./gemini-provider";
@@ -918,8 +920,62 @@ async function processQuery(
     } else {
       resultText = `Product "${queryEntity}" not found in your inventory.`;
     }
+  } else if (queryType === "SUPPLIER_PAYABLES") {
+    const suppliers = await listSuppliersWithBalance(userId);
+    const owing = suppliers.filter((s) => toDecimalOrZero(s.balance).greaterThan(0));
+
+    if (queryEntity) {
+      const needle = queryEntity.toLowerCase();
+      const matches = owing.filter((s) => s.name.toLowerCase().includes(needle));
+      if (matches.length === 0) {
+        resultText = `You do not owe "${queryEntity}" anything.`;
+        resultData = [];
+      } else {
+        const total = matches.reduce(
+          (sum, s) => sum.plus(toDecimalOrZero(s.balance)),
+          new Decimal(0),
+        );
+        resultText = `You owe ${matches.map((m) => m.name).join(", ")} Rs. ${Number(total).toLocaleString()}.`;
+        resultData = matches.map((m) => ({ name: m.name, balance: m.balance }));
+      }
+    } else {
+      const total = owing.reduce(
+        (sum, s) => sum.plus(toDecimalOrZero(s.balance)),
+        new Decimal(0),
+      );
+      resultText = owing.length > 0
+        ? `You owe ${owing.length} suppliers a total of Rs. ${Number(total).toLocaleString()}.`
+        : "You do not owe any supplier money.";
+      resultData = {
+        total: total.toString(),
+        count: owing.length,
+        suppliers: owing.slice(0, 20).map((s) => ({ name: s.name, balance: s.balance })),
+      };
+    }
+  } else if (queryType === "TODAYS_REMINDERS") {
+    const [counts, todayItems, overdueItems] = await Promise.all([
+      getReminderCounts(userId),
+      listReminders("today", userId),
+      listReminders("overdue", userId),
+    ]);
+
+    if (counts.overdue + counts.today === 0) {
+      resultText = "You have no reminders due today.";
+    } else {
+      const parts: string[] = [];
+      if (counts.overdue > 0) parts.push(`${counts.overdue} overdue`);
+      if (counts.today > 0) parts.push(`${counts.today} due today`);
+      resultText = `You have ${parts.join(" and ")}.`;
+      if (overdueItems.length > 0) {
+        resultText += ` Overdue: ${overdueItems.slice(0, 3).map((r) => r.title).join("; ")}.`;
+      }
+      if (todayItems.length > 0) {
+        resultText += ` Today: ${todayItems.slice(0, 3).map((r) => r.title).join("; ")}.`;
+      }
+    }
+    resultData = { counts, today: todayItems, overdue: overdueItems };
   } else {
-    resultText = "I can help you check expenses, sales, customer balances, and stock levels. What would you like to know?";
+    resultText = "I can help you check expenses, sales, customer balances, stock levels, supplier payables, and reminders. What would you like to know?";
   }
 
   const session = await prisma.smartEntrySession.create({

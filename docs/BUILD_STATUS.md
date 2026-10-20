@@ -1,6 +1,6 @@
 # Build Status — Platform Expansion
 
-Last updated: Stage 3 + Insights + AI gating complete (2026-10-20). Resume at Stage 4 (voice assistant intents).
+Last updated: Stage 3 + Insights + AI gating + assistant queries complete (2026-10-20).
 
 ## Environment
 
@@ -176,6 +176,22 @@ has not deployed anything.
 
 ---
 
+## ✅ Completed (2026-10-20) — Assistant queries for new modules
+
+- Added two query types to the Smart Entry assistant:
+  - `SUPPLIER_PAYABLES` — “how much do I owe suppliers?” (total + per-supplier)
+  - `TODAYS_REMINDERS` — “what reminders do I have today?” (overdue + due today)
+- Wired through all three layers: Zod schema, Gemini response schema (the enum
+  that actually constrains the model), and `processQuery`.
+- Read-only: no confirmation needed, no financial mutation.
+
+### Verification
+- `scripts/verify-ai-queries.ts` → **2/2 routed correctly** against the real
+  Gemini API (one request took a 129s fallback path; it still succeeded).
+- `npm run typecheck` + `npm run build` → clean.
+
+---
+
 ## 🚨 Critical finding: migrations are unusable
 
 Every file in `prisma/migrations/` uses **SQLite DDL** (`DATETIME`, etc.). They
@@ -229,7 +245,7 @@ approval to run DDL through the Supabase Management API.**
 |---|---|
 | ~~2~~ | ~~Supplier UI (list/add/detail), purchases, supplier payments~~ ✅ done |
 | 3 | Reminders module (UI + API + linking) ✅ done |
-| 4 | Universal voice-assistant action system — **mostly pre-existing**: 8 intents already live (sale, expense, payment, customer, product, stock intake, query, clarify); still missing purchase / supplier-payment / reminder intents. **next** |
+| 4 | Universal voice-assistant — 8 write intents + 9 query types live (added `SUPPLIER_PAYABLES`, `TODAYS_REMINDERS`). Still missing **write** intents for purchase / supplier-payment / reminder. |
 | 5 | AI Sales Growth Assistant — the deterministic evidence engine now exists (see Insights); the AI narration layer is not built yet |
 | 6 | Evidence-based AI business insights ✅ deterministic core done |
 | 7 | AI gating (backend-enforced) ✅ done — all AI endpoints require active access; a separate paid AI tier needs a product decision (no fake payment flow added) |

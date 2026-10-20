@@ -72,7 +72,8 @@ export const aiInterpretationSchema = z.object({
   queryType: z.enum([
     "TODAYS_EXPENSES", "TODAYS_SALES", "CUSTOMER_BALANCES",
     "STOCK_LEVEL", "EXPENSES_SUMMARY", "SALES_SUMMARY",
-    "CUSTOMER_PAYMENT_HISTORY", "OTHER",
+    "CUSTOMER_PAYMENT_HISTORY", "SUPPLIER_PAYABLES", "TODAYS_REMINDERS",
+    "OTHER",
   ]).nullable().optional(),
   queryEntity: z.string().max(200).nullable().optional(),
   queryDateRange: z.enum(["today", "yesterday", "week", "month", "all"]).nullable().optional(),

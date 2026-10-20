@@ -184,6 +184,8 @@ QUERY FIELDS (V10):
     "How much did I spend this month?" → EXPENSES_SUMMARY
     "How much did I sell this month?" → SALES_SUMMARY
     "How much did Ahmad pay me?" → CUSTOMER_PAYMENT_HISTORY
+    "How much do I owe suppliers?" / "Supplier payables?" → SUPPLIER_PAYABLES
+    "What are my reminders today?" / "Any work due?" → TODAYS_REMINDERS
 14. queryEntity: for queries about a specific entity (product name, customer name).
     "How much stock of rice?" → queryEntity="Rice"
     "How much did Ahmad pay me?" → queryEntity="Ahmad"
@@ -415,7 +417,8 @@ export class GeminiProvider implements AIProvider {
           type: Type.STRING,
           enum: ["TODAYS_EXPENSES", "TODAYS_SALES", "CUSTOMER_BALANCES",
                  "STOCK_LEVEL", "EXPENSES_SUMMARY", "SALES_SUMMARY",
-                 "CUSTOMER_PAYMENT_HISTORY", "OTHER"],
+                 "CUSTOMER_PAYMENT_HISTORY", "SUPPLIER_PAYABLES",
+                 "TODAYS_REMINDERS", "OTHER"],
           nullable: true,
         },
         queryEntity: { type: Type.STRING, nullable: true },

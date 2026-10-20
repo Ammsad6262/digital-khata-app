@@ -121,12 +121,23 @@ Detect the user's intent from the natural-language input. Choose the BEST match:
    Fill: productName, quantity, unit, explicitUnitPrice (the purchase price per unit),
    explicitTotal (if total cost is given instead of per-unit)
 
-7. QUERY: The user is asking a question about their business data.
+7. SUPPLIER_PAYMENT: The user is recording money PAID to a supplier.
+   Examples: "I paid Ali 5000", "supplier ko 5000 diye", "paid the rice mill 10000"
+   Fill: supplierName, explicitPaidAmount (the amount paid)
+   IMPORTANT: "Ahmad paid me" = RECORD_PAYMENT (money IN). "I paid Ahmad" = SUPPLIER_PAYMENT (money OUT).
+
+8. CREATE_REMINDER: The user wants a follow-up, reminder, or task.
+   Examples: "Remind me to call Ahmed tomorrow", "Kal Ahmed ko call karna hai",
+   "remind me in 3 days to pay the supplier"
+   Fill: reminderTitle, reminderInDays, reminderPriority, reminderType,
+   customerName/supplierName (if a specific party is mentioned)
+
+9. QUERY: The user is asking a question about their business data.
    Examples: "How much did I spend today?", "How much did I sell today?",
    "Which customers owe me money?", "How much stock of rice do I have?"
    Fill: queryType, queryEntity (if asking about a specific product/customer), queryDateRange
 
-8. UNKNOWN: The intent is unclear. Set needsClarification=true and ask a question.
+10. UNKNOWN: The intent is unclear. Set needsClarification=true and ask a question.
 
 INTENT DISAMBIGUATION:
 - "I bought tea for 200" → CREATE_EXPENSE (ordinary expense, not inventory)
@@ -137,6 +148,9 @@ INTENT DISAMBIGUATION:
 - "Add a customer named Ali" → CREATE_CUSTOMER
 - "Add a product called tea" → CREATE_PRODUCT
 - "How much did I spend today?" → QUERY (queryType=TODAYS_EXPENSES)
+- "I paid Ali 5000" → SUPPLIER_PAYMENT (money OUT to a supplier)
+- "Ali paid me 5000" → RECORD_PAYMENT (money IN from a customer)
+- "Remind me to call Ahmed tomorrow" → CREATE_REMINDER (reminderInDays=1)
 
 OUTPUT RULES — STRICT:
 1. Return ONLY a JSON object matching the provided schema.
@@ -174,6 +188,16 @@ EXPENSE FIELDS (V10):
     "tea" → "shop", "electricity" → "electricity", "petrol/transport" → "transport",
     "salary/wages" → "salary", "rent" → "rent", "packaging" → "packaging"
     If unclear, return "other".
+
+SUPPLIER PAYMENT / REMINDER FIELDS:
+- supplierName: for SUPPLIER_PAYMENT, the supplier's name as spoken.
+- reminderTitle: for CREATE_REMINDER, a short title in the user's own words.
+- reminderInDays: whole days from today. "today" → 0, "tomorrow" → 1,
+  "next week" → 7, "in 3 days" → 3. If no time is mentioned, return null.
+- reminderPriority: "high" if urgent/now, "low" if "someday", else "normal".
+- reminderType: "payment_collection" (collect money from a customer),
+  "supplier_payment" (pay a supplier), "customer_followup",
+  "stock_reorder", or "custom".
 
 QUERY FIELDS (V10):
 13. queryType: for QUERY intent, classify the question:
@@ -395,7 +419,8 @@ export class GeminiProvider implements AIProvider {
         intent: {
           type: Type.STRING,
           enum: ["CREATE_CREDIT_SALE", "CREATE_EXPENSE", "RECORD_PAYMENT",
-                 "CREATE_CUSTOMER", "CREATE_PRODUCT", "STOCK_INTAKE", "QUERY", "UNKNOWN"],
+                 "CREATE_CUSTOMER", "CREATE_PRODUCT", "STOCK_INTAKE",
+                 "SUPPLIER_PAYMENT", "CREATE_REMINDER", "QUERY", "UNKNOWN"],
         },
         customerName: { type: Type.STRING, nullable: true },
         productName: { type: Type.STRING, nullable: true },
@@ -410,6 +435,19 @@ export class GeminiProvider implements AIProvider {
         expenseCategory: {
           type: Type.STRING,
           enum: ["transport", "shop", "electricity", "packaging", "salary", "rent", "other"],
+          nullable: true,
+        },
+        supplierName: { type: Type.STRING, nullable: true },
+        reminderTitle: { type: Type.STRING, nullable: true },
+        reminderInDays: { type: Type.NUMBER, nullable: true },
+        reminderPriority: {
+          type: Type.STRING,
+          enum: ["low", "normal", "high"],
+          nullable: true,
+        },
+        reminderType: {
+          type: Type.STRING,
+          enum: ["payment_collection", "supplier_payment", "customer_followup", "stock_reorder", "custom"],
           nullable: true,
         },
         // V10: Query fields

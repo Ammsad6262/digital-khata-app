@@ -16,7 +16,7 @@ import { requireActiveAccess } from "@/lib/auth/get-current-user";
 import { ok, fail, parseJsonBody } from "@/lib/utils/api";
 import { BadRequestError } from "@/lib/errors";
 import { tServer } from "@/lib/i18n/server";
-import { executeSession, executeExpenseSession, executePaymentSession, executeStockIntakeSession, executeProductCreationSession, executeCustomerCreationSession } from "@/lib/smart-entry/service";
+import { executeSession, executeExpenseSession, executePaymentSession, executeStockIntakeSession, executeProductCreationSession, executeCustomerCreationSession, executeSupplierPaymentSession, executeReminderSession } from "@/lib/smart-entry/service";
 import { checkExecuteLimit } from "@/lib/smart-entry/rate-limit";
 import { executeRequestSchema } from "@/lib/smart-entry/schema";
 
@@ -95,6 +95,37 @@ export async function POST(req: NextRequest) {
           method: input.method,
           notes: input.notes,
           date: input.date,
+        });
+        return ok(result);
+      }
+
+      case "SUPPLIER_PAYMENT": {
+        if (!input.supplierId || !input.amount) {
+          throw new BadRequestError("api.smartExecute.supplierPaymentMissingFields");
+        }
+        const result = await executeSupplierPaymentSession(userId, {
+          sessionId: input.sessionId,
+          supplierId: input.supplierId,
+          amount: input.amount,
+          method: input.method,
+          notes: input.notes,
+          date: input.date,
+        });
+        return ok(result);
+      }
+
+      case "CREATE_REMINDER": {
+        if (!input.reminderTitle || !input.reminderDueAt) {
+          throw new BadRequestError("api.smartExecute.reminderMissingFields");
+        }
+        const result = await executeReminderSession(userId, {
+          sessionId: input.sessionId,
+          title: input.reminderTitle,
+          dueAt: input.reminderDueAt,
+          type: input.reminderType,
+          priority: input.reminderPriority,
+          notes: input.notes,
+          customerId: input.customerId,
         });
         return ok(result);
       }

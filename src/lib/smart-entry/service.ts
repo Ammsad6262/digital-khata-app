@@ -36,7 +36,8 @@ import { addStockMove } from "@/lib/services/stock";
 import { createProductWithOpeningStock } from "@/lib/services/products";
 import { createCustomer } from "@/lib/services/customers";
 import { listSuppliersWithBalance } from "@/lib/services/suppliers";
-import { listReminders, getReminderCounts } from "@/lib/services/reminders";
+import { createSupplierPayment } from "@/lib/services/supplier-payments";
+import { listReminders, getReminderCounts, createReminder } from "@/lib/services/reminders";
 import { invalidateCache } from "@/lib/utils/cache";
 import { tServer } from "@/lib/i18n/server";
 import { getAIProvider, AIUnavailableError } from "./gemini-provider";
@@ -152,6 +153,30 @@ export type PaymentFormState = {
   customerBalance: string | null;
 };
 
+// Supplier payment form state (for SUPPLIER_PAYMENT intent)
+export type SupplierPaymentFormState = {
+  supplierNameRaw: string | null;
+  resolvedSupplierId: string | null;
+  amount: number | null;
+  method: string;
+  notes: string | null;
+  date: string;
+  supplierBalance: string | null;
+  supplierCandidates: EntityCandidate[];
+};
+
+// Reminder form state (for CREATE_REMINDER intent)
+export type ReminderFormState = {
+  title: string;
+  notes: string | null;
+  type: string;
+  priority: string;
+  dueAt: string;
+  customerNameRaw: string | null;
+  resolvedCustomerId: string | null;
+  customerCandidates: EntityCandidate[];
+};
+
 // V10: Query result state (for QUERY intent)
 export type QueryResultState = {
   queryType: string;
@@ -212,6 +237,8 @@ export type InterpretResult = {
   form?: FormFieldState;
   expenseForm?: ExpenseFormState;
   paymentForm?: PaymentFormState;
+  supplierPaymentForm?: SupplierPaymentFormState;
+  reminderForm?: ReminderFormState;
   queryResult?: QueryResultState;
   stockIntakeForm?: StockIntakeFormState;
   productCreationForm?: ProductCreationFormState;
@@ -229,7 +256,7 @@ export type ExecuteResult = {
   paymentId?: string;
   productId?: string;
   customerId?: string;
-  resultType: "sale" | "expense" | "payment" | "stock_intake" | "product" | "customer";
+  resultType: "sale" | "expense" | "payment" | "stock_intake" | "product" | "customer" | "supplier_payment" | "reminder";
   message: string;
 };
 
@@ -449,6 +476,14 @@ export async function interpretInput(
   // V13: CREATE_CUSTOMER → dedicated customer creation form (NOT the sale form)
   if (ai.intent === "CREATE_CUSTOMER") {
     return await buildCustomerCreationForm(userId, ai, transcript, input.type);
+  }
+  // Money OUT to a supplier
+  if (ai.intent === "SUPPLIER_PAYMENT") {
+    return await buildSupplierPaymentForm(userId, ai, transcript, input.type);
+  }
+  // Follow-up / task
+  if (ai.intent === "CREATE_REMINDER") {
+    return await buildReminderForm(userId, ai, transcript, input.type);
   }
   // V13: UNKNOWN intent → clarification question (NOT the sale form)
   if (ai.intent === "UNKNOWN") {
@@ -841,6 +876,111 @@ async function buildPaymentForm(
       isNewCustomer,
       customerCandidates: customers,
       customerBalance,
+    },
+  };
+}
+
+/**
+ * Build the supplier-payment confirmation form (money OUT).
+ */
+async function buildSupplierPaymentForm(
+  userId: string,
+  ai: AiInterpretation,
+  transcript: string | null,
+  inputType: string,
+): Promise<InterpretResult> {
+  let resolvedSupplierId: string | null = null;
+  if (ai.supplierName) {
+    const matches = await findSupplierCandidates(userId, ai.supplierName);
+    if (matches.length === 1) resolvedSupplierId = matches[0]!.id;
+  }
+
+  const suppliers = await listSuppliersWithBalance(userId);
+  const supplierCandidates: EntityCandidate[] = suppliers.map((s) => ({
+    id: s.id,
+    name: s.name,
+    phone: s.phone ?? null,
+  }));
+  const supplierBalance =
+    suppliers.find((s) => s.id === resolvedSupplierId)?.balance ?? null;
+
+  const session = await prisma.smartEntrySession.create({
+    data: {
+      userId,
+      status: "AWAITING_CONFIRMATION",
+      inputType: inputType as "text" | "voice",
+      transcript,
+      rawAiResponse: aiToPrismaJson(ai),
+      intent: ai.intent,
+      expiresAt: new Date(Date.now() + SESSION_TTL_MS),
+    },
+  });
+
+  return {
+    sessionId: session.id,
+    status: "FORM",
+    transcript,
+    intent: ai.intent,
+    supplierPaymentForm: {
+      supplierNameRaw: ai.supplierName ?? null,
+      resolvedSupplierId,
+      amount: ai.explicitPaidAmount ?? null,
+      method: "cash",
+      notes: null,
+      date: new Date().toISOString(),
+      supplierBalance,
+      supplierCandidates,
+    },
+  };
+}
+
+/**
+ * Build the reminder confirmation form.
+ */
+async function buildReminderForm(
+  userId: string,
+  ai: AiInterpretation,
+  transcript: string | null,
+  inputType: string,
+): Promise<InterpretResult> {
+  let resolvedCustomerId: string | null = null;
+  if (ai.customerName) {
+    const matches = await findCustomerCandidates(userId, ai.customerName);
+    if (matches.length === 1) resolvedCustomerId = matches[0]!.id;
+  }
+
+  const { customers } = await loadUserCustomersAndProducts(userId);
+
+  const days = Math.max(0, Math.min(3650, ai.reminderInDays ?? 1));
+  const due = new Date(Date.now() + days * 86_400_000);
+  due.setHours(9, 0, 0, 0);
+
+  const session = await prisma.smartEntrySession.create({
+    data: {
+      userId,
+      status: "AWAITING_CONFIRMATION",
+      inputType: inputType as "text" | "voice",
+      transcript,
+      rawAiResponse: aiToPrismaJson(ai),
+      intent: ai.intent,
+      expiresAt: new Date(Date.now() + SESSION_TTL_MS),
+    },
+  });
+
+  return {
+    sessionId: session.id,
+    status: "FORM",
+    transcript,
+    intent: ai.intent,
+    reminderForm: {
+      title: (ai.reminderTitle ?? transcript ?? "Reminder").slice(0, 150),
+      notes: null,
+      type: ai.reminderType ?? "custom",
+      priority: ai.reminderPriority ?? "normal",
+      dueAt: due.toISOString(),
+      customerNameRaw: ai.customerName ?? null,
+      resolvedCustomerId,
+      customerCandidates: customers,
     },
   };
 }
@@ -1551,6 +1691,147 @@ export async function executePaymentSession(
 }
 
 // ────────────────────────────────────────────────────────────────────────────
+// Execute a confirmed SUPPLIER_PAYMENT (money OUT)
+// ────────────────────────────────────────────────────────────────────────────
+
+export async function executeSupplierPaymentSession(
+  userId: string,
+  input: {
+    sessionId: string;
+    supplierId: string;
+    amount: number;
+    method?: string;
+    notes?: string | null;
+    date?: string;
+  },
+): Promise<ExecuteResult> {
+  const session = await loadAndVerifySession(userId, input.sessionId);
+  if (session.status === "COMPLETED") {
+    throw new BadRequestError("api.smartEntry.alreadyProcessed");
+  }
+
+  const claimed = await prisma.smartEntrySession.updateMany({
+    where: { id: input.sessionId, userId, status: "AWAITING_CONFIRMATION" },
+    data: { status: "EXECUTING", updatedAt: new Date() },
+  });
+  if (claimed.count === 0) {
+    throw new BadRequestError("api.smartExecute.wrongState");
+  }
+
+  try {
+    const payment = await createSupplierPayment(
+      {
+        supplierId: input.supplierId,
+        amount: input.amount,
+        method: (input.method ?? "cash") as
+          | "cash" | "bank" | "cheque" | "jazzcash" | "easypaisa" | "other",
+        notes: input.notes ?? null,
+        date: input.date,
+      },
+      userId,
+    );
+
+    await prisma.smartEntrySession.update({
+      where: { id: input.sessionId },
+      data: { status: "COMPLETED", completedAt: new Date() },
+    });
+
+    invalidateCache("dashboard");
+    invalidateCache("suppliers");
+    invalidateCache("transactions");
+
+    return {
+      resultType: "supplier_payment",
+      message: tServer(
+        "api.smartExecute.supplierPaymentRecorded",
+        {
+          amount: Number(payment.amount).toLocaleString(),
+          supplier: payment.supplierName ?? "",
+        },
+        "en",
+      ),
+    };
+  } catch (error) {
+    await prisma.smartEntrySession
+      .update({
+        where: { id: input.sessionId },
+        data: { status: "FAILED", completedAt: new Date() },
+      })
+      .catch(() => {});
+    throw error;
+  }
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Execute a confirmed CREATE_REMINDER
+// ────────────────────────────────────────────────────────────────────────────
+
+export async function executeReminderSession(
+  userId: string,
+  input: {
+    sessionId: string;
+    title: string;
+    dueAt: string;
+    type?: string;
+    priority?: string;
+    notes?: string | null;
+    customerId?: string | null;
+  },
+): Promise<ExecuteResult> {
+  const session = await loadAndVerifySession(userId, input.sessionId);
+  if (session.status === "COMPLETED") {
+    throw new BadRequestError("api.smartEntry.alreadyProcessed");
+  }
+
+  const claimed = await prisma.smartEntrySession.updateMany({
+    where: { id: input.sessionId, userId, status: "AWAITING_CONFIRMATION" },
+    data: { status: "EXECUTING", updatedAt: new Date() },
+  });
+  if (claimed.count === 0) {
+    throw new BadRequestError("api.smartExecute.wrongState");
+  }
+
+  try {
+    const reminder = await createReminder(
+      {
+        title: input.title,
+        notes: input.notes ?? null,
+        type: input.type ?? "custom",
+        dueAt: input.dueAt,
+        priority: input.priority ?? "normal",
+        customerId: input.customerId ?? null,
+      },
+      userId,
+    );
+
+    await prisma.smartEntrySession.update({
+      where: { id: input.sessionId },
+      data: { status: "COMPLETED", completedAt: new Date() },
+    });
+
+    invalidateCache("dashboard");
+    invalidateCache("reminders");
+
+    return {
+      resultType: "reminder",
+      message: tServer(
+        "api.smartExecute.reminderCreated",
+        { title: reminder.title },
+        "en",
+      ),
+    };
+  } catch (error) {
+    await prisma.smartEntrySession
+      .update({
+        where: { id: input.sessionId },
+        data: { status: "FAILED", completedAt: new Date() },
+      })
+      .catch(() => {});
+    throw error;
+  }
+}
+
+// ────────────────────────────────────────────────────────────────────────────
 // V11: Execute STOCK_INTAKE — user confirmed; record the stock movement
 // ────────────────────────────────────────────────────────────────────────────
 
@@ -1867,11 +2148,38 @@ async function findCustomerCandidates(
   return contains;
 }
 
+async function findSupplierCandidates(
+  userId: string,
+  name: string,
+): Promise<Array<{ id: string; name: string; phone: string | null }>> {
+  const cleanName = name.trim();
+  if (!cleanName) return [];
+
+  const exact = await prisma.supplier.findMany({
+    where: { userId, isDeleted: false, name: { equals: cleanName, mode: "insensitive" } },
+    select: { id: true, name: true, phone: true },
+    take: 6,
+  });
+  if (exact.length > 0) return exact;
+
+  const startsWith = await prisma.supplier.findMany({
+    where: { userId, isDeleted: false, name: { startsWith: cleanName, mode: "insensitive" } },
+    select: { id: true, name: true, phone: true },
+    take: 6,
+  });
+  if (startsWith.length > 0) return startsWith;
+
+  return prisma.supplier.findMany({
+    where: { userId, isDeleted: false, name: { contains: cleanName, mode: "insensitive" } },
+    select: { id: true, name: true, phone: true },
+    take: 6,
+  });
+}
+
 async function findProductCandidates(
   userId: string,
   name: string,
-): Promise<Array<{ id: string; name: string; unit: string; sellingPrice: Decimal }>> {
-  const cleanName = name.trim();
+): Promise<Array<{ id: string; name: string; unit: string; sellingPrice: Decimal }>> {  const cleanName = name.trim();
   if (!cleanName) return [];
 
   const exact = await prisma.product.findMany({

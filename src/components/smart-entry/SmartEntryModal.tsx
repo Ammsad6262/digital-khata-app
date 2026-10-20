@@ -42,6 +42,7 @@ import {
   AlertTriangle,
   Type,
   ChevronDown,
+  Wallet,
 } from "lucide-react";
 import { useSmartEntry } from "@/hooks/smart-entry/use-smart-entry";
 import { useAudioRecorder } from "@/hooks/smart-entry/use-audio-recorder";
@@ -290,6 +291,30 @@ function SmartEntryBody({
     return (
       <PaymentFormView
         form={smartEntry.paymentForm}
+        transcript={smartEntry.transcript}
+        onConfirm={smartEntry.confirm}
+        onCancel={smartEntry.cancel}
+      />
+    );
+  }
+
+  // Supplier payment (money OUT)
+  if (state === "form" && smartEntry.supplierPaymentForm) {
+    return (
+      <SupplierPaymentFormView
+        form={smartEntry.supplierPaymentForm}
+        transcript={smartEntry.transcript}
+        onConfirm={smartEntry.confirm}
+        onCancel={smartEntry.cancel}
+      />
+    );
+  }
+
+  // Reminder / follow-up
+  if (state === "form" && smartEntry.reminderForm) {
+    return (
+      <ReminderFormView
+        form={smartEntry.reminderForm}
         transcript={smartEntry.transcript}
         onConfirm={smartEntry.confirm}
         onCancel={smartEntry.cancel}
@@ -3214,6 +3239,272 @@ function ClarificationView({ clarification, transcript, onRetry, onCancel }: {
         <button type="submit" disabled={!textValue.trim()} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-600 text-white shadow-sm disabled:bg-brand-300" aria-label={t("smartentry.aria.submit")}><Send className="h-5 w-5" /></button>
       </form>
       <button type="button" onClick={onCancel} className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">{t("smartentry.action.cancel")}</button>
+    </div>
+  );
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Supplier payment (money OUT) — compact confirmation form
+// ────────────────────────────────────────────────────────────────────────────
+
+type SupplierPaymentFormShape = {
+  supplierNameRaw: string | null;
+  resolvedSupplierId: string | null;
+  amount: number | null;
+  method: string;
+  notes: string | null;
+  date: string;
+  supplierBalance: string | null;
+  supplierCandidates: Array<{ id: string; name: string; phone?: string | null }>;
+};
+
+function SupplierPaymentFormView({
+  form,
+  transcript,
+  onConfirm,
+  onCancel,
+}: {
+  form: SupplierPaymentFormShape;
+  transcript: string | null;
+  onConfirm: (input: Record<string, unknown>) => void;
+  onCancel: () => void;
+}) {
+  const { t } = useLanguage();
+  const [supplierId, setSupplierId] = useState(form.resolvedSupplierId ?? "");
+  const [amount, setAmount] = useState(form.amount != null ? String(form.amount) : "");
+  const [method, setMethod] = useState(form.method || "cash");
+
+  const selected = form.supplierCandidates.find((s) => s.id === supplierId);
+  const value = Number(amount);
+  const isValid = !!supplierId && Number.isFinite(value) && value > 0;
+
+  return (
+    <div className="space-y-4 p-1">
+      <div className="flex items-center gap-2">
+        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-amber-100 text-amber-700">
+          <Wallet className="h-4 w-4" />
+        </div>
+        <div>
+          <p className="text-sm font-semibold text-slate-900">{t("smartentry.supplierPayment.title")}</p>
+          {transcript ? <p className="text-xs text-slate-500">“{transcript}”</p> : null}
+        </div>
+      </div>
+
+      <div>
+        <label className="mb-1 block text-xs font-medium text-slate-600">{t("smartentry.supplierPayment.supplier")}</label>
+        <select
+          value={supplierId}
+          onChange={(e) => setSupplierId(e.target.value)}
+          className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+        >
+          <option value="">{t("smartentry.supplierPayment.pickSupplier")}</option>
+          {form.supplierCandidates.map((s) => (
+            <option key={s.id} value={s.id}>{s.name}</option>
+          ))}
+        </select>
+        {selected && form.supplierBalance ? (
+          <p className="mt-1 text-xs text-slate-500">
+            {t("smartentry.supplierPayment.balance")}: Rs. {Number(form.supplierBalance).toLocaleString()}
+          </p>
+        ) : null}
+      </div>
+
+      <div>
+        <label className="mb-1 block text-xs font-medium text-slate-600">{t("smartentry.supplierPayment.amount")}</label>
+        <input
+          type="number"
+          inputMode="decimal"
+          min="0"
+          step="0.01"
+          value={amount}
+          onChange={(e) => setAmount(e.target.value)}
+          placeholder="0"
+          className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-lg font-semibold text-slate-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+        />
+      </div>
+
+      <div>
+        <label className="mb-1 block text-xs font-medium text-slate-600">{t("smartentry.supplierPayment.method")}</label>
+        <select
+          value={method}
+          onChange={(e) => setMethod(e.target.value)}
+          className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+        >
+          {["cash", "bank", "cheque", "jazzcash", "easypaisa", "other"].map((m) => (
+            <option key={m} value={m}>{t(`method.${m}` as never)}</option>
+          ))}
+        </select>
+      </div>
+
+      <div className="flex gap-2">
+        <button
+          type="button"
+          disabled={!isValid}
+          onClick={() =>
+            onConfirm({
+              intentType: "SUPPLIER_PAYMENT",
+              supplierId,
+              amount: value,
+              method,
+              notes: null,
+            })
+          }
+          className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-brand-600 px-4 py-3 text-sm font-semibold text-white shadow-md shadow-brand-600/30 hover:bg-brand-700 disabled:bg-brand-300"
+        >
+          <Check className="h-4 w-4" /> {t("smartentry.supplierPayment.confirm")}
+        </button>
+        <button
+          type="button"
+          onClick={onCancel}
+          className="rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+        >
+          {t("smartentry.action.cancel")}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Reminder — compact confirmation form
+// ────────────────────────────────────────────────────────────────────────────
+
+type ReminderFormShape = {
+  title: string;
+  notes: string | null;
+  type: string;
+  priority: string;
+  dueAt: string;
+  customerNameRaw: string | null;
+  resolvedCustomerId: string | null;
+  customerCandidates: Array<{ id: string; name: string; phone?: string | null }>;
+};
+
+function toLocalDateTime(value: string): string {
+  const d = new Date(value);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function ReminderFormView({
+  form,
+  transcript,
+  onConfirm,
+  onCancel,
+}: {
+  form: ReminderFormShape;
+  transcript: string | null;
+  onConfirm: (input: Record<string, unknown>) => void;
+  onCancel: () => void;
+}) {
+  const { t } = useLanguage();
+  const [title, setTitle] = useState(form.title);
+  const [dueAt, setDueAt] = useState(toLocalDateTime(form.dueAt));
+  const [priority, setPriority] = useState(form.priority || "normal");
+  const [type, setType] = useState(form.type || "custom");
+  const [customerId, setCustomerId] = useState(form.resolvedCustomerId ?? "");
+
+  const isValid = title.trim().length > 0 && !!dueAt;
+
+  return (
+    <div className="space-y-4 p-1">
+      <div className="flex items-center gap-2">
+        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-sky-100 text-sky-700">
+          <Sparkles className="h-4 w-4" />
+        </div>
+        <div>
+          <p className="text-sm font-semibold text-slate-900">{t("smartentry.reminder.title")}</p>
+          {transcript ? <p className="text-xs text-slate-500">“{transcript}”</p> : null}
+        </div>
+      </div>
+
+      <div>
+        <label className="mb-1 block text-xs font-medium text-slate-600">{t("smartentry.reminder.what")}</label>
+        <input
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          maxLength={150}
+          className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+        />
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="mb-1 block text-xs font-medium text-slate-600">{t("smartentry.reminder.when")}</label>
+          <input
+            type="datetime-local"
+            value={dueAt}
+            onChange={(e) => setDueAt(e.target.value)}
+            className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-xs font-medium text-slate-600">{t("smartentry.reminder.priority")}</label>
+          <select
+            value={priority}
+            onChange={(e) => setPriority(e.target.value)}
+            className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+          >
+            {["low", "normal", "high"].map((p) => (
+              <option key={p} value={p}>{t(`reminderPriority.${p}` as never)}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      <div>
+        <label className="mb-1 block text-xs font-medium text-slate-600">{t("smartentry.reminder.type")}</label>
+        <select
+          value={type}
+          onChange={(e) => setType(e.target.value)}
+          className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+        >
+          {["payment_collection", "supplier_payment", "customer_followup", "stock_reorder", "custom"].map((v) => (
+            <option key={v} value={v}>{t(`reminderType.${v}` as never)}</option>
+          ))}
+        </select>
+      </div>
+
+      <div>
+        <label className="mb-1 block text-xs font-medium text-slate-600">{t("smartentry.reminder.customer")}</label>
+        <select
+          value={customerId}
+          onChange={(e) => setCustomerId(e.target.value)}
+          className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+        >
+          <option value="">{t("smartentry.reminder.noCustomer")}</option>
+          {form.customerCandidates.map((c) => (
+            <option key={c.id} value={c.id}>{c.name}</option>
+          ))}
+        </select>
+      </div>
+
+      <div className="flex gap-2">
+        <button
+          type="button"
+          disabled={!isValid}
+          onClick={() =>
+            onConfirm({
+              intentType: "CREATE_REMINDER",
+              reminderTitle: title.trim(),
+              reminderDueAt: new Date(dueAt).toISOString(),
+              reminderPriority: priority,
+              reminderType: type,
+              customerId: customerId || undefined,
+            })
+          }
+          className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-brand-600 px-4 py-3 text-sm font-semibold text-white shadow-md shadow-brand-600/30 hover:bg-brand-700 disabled:bg-brand-300"
+        >
+          <Check className="h-4 w-4" /> {t("smartentry.reminder.confirm")}
+        </button>
+        <button
+          type="button"
+          onClick={onCancel}
+          className="rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+        >
+          {t("smartentry.action.cancel")}
+        </button>
+      </div>
     </div>
   );
 }

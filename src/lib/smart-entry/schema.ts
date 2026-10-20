@@ -28,6 +28,8 @@ export const intentSchema = z.enum([
   "CREATE_CUSTOMER",
   "CREATE_PRODUCT",
   "STOCK_INTAKE",
+  "SUPPLIER_PAYMENT",
+  "CREATE_REMINDER",
   "QUERY",
   "UNKNOWN",
 ]);
@@ -66,6 +68,18 @@ export const aiInterpretationSchema = z.object({
   expenseCategory: z.enum([
     "transport", "shop", "electricity", "packaging",
     "salary", "rent", "other",
+  ]).nullable().optional(),
+
+  // Supplier payment fields
+  supplierName: z.string().min(1).max(200).nullable().optional(),
+
+  // Reminder fields
+  reminderTitle: z.string().min(1).max(150).nullable().optional(),
+  reminderInDays: z.number().int().min(0).max(3650).nullable().optional(),
+  reminderPriority: z.enum(["low", "normal", "high"]).nullable().optional(),
+  reminderType: z.enum([
+    "payment_collection", "supplier_payment", "customer_followup",
+    "stock_reorder", "custom",
   ]).nullable().optional(),
 
   // Query fields (V10)
@@ -143,6 +157,8 @@ export const executeRequestSchema = z.object({
     "STOCK_INTAKE",
     "CREATE_PRODUCT",
     "CREATE_CUSTOMER",
+    "SUPPLIER_PAYMENT",
+    "CREATE_REMINDER",
   ]).default("CREATE_CREDIT_SALE"),
 
   // Sale fields
@@ -198,6 +214,18 @@ export const executeRequestSchema = z.object({
   phone: z.string().max(20).optional().nullable(),
   address: z.string().max(300).optional().nullable(),
   openingBalance: z.union([z.number(), z.string()]).transform((v) => (typeof v === "string" ? Number(v) : v)).optional(),
+
+  // Supplier payment fields
+  supplierId: z.string().min(1).optional(),
+
+  // Reminder fields
+  reminderTitle: z.string().min(1).max(150).optional(),
+  reminderDueAt: z.string().optional(),
+  reminderPriority: z.enum(["low", "normal", "high"]).optional(),
+  reminderType: z.enum([
+    "payment_collection", "supplier_payment", "customer_followup",
+    "stock_reorder", "custom",
+  ]).optional(),
 });
 
 export type ExecuteRequest = z.infer<typeof executeRequestSchema>;

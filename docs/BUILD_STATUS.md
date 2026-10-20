@@ -245,11 +245,36 @@ approval to run DDL through the Supabase Management API.**
 |---|---|
 | ~~2~~ | ~~Supplier UI (list/add/detail), purchases, supplier payments~~ ✅ done |
 | 3 | Reminders module (UI + API + linking) ✅ done |
-| 4 | Universal voice-assistant — 8 write intents + 9 query types live (added `SUPPLIER_PAYABLES`, `TODAYS_REMINDERS`). Still missing **write** intents for purchase / supplier-payment / reminder. |
+| 4 | Universal voice-assistant — 10 write intents + 9 query types live. Added **write** intents `SUPPLIER_PAYMENT` (money out) and `CREATE_REMINDER` end to end. Still missing a **purchase** write intent. |
 | 5 | AI Sales Growth Assistant — the deterministic evidence engine now exists (see Insights); the AI narration layer is not built yet |
 | 6 | Evidence-based AI business insights ✅ deterministic core done |
 | 7 | AI gating (backend-enforced) ✅ done — all AI endpoints require active access; a separate paid AI tier needs a product decision (no fake payment flow added) |
 | 8 | UX polish + full acceptance-workflow testing |
+
+---
+
+## Latest update — assistant write actions (commit `c72e11d`)
+
+Added two new voice/text write intents to Smart Entry:
+
+| Intent | What happens | Safety |
+|---|---|---|
+| `SUPPLIER_PAYMENT` | "I paid Ali 5000" → resolves the supplier, shows a confirmation form (supplier, amount, method, current payable), then calls `createSupplierPayment` | Atomic single-claim session guard, tenant-scoped lookup, duplicate submit guard from the payments service |
+| `CREATE_REMINDER` | "Remind me to call Ahmed tomorrow" → resolves customer (optional), pre-fills title/date/priority/type, then calls `createReminder` | Same session guard; due date computed server-side from `reminderInDays` |
+
+Routing is AI-assisted but every value the user sees is resolved **server-side**;
+the model never supplies IDs. Both intents are confirmation-first — nothing is
+written until the user taps the confirm button.
+
+Verification:
+
+- `npx tsc --noEmit` — clean
+- `npm run build` — clean (exit 0)
+- `npx tsx scripts/verify-assistant-writes.ts` — **18/18** assertions
+  (payment row, payable 5000 → 3000, session COMPLETED, duplicate blocked,
+  cross-tenant blocked, reminder + `nextFollowUpAt` sync, cross-tenant blocked)
+- `npx tsx scripts/verify-ai-queries.ts` — **4/4** live Gemini cases
+  (2 query types + supplier payment extraction + "tomorrow" → 1 day)
 
 ---
 

@@ -1,5 +1,6 @@
 /**
- * Checks that the AI maps supplier/reminder questions to the new query types.
+ * Checks that the AI maps supplier/reminder questions and the new write
+ * intents correctly.
  * Run: npx tsx scripts/verify-ai-queries.ts  (requires GEMINI_API_KEY)
  */
 
@@ -12,9 +13,28 @@ const context: AIContext = {
   units: ["kg", "box", "piece", "dozen"],
 };
 
-const CASES = [
-  { input: "How much do I owe my suppliers?", expected: "SUPPLIER_PAYABLES" },
-  { input: "What reminders do I have today?", expected: "TODAYS_REMINDERS" },
+const CASES: Array<{
+  input: string;
+  intent: string;
+  queryType?: string;
+  check?: (r: { supplierName?: string | null; reminderInDays?: number | null; explicitPaidAmount?: number | null }) => string | null;
+}> = [
+  { input: "How much do I owe my suppliers?", intent: "QUERY", queryType: "SUPPLIER_PAYABLES" },
+  { input: "What reminders do I have today?", intent: "QUERY", queryType: "TODAYS_REMINDERS" },
+  {
+    input: "I paid Ali 5000",
+    intent: "SUPPLIER_PAYMENT",
+    check: (r) => {
+      if (!r.supplierName) return "supplierName was null";
+      if (Number(r.explicitPaidAmount) !== 5000) return `amount=${r.explicitPaidAmount}`;
+      return null;
+    },
+  },
+  {
+    input: "Remind me to call Ahmed tomorrow",
+    intent: "CREATE_REMINDER",
+    check: (r) => (r.reminderInDays === 1 ? null : `reminderInDays=${r.reminderInDays}`),
+  },
 ];
 
 let failed = 0;
@@ -24,9 +44,14 @@ async function main() {
 
   for (const testCase of CASES) {
     const result = await provider.interpretText(testCase.input, context);
-    const ok = result.intent === "QUERY" && result.queryType === testCase.expected;
+    const intentOk = result.intent === testCase.intent;
+    const queryOk = !testCase.queryType || result.queryType === testCase.queryType;
+    const fieldError = testCase.check ? testCase.check(result) : null;
+    const ok = intentOk && queryOk && !fieldError;
     console.log(
-      `${ok ? "✅" : "❌"} "${testCase.input}" → intent=${result.intent}, queryType=${result.queryType ?? "null"} (expected ${testCase.expected})`,
+      `${ok ? "✅" : "❌"} "${testCase.input}" → intent=${result.intent}` +
+        (result.queryType ? `, queryType=${result.queryType}` : "") +
+        (fieldError ? ` — ${fieldError}` : ""),
     );
     if (!ok) failed++;
   }
@@ -35,10 +60,10 @@ async function main() {
     console.log(`\n${failed} case(s) misrouted.`);
     process.exit(1);
   }
-  console.log("\nAll AI query cases routed correctly.");
+  console.log("\nAll AI routing cases passed.");
 }
 
 main().catch((e) => {
-  console.error("AI query check crashed:", e instanceof Error ? e.message : e);
+  console.error("AI routing check crashed:", e instanceof Error ? e.message : e);
   process.exit(1);
 });

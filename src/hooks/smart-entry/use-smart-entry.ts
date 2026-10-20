@@ -25,7 +25,8 @@ import { useCallback, useRef, useState } from "react";
 import type {
   InterpretResult, FormFieldState, ExpenseFormState, PaymentFormState,
   QueryResultState, StockIntakeFormState, ProductCreationFormState,
-  CustomerCreationFormState, ClarificationState,
+  CustomerCreationFormState, ClarificationState, SupplierPaymentFormState,
+  ReminderFormState,
 } from "@/lib/smart-entry/service";
 
 export type SmartEntryState =
@@ -40,6 +41,8 @@ type State = {
   form: FormFieldState | null;
   expenseForm: ExpenseFormState | null;
   paymentForm: PaymentFormState | null;
+  supplierPaymentForm: SupplierPaymentFormState | null;
+  reminderForm: ReminderFormState | null;
   queryResult: QueryResultState | null;
   stockIntakeForm: StockIntakeFormState | null;
   productCreationForm: ProductCreationFormState | null;
@@ -55,6 +58,7 @@ type State = {
 const INITIAL: State = {
   state: "idle", sessionId: null, transcript: null, intent: null,
   form: null, expenseForm: null, paymentForm: null, queryResult: null,
+  supplierPaymentForm: null, reminderForm: null,
   stockIntakeForm: null, productCreationForm: null, customerCreationForm: null,
   clarification: null, message: null, error: null,
   createdSaleId: null, createdProductId: null, createdCustomerId: null,
@@ -93,6 +97,8 @@ export function useSmartEntry() {
       form: result.form ?? null,
       expenseForm: result.expenseForm ?? null,
       paymentForm: result.paymentForm ?? null,
+      supplierPaymentForm: result.supplierPaymentForm ?? null,
+      reminderForm: result.reminderForm ?? null,
       queryResult: result.queryResult ?? null,
       stockIntakeForm: result.stockIntakeForm ?? null,
       productCreationForm: result.productCreationForm ?? null,
@@ -263,6 +269,11 @@ export function useSmartEntry() {
     phone?: string | null;
     address?: string | null;
     openingBalance?: number;
+    supplierId?: string;
+    reminderTitle?: string;
+    reminderDueAt?: string;
+    reminderPriority?: string;
+    reminderType?: string;
   }) => {
     if (!state.sessionId) return;
     // Abort any previous execute request (defensive — shouldn't happen)
@@ -305,6 +316,11 @@ export function useSmartEntry() {
           phone: input.phone,
           address: input.address,
           openingBalance: input.openingBalance,
+          supplierId: input.supplierId,
+          reminderTitle: input.reminderTitle,
+          reminderDueAt: input.reminderDueAt,
+          reminderPriority: input.reminderPriority,
+          reminderType: input.reminderType,
         }),
         signal: controller.signal,
       });

@@ -30,6 +30,7 @@ export const intentSchema = z.enum([
   "STOCK_INTAKE",
   "SUPPLIER_PAYMENT",
   "CREATE_REMINDER",
+  "CREATE_PURCHASE",
   "QUERY",
   "UNKNOWN",
 ]);
@@ -159,6 +160,7 @@ export const executeRequestSchema = z.object({
     "CREATE_CUSTOMER",
     "SUPPLIER_PAYMENT",
     "CREATE_REMINDER",
+    "CREATE_PURCHASE",
   ]).default("CREATE_CREDIT_SALE"),
 
   // Sale fields

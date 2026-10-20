@@ -16,7 +16,7 @@ import { requireActiveAccess } from "@/lib/auth/get-current-user";
 import { ok, fail, parseJsonBody } from "@/lib/utils/api";
 import { BadRequestError } from "@/lib/errors";
 import { tServer } from "@/lib/i18n/server";
-import { executeSession, executeExpenseSession, executePaymentSession, executeStockIntakeSession, executeProductCreationSession, executeCustomerCreationSession, executeSupplierPaymentSession, executeReminderSession } from "@/lib/smart-entry/service";
+import { executeSession, executeExpenseSession, executePaymentSession, executeStockIntakeSession, executeProductCreationSession, executeCustomerCreationSession, executeSupplierPaymentSession, executeReminderSession, executePurchaseSession } from "@/lib/smart-entry/service";
 import { checkExecuteLimit } from "@/lib/smart-entry/rate-limit";
 import { executeRequestSchema } from "@/lib/smart-entry/schema";
 
@@ -93,6 +93,28 @@ export async function POST(req: NextRequest) {
           customerId: input.customerId,
           amount: input.amount,
           method: input.method,
+          notes: input.notes,
+          date: input.date,
+        });
+        return ok(result);
+      }
+
+      case "CREATE_PURCHASE": {
+        if (
+          !input.supplierId ||
+          !input.productId ||
+          !input.quantity ||
+          input.unitCost === undefined
+        ) {
+          throw new BadRequestError("api.smartExecute.purchaseMissingFields");
+        }
+        const result = await executePurchaseSession(userId, {
+          sessionId: input.sessionId,
+          supplierId: input.supplierId,
+          productId: input.productId,
+          quantity: input.quantity,
+          unitCost: input.unitCost,
+          paidAmount: input.paidAmount,
           notes: input.notes,
           date: input.date,
         });

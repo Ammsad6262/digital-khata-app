@@ -17,7 +17,13 @@ const CASES: Array<{
   input: string;
   intent: string;
   queryType?: string;
-  check?: (r: { supplierName?: string | null; reminderInDays?: number | null; explicitPaidAmount?: number | null }) => string | null;
+  check?: (r: {
+    supplierName?: string | null;
+    reminderInDays?: number | null;
+    explicitPaidAmount?: number | null;
+    quantity?: number | null;
+    explicitUnitPrice?: number | null;
+  }) => string | null;
 }> = [
   { input: "How much do I owe my suppliers?", intent: "QUERY", queryType: "SUPPLIER_PAYABLES" },
   { input: "What reminders do I have today?", intent: "QUERY", queryType: "TODAYS_REMINDERS" },
@@ -34,6 +40,17 @@ const CASES: Array<{
     input: "Remind me to call Ahmed tomorrow",
     intent: "CREATE_REMINDER",
     check: (r) => (r.reminderInDays === 1 ? null : `reminderInDays=${r.reminderInDays}`),
+  },
+  {
+    input: "Bought 10 kg sugar from Ali at 100 each, paid 400",
+    intent: "CREATE_PURCHASE",
+    check: (r) => {
+      if (!r.supplierName) return "supplierName was null";
+      if (Number(r.quantity) !== 10) return `quantity=${r.quantity}`;
+      if (Number(r.explicitUnitPrice) !== 100) return `unitPrice=${r.explicitUnitPrice}`;
+      if (Number(r.explicitPaidAmount) !== 400) return `paid=${r.explicitPaidAmount}`;
+      return null;
+    },
   },
 ];
 

@@ -245,7 +245,7 @@ approval to run DDL through the Supabase Management API.**
 |---|---|
 | ~~2~~ | ~~Supplier UI (list/add/detail), purchases, supplier payments~~ ✅ done |
 | 3 | Reminders module (UI + API + linking) ✅ done |
-| 4 | Universal voice-assistant — 10 write intents + 9 query types live. Added **write** intents `SUPPLIER_PAYMENT` (money out) and `CREATE_REMINDER` end to end. Still missing a **purchase** write intent. |
+| 4 | Universal voice-assistant — 11 write intents + 9 query types live. Added **write** intents `SUPPLIER_PAYMENT`, `CREATE_REMINDER` and `CREATE_PURCHASE` end to end. |
 | 5 | AI Sales Growth Assistant — the deterministic evidence engine now exists (see Insights); the AI narration layer is not built yet |
 | 6 | Evidence-based AI business insights ✅ deterministic core done |
 | 7 | AI gating (backend-enforced) ✅ done — all AI endpoints require active access; a separate paid AI tier needs a product decision (no fake payment flow added) |
@@ -261,6 +261,7 @@ Added two new voice/text write intents to Smart Entry:
 |---|---|---|
 | `SUPPLIER_PAYMENT` | "I paid Ali 5000" → resolves the supplier, shows a confirmation form (supplier, amount, method, current payable), then calls `createSupplierPayment` | Atomic single-claim session guard, tenant-scoped lookup, duplicate submit guard from the payments service |
 | `CREATE_REMINDER` | "Remind me to call Ahmed tomorrow" → resolves customer (optional), pre-fills title/date/priority/type, then calls `createReminder` | Same session guard; due date computed server-side from `reminderInDays` |
+| `CREATE_PURCHASE` | "Bought 10 kg sugar from Ali at 100 each, paid 400" → resolves supplier + product, pre-fills qty/cost/paid, shows total and the amount that will be added to payable, then calls `createPurchase` | Same session guard; stock + ledger update and the "paid ≤ total" rule are enforced inside the purchase transaction, so a rejected submit leaves no partial stock move |
 
 Routing is AI-assisted but every value the user sees is resolved **server-side**;
 the model never supplies IDs. Both intents are confirmation-first — nothing is
@@ -270,11 +271,13 @@ Verification:
 
 - `npx tsc --noEmit` — clean
 - `npm run build` — clean (exit 0)
-- `npx tsx scripts/verify-assistant-writes.ts` — **18/18** assertions
-  (payment row, payable 5000 → 3000, session COMPLETED, duplicate blocked,
-  cross-tenant blocked, reminder + `nextFollowUpAt` sync, cross-tenant blocked)
-- `npx tsx scripts/verify-ai-queries.ts` — **4/4** live Gemini cases
-  (2 query types + supplier payment extraction + "tomorrow" → 1 day)
+- `npx tsx scripts/verify-assistant-writes.ts` — **33/33** assertions
+  (supplier payment + payable maths, reminder + `nextFollowUpAt` sync,
+  purchase total/paid/outstanding, stock move, payable increase, overpay
+  rejection with no partial stock, duplicate and cross-tenant blocking)
+- `npx tsx scripts/verify-ai-queries.ts` — **5/5** live Gemini cases
+  (2 query types, supplier payment extraction, "tomorrow" → 1 day,
+  purchase supplier/qty/unit-price/paid extraction)
 
 ---
 

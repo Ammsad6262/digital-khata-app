@@ -10,6 +10,7 @@ import { prisma } from "@/lib/db/prisma";
 import {
   executeSupplierPaymentSession,
   executeReminderSession,
+  executePurchaseSession,
 } from "@/lib/smart-entry/service";
 import { listSuppliersWithBalance } from "@/lib/services/suppliers";
 
@@ -166,6 +167,91 @@ async function main() {
     );
     const bReminders = await prisma.reminder.count({ where: { userId: userB.id } });
     check("B created no reminder", bReminders === 0, `${bReminders}`);
+
+    console.log("\n── Purchase from a supplier ──");
+    const product = await prisma.product.create({
+      data: {
+        userId: userA.id,
+        name: "Sugar",
+        unit: "kg",
+        purchasePrice: 100,
+        sellingPrice: 150,
+        openingStock: 5,
+      },
+    });
+
+    const purchaseSession = await makeSession(userA.id, "CREATE_PURCHASE");
+    const purchaseResult = await executePurchaseSession(userA.id, {
+      sessionId: purchaseSession,
+      supplierId: supplier.id,
+      productId: product.id,
+      quantity: 10,
+      unitCost: 100,
+      paidAmount: 400,
+    });
+    check("result type is purchase", purchaseResult.resultType === "purchase", purchaseResult.resultType);
+
+    const purchase = await prisma.purchase.findFirst({
+      where: { supplierId: supplier.id, userId: userA.id },
+      include: { items: true },
+    });
+    check("purchase row created", !!purchase, "missing");
+    check("purchase total is 1000", purchase?.totalAmount.toString() === "1000", String(purchase?.totalAmount));
+    check("purchase paid is 400", purchase?.paidAmount.toString() === "400", String(purchase?.paidAmount));
+    check("purchase outstanding is 600", purchase?.outstanding.toString() === "600", String(purchase?.outstanding));
+    check("one purchase line item", purchase?.items.length === 1, String(purchase?.items.length));
+
+    const moves = await prisma.stockMove.findMany({ where: { productId: product.id } });
+    const inbound = moves.reduce((sum, m) => sum + Number(m.quantity), 0);
+    check("stock increased by 10", inbound === 10, String(inbound));
+
+    const balancesAfterPurchase = await listSuppliersWithBalance(userA.id);
+    const payableAfter = balancesAfterPurchase.find((s) => s.id === supplier.id)?.balance;
+    check("payable now 3600 (3000 + 600)", payableAfter === "3600", String(payableAfter));
+
+    await expectFailure("purchase session cannot execute twice", () =>
+      executePurchaseSession(userA.id, {
+        sessionId: purchaseSession,
+        supplierId: supplier.id,
+        productId: product.id,
+        quantity: 10,
+        unitCost: 100,
+        paidAmount: 400,
+      }),
+    );
+    const purchaseCount = await prisma.purchase.count({
+      where: { supplierId: supplier.id, userId: userA.id },
+    });
+    check("still exactly one purchase", purchaseCount === 1, `${purchaseCount}`);
+
+    const overpaySession = await makeSession(userA.id, "CREATE_PURCHASE");
+    await expectFailure("paid amount above total is rejected", () =>
+      executePurchaseSession(userA.id, {
+        sessionId: overpaySession,
+        supplierId: supplier.id,
+        productId: product.id,
+        quantity: 1,
+        unitCost: 100,
+        paidAmount: 5000,
+      }),
+    );
+    const overpay = await prisma.smartEntrySession.findUniqueOrThrow({ where: { id: overpaySession } });
+    check("failed session marked FAILED", overpay.status === "FAILED", overpay.status);
+    const stockAfterFailure = await prisma.stockMove.count({ where: { productId: product.id } });
+    check("no extra stock move on failure", stockAfterFailure === 1, `${stockAfterFailure}`);
+
+    const foreignPurchaseSession = await makeSession(userA.id, "CREATE_PURCHASE");
+    await expectFailure("business B cannot execute A's purchase session", () =>
+      executePurchaseSession(userB.id, {
+        sessionId: foreignPurchaseSession,
+        supplierId: supplier.id,
+        productId: product.id,
+        quantity: 1,
+        unitCost: 100,
+      }),
+    );
+    const bPurchases = await prisma.purchase.count({ where: { userId: userB.id } });
+    check("B created no purchase", bPurchases === 0, `${bPurchases}`);
   } finally {
     console.log("\n── Cleanup ──");
     await prisma.user.deleteMany({ where: { id: { in: [userA.id, userB.id] } } });

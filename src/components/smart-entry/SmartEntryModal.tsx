@@ -322,6 +322,18 @@ function SmartEntryBody({
     );
   }
 
+  // Purchase from a named supplier (stock in + payable)
+  if (state === "form" && smartEntry.purchaseForm) {
+    return (
+      <PurchaseFormView
+        form={smartEntry.purchaseForm}
+        transcript={smartEntry.transcript}
+        onConfirm={smartEntry.confirm}
+        onCancel={smartEntry.cancel}
+      />
+    );
+  }
+
   // V10: Query result (for QUERY intent)
   if (state === "form" && smartEntry.queryResult) {
     return (
@@ -3496,6 +3508,206 @@ function ReminderFormView({
           className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-brand-600 px-4 py-3 text-sm font-semibold text-white shadow-md shadow-brand-600/30 hover:bg-brand-700 disabled:bg-brand-300"
         >
           <Check className="h-4 w-4" /> {t("smartentry.reminder.confirm")}
+        </button>
+        <button
+          type="button"
+          onClick={onCancel}
+          className="rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+        >
+          {t("smartentry.action.cancel")}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Purchase from a supplier — stock in + payable confirmation
+// ────────────────────────────────────────────────────────────────────────────
+
+type PurchaseFormShape = {
+  supplierNameRaw: string | null;
+  resolvedSupplierId: string | null;
+  supplierCandidates: Array<{ id: string; name: string; phone?: string | null }>;
+  productNameRaw: string | null;
+  resolvedProductId: string | null;
+  productCandidates: Array<{
+    id: string;
+    name: string;
+    unit?: string | null;
+    sellingPrice?: string | null;
+  }>;
+  quantity: number | null;
+  unitCost: number | null;
+  paidAmount: number;
+  notes: string | null;
+  date: string;
+  supplierBalance: string | null;
+};
+
+function PurchaseFormView({
+  form,
+  transcript,
+  onConfirm,
+  onCancel,
+}: {
+  form: PurchaseFormShape;
+  transcript: string | null;
+  onConfirm: (input: Record<string, unknown>) => void;
+  onCancel: () => void;
+}) {
+  const { t } = useLanguage();
+  const [supplierId, setSupplierId] = useState(form.resolvedSupplierId ?? "");
+  const [productId, setProductId] = useState(form.resolvedProductId ?? "");
+  const [quantity, setQuantity] = useState(form.quantity != null ? String(form.quantity) : "");
+  const [unitCost, setUnitCost] = useState(form.unitCost != null ? String(form.unitCost) : "");
+  const [paid, setPaid] = useState(String(form.paidAmount ?? 0));
+
+  const product = form.productCandidates.find((p) => p.id === productId);
+  const qty = Number(quantity);
+  const cost = Number(unitCost);
+  const paidValue = Number(paid);
+  const hasNumbers = quantity.trim() !== "" && unitCost.trim() !== "";
+  const total =
+    hasNumbers && Number.isFinite(qty) && Number.isFinite(cost)
+      ? Math.round(qty * cost * 100) / 100
+      : 0;
+  const credit =
+    total - (Number.isFinite(paidValue) ? Math.min(paidValue, total) : 0);
+  const roundedCredit = Math.round(credit * 100) / 100;
+
+  const isValid =
+    !!supplierId &&
+    !!productId &&
+    hasNumbers &&
+    qty > 0 &&
+    cost >= 0 &&
+    Number.isFinite(paidValue) &&
+    paidValue >= 0 &&
+    paidValue <= total;
+
+  return (
+    <div className="space-y-4 p-1">
+      <div className="flex items-center gap-2">
+        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+          <Package className="h-4 w-4" />
+        </div>
+        <div>
+          <p className="text-sm font-semibold text-slate-900">{t("smartentry.purchase.title")}</p>
+          {transcript ? <p className="text-xs text-slate-500">“{transcript}”</p> : null}
+        </div>
+      </div>
+
+      <div>
+        <label className="mb-1 block text-xs font-medium text-slate-600">{t("smartentry.purchase.supplier")}</label>
+        <select
+          value={supplierId}
+          onChange={(e) => setSupplierId(e.target.value)}
+          className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+        >
+          <option value="">{t("smartentry.purchase.pickSupplier")}</option>
+          {form.supplierCandidates.map((s) => (
+            <option key={s.id} value={s.id}>{s.name}</option>
+          ))}
+        </select>
+        {form.supplierBalance ? (
+          <p className="mt-1 text-xs text-slate-500">
+            {t("smartentry.purchase.payable")}: Rs. {Number(form.supplierBalance).toLocaleString()}
+          </p>
+        ) : null}
+      </div>
+
+      <div>
+        <label className="mb-1 block text-xs font-medium text-slate-600">{t("smartentry.purchase.product")}</label>
+        <select
+          value={productId}
+          onChange={(e) => setProductId(e.target.value)}
+          className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+        >
+          <option value="">{t("smartentry.purchase.pickProduct")}</option>
+          {form.productCandidates.map((p) => (
+            <option key={p.id} value={p.id}>{p.name}</option>
+          ))}
+        </select>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="mb-1 block text-xs font-medium text-slate-600">
+            {t("smartentry.purchase.quantity")}{product?.unit ? ` (${product.unit})` : ""}
+          </label>
+          <input
+            type="number"
+            inputMode="decimal"
+            min="0"
+            step="any"
+            value={quantity}
+            onChange={(e) => setQuantity(e.target.value)}
+            placeholder="0"
+            className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm font-semibold text-slate-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-xs font-medium text-slate-600">{t("smartentry.purchase.unitCost")}</label>
+          <input
+            type="number"
+            inputMode="decimal"
+            min="0"
+            step="0.01"
+            value={unitCost}
+            onChange={(e) => setUnitCost(e.target.value)}
+            placeholder="0"
+            className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm font-semibold text-slate-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+          />
+        </div>
+      </div>
+
+      <div>
+        <label className="mb-1 block text-xs font-medium text-slate-600">{t("smartentry.purchase.paidNow")}</label>
+        <input
+          type="number"
+          inputMode="decimal"
+          min="0"
+          step="0.01"
+          value={paid}
+          onChange={(e) => setPaid(e.target.value)}
+          placeholder="0"
+          className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm font-semibold text-slate-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+        />
+        {paidValue > total && total > 0 ? (
+          <p className="mt-1 text-xs font-medium text-red-600">{t("smartentry.purchase.paidTooMuch")}</p>
+        ) : null}
+      </div>
+
+      <div className="rounded-xl bg-slate-50 px-3 py-2.5 text-sm">
+        <div className="flex items-center justify-between">
+          <span className="text-slate-600">{t("smartentry.purchase.total")}</span>
+          <span className="font-semibold text-slate-900">Rs. {total.toLocaleString()}</span>
+        </div>
+        <div className="mt-1 flex items-center justify-between">
+          <span className="text-slate-600">{t("smartentry.purchase.onCredit")}</span>
+          <span className="font-semibold text-amber-700">Rs. {roundedCredit.toLocaleString()}</span>
+        </div>
+      </div>
+
+      <div className="flex gap-2">
+        <button
+          type="button"
+          disabled={!isValid}
+          onClick={() =>
+            onConfirm({
+              intentType: "CREATE_PURCHASE",
+              supplierId,
+              productId,
+              quantity: qty,
+              unitCost: cost,
+              paidAmount: Number.isFinite(paidValue) ? paidValue : 0,
+              notes: null,
+            })
+          }
+          className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-brand-600 px-4 py-3 text-sm font-semibold text-white shadow-md shadow-brand-600/30 hover:bg-brand-700 disabled:bg-brand-300"
+        >
+          <Check className="h-4 w-4" /> {t("smartentry.purchase.confirm")}
         </button>
         <button
           type="button"

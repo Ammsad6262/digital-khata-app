@@ -37,6 +37,7 @@ import { createProductWithOpeningStock } from "@/lib/services/products";
 import { createCustomer } from "@/lib/services/customers";
 import { listSuppliersWithBalance } from "@/lib/services/suppliers";
 import { createSupplierPayment } from "@/lib/services/supplier-payments";
+import { createPurchase } from "@/lib/services/purchases";
 import { listReminders, getReminderCounts, createReminder } from "@/lib/services/reminders";
 import { invalidateCache } from "@/lib/utils/cache";
 import { tServer } from "@/lib/i18n/server";
@@ -177,6 +178,22 @@ export type ReminderFormState = {
   customerCandidates: EntityCandidate[];
 };
 
+// Purchase form state (for CREATE_PURCHASE intent)
+export type PurchaseFormState = {
+  supplierNameRaw: string | null;
+  resolvedSupplierId: string | null;
+  supplierCandidates: EntityCandidate[];
+  productNameRaw: string | null;
+  resolvedProductId: string | null;
+  productCandidates: EntityCandidate[];
+  quantity: number | null;
+  unitCost: number | null;
+  paidAmount: number;
+  notes: string | null;
+  date: string;
+  supplierBalance: string | null;
+};
+
 // V10: Query result state (for QUERY intent)
 export type QueryResultState = {
   queryType: string;
@@ -239,6 +256,7 @@ export type InterpretResult = {
   paymentForm?: PaymentFormState;
   supplierPaymentForm?: SupplierPaymentFormState;
   reminderForm?: ReminderFormState;
+  purchaseForm?: PurchaseFormState;
   queryResult?: QueryResultState;
   stockIntakeForm?: StockIntakeFormState;
   productCreationForm?: ProductCreationFormState;
@@ -256,7 +274,7 @@ export type ExecuteResult = {
   paymentId?: string;
   productId?: string;
   customerId?: string;
-  resultType: "sale" | "expense" | "payment" | "stock_intake" | "product" | "customer" | "supplier_payment" | "reminder";
+  resultType: "sale" | "expense" | "payment" | "stock_intake" | "product" | "customer" | "supplier_payment" | "reminder" | "purchase";
   message: string;
 };
 
@@ -476,6 +494,10 @@ export async function interpretInput(
   // V13: CREATE_CUSTOMER → dedicated customer creation form (NOT the sale form)
   if (ai.intent === "CREATE_CUSTOMER") {
     return await buildCustomerCreationForm(userId, ai, transcript, input.type);
+  }
+  // Stock bought from a named supplier (creates a payable)
+  if (ai.intent === "CREATE_PURCHASE") {
+    return await buildPurchaseForm(userId, ai, transcript, input.type);
   }
   // Money OUT to a supplier
   if (ai.intent === "SUPPLIER_PAYMENT") {
@@ -981,6 +1003,86 @@ async function buildReminderForm(
       customerNameRaw: ai.customerName ?? null,
       resolvedCustomerId,
       customerCandidates: customers,
+    },
+  };
+}
+
+/**
+ * Build the purchase confirmation form (stock bought from a named supplier).
+ * Creates a payable and adds stock — never an expense.
+ */
+async function buildPurchaseForm(
+  userId: string,
+  ai: AiInterpretation,
+  transcript: string | null,
+  inputType: string,
+): Promise<InterpretResult> {
+  let resolvedSupplierId: string | null = null;
+  if (ai.supplierName) {
+    const matches = await findSupplierCandidates(userId, ai.supplierName);
+    if (matches.length === 1) resolvedSupplierId = matches[0]!.id;
+  }
+
+  const [suppliers, products] = await Promise.all([
+    listSuppliersWithBalance(userId),
+    prisma.product.findMany({
+      where: { userId, isDeleted: false },
+      select: { id: true, name: true, unit: true, purchasePrice: true, sellingPrice: true },
+      orderBy: { name: "asc" },
+      take: 200,
+    }),
+  ]);
+
+  let resolvedProductId: string | null = null;
+  if (ai.productName) {
+    const matches = await findProductCandidates(userId, ai.productName);
+    if (matches.length === 1) resolvedProductId = matches[0]!.id;
+  }
+
+  const product = products.find((p) => p.id === resolvedProductId);
+  const unitCost =
+    ai.explicitUnitPrice ?? (product ? Number(product.purchasePrice) : null);
+
+  const session = await prisma.smartEntrySession.create({
+    data: {
+      userId,
+      status: "AWAITING_CONFIRMATION",
+      inputType: inputType as "text" | "voice",
+      transcript,
+      rawAiResponse: aiToPrismaJson(ai),
+      intent: ai.intent,
+      expiresAt: new Date(Date.now() + SESSION_TTL_MS),
+    },
+  });
+
+  return {
+    sessionId: session.id,
+    status: "FORM",
+    transcript,
+    intent: ai.intent,
+    purchaseForm: {
+      supplierNameRaw: ai.supplierName ?? null,
+      resolvedSupplierId,
+      supplierCandidates: suppliers.map((s) => ({
+        id: s.id,
+        name: s.name,
+        phone: s.phone ?? null,
+      })),
+      productNameRaw: ai.productName ?? null,
+      resolvedProductId,
+      productCandidates: products.map((p) => ({
+        id: p.id,
+        name: p.name,
+        unit: p.unit,
+        sellingPrice: p.sellingPrice.toString(),
+      })),
+      quantity: ai.quantity ?? null,
+      unitCost,
+      paidAmount: ai.explicitPaidAmount ?? 0,
+      notes: null,
+      date: new Date().toISOString(),
+      supplierBalance:
+        suppliers.find((s) => s.id === resolvedSupplierId)?.balance ?? null,
     },
   };
 }
@@ -1686,6 +1788,87 @@ export async function executePaymentSession(
       where: { id: input.sessionId },
       data: { status: "FAILED", completedAt: new Date() },
     }).catch(() => {});
+    throw error;
+  }
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Execute a confirmed CREATE_PURCHASE (stock in + payable)
+// ────────────────────────────────────────────────────────────────────────────
+
+export async function executePurchaseSession(
+  userId: string,
+  input: {
+    sessionId: string;
+    supplierId: string;
+    productId: string;
+    quantity: number;
+    unitCost: number;
+    paidAmount?: number;
+    notes?: string | null;
+    date?: string;
+  },
+): Promise<ExecuteResult> {
+  const session = await loadAndVerifySession(userId, input.sessionId);
+  if (session.status === "COMPLETED") {
+    throw new BadRequestError("api.smartEntry.alreadyProcessed");
+  }
+
+  const claimed = await prisma.smartEntrySession.updateMany({
+    where: { id: input.sessionId, userId, status: "AWAITING_CONFIRMATION" },
+    data: { status: "EXECUTING", updatedAt: new Date() },
+  });
+  if (claimed.count === 0) {
+    throw new BadRequestError("api.smartExecute.wrongState");
+  }
+
+  try {
+    const purchase = await createPurchase(
+      {
+        supplierId: input.supplierId,
+        items: [
+          {
+            productId: input.productId,
+            quantity: input.quantity,
+            unitCost: input.unitCost,
+          },
+        ],
+        paidAmount: input.paidAmount ?? 0,
+        notes: input.notes ?? null,
+        date: input.date,
+      },
+      userId,
+    );
+
+    await prisma.smartEntrySession.update({
+      where: { id: input.sessionId },
+      data: { status: "COMPLETED", completedAt: new Date() },
+    });
+
+    invalidateCache("dashboard");
+    invalidateCache("suppliers");
+    invalidateCache("transactions");
+    invalidateCache("stock");
+    invalidateCache("products");
+
+    return {
+      resultType: "purchase",
+      message: tServer(
+        "api.smartExecute.purchaseRecorded",
+        {
+          total: Number(purchase.totalAmount).toLocaleString(),
+          supplier: purchase.supplierName ?? "",
+        },
+        "en",
+      ),
+    };
+  } catch (error) {
+    await prisma.smartEntrySession
+      .update({
+        where: { id: input.sessionId },
+        data: { status: "FAILED", completedAt: new Date() },
+      })
+      .catch(() => {});
     throw error;
   }
 }

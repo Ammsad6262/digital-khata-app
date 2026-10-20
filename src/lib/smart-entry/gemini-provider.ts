@@ -121,27 +121,38 @@ Detect the user's intent from the natural-language input. Choose the BEST match:
    Fill: productName, quantity, unit, explicitUnitPrice (the purchase price per unit),
    explicitTotal (if total cost is given instead of per-unit)
 
-7. SUPPLIER_PAYMENT: The user is recording money PAID to a supplier.
+7. CREATE_PURCHASE: The user is buying stock FROM A NAMED SUPPLIER on credit
+   (this creates a payable, not an expense).
+   Examples: "Bought 10 bags of sugar from Ali at 5500 each", "Ali se 20 kilo chawal
+   900 rupay kilo kharida", "Purchased 5 boxes from the rice mill, paid 2000"
+   Fill: supplierName, productName, quantity, unit, explicitUnitPrice,
+   explicitPaidAmount (money paid up front; null/0 if fully on credit)
+   IMPORTANT: if a supplier is named, use CREATE_PURCHASE (NOT STOCK_INTAKE).
+   If no supplier is named, use STOCK_INTAKE.
+
+8. SUPPLIER_PAYMENT: The user is recording money PAID to a supplier.
    Examples: "I paid Ali 5000", "supplier ko 5000 diye", "paid the rice mill 10000"
    Fill: supplierName, explicitPaidAmount (the amount paid)
    IMPORTANT: "Ahmad paid me" = RECORD_PAYMENT (money IN). "I paid Ahmad" = SUPPLIER_PAYMENT (money OUT).
 
-8. CREATE_REMINDER: The user wants a follow-up, reminder, or task.
+9. CREATE_REMINDER: The user wants a follow-up, reminder, or task.
    Examples: "Remind me to call Ahmed tomorrow", "Kal Ahmed ko call karna hai",
    "remind me in 3 days to pay the supplier"
    Fill: reminderTitle, reminderInDays, reminderPriority, reminderType,
    customerName/supplierName (if a specific party is mentioned)
 
-9. QUERY: The user is asking a question about their business data.
+10. QUERY: The user is asking a question about their business data.
    Examples: "How much did I spend today?", "How much did I sell today?",
    "Which customers owe me money?", "How much stock of rice do I have?"
    Fill: queryType, queryEntity (if asking about a specific product/customer), queryDateRange
 
-10. UNKNOWN: The intent is unclear. Set needsClarification=true and ask a question.
+11. UNKNOWN: The intent is unclear. Set needsClarification=true and ask a question.
 
 INTENT DISAMBIGUATION:
 - "I bought tea for 200" → CREATE_EXPENSE (ordinary expense, not inventory)
 - "I bought 50 kg rice at 900 per kg" → STOCK_INTAKE (inventory purchase with quantity+unit)
+- "I bought 50 kg rice from Ali at 900 per kg" → CREATE_PURCHASE (supplier named → payable)
+- "Bought 5 boxes of tea from the rice mill, paid 2000" → CREATE_PURCHASE (paidAmount=2000)
 - "I bought 20 packets of biscuits for 1500" → STOCK_INTAKE (has quantity + unit)
 - "Ahmad bought 25 kg rice" → CREATE_CREDIT_SALE (customer buying on credit)
 - "Ahmad paid me 5000" → RECORD_PAYMENT (customer paying)
@@ -420,7 +431,8 @@ export class GeminiProvider implements AIProvider {
           type: Type.STRING,
           enum: ["CREATE_CREDIT_SALE", "CREATE_EXPENSE", "RECORD_PAYMENT",
                  "CREATE_CUSTOMER", "CREATE_PRODUCT", "STOCK_INTAKE",
-                 "SUPPLIER_PAYMENT", "CREATE_REMINDER", "QUERY", "UNKNOWN"],
+                 "CREATE_PURCHASE", "SUPPLIER_PAYMENT", "CREATE_REMINDER",
+                 "QUERY", "UNKNOWN"],
         },
         customerName: { type: Type.STRING, nullable: true },
         productName: { type: Type.STRING, nullable: true },

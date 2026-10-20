@@ -26,7 +26,7 @@ import type {
   InterpretResult, FormFieldState, ExpenseFormState, PaymentFormState,
   QueryResultState, StockIntakeFormState, ProductCreationFormState,
   CustomerCreationFormState, ClarificationState, SupplierPaymentFormState,
-  ReminderFormState,
+  ReminderFormState, PurchaseFormState,
 } from "@/lib/smart-entry/service";
 
 export type SmartEntryState =
@@ -43,6 +43,7 @@ type State = {
   paymentForm: PaymentFormState | null;
   supplierPaymentForm: SupplierPaymentFormState | null;
   reminderForm: ReminderFormState | null;
+  purchaseForm: PurchaseFormState | null;
   queryResult: QueryResultState | null;
   stockIntakeForm: StockIntakeFormState | null;
   productCreationForm: ProductCreationFormState | null;
@@ -58,7 +59,7 @@ type State = {
 const INITIAL: State = {
   state: "idle", sessionId: null, transcript: null, intent: null,
   form: null, expenseForm: null, paymentForm: null, queryResult: null,
-  supplierPaymentForm: null, reminderForm: null,
+  supplierPaymentForm: null, reminderForm: null, purchaseForm: null,
   stockIntakeForm: null, productCreationForm: null, customerCreationForm: null,
   clarification: null, message: null, error: null,
   createdSaleId: null, createdProductId: null, createdCustomerId: null,
@@ -99,6 +100,7 @@ export function useSmartEntry() {
       paymentForm: result.paymentForm ?? null,
       supplierPaymentForm: result.supplierPaymentForm ?? null,
       reminderForm: result.reminderForm ?? null,
+      purchaseForm: result.purchaseForm ?? null,
       queryResult: result.queryResult ?? null,
       stockIntakeForm: result.stockIntakeForm ?? null,
       productCreationForm: result.productCreationForm ?? null,

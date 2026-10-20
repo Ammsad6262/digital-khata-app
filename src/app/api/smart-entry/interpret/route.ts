@@ -28,7 +28,7 @@
  */
 
 import { NextRequest } from "next/server";
-import { requireUserId } from "@/lib/auth/get-current-user";
+import { requireActiveAccess } from "@/lib/auth/get-current-user";
 import { ok, fail, parseJsonBody } from "@/lib/utils/api";
 import { BadRequestError, AppError, ErrorCode } from "@/lib/errors";
 import { tServer } from "@/lib/i18n/server";
@@ -47,7 +47,7 @@ const MAX_AUDIO_BYTES = 5 * 1024 * 1024;
 export async function POST(req: NextRequest) {
   try {
     // 1. Authenticate
-    const userId = await requireUserId(req);
+    const userId = await requireActiveAccess(req);
 
     // 2. Rate limit
     const limit = checkInterpretLimit(userId);

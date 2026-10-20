@@ -18,13 +18,27 @@ const TOKEN_TTL_SECONDS = 7 * 24 * 60 * 60; // 7 days
 // Password hashing
 // ────────────────────────────────────────────────────────────────────────────
 
+type BcryptModule = {
+  hash: (plaintext: string, rounds: number) => Promise<string>;
+  compare: (plaintext: string, hash: string) => Promise<boolean>;
+};
+
+async function loadBcrypt(): Promise<BcryptModule> {
+  // `bcryptjs` is CJS; bundlers expose the functions directly, while plain
+  // Node/tsx ESM exposes them under `.default`. Support both.
+  const imported = (await import("bcryptjs")) as unknown as BcryptModule & {
+    default?: BcryptModule;
+  };
+  return imported.default ?? imported;
+}
+
 async function hashPassword(plaintext: string): Promise<string> {
-  const bcrypt = await import("bcryptjs");
+  const bcrypt = await loadBcrypt();
   return bcrypt.hash(plaintext, BCRYPT_ROUNDS);
 }
 
 async function verifyPassword(plaintext: string, hash: string): Promise<boolean> {
-  const bcrypt = await import("bcryptjs");
+  const bcrypt = await loadBcrypt();
   return bcrypt.compare(plaintext, hash);
 }
 

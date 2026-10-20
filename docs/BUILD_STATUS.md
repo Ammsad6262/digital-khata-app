@@ -1,6 +1,6 @@
 # Build Status — Platform Expansion
 
-Last updated: Stage 3 + Insights complete (2026-10-20). Resume at Stage 4 (voice assistant).
+Last updated: Stage 3 + Insights + AI gating complete (2026-10-20). Resume at Stage 4 (voice assistant intents).
 
 ## Environment
 
@@ -156,6 +156,26 @@ has not deployed anything.
 
 ---
 
+## ✅ Completed (2026-10-20) — AI gating enforced on the server
+
+- Found a real gap: `/api/smart-entry/interpret`, `/execute` and `/cancel` used
+  `requireUserId` (logged-in only), so an account with an **expired**
+  subscription could still use AI.
+- All three now use `requireActiveAccess` → expired accounts receive **403**
+  before any AI work or body parsing happens.
+- Fixed a latent ESM interop bug in `src/lib/services/auth.ts`:
+  `await import("bcryptjs")` returns the functions under `.default` in plain
+  Node/tsx, which made `registerUser` crash outside Next. Now supports both
+  shapes (no behaviour change inside Next).
+
+### Verification
+- `scripts/verify-ai-gating.ts` → **5/5 passed** — expired account blocked on
+  interpret/execute/cancel (403), invalid token (401), active trial passes the
+  gate (400 validation, not 403).
+- `npm run typecheck` + `npm run build` → clean.
+
+---
+
 ## 🚨 Critical finding: migrations are unusable
 
 Every file in `prisma/migrations/` uses **SQLite DDL** (`DATETIME`, etc.). They
@@ -212,7 +232,7 @@ approval to run DDL through the Supabase Management API.**
 | 4 | Universal voice-assistant action system — **mostly pre-existing**: 8 intents already live (sale, expense, payment, customer, product, stock intake, query, clarify); still missing purchase / supplier-payment / reminder intents. **next** |
 | 5 | AI Sales Growth Assistant — the deterministic evidence engine now exists (see Insights); the AI narration layer is not built yet |
 | 6 | Evidence-based AI business insights ✅ deterministic core done |
-| 7 | Premium/AI plan gating (backend-enforced) — subscription/trial gate exists on every API; no separate AI plan tier yet |
+| 7 | AI gating (backend-enforced) ✅ done — all AI endpoints require active access; a separate paid AI tier needs a product decision (no fake payment flow added) |
 | 8 | UX polish + full acceptance-workflow testing |
 
 ---

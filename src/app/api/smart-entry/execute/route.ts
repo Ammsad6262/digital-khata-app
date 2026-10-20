@@ -12,7 +12,7 @@
  */
 
 import { NextRequest } from "next/server";
-import { requireUserId } from "@/lib/auth/get-current-user";
+import { requireActiveAccess } from "@/lib/auth/get-current-user";
 import { ok, fail, parseJsonBody } from "@/lib/utils/api";
 import { BadRequestError } from "@/lib/errors";
 import { tServer } from "@/lib/i18n/server";
@@ -24,7 +24,7 @@ export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
   try {
-    const userId = await requireUserId(req);
+    const userId = await requireActiveAccess(req);
 
     const limit = checkExecuteLimit(userId);
     if (!limit.allowed) {

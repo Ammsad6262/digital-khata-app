@@ -42,6 +42,17 @@ that reads your own database rows.
   deterministic summary to be shown instead. Truncated answers are rejected.
   10-minute cache. Gemini down → computed summary, clearly labelled.
 
+### One-tap contact (nothing happens outside the app)
+- `ContactActions` — Call (`tel:`) + WhatsApp with a **pre-written message**, on
+  reminder cards, growth recommendations, the customer page and the new
+  dashboard "Do this now" strip.
+- `toInternationalNumber()` accepts `0300 1234567`, `+92 300 1234567`,
+  `0300-1234567` or `3001234567`.
+- Reminders show the live balance owed and pre-fill the message with the exact
+  amount. Nothing is ever sent without the owner pressing send.
+- The ☰ menu is rendered by `AppHeader`/`TranslatedHeader`, so it is on **every**
+  screen.
+
 ### Voice / text assistant
 - Read queries: includes `SUPPLIER_PAYABLES` and `TODAYS_REMINDERS`.
 - Write intents: `SUPPLIER_PAYMENT`, `CREATE_REMINDER`, `CREATE_PURCHASE` —
@@ -69,6 +80,7 @@ that reads your own database rows.
 | 4 | Gemini fallback ignored 404 / timeout / null | assistant died on one model outage | `MODEL_CHAIN` reordered, `isTransient` broadened |
 | 5 | 95 rows with `userId = NULL` (from the old seed) | empty dashboard | local data repaired (attached to the owning account); `seed-sample-data.ts` replaced by a non-destructive seed |
 | 6 | **Supplier payment with no invoice link had no upper bound** | a 999,999 payment was silently accepted, wiping the payable | payable computed inside the transaction; `api.supplierPayment.exceedsPayable` returned |
+| 7 | **AI narration was truncated by Gemini thinking tokens** | the Growth page always showed "AI unavailable" | thinking disabled, 2048-token ceiling, truncated answers retried on the next model, whole-sentence trimming |
 
 Bug 6 was found by the acceptance suite, not by inspection.
 
@@ -87,8 +99,9 @@ Bug 6 was found by the acceptance suite, not by inspection.
 | `scripts/verify-ai-gating.ts` | AI endpoints 403 for expired accounts (incl. growth) | 8/8 |
 | `scripts/verify-assistant-writes.ts` | voice write-path extraction | 33/33 |
 | `scripts/verify-ai-queries.ts` | live Gemini routing | 5/5 |
+| `scripts/verify-contact-actions.ts` | phone normalisation, Call/WhatsApp links, reminder enrichment | 20/20 |
 
-Total: **187 assertions passing**. `npx tsc --noEmit` and `npm run build` are
+Total: **207 assertions passing**. `npx tsc --noEmit` and `npm run build` are
 clean.
 
 The 10 acceptance workflows: register+trial · add customer · credit sale (stock

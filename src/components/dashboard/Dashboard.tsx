@@ -26,6 +26,7 @@ import { HeroCard } from "@/components/dashboard/HeroCard";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { QuickActions } from "@/components/dashboard/QuickActions";
 import { RemindersCard } from "@/components/dashboard/RemindersCard";
+import { GrowthCard } from "@/components/dashboard/GrowthCard";
 import { LowStockList } from "@/components/dashboard/LowStockList";
 import { RecentTransactions } from "@/components/dashboard/RecentTransactions";
 import { DashboardSkeleton } from "@/components/dashboard/DashboardSkeleton";
@@ -129,6 +130,9 @@ export function Dashboard() {
 
       {/* Overdue / due-today reminders (hidden when there are none) */}
       <RemindersCard />
+
+      {/* The single most useful thing to do right now, from your own data */}
+      <GrowthCard />
 
       {/* Today's stats — 2×2 grid */}
       <section className="space-y-2">

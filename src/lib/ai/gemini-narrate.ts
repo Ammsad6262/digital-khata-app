@@ -34,6 +34,7 @@ export async function generateNarration(
 
   const client = new GoogleGenAI({ apiKey });
   let lastError: unknown;
+  let longestTruncated = "";
 
   for (const model of MODEL_CHAIN) {
     try {
@@ -45,19 +46,46 @@ export async function generateNarration(
             systemInstruction,
             temperature: 0.2,
             topP: 0.2,
-            maxOutputTokens: 1024,
+            // Gemini 3 models spend "thinking" tokens from the same output
+            // budget, which silently truncated the narration mid-sentence.
+            // Thinking is not needed for re-wording facts, so switch it off
+            // and keep a generous ceiling for the answer itself.
+            maxOutputTokens: 2048,
+            thinkingConfig: { thinkingBudget: 0 },
           },
         }),
         TIMEOUT_MS,
       );
 
       const text = response.text?.trim();
-      if (text) return text;
-      lastError = new Error("Empty AI response");
+      if (!text) {
+        lastError = new Error("Empty AI response");
+        continue;
+      }
+
+      // A complete sentence is the only thing worth showing. If a model
+      // stops mid-sentence, keep it as a last resort and try the next model
+      // — one of them usually finishes the thought.
+      const looksComplete = /[.!?]["')\]]?$/.test(text) && text.length >= 40;
+      if (looksComplete) {
+        console.log(`[gemini:narrate] ${model} returned a complete answer (${text.length} chars)`);
+        return text;
+      }
+
+      console.warn(
+        `[gemini:narrate] ${model} returned a truncated answer (${text.length} chars) — trying next model`,
+      );
+      if (text.length > longestTruncated.length) longestTruncated = text;
     } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.warn(`[gemini:narrate] ${model} failed: ${message.slice(0, 140)}`);
       lastError = error;
     }
   }
+
+  // No model produced a clean sentence. Hand back the best partial answer so
+  // the caller's own validation decides what the user finally sees.
+  if (longestTruncated) return longestTruncated;
 
   throw lastError instanceof Error ? lastError : new Error("AI unavailable");
 }

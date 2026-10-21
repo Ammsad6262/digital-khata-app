@@ -16,6 +16,7 @@
 
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
+import { MoreButton } from "./MoreButton";
 import { useLanguage } from "@/providers/language-provider";
 import { cn } from "@/lib/utils/cn";
 import type { TranslationKey } from "@/lib/i18n/translations";
@@ -53,7 +54,10 @@ export function TranslatedHeader({
           {t(titleKey)}
         </h1>
       </div>
-      {rightSlot ? <div className="flex items-center gap-2">{rightSlot}</div> : null}
+      <div className="flex shrink-0 items-center gap-1.5">
+        {rightSlot}
+        <MoreButton />
+      </div>
     </header>
   );
 }

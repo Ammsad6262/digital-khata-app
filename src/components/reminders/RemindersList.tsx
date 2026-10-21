@@ -7,9 +7,12 @@
 import Link from "next/link";
 import { useState } from "react";
 import { AlertTriangle, Bell, CheckCircle2, Circle } from "lucide-react";
+import { ContactActions } from "@/components/shared/ContactActions";
 import { useReminders, useSetReminderCompleted } from "@/hooks/use-reminders";
+import { useCurrencySymbol } from "@/hooks/use-currency-symbol";
 import { useLanguage } from "@/providers/language-provider";
 import { useToast } from "@/providers/toast-provider";
+import { formatMoney } from "@/lib/utils/money";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { Button } from "@/components/ui/Button";
 import type { ReminderFilter, ReminderView } from "@/lib/services/reminders";
@@ -45,8 +48,9 @@ function dueLabel(dueAt: Date | string): string {
 }
 
 export function RemindersList() {
-  const { t } = useLanguage();
+  const { t, tParams } = useLanguage();
   const toast = useToast();
+  const symbol = useCurrencySymbol();
   const [filter, setFilter] = useState<ReminderFilter>("today");
   const { data, isLoading, isError, error } = useReminders(filter);
   const toggle = useSetReminderCompleted();
@@ -133,6 +137,24 @@ export function RemindersList() {
             const typeKey =
               TYPE_KEYS[r.type as keyof typeof TYPE_KEYS] ?? "reminderType.custom";
 
+            const contactName = r.customerName ?? r.supplierName ?? "";
+            const phone = r.customerPhone ?? r.supplierPhone ?? null;
+            const balanceText =
+              r.customerBalance && Number(r.customerBalance) > 0
+                ? formatMoney(r.customerBalance, symbol)
+                : null;
+            const waMessage = phone
+              ? r.customerId
+                ? balanceText
+                  ? tParams("reminders.waMessageAmount", {
+                      name: contactName,
+                      title: r.title,
+                      amount: balanceText,
+                    })
+                  : tParams("reminders.waMessage", { name: contactName, title: r.title })
+                : tParams("reminders.waSupplierMessage", { name: contactName, title: r.title })
+              : undefined;
+
             return (
               <li
                 key={r.id}
@@ -155,40 +177,56 @@ export function RemindersList() {
                     )}
                   </button>
 
-                  <Link href={`/more/reminders/${r.id}`} className="min-w-0 flex-1">
-                    <p
-                      className={`text-sm font-medium ${
-                        done ? "text-slate-400 line-through" : "text-slate-900"
-                      }`}
-                    >
-                      {r.title}
-                    </p>
-                    <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
-                      <span
-                        className={
-                          overdue
-                            ? "font-medium text-red-600"
-                            : isToday
-                              ? "font-medium text-amber-700"
-                              : "text-slate-500"
-                        }
+                  <div className="min-w-0 flex-1">
+                    <Link href={`/more/reminders/${r.id}`} className="block">
+                      <p
+                        className={`text-sm font-medium ${
+                          done ? "text-slate-400 line-through" : "text-slate-900"
+                        }`}
                       >
-                        {overdue ? <AlertTriangle className="mr-0.5 inline h-3 w-3" /> : null}
-                        {dueLabel(r.dueAt)}
-                      </span>
-                      <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-600">
-                        {t(typeKey)}
-                      </span>
-                      {r.priority === "high" ? (
-                        <span className="rounded bg-red-50 px-1.5 py-0.5 text-[10px] font-medium text-red-600">
-                          {t("reminderPriority.high")}
+                        {r.title}
+                      </p>
+                      <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+                        <span
+                          className={
+                            overdue
+                              ? "font-medium text-red-600"
+                              : isToday
+                                ? "font-medium text-amber-700"
+                                : "text-slate-500"
+                          }
+                        >
+                          {overdue ? <AlertTriangle className="mr-0.5 inline h-3 w-3" /> : null}
+                          {dueLabel(r.dueAt)}
                         </span>
+                        <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-600">
+                          {t(typeKey)}
+                        </span>
+                        {r.priority === "high" ? (
+                          <span className="rounded bg-red-50 px-1.5 py-0.5 text-[10px] font-medium text-red-600">
+                            {t("reminderPriority.high")}
+                          </span>
+                        ) : null}
+                      </div>
+                      {context ? (
+                        <p className="mt-1 truncate text-xs text-slate-500">{context}</p>
                       ) : null}
-                    </div>
-                    {context ? (
-                      <p className="mt-1 truncate text-xs text-slate-500">{context}</p>
+                      {balanceText ? (
+                        <p className="mt-1 text-xs font-semibold text-slate-800">
+                          {t("reminders.owes")} {balanceText}
+                        </p>
+                      ) : null}
+                    </Link>
+
+                    {phone ? (
+                      <ContactActions
+                        phone={phone}
+                        whatsappMessage={waMessage}
+                        className="mt-2"
+                        compact
+                      />
                     ) : null}
-                  </Link>
+                  </div>
                 </div>
               </li>
             );

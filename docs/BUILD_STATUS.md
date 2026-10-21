@@ -353,6 +353,63 @@ up front.
 
 ---
 
+## Completed — owner-feedback round (menu everywhere, one-tap contact, AI fixed)
+
+Three things the owner reported after using the app:
+
+### 1. "AI unavailable" on the Growth page — fixed
+**Root cause:** Gemini 3.x models spend hidden *thinking* tokens out of the same
+output budget. The answer was silently truncated mid-sentence
+(`"You have 151700 in total receivables, so focus first on collecting 70000
+from Sajid Electronics, 32400 from Imran Stores"`), and the narration guard
+correctly refused to show a half-sentence — so it fell back every time.
+
+**Fixes:**
+- `thinkingConfig: { thinkingBudget: 0 }` + `maxOutputTokens: 2048`.
+- A truncated answer now tries the **next model in the chain** instead of being
+  returned, and `tidyNarration()` keeps only whole sentences (max 600 chars)
+  when trimming is needed.
+- Failures are logged with a reason (`ai-failed`, `incomplete`,
+  `unsupported-number`) instead of being swallowed.
+- The page now requests the explanation **automatically on load** (so it
+  arrives already telling you what to do), with a *Refresh explanation* button;
+  a friendly "AI is busy right now — your own numbers are below" note replaces
+  the old duplicated summary box.
+- Verified live: `Source: ai`, 371 chars, every number checked against the
+  fact sheet.
+
+### 2. The ☰ menu is now on every screen
+`AppHeader` and `TranslatedHeader` render the global More button themselves, so
+every page that uses a header has it — insights, growth, suppliers, reminders,
+transactions, products, every form and detail page. No more going back to the
+dashboard. (The seven main pages with custom headers already had it, and were
+checked for duplicates.)
+
+### 3. Call / WhatsApp on every reminder and every action
+- `ContactActions` component: one-tap **Call** (`tel:`) + **WhatsApp**
+  (`wa.me`) with a **pre-written message**. Nothing is ever sent for the user.
+- `toInternationalNumber()` normalises `0300 1234567`, `+92 300 1234567`,
+  `0300-1234567` and `3001234567` → `923001234567`, so WhatsApp links work
+  whichever way the number was typed.
+- `ReminderView` now carries `customerPhone`, `supplierPhone` and the live
+  `customerBalance`. Reminder cards show **Owes Rs 29,050.00** and offer Call /
+  WhatsApp with the exact amount already written in the message.
+- The same buttons appear on Growth recommendations (collections and supplier
+  payments) and on the customer page.
+- **New dashboard strip "Do this now"** (`GrowthCard`): the single most
+  important action from the owner's own records, with Call / WhatsApp inline.
+  Hidden when there is nothing to act on.
+
+### Verification
+- `npx tsx scripts/verify-contact-actions.ts` — **20/20** (number
+  normalisation, link building, reminder enrichment, growth contacts)
+- `npx tsx scripts/verify-growth-ai.ts` — live Gemini: complete, safe narration
+- Re-ran every suite: platform 9, purchases 27, reminders 24, insights 24,
+  assistant-writes 33, growth 26, acceptance 31 — all passing
+- `tsc --noEmit` and `npm run build` — clean
+
+---
+
 ## 🔑 Blockers / required from owner
 
 1. **`GEMINI_API_KEY`** — required for Smart Entry, the expanded voice assistant,

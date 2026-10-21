@@ -13,6 +13,7 @@ import { prisma } from "@/lib/db/prisma";
 import { NotFoundError } from "@/lib/errors";
 import { invalidateCache } from "@/lib/utils/cache";
 import { startOfTodayInTz } from "@/lib/utils/date";
+import { listOutstandingCustomers } from "@/lib/services/customers";
 import {
   createReminderSchema,
   updateReminderSchema,
@@ -21,8 +22,8 @@ import {
 import type { Prisma } from "@prisma/client";
 
 const reminderInclude = {
-  customer: { select: { name: true } },
-  supplier: { select: { name: true } },
+  customer: { select: { name: true, phone: true } },
+  supplier: { select: { name: true, phone: true } },
   product: { select: { name: true } },
 } satisfies Prisma.ReminderInclude;
 
@@ -38,8 +39,12 @@ export type ReminderView = {
   priority: string;
   customerId: string | null;
   customerName: string | null;
+  customerPhone: string | null;
+  /** Live balance for the linked customer — used for pre-filled messages. */
+  customerBalance: string | null;
   supplierId: string | null;
   supplierName: string | null;
+  supplierPhone: string | null;
   productId: string | null;
   productName: string | null;
   createdAt: Date;
@@ -65,12 +70,34 @@ function toView(r: ReminderRow): ReminderView {
     priority: r.priority,
     customerId: r.customerId,
     customerName: r.customer?.name ?? null,
+    customerPhone: r.customer?.phone ?? null,
+    customerBalance: null,
     supplierId: r.supplierId,
     supplierName: r.supplier?.name ?? null,
+    supplierPhone: r.supplier?.phone ?? null,
     productId: r.productId,
     productName: r.product?.name ?? null,
     createdAt: r.createdAt,
   };
+}
+
+/**
+ * Attach the live outstanding balance of each linked customer so a reminder
+ * card can offer a ready-to-send WhatsApp message with the real amount.
+ * One cached aggregate for the whole list, not a query per row.
+ */
+async function attachCustomerBalances(
+  rows: ReminderView[],
+  userId: string,
+): Promise<ReminderView[]> {
+  if (!rows.some((r) => r.customerId)) return rows;
+
+  const outstanding = await listOutstandingCustomers(userId);
+  const balanceById = new Map(outstanding.map((c) => [c.id, c.balance]));
+
+  return rows.map((r) =>
+    r.customerId ? { ...r, customerBalance: balanceById.get(r.customerId) ?? null } : r,
+  );
 }
 
 function dayBounds(timezone: string) {
@@ -112,7 +139,7 @@ export async function listReminders(
     orderBy: filter === "completed" ? { completedAt: "desc" } : { dueAt: "asc" },
     take: 200,
   });
-  return rows.map(toView);
+  return attachCustomerBalances(rows.map(toView), userId);
 }
 
 /** Counts for the filter tabs / dashboard badge. */
@@ -142,7 +169,8 @@ export async function getReminder(
     include: reminderInclude,
   });
   if (!row) throw new NotFoundError("api.resource.reminder", id);
-  return toView(row);
+  const [view] = await attachCustomerBalances([toView(row)], userId);
+  return view!;
 }
 
 /**

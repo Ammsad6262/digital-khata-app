@@ -1,12 +1,12 @@
 /**
  * App header — sticky top bar with the current screen title.
  *
- * Phase 3 only shows the title. Later phases will add:
- *   - business name (from Setting)
- *   - search icon
- *   - settings icon
+ * The global "More" menu is rendered here on EVERY page that uses this
+ * header, so the owner never has to go back to the dashboard to reach
+ * suppliers, reminders, insights, growth or transactions.
  */
 
+import { MoreButton } from "./MoreButton";
 import { cn } from "@/lib/utils/cn";
 
 export function AppHeader({
@@ -25,8 +25,11 @@ export function AppHeader({
         className,
       )}
     >
-      <h1 className="text-base font-semibold text-slate-900">{title}</h1>
-      {rightSlot ? <div className="flex items-center gap-2">{rightSlot}</div> : null}
+      <h1 className="min-w-0 truncate text-base font-semibold text-slate-900">{title}</h1>
+      <div className="flex shrink-0 items-center gap-1.5">
+        {rightSlot}
+        <MoreButton />
+      </div>
     </header>
   );
 }

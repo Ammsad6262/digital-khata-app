@@ -23,6 +23,8 @@ Hard rules:
 export type GrowthNarration = {
   text: string;
   source: "ai" | "deterministic";
+  /** Why the deterministic summary was used (absent for AI answers). */
+  reason?: "empty-plan" | "ai-failed" | "incomplete" | "unsupported-number";
 };
 
 /** Every number written by the model must already exist in the facts. */
@@ -41,6 +43,21 @@ export function numbersAreSupported(candidate: string, facts: string): boolean {
 const cache = new Map<string, { text: string; at: number }>();
 const CACHE_TTL_MS = 10 * 60 * 1000;
 
+/** Keep only whole sentences, and never more than 600 characters. */
+export function tidyNarration(text: string): string | null {
+  const sentences = text.replace(/\s+/g, " ").trim().match(/[^.!?]*[.!?]/g);
+  if (!sentences || sentences.length === 0) return null;
+
+  let out = "";
+  for (const sentence of sentences) {
+    const next = `${out} ${sentence}`.trim();
+    if (next.length > 600) break;
+    out = next;
+  }
+
+  return out.length >= 40 ? out : null;
+}
+
 export async function narrateGrowthPlan(userId: string): Promise<GrowthNarration> {
   const cached = cache.get(userId);
   if (cached && Date.now() - cached.at < CACHE_TTL_MS) {
@@ -51,25 +68,34 @@ export async function narrateGrowthPlan(userId: string): Promise<GrowthNarration
   const facts = growthFactsForNarration(plan);
   const fallback: GrowthNarration = { text: plan.summary, source: "deterministic" };
 
-  if (plan.recommendations.length === 0) return fallback;
+  if (plan.recommendations.length === 0) {
+    return { ...fallback, reason: "empty-plan" };
+  }
 
+  let text: string;
   try {
-    const text = await generateNarration(
+    text = await generateNarration(
       SYSTEM_INSTRUCTION,
       `FACTS:\n${facts}\n\nRewrite these facts for the shop owner.`,
     );
-
-    const clean = text.replace(/\s+/g, " ").trim();
-
-    if (!clean || clean.length > 600) return fallback;
-    // A cut-off answer is worse than no answer: require at least one
-    // complete sentence and no dangling ending.
-    if (clean.length < 40 || !/[.!?]$/.test(clean)) return fallback;
-    if (!numbersAreSupported(clean, facts)) return fallback;
-
-    cache.set(userId, { text: clean, at: Date.now() });
-    return { text: clean, source: "ai" };
-  } catch {
-    return fallback;
+  } catch (error) {
+    console.warn(
+      `[growth:narration] AI call failed: ${error instanceof Error ? error.message.slice(0, 140) : String(error)}`,
+    );
+    return { ...fallback, reason: "ai-failed" };
   }
+
+  const clean = tidyNarration(text);
+  if (!clean) {
+    console.warn(`[growth:narration] answer had no complete sentence: ${JSON.stringify(text.slice(0, 140))}`);
+    return { ...fallback, reason: "incomplete" };
+  }
+
+  if (!numbersAreSupported(clean, facts)) {
+    console.warn(`[growth:narration] rejected an answer with unsupported numbers: ${JSON.stringify(clean.slice(0, 200))}`);
+    return { ...fallback, reason: "unsupported-number" };
+  }
+
+  cache.set(userId, { text: clean, at: Date.now() });
+  return { text: clean, source: "ai" };
 }

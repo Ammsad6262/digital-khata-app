@@ -28,12 +28,15 @@ import {
   TrendingDown,
 } from "lucide-react";
 import { useCustomerHistory, useDeleteCustomer } from "@/hooks/use-customers";
+import { useCurrencySymbol } from "@/hooks/use-currency-symbol";
 import { Money } from "@/components/shared/Money";
+import { ContactActions } from "@/components/shared/ContactActions";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { DeleteButton } from "@/components/shared/DeleteButton";
 import { Button } from "@/components/ui/Button";
 import { Decimal } from "@/lib/utils/decimal";
 import { formatDate, formatTime } from "@/lib/utils/date";
+import { formatMoney } from "@/lib/utils/money";
 import type {
   CustomerTransaction,
 } from "@/lib/services/customers";
@@ -45,7 +48,8 @@ export function CustomerDetail({ customerId }: { customerId: string }) {
   const deleteCustomer = useDeleteCustomer();
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const router = useRouter();
-  const { t } = useLanguage();
+  const { t, tParams } = useLanguage();
+  const symbol = useCurrencySymbol();
 
   if (isLoading) {
     return <CustomerDetailSkeleton />;
@@ -125,6 +129,21 @@ export function CustomerDetail({ customerId }: { customerId: string }) {
                 <Phone className="h-4 w-4 shrink-0 text-slate-400" />
                 {customer.phone}
               </a>
+            ) : null}
+
+            {customer.phone ? (
+              <ContactActions
+                phone={customer.phone}
+                whatsappMessage={
+                  isOwed
+                    ? tParams("growth.waCollect", {
+                        name: customer.name,
+                        amount: formatMoney(currentBalance.abs(), symbol),
+                      })
+                    : undefined
+                }
+                className="pt-1"
+              />
             ) : null}
 
             {customer.address ? (

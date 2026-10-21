@@ -49,6 +49,9 @@ export type GrowthRecommendation = {
     | "growth.amount.payable"
     | null;
   href: string;
+  /** Who to contact about this action, when there is somebody to contact. */
+  contactName: string | null;
+  contactPhone: string | null;
 };
 
 export type GrowthPlan = {
@@ -87,6 +90,7 @@ export async function getGrowthPlan(userId: string): Promise<GrowthPlan> {
 
   // ── 1. Collections: the biggest balances first ───────────────────────────
   const outstanding = await listOutstandingCustomers(userId);
+  const contactById = new Map(outstanding.map((c) => [c.id, c]));
   const topDebtors = [...outstanding]
     .sort((a, b) => Number(b.balance) - Number(a.balance))
     .slice(0, 3);
@@ -111,6 +115,8 @@ export async function getGrowthPlan(userId: string): Promise<GrowthPlan> {
       amount: balance.toString(),
       amountLabel: "growth.amount.outstanding",
       href: `/khata/${customer.id}`,
+      contactName: customer.name,
+      contactPhone: customer.phone ?? null,
     });
   }
 
@@ -129,6 +135,8 @@ export async function getGrowthPlan(userId: string): Promise<GrowthPlan> {
       amount: customer.balance,
       amountLabel: "growth.amount.outstanding",
       href: `/khata/${customer.id}`,
+      contactName: customer.name,
+      contactPhone: contactById.get(customer.id)?.phone ?? null,
     });
   }
 
@@ -162,6 +170,8 @@ export async function getGrowthPlan(userId: string): Promise<GrowthPlan> {
         amount: null,
         amountLabel: null,
         href: `/more/products/${product.id}`,
+        contactName: null,
+        contactPhone: null,
       });
     }
   }
@@ -180,6 +190,8 @@ export async function getGrowthPlan(userId: string): Promise<GrowthPlan> {
       amount: value.toString(),
       amountLabel: "growth.amount.stockValue",
       href: `/more/products/${mover.id}`,
+      contactName: null,
+      contactPhone: null,
     });
   }
 
@@ -197,6 +209,8 @@ export async function getGrowthPlan(userId: string): Promise<GrowthPlan> {
       amount: revenue.toString(),
       amountLabel: "growth.amount.revenue30d",
       href: `/more/products/${product.id}`,
+      contactName: null,
+      contactPhone: null,
     });
   }
 
@@ -216,6 +230,8 @@ export async function getGrowthPlan(userId: string): Promise<GrowthPlan> {
       amount: topPayable.balance,
       amountLabel: "growth.amount.payable",
       href: `/more/suppliers/${topPayable.id}`,
+      contactName: topPayable.name,
+      contactPhone: topPayable.phone ?? null,
     });
   }
 

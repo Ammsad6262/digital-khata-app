@@ -455,6 +455,31 @@ checked for duplicates.)
 
 ---
 
+## Completed — send the khata statement (no typing, no other app)
+
+The most common shop conversation is *"how much do I owe you?"*. The owner
+should not have to read the screen, remember it and type it out.
+
+- `buildCustomerStatement()` (`src/lib/utils/statement.ts`) turns the customer's
+  own record into a message: greeting, **the exact balance**, the last five
+  entries (newest first), lifetime totals, and a polite close.
+- Negative balance is worded as an **advance**, never a debt; zero says
+  *"Your account is settled."*; the word *profit* never appears.
+- The business name comes from Settings, so the customer knows who is writing.
+- `ShareStatement` on the customer page opens WhatsApp with the text already
+  filled in, plus **Copy text** for SMS or any other app. Nothing is sent
+  automatically.
+- English and Urdu, with the amount still exact in Urdu.
+
+### Verification
+- `scripts/verify-statement.ts` — **19/19** (balance wording, entry count and
+  order, earlier-entries summary, advance vs settled, no profit language,
+  Urdu). Re-ran the suites: platform 9, reminders 24, insights 24, growth 26,
+  contact-actions 36, statement 19, acceptance 31 — **242 assertions, 0
+  failures**. `tsc` and `next build` clean.
+
+---
+
 ## 🔑 Blockers / required from owner
 
 1. **`GEMINI_API_KEY`** — required for Smart Entry, the expanded voice assistant,

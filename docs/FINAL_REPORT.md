@@ -62,6 +62,10 @@ that reads your own database rows.
   owner's own low-stock threshold.
 - The dashboard "Do this now" strip always shows the single highest-priority
   action with Call / WhatsApp available inline.
+- **Send the khata statement**: one tap on the customer page opens WhatsApp with
+  the balance, the last five entries and the lifetime totals already written —
+  in English or Urdu, with the business name. A copy-to-clipboard button covers
+  every other app. Nothing is sent until the owner presses send.
 
 ### Voice / text assistant
 - Read queries: includes `SUPPLIER_PAYABLES` and `TODAYS_REMINDERS`.
@@ -110,8 +114,9 @@ Bug 6 was found by the acceptance suite, not by inspection.
 | `scripts/verify-assistant-writes.ts` | voice write-path extraction | 33/33 |
 | `scripts/verify-ai-queries.ts` | live Gemini routing | 5/5 |
 | `scripts/verify-contact-actions.ts` | phone normalisation, Call/WhatsApp links, reminder enrichment, snooze, supplier reorder | 36/36 |
+| `scripts/verify-statement.ts` | WhatsApp khata statement: exact balance, entry order, advance/settled wording, Urdu | 19/19 |
 
-Total: **223 assertions passing**. `npx tsc --noEmit` and `npm run build` are
+Total: **242 assertions passing**. `npx tsc --noEmit` and `npm run build` are
 clean.
 
 The 10 acceptance workflows: register+trial · add customer · credit sale (stock
@@ -145,7 +150,7 @@ No schema change was needed for the three new voice write intents.
 |---|---|---|
 | Production deploy | not started | the delta must be applied to Supabase (needs the DB password or approval to run DDL); `GEMINI_API_KEY` must be added to Vercel |
 | Push `main` / open PR | deliberately not done | waiting for your review + the production delta |
-| Paid premium / AI tier | not built | a product + billing decision. Gating currently rides the existing trial/subscription. No fake payment flow was added. |
+| Paid premium / AI tier | not built, by your decision | you said you will not go with a premium plan, so none was added. Gating continues to ride the existing trial + redeem codes; no payment flow exists to fake. |
 | Forgot-password / reset | does not exist | `PATCH /api/account/password` requires the current password; a reset flow needs email or an admin decision |
 | AI narration quality | works, with fallback | the current key is **Gemini free tier: 20 requests/day/model**. Testing exhausted `gemini-3.8-flash` (429) and the other models intermittently return 503. The chain falls through and the page degrades to the computed summary. A paid key removes the ceiling. |
 | Live DB migration drift | known | 6 migrations exist in the live DB but not in the repo; the repo's `20261006010000_add_smart_entry_session` is absent from the live history although the table exists |

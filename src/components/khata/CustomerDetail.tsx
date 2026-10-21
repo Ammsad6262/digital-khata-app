@@ -29,6 +29,9 @@ import {
 } from "lucide-react";
 import { useCustomerHistory, useDeleteCustomer } from "@/hooks/use-customers";
 import { useCurrencySymbol } from "@/hooks/use-currency-symbol";
+import { useSettings } from "@/hooks/use-settings";
+import { ShareStatement } from "@/components/khata/ShareStatement";
+import { buildCustomerStatement } from "@/lib/utils/statement";
 import { Money } from "@/components/shared/Money";
 import { ContactActions } from "@/components/shared/ContactActions";
 import { EmptyState } from "@/components/shared/EmptyState";
@@ -50,6 +53,7 @@ export function CustomerDetail({ customerId }: { customerId: string }) {
   const router = useRouter();
   const { t, tParams } = useLanguage();
   const symbol = useCurrencySymbol();
+  const { data: settings } = useSettings();
 
   if (isLoading) {
     return <CustomerDetailSkeleton />;
@@ -200,6 +204,18 @@ export function CustomerDetail({ customerId }: { customerId: string }) {
           </Button>
         </Link>
       </div>
+
+      {/* Send the customer their own statement — built from their records */}
+      <ShareStatement
+        phone={customer.phone}
+        message={buildCustomerStatement(
+          customer,
+          transactions,
+          { t, tParams },
+          symbol,
+          { businessName: settings?.businessName },
+        )}
+      />
 
       {/* Transaction history */}
       <section className="space-y-2">

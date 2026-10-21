@@ -17,6 +17,7 @@ import { listOutstandingCustomers } from "@/lib/services/customers";
 import {
   createReminderSchema,
   updateReminderSchema,
+  snoozeReminderSchema,
   type CreateReminderInput,
 } from "@/lib/schemas/reminder";
 import type { Prisma } from "@prisma/client";
@@ -343,6 +344,43 @@ export async function setReminderCompleted(
     const reminder = await tx.reminder.update({
       where: { id },
       data: { completedAt: completed ? new Date() : null },
+      include: reminderInclude,
+    });
+    await syncFollowUps(tx, userId, {
+      customerId: reminder.customerId,
+      supplierId: reminder.supplierId,
+    });
+    return reminder;
+  });
+
+  invalidateReminderCaches();
+  return toView(updated);
+}
+
+/**
+ * Push a reminder back by `days` without losing it.
+ *
+ * Snoozing counts from *now* when the reminder is already due (so a week-late
+ * reminder becomes due tomorrow, not already-overdue again), and from its own
+ * due date when it is still in the future. A snoozed reminder is reopened.
+ */
+export async function snoozeReminder(
+  id: string,
+  days: number,
+  userId: string,
+): Promise<ReminderView> {
+  const { days: parsedDays } = snoozeReminderSchema.parse({ days });
+
+  const existing = await prisma.reminder.findFirst({ where: { id, userId } });
+  if (!existing) throw new NotFoundError("api.resource.reminder", id);
+
+  const base = Math.max(existing.dueAt.getTime(), Date.now());
+  const dueAt = new Date(base + parsedDays * 86_400_000);
+
+  const updated = await prisma.$transaction(async (tx) => {
+    const reminder = await tx.reminder.update({
+      where: { id },
+      data: { dueAt, completedAt: null },
       include: reminderInclude,
     });
     await syncFollowUps(tx, userId, {

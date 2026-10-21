@@ -53,6 +53,16 @@ that reads your own database rows.
 - The ☰ menu is rendered by `AppHeader`/`TranslatedHeader`, so it is on **every**
   screen.
 
+### Follow-through (finish the job on the same screen)
+- **Snooze**: 1 day / 3 days / 1 week on every reminder card, no need to open
+  it. Overdue reminders snooze from today; future ones from their own date.
+- **Reorder**: restock recommendations name the supplier from the owner's most
+  recent purchase of that product, pre-write the WhatsApp order, and link
+  straight to `/stock/add?productId=…`. The suggested quantity tops up to the
+  owner's own low-stock threshold.
+- The dashboard "Do this now" strip always shows the single highest-priority
+  action with Call / WhatsApp available inline.
+
 ### Voice / text assistant
 - Read queries: includes `SUPPLIER_PAYABLES` and `TODAYS_REMINDERS`.
 - Write intents: `SUPPLIER_PAYMENT`, `CREATE_REMINDER`, `CREATE_PURCHASE` —
@@ -99,9 +109,9 @@ Bug 6 was found by the acceptance suite, not by inspection.
 | `scripts/verify-ai-gating.ts` | AI endpoints 403 for expired accounts (incl. growth) | 8/8 |
 | `scripts/verify-assistant-writes.ts` | voice write-path extraction | 33/33 |
 | `scripts/verify-ai-queries.ts` | live Gemini routing | 5/5 |
-| `scripts/verify-contact-actions.ts` | phone normalisation, Call/WhatsApp links, reminder enrichment | 20/20 |
+| `scripts/verify-contact-actions.ts` | phone normalisation, Call/WhatsApp links, reminder enrichment, snooze, supplier reorder | 36/36 |
 
-Total: **207 assertions passing**. `npx tsc --noEmit` and `npm run build` are
+Total: **223 assertions passing**. `npx tsc --noEmit` and `npm run build` are
 clean.
 
 The 10 acceptance workflows: register+trial · add customer · credit sale (stock
@@ -137,7 +147,7 @@ No schema change was needed for the three new voice write intents.
 | Push `main` / open PR | deliberately not done | waiting for your review + the production delta |
 | Paid premium / AI tier | not built | a product + billing decision. Gating currently rides the existing trial/subscription. No fake payment flow was added. |
 | Forgot-password / reset | does not exist | `PATCH /api/account/password` requires the current password; a reset flow needs email or an admin decision |
-| AI narration quality | works, with fallback | depends on Gemini availability; falls back to the computed summary |
+| AI narration quality | works, with fallback | the current key is **Gemini free tier: 20 requests/day/model**. Testing exhausted `gemini-3.8-flash` (429) and the other models intermittently return 503. The chain falls through and the page degrades to the computed summary. A paid key removes the ceiling. |
 | Live DB migration drift | known | 6 migrations exist in the live DB but not in the repo; the repo's `20261006010000_add_smart_entry_session` is absent from the live history although the table exists |
 | Demo data | local only | seeded in the Docker dev DB; the live site was not touched |
 
@@ -145,7 +155,9 @@ No schema change was needed for the three new voice write intents.
 
 ## 6. Required credentials
 
-1. `GEMINI_API_KEY` — needed in Vercel production (present locally).
+1. `GEMINI_API_KEY` — needed in Vercel production (present locally). **Upgrade
+   from the free tier** before real use: the free tier allows 20 requests per
+   day per model, which the tests alone can exhaust.
 2. Supabase database password — required to apply the delta (or explicit
    approval to run the DDL).
 3. GitHub write access — to push the branch and open the PR.

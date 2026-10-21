@@ -28,10 +28,10 @@ import {
 } from "lucide-react";
 import { ContactActions } from "@/components/shared/ContactActions";
 import { Money } from "@/components/shared/Money";
+import { growthContactMessage } from "@/components/shared/growth-message";
 import { useCurrencySymbol } from "@/hooks/use-currency-symbol";
 import { useGrowthPlan } from "@/hooks/use-growth";
 import { apiPost } from "@/lib/utils/api-client";
-import { formatMoney } from "@/lib/utils/money";
 import { useLanguage } from "@/providers/language-provider";
 import type { GrowthPriority, GrowthRecommendation } from "@/lib/services/growth";
 
@@ -60,14 +60,8 @@ function RecommendationCard({ item }: { item: GrowthRecommendation }) {
   const { t, tParams } = useLanguage();
   const symbol = useCurrencySymbol();
 
-  const amountText = item.amount ? formatMoney(item.amount, symbol) : null;
-
   // A ready-to-send message. Nothing is sent without the owner pressing send.
-  const whatsappMessage = item.contactPhone
-    ? item.type === "supplier_payment"
-      ? tParams("growth.waSupplier", { name: item.contactName ?? "", amount: amountText ?? "" })
-      : tParams("growth.waCollect", { name: item.contactName ?? "", amount: amountText ?? "" })
-    : undefined;
+  const whatsappMessage = growthContactMessage(item, tParams, symbol);
 
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-3.5">
@@ -89,17 +83,28 @@ function RecommendationCard({ item }: { item: GrowthRecommendation }) {
 
             <p className="mt-0.5 text-xs text-slate-500">{item.reason}</p>
 
-            {item.amount && item.amountLabel ? (
+            {item.amount ? (
               <p className="mt-1.5 text-sm font-semibold text-slate-800">
-                <Money value={item.amount} />
-                <span className="ml-1.5 text-[11px] font-normal text-slate-500">
-                  {t(item.amountLabel as never)}
+                <Money value={item.amount ?? "0"} />
+                {item.amountLabel ? (
+                  <span className="ml-1.5 text-[11px] font-normal text-slate-500">
+                    {t(item.amountLabel)}
+                  </span>
+                ) : null}
+              </p>
+            ) : null}
+
+            {item.reorder ? (
+              <p className="mt-1.5 text-xs text-slate-600">
+                {t("growth.suggestedOrder")}{" "}
+                <span className="font-semibold text-slate-800">
+                  {item.reorder.quantity} {item.reorder.unit}
                 </span>
               </p>
             ) : null}
 
             <span className="mt-1.5 inline-flex items-center gap-1 text-[11px] font-medium text-brand-700">
-              {t("growth.open")}
+              {t((item.actionLabelKey ?? "growth.open") as never)}
               <ArrowRight className="h-3 w-3 rtl-flip" />
             </span>
           </Link>

@@ -52,6 +52,12 @@ export type GrowthRecommendation = {
   /** Who to contact about this action, when there is somebody to contact. */
   contactName: string | null;
   contactPhone: string | null;
+  /** What kind of contact this is — decides the pre-written message. */
+  contactKind: "customer" | "supplier" | null;
+  /** For a supplier reorder: what to ask for, derived from your own threshold. */
+  reorder: { productName: string; quantity: string; unit: string } | null;
+  /** i18n key for the main button when it is not just "Open". */
+  actionLabelKey: string | null;
 };
 
 export type GrowthPlan = {
@@ -117,6 +123,9 @@ export async function getGrowthPlan(userId: string): Promise<GrowthPlan> {
       href: `/khata/${customer.id}`,
       contactName: customer.name,
       contactPhone: customer.phone ?? null,
+      contactKind: "customer",
+      reorder: null,
+      actionLabelKey: null,
     });
   }
 
@@ -137,6 +146,9 @@ export async function getGrowthPlan(userId: string): Promise<GrowthPlan> {
       href: `/khata/${customer.id}`,
       contactName: customer.name,
       contactPhone: contactById.get(customer.id)?.phone ?? null,
+      contactKind: "customer",
+      reorder: null,
+      actionLabelKey: null,
     });
   }
 
@@ -157,9 +169,39 @@ export async function getGrowthPlan(userId: string): Promise<GrowthPlan> {
       soldGroups.map((g) => [g.productId, toDecimalOrZero(g._sum.quantity)]),
     );
 
+    // Who supplies each of these products? Taken from the most recent
+    // purchase that actually contained the product — no guessing, and no
+    // contact buttons when the owner has never bought it from anyone.
+    const lastLines = await prisma.purchaseItem.findMany({
+      where: { productId: { in: lowIds }, purchase: { userId, voidedAt: null } },
+      orderBy: { purchase: { date: "desc" } },
+      select: {
+        productId: true,
+        purchase: { select: { supplier: { select: { name: true, phone: true } } } },
+      },
+    });
+    const supplierByProduct = new Map<string, { name: string; phone: string | null }>();
+    for (const line of lastLines) {
+      if (supplierByProduct.has(line.productId)) continue;
+      supplierByProduct.set(line.productId, {
+        name: line.purchase.supplier.name,
+        phone: line.purchase.supplier.phone ?? null,
+      });
+    }
+
     for (const product of insights.lowStock) {
       const sold = soldMap.get(product.id) ?? new Decimal(0);
       if (!sold.greaterThan(0)) continue; // not selling → don't push a restock
+
+      const supplier = supplierByProduct.get(product.id) ?? null;
+
+      // Suggest bringing stock back up to the owner's own low-stock level.
+      const shortfall = new Decimal(product.threshold).minus(
+        toDecimalOrZero(product.currentStock),
+      );
+      const reorderQuantity = (shortfall.greaterThan(0) ? shortfall : new Decimal(1))
+        .toFixed(0)
+        .toString();
 
       recommendations.push({
         id: `restock:${product.id}`,
@@ -169,9 +211,16 @@ export async function getGrowthPlan(userId: string): Promise<GrowthPlan> {
         reason: `${sold.toString()} ${product.unit} sold in ${RANGE_DAYS} days · only ${product.currentStock} ${product.unit} left.`,
         amount: null,
         amountLabel: null,
-        href: `/more/products/${product.id}`,
-        contactName: null,
-        contactPhone: null,
+        href: `/stock/add?productId=${product.id}`,
+        contactName: supplier?.name ?? null,
+        contactPhone: supplier?.phone ?? null,
+        contactKind: supplier ? "supplier" : null,
+        reorder: {
+          productName: product.name,
+          quantity: reorderQuantity,
+          unit: product.unit,
+        },
+        actionLabelKey: "growth.action.addStock",
       });
     }
   }
@@ -192,6 +241,9 @@ export async function getGrowthPlan(userId: string): Promise<GrowthPlan> {
       href: `/more/products/${mover.id}`,
       contactName: null,
       contactPhone: null,
+      contactKind: null,
+      reorder: null,
+      actionLabelKey: null,
     });
   }
 
@@ -211,6 +263,9 @@ export async function getGrowthPlan(userId: string): Promise<GrowthPlan> {
       href: `/more/products/${product.id}`,
       contactName: null,
       contactPhone: null,
+      contactKind: null,
+      reorder: null,
+      actionLabelKey: null,
     });
   }
 
@@ -232,6 +287,9 @@ export async function getGrowthPlan(userId: string): Promise<GrowthPlan> {
       href: `/more/suppliers/${topPayable.id}`,
       contactName: topPayable.name,
       contactPhone: topPayable.phone ?? null,
+      contactKind: "supplier",
+      reorder: null,
+      actionLabelKey: "growth.action.recordPayment",
     });
   }
 

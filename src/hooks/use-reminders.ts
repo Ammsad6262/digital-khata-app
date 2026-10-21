@@ -86,6 +86,15 @@ export function useSetReminderCompleted() {
   });
 }
 
+export function useSnoozeReminder() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, days }: { id: string; days: number }) =>
+      apiPost<ReminderView>(`/api/reminders/${id}/snooze`, { days }),
+    onSuccess: () => invalidateAll(queryClient),
+  });
+}
+
 export function useDeleteReminder() {
   const queryClient = useQueryClient();
   return useMutation({

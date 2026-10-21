@@ -6,15 +6,16 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { AlertTriangle, Bell, CheckCircle2, Circle } from "lucide-react";
+import { AlertTriangle, Bell, CheckCircle2, Circle, Clock } from "lucide-react";
 import { ContactActions } from "@/components/shared/ContactActions";
-import { useReminders, useSetReminderCompleted } from "@/hooks/use-reminders";
+import { useReminders, useSetReminderCompleted, useSnoozeReminder } from "@/hooks/use-reminders";
 import { useCurrencySymbol } from "@/hooks/use-currency-symbol";
 import { useLanguage } from "@/providers/language-provider";
 import { useToast } from "@/providers/toast-provider";
 import { formatMoney } from "@/lib/utils/money";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { Button } from "@/components/ui/Button";
+import { SNOOZE_PRESETS } from "@/lib/schemas/reminder";
 import type { ReminderFilter, ReminderView } from "@/lib/services/reminders";
 
 const TABS = [
@@ -54,6 +55,7 @@ export function RemindersList() {
   const [filter, setFilter] = useState<ReminderFilter>("today");
   const { data, isLoading, isError, error } = useReminders(filter);
   const toggle = useSetReminderCompleted();
+  const snooze = useSnoozeReminder();
 
   const now = Date.now();
 
@@ -63,6 +65,22 @@ export function RemindersList() {
         id: reminder.id,
         completed: !reminder.completedAt,
       });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t("common.failed"));
+    }
+  }
+
+  async function onSnooze(reminder: ReminderView, days: number) {
+    try {
+      const updated = await snooze.mutateAsync({ id: reminder.id, days });
+      toast.success(
+        tParams("reminders.snoozed", {
+          date: new Date(updated.dueAt).toLocaleString(undefined, {
+            dateStyle: "medium",
+            timeStyle: "short",
+          }),
+        }),
+      );
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t("common.failed"));
     }
@@ -218,14 +236,30 @@ export function RemindersList() {
                       ) : null}
                     </Link>
 
-                    {phone ? (
-                      <ContactActions
-                        phone={phone}
-                        whatsappMessage={waMessage}
-                        className="mt-2"
-                        compact
-                      />
-                    ) : null}
+                    <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1.5">
+                      {phone ? (
+                        <ContactActions phone={phone} whatsappMessage={waMessage} compact />
+                      ) : null}
+                      {!done ? (
+                        <div className="flex items-center gap-1.5">
+                          <span className="inline-flex items-center gap-1 text-[11px] text-slate-400">
+                            <Clock className="h-3 w-3" />
+                            {t("reminders.later")}
+                          </span>
+                          {SNOOZE_PRESETS.map((preset) => (
+                            <button
+                              key={preset.days}
+                              type="button"
+                              disabled={snooze.isPending}
+                              onClick={() => onSnooze(r, preset.days)}
+                              className="rounded-lg border border-slate-200 px-2 py-1 text-[11px] font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50 active:scale-[0.97]"
+                            >
+                              {t(preset.labelKey)}
+                            </button>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
                   </div>
                 </div>
               </li>

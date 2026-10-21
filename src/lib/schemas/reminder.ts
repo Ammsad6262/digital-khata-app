@@ -29,5 +29,18 @@ export const createReminderSchema = z.object({
 
 export const updateReminderSchema = createReminderSchema.partial();
 
+/** How far a reminder can be pushed back in one tap. */
+export const SNOOZE_PRESETS = [
+  { days: 1, labelKey: "reminders.snooze1d" },
+  { days: 3, labelKey: "reminders.snooze3d" },
+  { days: 7, labelKey: "reminders.snooze1w" },
+] as const;
+
+export const snoozeReminderSchema = z.object({
+  days: z.coerce.number().int().min(1).max(365),
+});
+
+export type SnoozeReminderInput = z.infer<typeof snoozeReminderSchema>;
+
 export type CreateReminderInput = z.infer<typeof createReminderSchema>;
 export type UpdateReminderInput = z.infer<typeof updateReminderSchema>;

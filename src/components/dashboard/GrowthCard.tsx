@@ -13,9 +13,9 @@ import Link from "next/link";
 import { ChevronRight, Sparkles } from "lucide-react";
 import { ContactActions } from "@/components/shared/ContactActions";
 import { Money } from "@/components/shared/Money";
+import { growthContactMessage } from "@/components/shared/growth-message";
 import { useGrowthPlan } from "@/hooks/use-growth";
 import { useCurrencySymbol } from "@/hooks/use-currency-symbol";
-import { formatMoney } from "@/lib/utils/money";
 import { useLanguage } from "@/providers/language-provider";
 import type { GrowthRecommendation } from "@/lib/services/growth";
 
@@ -38,14 +38,7 @@ export function GrowthCard() {
   const top = data.recommendations[0];
   if (!top) return null;
 
-  const amountText = top.amount ? formatMoney(top.amount, symbol) : null;
-  const whatsappMessage =
-    top.contactPhone && amountText
-      ? tParams(top.type === "supplier_payment" ? "growth.waSupplier" : "growth.waCollect", {
-          name: top.contactName ?? "",
-          amount: amountText,
-        })
-      : undefined;
+  const whatsappMessage = growthContactMessage(top, tParams, symbol);
 
   return (
     <section className="rounded-xl border border-brand-200 bg-brand-50/60 p-3.5">
@@ -71,12 +64,14 @@ export function GrowthCard() {
           {top.title}
         </p>
         <p className="mt-0.5 text-xs text-slate-600">{top.reason}</p>
-        {amountText ? (
+        {top.amount ? (
           <p className="mt-1 text-sm font-semibold text-slate-800">
             <Money value={top.amount} />
-            <span className="ml-1.5 text-[11px] font-normal text-slate-500">
-              {t(top.amountLabel as never)}
-            </span>
+            {top.amountLabel ? (
+              <span className="ml-1.5 text-[11px] font-normal text-slate-500">
+                {t(top.amountLabel)}
+              </span>
+            ) : null}
           </p>
         ) : null}
 
@@ -88,7 +83,7 @@ export function GrowthCard() {
             href={top.href}
             className="inline-flex items-center gap-1 rounded-lg border border-brand-200 bg-white px-2 py-1 text-[11px] font-semibold text-brand-700 hover:bg-brand-50"
           >
-            {t("growth.open")}
+            {t((top.actionLabelKey ?? "growth.open") as never)}
             <ChevronRight className="h-3 w-3 rtl-flip" />
           </Link>
         </div>

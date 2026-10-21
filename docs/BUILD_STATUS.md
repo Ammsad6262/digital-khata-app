@@ -353,6 +353,51 @@ up front.
 
 ---
 
+## Completed — follow-through round (the app does the next thing for you)
+
+The brief's rule is that the app should drive the owner, not the other way
+round. That only works if every action can be *finished* from the screen it
+appears on, so this round closes the loop after the contact buttons:
+
+### Snooze in one tap
+- `POST /api/reminders/[id]/snooze` + `snoozeReminder()`: **1 day / 3 days /
+  1 week** buttons on every reminder card, no need to open the reminder to
+  move it.
+- Snoozing counts from **now** when the reminder is already overdue, and from
+  its own due date when it is still ahead — so a week-late reminder becomes
+  due tomorrow instead of immediately overdue again.
+- A snoozed reminder is reopened, and the linked customer's `nextFollowUpAt`
+  is resynced.
+
+### Reorder without leaving the app
+- Restock recommendations now name the **supplier who actually supplied that
+  product** (taken from the most recent non-voided purchase — never guessed).
+  If the owner has never bought it from anyone, no contact buttons appear.
+- The WhatsApp button pre-writes the order: *"We need about 8 bag of Basmati
+  Rice 25kg. Please send the rate and availability."*
+- The suggested quantity tops the stock back up to the owner's **own**
+  low-stock threshold, shown on the card as *Suggested order: 8 bag*.
+- The card's main button becomes **Add stock** and links straight to
+  `/stock/add?productId=…`, so the reorder is recorded in two taps.
+
+### Why the AI sometimes says "busy" — and what happens then
+The API key is on Gemini's **free tier: 20 requests per day, per model**.
+Testing exhausted `gemini-3.8-flash` (HTTP 429) while the other models were
+returning 503 "high demand". The chain already falls through to the next
+model, and when every model is unavailable the page shows the deterministic
+summary with *"The AI is busy right now — your own numbers are below."* — never
+an error, never a made-up number. **A paid Gemini key removes this ceiling.**
+
+### Verification
+- `scripts/verify-contact-actions.ts` — **36/36** (snooze maths, tenant
+  isolation, follow-up resync, supplier derivation, suggested quantity)
+- All suites re-run: platform 9, purchases 27, reminders 24, insights 24,
+  assistant-writes 33, growth 26, contact-actions 36, acceptance 31,
+  ai-gating 8, ai-queries 5 — **223 assertions, 0 failures**
+- `tsc --noEmit` and `npm run build` — clean
+
+---
+
 ## Completed — owner-feedback round (menu everywhere, one-tap contact, AI fixed)
 
 Three things the owner reported after using the app:

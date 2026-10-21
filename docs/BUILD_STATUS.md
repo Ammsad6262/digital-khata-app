@@ -246,7 +246,7 @@ approval to run DDL through the Supabase Management API.**
 | ~~2~~ | ~~Supplier UI (list/add/detail), purchases, supplier payments~~ ✅ done |
 | 3 | Reminders module (UI + API + linking) ✅ done |
 | 4 | Universal voice-assistant — 11 write intents + 9 query types live. Added **write** intents `SUPPLIER_PAYMENT`, `CREATE_REMINDER` and `CREATE_PURCHASE` end to end. |
-| 5 | AI Sales Growth Assistant — the deterministic evidence engine now exists (see Insights); the AI narration layer is not built yet |
+| 5 | AI Sales Growth Assistant — **done**. Deterministic recommendation engine + `/more/growth`, with AI narration that is numerically validated against the fact sheet. |
 | 6 | Evidence-based AI business insights ✅ deterministic core done |
 | 7 | AI gating (backend-enforced) ✅ done — all AI endpoints require active access; a separate paid AI tier needs a product decision (no fake payment flow added) |
 | 8 | UX polish + full acceptance-workflow testing |
@@ -278,6 +278,43 @@ Verification:
 - `npx tsx scripts/verify-ai-queries.ts` — **5/5** live Gemini cases
   (2 query types, supplier payment extraction, "tomorrow" → 1 day,
   purchase supplier/qty/unit-price/paid extraction)
+
+---
+
+## Completed — AI Sales Growth Assistant (`/more/growth`)
+
+**Deterministic engine** (`src/lib/services/growth.ts`) turns the existing
+insight facts into six kinds of action:
+
+| Type | Trigger | Evidence shown |
+|---|---|---|
+| Collect receivables | Top 3 outstanding balances | Amount + share of receivables + days idle |
+| Re-engage customer | Owed money, no activity in 30+ days | Balance + days inactive |
+| Restock | Low stock **and** sold in the last 30 days | Units sold + units left |
+| Clear dead stock | Stock on hand with no sales in 30 days | Capital tied up (stock × cost) |
+| Promote product | Top sellers by revenue | Revenue for 30 days |
+| Plan supplier payment | Largest positive payable | Payable balance |
+
+Rules enforced: no recommendation without evidence, revenue is never called
+profit, no forecasts, priority ordering (high → medium → low, then amount).
+
+**AI narration** (`/api/growth/summary`) rewrites the facts in 2–3 sentences.
+Guardrails:
+- every number in the output must already exist in the fact sheet
+  (`numbersAreSupported`), otherwise the deterministic summary is returned;
+- truncated/incomplete answers are rejected;
+- 10-minute per-business cache;
+- Gemini unavailable → deterministic summary, clearly labelled in the UI.
+
+Verification:
+
+- `npx tsx scripts/verify-growth.ts` — **26/26** assertions (amounts, priority,
+  totals, empty business, tenant isolation, narration number guard)
+- `npx tsx scripts/verify-ai-gating.ts` — **8/8** (growth endpoints reject
+  expired accounts with 403 before any AI work)
+- `npx tsx scripts/verify-growth-ai.ts` — live Gemini run: safe narration
+  (falls back to the computed summary when Gemini returns 503)
+- `tsc --noEmit` and `npm run build` — clean
 
 ---
 

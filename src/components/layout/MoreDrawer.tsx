@@ -54,6 +54,7 @@ import {
   Settings as SettingsIcon,
   Crown,
   Gift,
+  Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { useLanguage } from "@/providers/language-provider";
@@ -100,6 +101,12 @@ const GROUPS: MoreGroup[] = [
         titleKey: "more.reminders",
         descKey: "more.remindersDesc",
         icon: Bell,
+      },
+      {
+        href: "/more/growth",
+        titleKey: "more.growth",
+        descKey: "more.growthDesc",
+        icon: Sparkles,
       },
       {
         href: "/more/insights",

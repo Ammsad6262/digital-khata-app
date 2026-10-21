@@ -14,7 +14,7 @@ import { numbersAreSupported } from "@/lib/services/growth-narration";
 let passed = 0;
 let failed = 0;
 
-function check(label: string, condition: boolean, detail?: string) {
+function check(label: string, condition: boolean, detail?: string | null) {
   if (condition) {
     passed++;
     console.log(`  ✅ ${label}`);

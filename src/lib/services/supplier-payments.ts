@@ -97,7 +97,7 @@ export async function createSupplierPayment(
   const created = await prisma.$transaction(async (tx) => {
     const supplier = await tx.supplier.findFirst({
       where: { id: data.supplierId, isDeleted: false, ...(userId && { userId }) },
-      select: { id: true, name: true },
+      select: { id: true, name: true, openingBalance: true },
     });
     if (!supplier) throw new NotFoundError("api.resource.supplier", data.supplierId);
 
@@ -125,6 +125,39 @@ export async function createSupplierPayment(
       if (amount.greaterThan(remaining)) {
         throw new BadRequestError("api.supplierPayment.exceedsOutstanding", undefined, {
           remaining: remaining.toString(),
+        });
+      }
+    } else {
+      // No invoice specified → the payment is against the supplier's overall
+      // payable. It must not exceed what is currently owed, otherwise the
+      // balance would silently go negative (an "advance" this app cannot
+      // represent). Record the purchase first if you are paying up front.
+      const [purchaseSum, paidSum] = await Promise.all([
+        tx.purchase.aggregate({
+          _sum: { outstanding: true },
+          where: {
+            supplierId: data.supplierId,
+            voidedAt: null,
+            ...(userId && { userId }),
+          },
+        }),
+        tx.supplierPayment.aggregate({
+          _sum: { amount: true },
+          where: {
+            supplierId: data.supplierId,
+            voidedAt: null,
+            ...(userId && { userId }),
+          },
+        }),
+      ]);
+
+      const payable = toDecimalOrZero(supplier.openingBalance)
+        .plus(toDecimalOrZero(purchaseSum._sum.outstanding))
+        .minus(toDecimalOrZero(paidSum._sum.amount));
+
+      if (amount.greaterThan(payable)) {
+        throw new BadRequestError("api.supplierPayment.exceedsPayable", undefined, {
+          payable: payable.toString(),
         });
       }
     }

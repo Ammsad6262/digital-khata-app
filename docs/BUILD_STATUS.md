@@ -249,7 +249,7 @@ approval to run DDL through the Supabase Management API.**
 | 5 | AI Sales Growth Assistant — **done**. Deterministic recommendation engine + `/more/growth`, with AI narration that is numerically validated against the fact sheet. |
 | 6 | Evidence-based AI business insights ✅ deterministic core done |
 | 7 | AI gating (backend-enforced) ✅ done — all AI endpoints require active access; a separate paid AI tier needs a product decision (no fake payment flow added) |
-| 8 | UX polish + full acceptance-workflow testing |
+| 8 | UX polish + full acceptance-workflow testing — **done**. `scripts/verify-acceptance.ts` runs the 10 owner workflows end to end: **31/31**. Also fixed an unbounded supplier-payment bug found by that suite (see below). |
 
 ---
 
@@ -315,6 +315,41 @@ Verification:
 - `npx tsx scripts/verify-growth-ai.ts` — live Gemini run: safe narration
   (falls back to the computed summary when Gemini returns 503)
 - `tsc --noEmit` and `npm run build` — clean
+
+---
+
+## Completed — acceptance workflows + supplier-payment fix
+
+`scripts/verify-acceptance.ts` drives the 10 owner workflows through the real
+services, in the order a shop owner would use them:
+
+| # | Workflow | Verified |
+|---|---|---|
+| 1 | Register + trial | account, token, active trial |
+| 2 | Add customer | starts at zero balance |
+| 3 | Credit sale | total 5000, outstanding 4000, stock 100 → 90, balance 4000 |
+| 4 | Record payment | balance 4000 → 2500 |
+| 5 | Record expense | saved to the ledger |
+| 6 | Add stock | stock 90 → 140 |
+| 7 | Supplier purchase on credit | total 6000, outstanding 5000, stock 160, payable 5000 |
+| 8 | Supplier payment | payable 5000 → 3000, overpayment rejected, payable unchanged |
+| 9 | Reminder | counted today, follow-up date set then cleared on completion |
+| 10 | Insights + growth + AI gating | receivables 2500, payables 3000, growth finds both actions, expired account gets 403 |
+
+Result: **31/31**.
+
+### Bug fixed (found by workflow 8)
+
+`createSupplierPayment` only bounded the amount when a `purchaseId` was given.
+A payment with no invoice link accepted any amount — a 999,999 payment was
+silently applied, wiping the payable to zero and leaving negative exposure.
+
+Fix (`src/lib/services/supplier-payments.ts`): inside the same transaction, the
+supplier's live payable is computed
+(`openingBalance + Σ purchase.outstanding − Σ supplierPayment.amount`) and the
+payment is rejected with `api.supplierPayment.exceedsPayable` when it exceeds
+it. Overpaying is now impossible; record the purchase first if you are paying
+up front.
 
 ---
 

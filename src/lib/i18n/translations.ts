@@ -516,6 +516,7 @@ export const translations = {
   "api.purchase.paidExceedsTotal": { en: "Paid amount cannot be more than the total ({total}).", ur: "ادا شدہ رقم کل ({total}) سے زیادہ نہیں ہو سکتی۔" },
   "api.purchase.alreadyVoided": { en: "This purchase is already voided.", ur: "یہ خریداری پہلے ہی منسوخ ہے۔" },
   "api.purchase.cannotVoidConsumedStock": { en: "Cannot void: stock from this purchase has already been sold.", ur: "منسوخ نہیں ہو سکتی: اس خریداری کا مال فروخت ہو چکا ہے۔" },
+  "api.supplierPayment.exceedsPayable": { en: "Payment is more than you currently owe this supplier ({payable}).", ur: "ادائیگی اس سپلائر کے واجب الادا ({payable}) سے زیادہ ہے۔" },
   "api.supplierPayment.exceedsOutstanding": { en: "Payment is more than what is left on this invoice ({remaining}).", ur: "ادائیگی اس انوائس کے باقی ({remaining}) سے زیادہ ہے۔" },
   "api.supplierPayment.alreadyVoided": { en: "This payment is already voided.", ur: "یہ ادائیگی پہلے ہی منسوخ ہے۔" },
   "api.duplicateTransaction": { en: "This looks like a duplicate — the same entry was just saved.", ur: "یہ دہرائی ہوئی انٹری لگتی ہے — یہی انٹری ابھی محفوظ ہو چکی ہے۔" },

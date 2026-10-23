@@ -664,6 +664,33 @@ the receipt look wrong.
 
 ---
 
+## Completed — your own units, everywhere
+
+The prompt says no hardcoded industry units. Settings already let a business add
+custom units, but the product form and the sale quick-add only offered a fixed
+list — and the assistant never saw the custom ones at all.
+
+- **Root cause found**: the assistant context read `Setting` by
+  `id: "singleton"`, but settings are per user (`userId @unique`). It always got
+  `null`, so custom units never reached the model.
+- **Fixed** to read the signed-in user's settings, and exported
+  `buildAIContext` so the rule is testable.
+- **Product form** now merges built-in units with `Setting.customUnits`, and
+  keeps the product's existing unit even if it is no longer listed — editing a
+  product can never silently change its unit.
+- **Sale quick-add** and the **assistant's product-creation form** use the same
+  merged list, and the assistant form no longer defaults to `kg`.
+
+### Verification
+- `scripts/verify-units.ts` — **9/9**: units saved per business, present in the
+  assistant context, usable on a product, shown on the stock list, and never
+  shared with another business.
+- Re-ran discounts 36, reports 53, receipt 26, acceptance 31, due-dates 30,
+  platform 9, insights 24, assistant queries 28 — all pass.
+  **474 assertions, 0 failures**; `tsc --noEmit` and `npm run build` clean.
+
+---
+
 ## 🔑 Blockers / required from owner
 
 1. **`GEMINI_API_KEY`** — required for Smart Entry, the expanded voice assistant,

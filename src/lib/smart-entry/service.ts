@@ -2461,7 +2461,7 @@ function isExpired(session: { expiresAt: Date }): boolean {
   return session.expiresAt.getTime() < Date.now();
 }
 
-async function buildAIContext(userId: string): Promise<AIContext> {
+export async function buildAIContext(userId: string): Promise<AIContext> {
   const [customers, products, settings] = await Promise.all([
     prisma.customer.findMany({
       where: { userId, isDeleted: false },
@@ -2476,7 +2476,7 @@ async function buildAIContext(userId: string): Promise<AIContext> {
       take: 100,
     }),
     prisma.setting.findUnique({
-      where: { id: "singleton" },
+      where: { userId },
       select: { customUnits: true },
     }),
   ]);

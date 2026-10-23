@@ -51,6 +51,7 @@ import { cn } from "@/lib/utils/cn";
 import Link from "next/link";
 import { useLanguage } from "@/providers/language-provider";
 import { useCurrencySymbol } from "@/hooks/use-currency-symbol";
+import { useSettings } from "@/hooks/use-settings";
 
 export function SmartEntryModal({
   open,
@@ -3183,15 +3184,18 @@ function ProductCreationView({ form, transcript, onConfirm, onCancel }: {
   onCancel: () => void;
 }) {
   const { t } = useLanguage();
+  const { data: settings } = useSettings();
   const [name, setName] = useState(form.name ?? "");
-  const [unit, setUnit] = useState(form.unit ?? "kg");
+  const [unit, setUnit] = useState(form.unit ?? "piece");
   const [purchasePrice, setPurchasePrice] = useState(form.purchasePrice != null ? String(form.purchasePrice) : "");
   const [sellingPrice, setSellingPrice] = useState(form.sellingPrice != null ? String(form.sellingPrice) : "");
   const [openingStock, setOpeningStock] = useState(form.openingStock != null ? String(form.openingStock) : "");
   const [lowStockThreshold, setLowStockThreshold] = useState(String(form.lowStockThreshold ?? 5));
   const pp = Number(purchasePrice); const sp = Number(sellingPrice);
   const isValid = name.trim() && unit.trim() && Number.isFinite(pp) && pp >= 0 && Number.isFinite(sp) && sp >= 0;
-  const UNITS = ["kg", "piece", "box", "dozen", "litre", "metre", "pack", "bag", "bottle", "carton"];
+  const units = Array.from(
+    new Set(["piece", ...(settings?.customUnits ?? []), ...(unit ? [unit] : [])]),
+  );
 
   return (
     <div className="space-y-4">
@@ -3201,7 +3205,7 @@ function ProductCreationView({ form, transcript, onConfirm, onCancel }: {
         <div><label className="mb-1 block text-xs font-medium text-slate-600">{t("smartentry.field.name")} <span className="text-red-500">*</span></label>
           <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Product name" autoFocus className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30" /></div>
         <div><label className="mb-1 block text-xs font-medium text-slate-600">{t("smartentry.field.unit")} <span className="text-red-500">*</span></label>
-          <select value={unit} onChange={(e) => setUnit(e.target.value)} className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30">{UNITS.map((u) => <option key={u} value={u}>{u}</option>)}</select></div>
+          <select value={unit} onChange={(e) => setUnit(e.target.value)} className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30">{units.map((u) => <option key={u} value={u}>{u}</option>)}</select></div>
         <div><label className="mb-1 block text-xs font-medium text-slate-600">{t("smartentry.field.purchasePrice")} <span className="text-red-500">*</span></label>
           <div className="relative"><span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-medium text-slate-500">Rs.</span>
             <input type="number" inputMode="decimal" step="any" min="0" value={purchasePrice} onChange={(e) => setPurchasePrice(e.target.value)} placeholder="0" className="w-full rounded-lg border border-slate-300 bg-white py-2.5 pl-10 pr-3 text-sm font-medium tabular-nums text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30" /></div></div>

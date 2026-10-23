@@ -120,6 +120,18 @@ that reads your own database rows.
   the discounts given in the period, and say that top-product values are before
   the discount.
 
+### Units are yours, not ours
+- The app ships with sensible defaults (piece, kg, box, bag…), but a business
+  can add its own unit in **Settings → Units** (tray, sack, gaddi, ton, …).
+- The product form, the quick-add form inside a sale, and the assistant's
+  product-creation form all read that list, so a custom unit is selectable
+  everywhere — not only in Settings.
+- Custom units are stored per business (`Setting.customUnits`). The assistant
+  context was reading a global `"singleton"` row, so it never saw them; that is
+  fixed and covered by a test.
+- Editing an old product keeps its existing unit even if that unit is no longer
+  in the list, so a rename can never silently change a product's unit.
+
 ### Follow-up workflow (`/more/follow-ups`)
 - **Candidates come from purchase dates, not guesses.** A customer appears when
   the gap since their last purchase of a product is at least 1.25× their own
@@ -198,8 +210,9 @@ Bug 6 was found by the acceptance suite, not by inspection.
 | `scripts/verify-reports.ts` | any-period report: inclusive window, presets, sales / cash / purchases / expenses / COGS / profit, stock valuation rule, point-in-time position, limitations, tenant isolation | **53/53** |
 | `scripts/verify-due-dates.ts` | due date stored as business-timezone midnight, overdue rule, paid/voided/no-date exclusions, insights + reports + sales list agreement, assistant overdue answer, tenant isolation | **30/30** |
 | `scripts/verify-discounts.ts` | discounted billed total, full and zero discount, negative/over-total/over-paid refusals with no partial writes, receipt wording, revenue + report + khata agreement, tenant isolation | **36/36** |
+| `scripts/verify-units.ts` | custom units saved per business, reachable by the assistant, usable on a product, visible on the stock list, never shared across businesses | **9/9** |
 
-Total: **465 assertions passing**. `npx tsc --noEmit` and `npm run build` are
+Total: **474 assertions passing**. `npx tsc --noEmit` and `npm run build` are
 clean.
 
 The 10 acceptance workflows: register+trial · add customer · credit sale (stock

@@ -22,6 +22,7 @@
 import { Search, Plus, Package, Check, AlertTriangle, ChevronRight, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { useProductSearch, useCreateProduct } from "@/hooks/use-products";
+import { useSettings } from "@/hooks/use-settings";
 import { Decimal } from "@/lib/utils/decimal";
 import { formatQuantity, formatMoney } from "@/lib/utils/money";
 import { useToast } from "@/providers/toast-provider";
@@ -198,9 +199,13 @@ function QuickAddProduct({
   const createProduct = useCreateProduct();
   const { t } = useLanguage();
   const symbol = useCurrencySymbol();
+  const { data: settings } = useSettings();
   const [name, setName] = useState(initialName);
   const [sellingPrice, setSellingPrice] = useState("");
   const [unit, setUnit] = useState("piece");
+  const unitOptions = Array.from(
+    new Set([...UNITS, ...(settings?.customUnits ?? []), ...(unit ? [unit] : [])]),
+  );
 
   const sp = parseFloat(sellingPrice);
   const canSave = name.trim().length > 0 && !isNaN(sp) && sp > 0 && !createProduct.isPending;
@@ -288,7 +293,7 @@ function QuickAddProduct({
             onChange={(e) => setUnit(e.target.value)}
             className="w-full rounded-lg border border-slate-300 bg-white px-2 py-2 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
           >
-            {UNITS.map((u) => (
+            {unitOptions.map((u) => (
               <option key={u} value={u}>{u}</option>
             ))}
           </select>

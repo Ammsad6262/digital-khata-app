@@ -34,6 +34,7 @@ import {
 } from "@/hooks/use-products";
 import { ApiError } from "@/lib/utils/api-client";
 import { Decimal } from "@/lib/utils/decimal";
+import { useSettings } from "@/hooks/use-settings";
 import { useLanguage } from "@/providers/language-provider";
 
 const UNITS = ["piece", "kg", "box", "dozen", "litre", "metre", "pack", "bag", "bottle", "carton"];
@@ -51,6 +52,7 @@ export function ProductForm({
 
   // In edit mode, fetch the existing product to pre-fill.
   const { data: existing } = useProduct(mode === "edit" ? productId : null);
+  const { data: settings } = useSettings();
 
   const createProduct = useCreateProduct();
   const updateProduct = useUpdateProduct(productId ?? "");
@@ -63,6 +65,13 @@ export function ProductForm({
   const [sku, setSku] = useState<string>("");
   const [openingStock, setOpeningStock] = useState<string>("");
   const [lowStockThreshold, setLowStockThreshold] = useState<string>("5");
+
+  // Built-in defaults + this business's own units (Settings → Units). The
+  // current value is kept even if it is not in either list, so editing an old
+  // product never silently changes its unit.
+  const unitOptions = Array.from(
+    new Set([...UNITS, ...(settings?.customUnits ?? []), ...(unit ? [unit] : [])]),
+  );
 
   // Sync form fields when existing product data arrives (edit mode)
   useEffect(() => {
@@ -250,7 +259,7 @@ export function ProductForm({
                 onChange={(e) => setUnit(e.target.value)}
                 className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
               >
-                {UNITS.map((u) => (
+                {unitOptions.map((u) => (
                   <option key={u} value={u}>{u}</option>
                 ))}
               </select>

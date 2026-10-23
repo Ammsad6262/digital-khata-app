@@ -23,10 +23,36 @@ const CASES: Array<{
     explicitPaidAmount?: number | null;
     quantity?: number | null;
     explicitUnitPrice?: number | null;
+    queryEntity?: string | null;
   }) => string | null;
 }> = [
   { input: "How much do I owe my suppliers?", intent: "QUERY", queryType: "SUPPLIER_PAYABLES" },
   { input: "What reminders do I have today?", intent: "QUERY", queryType: "TODAYS_REMINDERS" },
+  { input: "Show products that are running low", intent: "QUERY", queryType: "LOW_STOCK" },
+  {
+    input: "Which customers have not purchased recently?",
+    intent: "QUERY",
+    queryType: "INACTIVE_CUSTOMERS",
+  },
+  {
+    input: "Find customers who may be ready to reorder",
+    intent: "QUERY",
+    queryType: "REORDER_CANDIDATES",
+  },
+  {
+    input: "Show me how much Ahmed owes me",
+    intent: "QUERY",
+    queryType: "CUSTOMER_BALANCES",
+    check: (r) =>
+      (r.queryEntity ?? "").toLowerCase().includes("ahmed") ? null : `queryEntity=${r.queryEntity}`,
+  },
+  {
+    input: "Show purchases from Ali",
+    intent: "QUERY",
+    queryType: "SUPPLIER_PURCHASES",
+    check: (r) =>
+      (r.queryEntity ?? "").toLowerCase().includes("ali") ? null : `queryEntity=${r.queryEntity}`,
+  },
   {
     input: "I paid Ali 5000",
     intent: "SUPPLIER_PAYMENT",

@@ -67,11 +67,35 @@ that reads your own database rows.
   in English or Urdu, with the business name. A copy-to-clipboard button covers
   every other app. Nothing is sent until the owner presses send.
 
+### Follow-up workflow (`/more/follow-ups`)
+- **Candidates come from purchase dates, not guesses.** A customer appears when
+  the gap since their last purchase of a product is at least 1.25× their own
+  average gap for that product; a customer who stopped buying everything is
+  flagged separately. Fewer than two purchases, or a recent purchase, means no
+  suggestion at all.
+- Each card states the evidence ("Bought this 3 times — usually every 20 days,
+  last one 35 days ago"), the live balance, and a **pre-written message the owner
+  can edit before sending**.
+- **Outcomes are recorded by the owner** — contacted / interested / order placed /
+  not interested / no response — with first-contact and closed dates stamped
+  automatically. Opening WhatsApp never counts as "contacted", and nothing is
+  ever marked as sent.
+- **Results**: contacted count, orders placed, and conversion %, all counted from
+  what the owner recorded. "Order placed" links straight to a sale for that
+  customer so stock and khata stay correct.
+- Saving the same opportunity twice returns the existing one — duplicates are
+  impossible. A closed follow-up frees the opportunity again.
+
 ### Voice / text assistant
-- Read queries: includes `SUPPLIER_PAYABLES` and `TODAYS_REMINDERS`.
-- Write intents: `SUPPLIER_PAYMENT`, `CREATE_REMINDER`, `CREATE_PURCHASE` —
-  confirmation-first, model never supplies IDs or prices (all resolved
-  server-side).
+- Read queries: expenses, sales + cash received (respecting today / week / month),
+  customer balances (one named customer, or everyone who owes), stock level, low
+  stock, supplier payables, purchases from a named supplier, reminders due today,
+  customers who stopped buying, and customers ready to reorder.
+- Answer rows that point at a record are **tappable** — the assistant opens the
+  customer, product, supplier or follow-up page directly.
+- Write intents: `CREATE_CUSTOMER`, `CREATE_PRODUCT`, `CREATE_EXPENSE`,
+  `SUPPLIER_PAYMENT`, `CREATE_REMINDER`, `CREATE_PURCHASE` — confirmation-first,
+  model never supplies IDs or prices (all resolved server-side).
 - Backend-enforced gating: every AI endpoint calls `requireActiveAccess`.
 
 ### Foundations
@@ -115,8 +139,10 @@ Bug 6 was found by the acceptance suite, not by inspection.
 | `scripts/verify-ai-queries.ts` | live Gemini routing | 5/5 |
 | `scripts/verify-contact-actions.ts` | phone normalisation, Call/WhatsApp links, reminder enrichment, snooze, supplier reorder | 36/36 |
 | `scripts/verify-statement.ts` | WhatsApp khata statement: exact balance, entry order, advance/settled wording, Urdu | 19/19 |
+| `scripts/verify-follow-ups.ts` | follow-up candidates from real purchase dates, duplicate prevention, editable message, outcome + conversion maths, tenant isolation | **50/50** |
+| `scripts/verify-ai-query-types.ts` | every assistant query type against real records: balances, today's cash, low stock, supplier purchases, inactive + reorder customers | **25/25** |
 
-Total: **242 assertions passing**. `npx tsc --noEmit` and `npm run build` are
+Total: **317 assertions passing**. `npx tsc --noEmit` and `npm run build` are
 clean.
 
 The 10 acceptance workflows: register+trial · add customer · credit sale (stock
@@ -129,16 +155,18 @@ supplier on credit · pay supplier (overpay rejected) · create+complete reminde
 ## 4. Database changes
 
 New models: `Supplier`, `Purchase`, `PurchaseItem`, `SupplierPayment`,
-`Reminder`.
+`Reminder`, `FollowUp`.
 New columns: `Customer.nextFollowUpAt`, `Supplier.nextFollowUpAt`, purchase
 totals (`totalAmount`, `paidAmount`, `outstanding`), purchase-item lines,
 supplier/reference links on ledger rows.
 Uniqueness: `@@unique([userId, phone])` on `Customer`,
 `@@unique([sku, userId])` on `Product` (per-tenant, not global).
 
-Production DDL: `prisma/production/20261020_stage2_3_delta.sql` — additive,
-transactional, idempotent, 14 foreign keys. Applied twice to a scratch database
-and verified to produce a schema identical to Prisma's.
+Production DDL: `prisma/production/20261020_stage2_3_delta.sql` (suppliers,
+purchases, reminders) and `prisma/production/20261023_follow_ups.sql` (the
+`FollowUp` table) — both additive, transactional, idempotent. The stage 2-3 file
+was applied twice to a scratch database and verified to produce a schema
+identical to Prisma's.
 
 No schema change was needed for the three new voice write intents.
 

@@ -144,7 +144,24 @@ Detect the user's intent from the natural-language input. Choose the BEST match:
 10. QUERY: The user is asking a question about their business data.
    Examples: "How much did I spend today?", "How much did I sell today?",
    "Which customers owe me money?", "How much stock of rice do I have?"
-   Fill: queryType, queryEntity (if asking about a specific product/customer), queryDateRange
+   Fill: queryType, queryEntity (if asking about a specific product/customer), queryDateRange.
+   queryType must be one of:
+     TODAYS_EXPENSES | EXPENSES_SUMMARY  -> what did I spend
+     TODAYS_SALES | SALES_SUMMARY        -> what did I sell / what came in
+     CUSTOMER_BALANCES                   -> who owes me / how much does <customer> owe
+     CUSTOMER_PAYMENT_HISTORY            -> payments from a customer
+     STOCK_LEVEL                         -> stock of a specific product (queryEntity required)
+     LOW_STOCK                           -> what is running low / needs reordering
+     SUPPLIER_PAYABLES                   -> whom do I owe
+     SUPPLIER_PURCHASES                  -> purchases from a supplier (queryEntity = supplier name)
+     TODAYS_REMINDERS                    -> what should I do today
+     INACTIVE_CUSTOMERS                  -> customers who stopped buying
+     REORDER_CANDIDATES                  -> customers who may be ready to order again
+   "Show me how much Ahmed owes me" = CUSTOMER_BALANCES with queryEntity="Ahmed".
+   "Which customers have not purchased recently?" = INACTIVE_CUSTOMERS.
+   "Find customers who may be ready to reorder" = REORDER_CANDIDATES.
+   "Show products that are running low" = LOW_STOCK.
+   "Show purchases from this supplier" = SUPPLIER_PURCHASES with queryEntity = the supplier name.
 
 11. UNKNOWN: The intent is unclear. Set needsClarification=true and ask a question.
 

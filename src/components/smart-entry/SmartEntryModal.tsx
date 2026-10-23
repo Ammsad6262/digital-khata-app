@@ -2796,18 +2796,56 @@ function QueryResultView({
 
         {Array.isArray(result.data) && result.data.length > 0 ? (
           <div className="mt-4 space-y-1.5 text-left">
-            {result.data.slice(0, 10).map((item, i) => (
-              <div key={i} className="flex items-center justify-between rounded-lg bg-white/60 px-3 py-2 text-sm">
-                <span className="font-medium text-slate-700">
-                  {item.name ?? item.product ?? JSON.stringify(item).slice(0, 50)}
-                </span>
-                <span className="font-bold tabular-nums text-slate-900">
-                  {item.balance != null ? `${symbol} ${Number(item.balance).toLocaleString()}` :
-                   item.stock != null ? `${item.stock} ${t("smartentry.query.unitsSuffix")}` :
-                   item.amount != null ? `${symbol} ${Number(item.amount).toLocaleString()}` : ""}
-                </span>
-              </div>
-            ))}
+            {result.data.slice(0, 10).map((item: Record<string, unknown> & {
+              name?: string;
+              product?: string;
+              balance?: string | number;
+              stock?: string | number;
+              amount?: string | number;
+              days?: string | number;
+              href?: string;
+            }, i: number) => {
+              const label = item.name ?? item.product ?? JSON.stringify(item).slice(0, 50);
+              const value =
+                item.balance != null
+                  ? `${symbol} ${Number(item.balance).toLocaleString()}`
+                  : item.amount != null
+                    ? `${symbol} ${Number(item.amount).toLocaleString()}`
+                    : item.stock != null
+                      ? `${item.stock} ${t("smartentry.query.unitsSuffix")}`
+                      : item.days != null
+                        ? `${item.days} ${t("smartentry.query.daysSuffix")}`
+                        : "";
+
+              const row = (
+                <>
+                  <span className="min-w-0 flex-1 text-left font-medium text-slate-700">
+                    {label}
+                  </span>
+                  <span className="shrink-0 font-bold tabular-nums text-slate-900">{value}</span>
+                </>
+              );
+
+              // Rows that point at a record can be opened straight from the
+              // answer — the owner never has to copy a name and search for it.
+              return item.href ? (
+                <Link
+                  key={i}
+                  href={item.href}
+                  onClick={onDone}
+                  className="flex items-center justify-between gap-2 rounded-lg bg-white/60 px-3 py-2 text-sm hover:bg-white"
+                >
+                  {row}
+                </Link>
+              ) : (
+                <div
+                  key={i}
+                  className="flex items-center justify-between gap-2 rounded-lg bg-white/60 px-3 py-2 text-sm"
+                >
+                  {row}
+                </div>
+              );
+            })}
           </div>
         ) : null}
       </div>

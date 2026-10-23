@@ -55,6 +55,7 @@ import {
   Crown,
   Gift,
   Sparkles,
+  MessageSquare,
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { useLanguage } from "@/providers/language-provider";
@@ -107,6 +108,12 @@ const GROUPS: MoreGroup[] = [
         titleKey: "more.growth",
         descKey: "more.growthDesc",
         icon: Sparkles,
+      },
+      {
+        href: "/more/follow-ups",
+        titleKey: "more.followUps",
+        descKey: "more.followUpsDesc",
+        icon: MessageSquare,
       },
       {
         href: "/more/insights",

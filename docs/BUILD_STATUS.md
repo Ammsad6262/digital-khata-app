@@ -480,6 +480,53 @@ should not have to read the screen, remember it and type it out.
 
 ---
 
+## Completed — follow-up workflow + assistant answers for every growth question
+
+The AI Sales Growth Assistant now carries the workflow all the way through:
+find the opportunity, explain it, write the message, record what happened, and
+show what worked.
+
+- **`FollowUp` model** (`prisma/schema.prisma`) + `src/lib/services/follow-ups.ts`.
+  Candidates are derived from real `SaleItem` dates only: a product is due when
+  the gap since the last purchase is ≥ 1.25× the customer's own average gap for
+  that product (needs ≥ 2 purchases); a customer who stopped buying everything
+  is flagged separately. Recent buyers never appear.
+- **Editable message** per opportunity, generated in the owner's language from
+  the candidate's own numbers. WhatsApp opens pre-filled; the owner presses send.
+- **Outcomes**: contacted / interested / order placed / not interested / no
+  response. `contactedAt` and `resolvedAt` are stamped server-side; reopening
+  clears the closed date. Opening WhatsApp is never recorded as contact.
+- **Results strip**: contacted, orders placed, conversion % — with the
+  denominator stated ("3 orders from 12 follow-ups you worked"). "Order placed"
+  links to `/sales/new?customerId=…` so stock and khata stay correct.
+- **No duplicates**: `createFollowUp` returns the existing open follow-up for the
+  same customer+product instead of creating a second row.
+- API: `GET/POST /api/follow-ups`, `GET /api/follow-ups/candidates`,
+  `PATCH /api/follow-ups/[id]` — all behind `requireActiveAccess`, all tenant
+  scoped. Page: `/more/follow-ups` + More drawer entry, EN/UR.
+- **Assistant queries extended**: `LOW_STOCK`, `INACTIVE_CUSTOMERS`,
+  `REORDER_CANDIDATES`, `SUPPLIER_PURCHASES`; `CUSTOMER_BALANCES` now answers for
+  a named customer; `SALES_SUMMARY` respects today/week/month and reports cash
+  actually received; `SUPPLIER_PAYABLES` / `CUSTOMER_BALANCES` / purchases / low
+  stock return a `href`, and answer rows are tappable in the assistant modal.
+- Production DDL: `prisma/production/20261023_follow_ups.sql` — additive,
+  transactional, idempotent, with guarded foreign keys.
+
+### Verification
+- `scripts/verify-follow-ups.ts` — **50/50** (candidate maths, inactive vs
+  reorder, duplicate prevention, tenant isolation, message editing, outcome
+  transitions, conversion maths, reopen).
+- `scripts/verify-ai-query-types.ts` — **25/25** (every query type against real
+  rows: exact balance for a named customer, today's cash received, computed
+  stock, low stock, supplier purchases + unpaid amount, inactive/reorder
+  customers, tappable links, cross-tenant isolation).
+- Re-ran every suite: platform 9, purchases 27, reminders 24, insights 24,
+  assistant-writes 33, growth 26, contact-actions 36, statement 19, ai-gating 8,
+  acceptance 31, follow-ups 50, ai-query-types 25 — **317 assertions, 0
+  failures**. `tsc --noEmit` and `npm run build` clean.
+
+---
+
 ## 🔑 Blockers / required from owner
 
 1. **`GEMINI_API_KEY`** — required for Smart Entry, the expanded voice assistant,

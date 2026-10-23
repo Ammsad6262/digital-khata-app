@@ -34,11 +34,17 @@ import { recordExpense } from "@/lib/services/expenses";
 import { recordPayment } from "@/lib/services/payments";
 import { addStockMove } from "@/lib/services/stock";
 import { createProductWithOpeningStock } from "@/lib/services/products";
-import { createCustomer } from "@/lib/services/customers";
+import {
+  createCustomer,
+  getCustomerBalance,
+  listOutstandingCustomers,
+} from "@/lib/services/customers";
 import { listSuppliersWithBalance } from "@/lib/services/suppliers";
 import { createSupplierPayment } from "@/lib/services/supplier-payments";
 import { createPurchase } from "@/lib/services/purchases";
 import { listReminders, getReminderCounts, createReminder } from "@/lib/services/reminders";
+import { getBusinessInsights } from "@/lib/services/insights";
+import { getFollowUpCandidates } from "@/lib/services/follow-ups";
 import { invalidateCache } from "@/lib/utils/cache";
 import { tServer } from "@/lib/i18n/server";
 import { getAIProvider, AIUnavailableError } from "./gemini-provider";
@@ -1090,8 +1096,11 @@ async function buildPurchaseForm(
 /**
  * V10: Process QUERY intent.
  * Executes the query against the user's real data and returns a result.
+ *
+ * Exported so the verification scripts can exercise every query type against
+ * the real database without spending AI quota.
  */
-async function processQuery(
+export async function processQuery(
   userId: string,
   ai: AiInterpretation,
   transcript: string | null,
@@ -1109,39 +1118,201 @@ async function processQuery(
     resultText = `${dateRange === "today" ? "Today's" : dateRange === "week" ? "This week's" : dateRange === "month" ? "This month's" : "Total"} expenses: Rs. ${Number(summary.total).toLocaleString()} (${summary.count} expenses)`;
     resultData = summary;
   } else if (queryType === "TODAYS_SALES" || queryType === "SALES_SUMMARY") {
-    const sales = await prisma.sale.findMany({
-      where: { userId, voidedAt: null },
-      select: { totalAmount: true, paidAmount: true },
-    });
-    const totalSales = sales.reduce((sum, s) => sum + Number(s.totalAmount), 0);
-    const totalReceived = sales.reduce((sum, s) => sum + Number(s.paidAmount), 0);
-    resultText = `Total sales: Rs. ${totalSales.toLocaleString()} (${sales.length} sales). Total received: Rs. ${totalReceived.toLocaleString()}.`;
-    resultData = { totalSales, totalReceived, count: sales.length };
-  } else if (queryType === "CUSTOMER_BALANCES") {
-    const customers = await prisma.customer.findMany({
-      where: { userId, isDeleted: false },
-      select: { id: true, name: true, openingBalance: true },
-      orderBy: { name: "asc" },
-    });
-    const balances = await Promise.all(
-      customers.map(async (c) => {
-        const salesAgg = await prisma.sale.aggregate({
-          _sum: { totalAmount: true },
-          where: { customerId: c.id, userId, voidedAt: null },
-        });
-        const paymentsAgg = await prisma.payment.aggregate({
-          _sum: { amount: true },
-          where: { customerId: c.id, userId, voidedAt: null },
-        });
-        const balance = Number(c.openingBalance) + Number(salesAgg._sum.totalAmount ?? 0) - Number(paymentsAgg._sum.amount ?? 0);
-        return { name: c.name, balance };
+    const { startOfTodayInTz, startOfWeekInTz, startOfMonthInTz } = await import("@/lib/utils/date");
+    const rangeStart =
+      dateRange === "today"
+        ? startOfTodayInTz("Asia/Karachi")
+        : dateRange === "yesterday"
+          ? new Date(startOfTodayInTz("Asia/Karachi").getTime() - 86_400_000)
+          : dateRange === "week"
+            ? startOfWeekInTz("Asia/Karachi")
+            : dateRange === "month"
+              ? startOfMonthInTz("Asia/Karachi")
+              : undefined;
+
+    // "Today's sales and payments received" means two different numbers:
+    // goods sold (revenue) and cash that actually arrived.
+    const where = {
+      userId,
+      voidedAt: null,
+      ...(rangeStart ? { date: { gte: rangeStart } } : {}),
+    };
+
+    const [sales, paymentsAgg] = await Promise.all([
+      prisma.sale.findMany({
+        where,
+        select: { totalAmount: true, paidAmount: true },
       }),
-    );
-    const owing = balances.filter((b) => b.balance > 0);
-    resultText = owing.length > 0
-      ? `${owing.length} customers owe you money. Total outstanding: Rs. ${owing.reduce((s, b) => s + b.balance, 0).toLocaleString()}`
-      : "No customers owe you money.";
-    resultData = owing;
+      prisma.payment.aggregate({
+        _sum: { amount: true },
+        where: {
+          userId,
+          voidedAt: null,
+          ...(rangeStart && { date: { gte: rangeStart } }),
+        },
+      }),
+    ]);
+
+    const totalSales = sales.reduce((sum, s) => sum + Number(s.totalAmount), 0);
+    const paidAtSale = sales.reduce((sum, s) => sum + Number(s.paidAmount), 0);
+    const received = paidAtSale + Number(paymentsAgg._sum.amount ?? 0);
+    const label =
+      dateRange === "today"
+        ? "Today"
+        : dateRange === "yesterday"
+          ? "Yesterday"
+          : dateRange === "week"
+            ? "This week"
+            : dateRange === "month"
+              ? "This month"
+              : "In total";
+
+    resultText = `${label}: sales of Rs. ${totalSales.toLocaleString()} (${sales.length} sales). Cash received: Rs. ${received.toLocaleString()}.`;
+    resultData = {
+      totalSales,
+      totalReceived: received,
+      count: sales.length,
+    };
+  } else if (queryType === "CUSTOMER_BALANCES") {
+    if (queryEntity) {
+      const customer = await prisma.customer.findFirst({
+        where: { userId, isDeleted: false, name: { contains: queryEntity, mode: "insensitive" } },
+        select: { id: true, name: true },
+      });
+
+      if (!customer) {
+        resultText = `No customer named "${queryEntity}" in your khata.`;
+      } else {
+        const { balance } = await getCustomerBalance(customer.id);
+        const value = Number(balance);
+        resultText =
+          value > 0
+            ? `${customer.name} owes you Rs. ${value.toLocaleString()}.`
+            : value < 0
+              ? `${customer.name} has an advance of Rs. ${Math.abs(value).toLocaleString()}.`
+              : `${customer.name}'s account is settled.`;
+        resultData = [
+          { name: customer.name, balance: balance.toString(), href: `/khata/${customer.id}` },
+        ];
+      }
+    } else {
+      const owing = await listOutstandingCustomers(userId);
+      const total = owing.reduce(
+        (sum, c) => sum.plus(toDecimalOrZero(c.balance)),
+        new Decimal(0),
+      );
+      resultText =
+        owing.length > 0
+          ? `${owing.length} customers owe you a total of Rs. ${Number(total).toLocaleString()}.`
+          : "No customers owe you money.";
+      resultData = owing.slice(0, 20).map((c) => ({
+        name: c.name,
+        balance: c.balance,
+        href: `/khata/${c.id}`,
+      }));
+    }
+  } else if (queryType === "LOW_STOCK") {
+    const insights = await getBusinessInsights(userId);
+
+    if (insights.lowStock.length === 0) {
+      resultText = "Nothing is below its low-stock level.";
+      resultData = [];
+    } else {
+      resultText = `${insights.lowStock.length} products are at or below their low-stock level.`;
+      resultData = insights.lowStock.map((p) => ({
+        name: p.name,
+        stock: Number(p.currentStock),
+        href: `/more/products/${p.id}`,
+      }));
+    }
+  } else if (queryType === "INACTIVE_CUSTOMERS") {
+    const insights = await getBusinessInsights(userId);
+    const inactive = insights.inactiveCustomers;
+
+    if (inactive.length === 0) {
+      resultText = "Every customer has bought something recently.";
+      resultData = [];
+    } else {
+      resultText =
+        inactive.length === 1
+          ? "1 customer used to buy from you but has gone quiet."
+          : `${inactive.length} customers used to buy from you but have gone quiet.`;
+      resultData = inactive.slice(0, 20).map((c) => ({
+        name: c.name,
+        balance: c.balance,
+        href: `/khata/${c.id}`,
+      }));
+    }
+  } else if (queryType === "REORDER_CANDIDATES") {
+    const candidates = await getFollowUpCandidates(userId);
+
+    if (candidates.length === 0) {
+      resultText = "No customer is past their usual buying interval right now.";
+      resultData = [];
+    } else {
+      resultText =
+        candidates.length === 1
+          ? "1 customer is past their usual buying interval — worth a call."
+          : `${candidates.length} customers are past their usual buying interval — worth a call.`;
+      resultData = candidates.slice(0, 10).map((c) => ({
+        name: c.productName ? `${c.customerName} — ${c.productName}` : c.customerName,
+        days: c.daysSinceLastPurchase,
+        href: "/more/follow-ups",
+      }));
+    }
+  } else if (queryType === "SUPPLIER_PURCHASES") {
+    const supplier = queryEntity
+      ? await prisma.supplier.findFirst({
+          where: {
+            userId,
+            isDeleted: false,
+            name: { contains: queryEntity, mode: "insensitive" },
+          },
+          select: { id: true, name: true },
+        })
+      : null;
+
+    if (queryEntity && !supplier) {
+      resultText = `No supplier named "${queryEntity}" in your records.`;
+      resultData = [];
+    } else {
+      const purchases = await prisma.purchase.findMany({
+        where: {
+          userId,
+          voidedAt: null,
+          ...(supplier ? { supplierId: supplier.id } : {}),
+        },
+        select: {
+          id: true,
+          totalAmount: true,
+          outstanding: true,
+          date: true,
+          supplier: { select: { id: true, name: true } },
+        },
+        orderBy: { date: "desc" },
+        take: 10,
+      });
+
+      const total = purchases.reduce((sum, p) => sum + Number(p.totalAmount), 0);
+      const unpaid = purchases.reduce((sum, p) => sum + Number(p.outstanding), 0);
+
+      if (purchases.length === 0) {
+        resultText = supplier
+          ? `No purchases recorded from ${supplier.name} yet.`
+          : "No purchases recorded yet.";
+        resultData = [];
+      } else {
+        const who = supplier ? ` from ${supplier.name}` : "";
+        resultText =
+          `Last ${purchases.length} purchases${who} total Rs. ${total.toLocaleString()}` +
+          (unpaid > 0 ? `, of which Rs. ${unpaid.toLocaleString()} is still unpaid.` : ".");
+        resultData = purchases.map((p) => ({
+          name: `${p.supplier.name} — ${p.date.toISOString().slice(0, 10)}`,
+          amount: p.totalAmount.toString(),
+          href: `/more/suppliers/${p.supplier.id}`,
+        }));
+      }
+    }
   } else if (queryType === "STOCK_LEVEL" && queryEntity) {
     const product = await prisma.product.findFirst({
       where: { userId, isDeleted: false, name: { contains: queryEntity, mode: "insensitive" } },
@@ -1178,7 +1349,11 @@ async function processQuery(
           new Decimal(0),
         );
         resultText = `You owe ${matches.map((m) => m.name).join(", ")} Rs. ${Number(total).toLocaleString()}.`;
-        resultData = matches.map((m) => ({ name: m.name, balance: m.balance }));
+        resultData = matches.map((m) => ({
+          name: m.name,
+          balance: m.balance,
+          href: `/more/suppliers/${m.id}`,
+        }));
       }
     } else {
       const total = owing.reduce(
@@ -1191,7 +1366,11 @@ async function processQuery(
       resultData = {
         total: total.toString(),
         count: owing.length,
-        suppliers: owing.slice(0, 20).map((s) => ({ name: s.name, balance: s.balance })),
+        suppliers: owing.slice(0, 20).map((s) => ({
+          name: s.name,
+          balance: s.balance,
+          href: `/more/suppliers/${s.id}`,
+        })),
       };
     }
   } else if (queryType === "TODAYS_REMINDERS") {
@@ -1217,7 +1396,7 @@ async function processQuery(
     }
     resultData = { counts, today: todayItems, overdue: overdueItems };
   } else {
-    resultText = "I can help you check expenses, sales, customer balances, stock levels, supplier payables, and reminders. What would you like to know?";
+    resultText = "I can check expenses, sales, customer balances, stock levels, low stock, supplier payables and purchases, reminders, customers who stopped buying, and customers ready to reorder. What would you like to know?";
   }
 
   const session = await prisma.smartEntrySession.create({

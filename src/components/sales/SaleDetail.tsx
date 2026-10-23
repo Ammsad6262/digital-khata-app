@@ -27,6 +27,10 @@ import {
   Wallet,
 } from "lucide-react";
 import { useSale, useVoidSale } from "@/hooks/use-sales";
+import { useCurrencySymbol } from "@/hooks/use-currency-symbol";
+import { useSettings } from "@/hooks/use-settings";
+import { ShareReceipt } from "@/components/sales/ShareReceipt";
+import { buildSaleReceipt } from "@/lib/utils/receipt";
 import { Money } from "@/components/shared/Money";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { Button } from "@/components/ui/Button";
@@ -40,7 +44,9 @@ export function SaleDetail({ saleId }: { saleId: string }) {
   const { data: sale, isLoading, isError, error, refetch } = useSale(saleId);
   const voidSale = useVoidSale();
   const [confirmVoid, setConfirmVoid] = useState(false);
-  const { t } = useLanguage();
+  const { t, tParams } = useLanguage();
+  const symbol = useCurrencySymbol();
+  const { data: settings } = useSettings();
 
   if (isLoading) {
     return <SaleDetailSkeleton />;
@@ -257,6 +263,16 @@ export function SaleDetail({ saleId }: { saleId: string }) {
           <CheckCircle2 className="h-4 w-4" />
           {t("payment.cantRecordForPaidSale")}
         </div>
+      ) : null}
+
+      {/* Send the receipt — the owner never retypes a sale. */}
+      {!isVoided ? (
+        <ShareReceipt
+          phone={sale.customerPhone}
+          message={buildSaleReceipt(sale, { t, tParams }, symbol, {
+            businessName: settings?.businessName,
+          })}
+        />
       ) : null}
 
       {/* Void action */}

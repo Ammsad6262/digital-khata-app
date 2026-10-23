@@ -67,6 +67,14 @@ that reads your own database rows.
   in English or Urdu, with the business name. A copy-to-clipboard button covers
   every other app. Nothing is sent until the owner presses send.
 
+### Share a sale receipt
+- `buildSaleReceipt()` writes a numbered receipt from the **saved sale** — items,
+  total, paid, and "Still to pay" / "Paid in full" / extra received — with the
+  business name and notes.
+- `ShareReceipt` on `/sales/[id]` opens WhatsApp pre-filled, plus Copy text.
+  Voided sales do not offer a receipt; posted sales are corrected by voiding, not
+  by editing, so history stays auditable.
+
 ### Follow-up workflow (`/more/follow-ups`)
 - **Candidates come from purchase dates, not guesses.** A customer appears when
   the gap since their last purchase of a product is at least 1.25× their own
@@ -141,8 +149,9 @@ Bug 6 was found by the acceptance suite, not by inspection.
 | `scripts/verify-statement.ts` | WhatsApp khata statement: exact balance, entry order, advance/settled wording, Urdu | 19/19 |
 | `scripts/verify-follow-ups.ts` | follow-up candidates from real purchase dates, duplicate prevention, editable message, outcome + conversion maths, tenant isolation | **50/50** |
 | `scripts/verify-ai-query-types.ts` | every assistant query type against real records: balances, today's cash, low stock, supplier purchases, inactive + reorder customers | **25/25** |
+| `scripts/verify-receipt.ts` | sale receipt text: saved totals, paid/outstanding wording, overpayment, notes, Urdu, no profit language | **26/26** |
 
-Total: **317 assertions passing**. `npx tsc --noEmit` and `npm run build` are
+Total: **343 assertions passing**. `npx tsc --noEmit` and `npm run build` are
 clean.
 
 The 10 acceptance workflows: register+trial · add customer · credit sale (stock

@@ -525,6 +525,24 @@ show what worked.
   acceptance 31, follow-ups 50, ai-query-types 25 — **317 assertions, 0
   failures**. `tsc --noEmit` and `npm run build` clean.
 
+### Share a sale receipt
+- `buildSaleReceipt()` (`src/lib/utils/receipt.ts`) writes the receipt from the
+  **saved sale**: numbered items with quantity, unit, unit price and line total,
+  then total, paid, and either "Still to pay", "Paid in full", or the extra money
+  received. Notes and the business name are included.
+- `ShareReceipt` on the sale page opens WhatsApp pre-filled, plus Copy text.
+  Voided sales do not offer a receipt. Nothing is ever marked as sent.
+- English and Urdu; the amount stays exact in both.
+- Editing a posted sale is deliberately **not** offered — voiding (with stock and
+  ledger restoration) is the auditable correction. That is why the receipt is
+  generated from the sale rather than from an editable invoice.
+
+### Verification
+- `scripts/verify-receipt.ts` — **26/26** (line maths, saved totals, paid in
+  full, overpayment worded as money received, notes, Urdu, no profit language).
+- Re-ran the suites: **343 assertions, 0 failures**. `tsc` and `next build`
+  clean.
+
 ---
 
 ## 🔑 Blockers / required from owner

@@ -1574,6 +1574,17 @@ export const translations = {
   "followUps.marked": { en: "Saved", ur: "محفوظ" },
   "followUps.closedHint": { en: "You can reopen any of these if they change their mind.", ur: "اگر ارادہ بدلے تو دوبارہ کھول سکتے ہیں۔" },
 
+  // ─── Sale receipt ───
+  "receipt.title": { en: "Sale receipt", ur: "فروخت کی رسید" },
+  "receipt.titleFrom": { en: "Sale receipt — {business}", ur: "فروخت کی رسید — {business}" },
+  "receipt.total": { en: "Total: {amount}", ur: "کل: {amount}" },
+  "receipt.paid": { en: "Paid: {amount}", ur: "ادا شدہ: {amount}" },
+  "receipt.balance": { en: "Still to pay: {amount}", ur: "باقی: {amount}" },
+  "receipt.change": { en: "Extra received: {amount}", ur: "زیادہ موصول: {amount}" },
+  "receipt.paidFull": { en: "Paid in full.", ur: "پوری ادائیگی ہو گئی۔" },
+  "receipt.shareTitle": { en: "Send this receipt", ur: "یہ رسید بھیجیں" },
+  "receipt.shareHint": { en: "Already written from the saved sale. You press send.", ur: "محفوظ فروخت سے تیار۔ بھیجنے کا بٹن آپ دبائیں۔" },
+
   // ─── Follow-up API errors ───
   "api.resource.followUp": { en: "Follow-up", ur: "فالو اپ" },
   "api.followUp.reason": { en: "A follow-up needs a reason (up to 300 characters).", ur: "فالو اپ کی وجہ ضروری ہے (300 حروف تک)۔" },

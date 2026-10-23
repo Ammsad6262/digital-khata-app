@@ -15,7 +15,7 @@ import type { AiInterpretation } from "@/lib/smart-entry/schema";
 let passed = 0;
 let failed = 0;
 
-function check(label: string, condition: boolean, detail?: string) {
+function check(label: string, condition: boolean | undefined, detail?: string) {
   if (condition) {
     passed++;
     console.log(`  PASS ${label}`);

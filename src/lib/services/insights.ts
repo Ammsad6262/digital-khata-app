@@ -15,6 +15,7 @@ import { prisma } from "@/lib/db/prisma";
 import { listOutstandingCustomers } from "@/lib/services/customers";
 import { listProductsWithStock } from "@/lib/services/products";
 import { listSuppliersWithBalance } from "@/lib/services/suppliers";
+import { getOverdueSummary } from "@/lib/services/sales";
 
 const TZ = "Asia/Karachi";
 const RANGE_DAYS = 30;
@@ -70,6 +71,8 @@ export type BusinessInsights = {
   salesTrend: SalesTrend;
   receivables: { total: string; customersCount: number };
   payables: { total: string; suppliersCount: number };
+  /** Sales past their agreed due date with money still owed. */
+  overdue: { total: string; salesCount: number; customersCount: number };
 };
 
 function pctChange(current: Decimal, previous: Decimal): number | null {
@@ -200,6 +203,9 @@ export async function getBusinessInsights(
     new Decimal(0),
   );
 
+  // ── Overdue: sales past their agreed date with money still owed ─────────
+  const overdue = await getOverdueSummary(userId);
+
   // ── Inactive customers who still owe money ──────────────────────────────
   const inactiveCustomers: InactiveCustomer[] = outstanding
     .filter((c) => {
@@ -230,6 +236,11 @@ export async function getBusinessInsights(
     payables: {
       total: payablesTotal.toString(),
       suppliersCount: payableSuppliers.length,
+    },
+    overdue: {
+      total: overdue.total,
+      salesCount: overdue.salesCount,
+      customersCount: overdue.customersCount,
     },
   };
 }

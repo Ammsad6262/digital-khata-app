@@ -246,6 +246,9 @@ model Sale {
 
   notes      String?
   date       DateTime @default(now()) // can be backdated
+  // Optional date the customer agreed to pay by. When outstanding > 0 and this
+  // date is in the past, the sale is "overdue". Null = no agreed date.
+  dueDate    DateTime?
   voidedAt   DateTime? // null = active; set when voided
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
@@ -255,6 +258,7 @@ model Sale {
 
   @@index([customerId])
   @@index([date])
+  @@index([dueDate])
   @@index([voidedAt])
 }
 

@@ -148,6 +148,31 @@ export function InsightsView() {
         </div>
       </div>
 
+      {/* Overdue — only when something is actually past its date */}
+      {Number(data.overdue.total) > 0 ? (
+        <div className="rounded-xl border border-red-200 bg-red-50 p-3.5">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-xs font-medium text-red-700">{t("insights.overdue")}</p>
+              <p className="mt-1 text-lg font-bold text-red-800">
+                <Money value={data.overdue.total} symbol={symbol} />
+              </p>
+              <p className="text-[11px] text-red-700">
+                {data.overdue.salesCount} {t("insights.salesWord")} ·{" "}
+                {data.overdue.customersCount} {t("insights.customers")}
+              </p>
+              <p className="mt-0.5 text-[11px] text-red-600">{t("insights.overdueHint")}</p>
+            </div>
+            <Link
+              href="/sales"
+              className="shrink-0 rounded-lg border border-red-300 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-red-700 hover:bg-red-100"
+            >
+              {t("insights.viewSales")}
+            </Link>
+          </div>
+        </div>
+      ) : null}
+
       {/* Sales trend */}
       <Section title={t("insights.salesTrend")} icon={<TrendingUp className="h-4 w-4" />}>
         <div className="divide-y divide-slate-100">

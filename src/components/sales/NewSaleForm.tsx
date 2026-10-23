@@ -61,6 +61,7 @@ export function NewSaleForm() {
   const [customer, setCustomer] = useState<SelectedCustomer | null>(null);
   const [items, setItems] = useState<LineItem[]>([]);
   const [paidAmount, setPaidAmount] = useState<string>("");
+  const [dueDate, setDueDate] = useState<string>("");
   const [notes, setNotes] = useState<string>("");
   const [customerError, setCustomerError] = useState<string | null>(null);
 
@@ -218,6 +219,7 @@ export function NewSaleForm() {
         paidAmount: paidAmount || "0",
         paymentMethod: "cash",
         notes: notes.trim() || null,
+        dueDate: dueDate || null,
       },
       {
         onSuccess: (sale) => {
@@ -445,6 +447,19 @@ export function NewSaleForm() {
                 <span className="font-bold tabular-nums text-red-600">
                   <Money value={totals.outstanding.toString()} />
                 </span>
+              </div>
+
+              <div className="border-t border-slate-100 pt-1.5">
+                <label className="mb-1 block text-xs font-medium text-slate-600">
+                  {t("sale.dueDate")}
+                </label>
+                <input
+                  type="date"
+                  value={dueDate}
+                  onChange={(e) => setDueDate(e.target.value)}
+                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+                />
+                <p className="mt-1 text-[11px] text-slate-400">{t("sale.dueDateHint")}</p>
               </div>
             </div>
           </div>

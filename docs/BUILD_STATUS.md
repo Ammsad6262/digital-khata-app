@@ -599,6 +599,39 @@ profit — with date filters and with the limitations stated. That now exists.
 
 ---
 
+## Completed — sale due dates and overdue tracking
+
+The prompt asks to see outstanding balances **and overdue amounts**, and for the
+assistant to answer "who has overdue payments?". Sales had no agreed date, so
+there was nothing to be overdue against.
+
+- **`Sale.dueDate`** (nullable) — optional agreed payment date, stored as
+  midnight in the business timezone. Production DDL:
+  `prisma/production/20261023_sale_due_date.sql` (additive, idempotent).
+- **The rule**: overdue = `outstanding > 0` AND `dueDate < start of today`.
+  Due today is not overdue; tomorrow it is. Fully paid, voided and undated sales
+  are never overdue. One shared `getOverdueSummary()` powers insights and
+  reports, so they cannot disagree.
+- **Sale form**: optional due-date field with a plain-language hint.
+- **Sale page**: shows the due date and switches the status badge to **Overdue**
+  when it applies. The sales list shows overdue instead of "due" for those rows.
+- **Insights**: a red overdue strip (amount, sales, customers) that only appears
+  when something is actually overdue.
+- **Reports**: overdue receivables in "Where you stand today".
+- **Assistant**: new `OVERDUE_CUSTOMERS` query type — "Who is overdue?" lists
+  each customer with their overdue amount and a tap-through to their khata.
+
+### Verification
+- `scripts/verify-due-dates.ts` — **30/30**: timezone-midnight storage, due-today
+  vs past due, fully paid / voided / undated exclusions, partial payment counted
+  only on the unpaid part, insights + reports + sales list all agreeing, tenant
+  isolation, invalid and impossible dates rejected.
+- `scripts/verify-ai-query-types.ts` — now **28/28** including the overdue answer.
+- Re-ran insights 24, reports 53, receipt 26, acceptance 31 — all pass.
+  **429 assertions, 0 failures**; `tsc --noEmit` and `npm run build` clean.
+
+---
+
 ## 🔑 Blockers / required from owner
 
 1. **`GEMINI_API_KEY`** — required for Smart Entry, the expanded voice assistant,

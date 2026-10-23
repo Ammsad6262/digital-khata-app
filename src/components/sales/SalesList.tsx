@@ -160,6 +160,7 @@ function SaleRow({
     totalAmount: string;
     paidAmount: string;
     outstanding: string;
+    isOverdue?: boolean;
     date: string | Date;
   };
   isFirst: boolean;
@@ -194,8 +195,14 @@ function SaleRow({
           {formatMoney(sale.totalAmount)}
         </p>
         {hasOutstanding ? (
-          <p className="text-[11px] font-medium text-red-600">
-            <Money value={outstanding.toString()} /> {t("sale.due")}
+          <p
+            className={cn(
+              "text-[11px] font-medium",
+              sale.isOverdue ? "text-red-700" : "text-red-600",
+            )}
+          >
+            <Money value={outstanding.toString()} />{" "}
+            {sale.isOverdue ? t("sale.overdue") : t("sale.due")}
           </p>
         ) : (
           <p className="text-[11px] font-medium text-brand-600">{t("sale.paid")}</p>

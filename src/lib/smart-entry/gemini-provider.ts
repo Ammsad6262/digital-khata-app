@@ -156,6 +156,7 @@ Detect the user's intent from the natural-language input. Choose the BEST match:
      SUPPLIER_PURCHASES                  -> purchases from a supplier (queryEntity = supplier name)
      TODAYS_REMINDERS                    -> what should I do today
      INACTIVE_CUSTOMERS                  -> customers who stopped buying
+     OVERDUE_CUSTOMERS                   -> customers past their agreed payment date
      REORDER_CANDIDATES                  -> customers who may be ready to order again
    "Show me how much Ahmed owes me" = CUSTOMER_BALANCES with queryEntity="Ahmed".
    "Which customers have not purchased recently?" = INACTIVE_CUSTOMERS.

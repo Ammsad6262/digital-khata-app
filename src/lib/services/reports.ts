@@ -37,6 +37,7 @@ import { getProfitLossRange, type ProfitLossPeriod } from "@/lib/services/profit
 import { listOutstandingCustomers } from "@/lib/services/customers";
 import { listSuppliersWithBalance } from "@/lib/services/suppliers";
 import { listProductsWithStock } from "@/lib/services/products";
+import { getOverdueSummary } from "@/lib/services/sales";
 import { computeStockValuation } from "@/lib/utils/stock-valuation";
 
 export type ReportLimitation = {
@@ -88,6 +89,10 @@ export type ReportData = {
     stockProducts: number;
     /** Products with stock but no purchase price — left out of stockValue. */
     stockNotValued: number;
+    /** Receivable amount whose agreed date has passed (as of today). */
+    overdue: string;
+    overdueSalesCount: number;
+    overdueCustomersCount: number;
   };
   topProducts: ReportTopProduct[];
   limitations: ReportLimitation[];
@@ -252,6 +257,7 @@ export async function getReport(
     receivablesList,
     suppliersList,
     products,
+    overdueSummary,
     topRows,
     missingCostLines,
   ] = await Promise.all([
@@ -279,6 +285,7 @@ export async function getReport(
     listOutstandingCustomers(userId),
     listSuppliersWithBalance(userId),
     listProductsWithStock(userId),
+    getOverdueSummary(userId),
     prisma.saleItem.groupBy({
       by: ["productId"],
       _sum: { quantity: true, total: true },
@@ -402,6 +409,9 @@ export async function getReport(
       stockValue: stock.value,
       stockProducts: stock.productsWithStock,
       stockNotValued: stock.unvaluedProducts,
+      overdue: overdueSummary.total,
+      overdueSalesCount: overdueSummary.salesCount,
+      overdueCustomersCount: overdueSummary.customersCount,
     },
     topProducts,
     limitations,

@@ -95,6 +95,18 @@ that reads your own database rows.
   purchase price are shown as "not valued" rather than counted as zero. The
   stock screen shows the same figure with the method stated.
 
+### Due dates and overdue money
+- A sale can carry an optional agreed payment date. It is stored as midnight in
+  the business timezone, so "due today" is not overdue until tomorrow.
+- A sale is overdue only when money is still owed **and** the date has passed.
+  Fully paid, voided and undated sales are never counted.
+- The sale form has a due-date field; the sale page and the sales list mark
+  overdue sales; the khata customer page still shows the real balance.
+- Insights and Reports show the overdue amount, how many sales and how many
+  customers, from one shared `getOverdueSummary()` so the two screens can never
+  disagree. The assistant answers "who is overdue?" with a tappable row per
+  customer.
+
 ### Follow-up workflow (`/more/follow-ups`)
 - **Candidates come from purchase dates, not guesses.** A customer appears when
   the gap since their last purchase of a product is at least 1.25× their own
@@ -168,11 +180,12 @@ Bug 6 was found by the acceptance suite, not by inspection.
 | `scripts/verify-contact-actions.ts` | phone normalisation, Call/WhatsApp links, reminder enrichment, snooze, supplier reorder | 36/36 |
 | `scripts/verify-statement.ts` | WhatsApp khata statement: exact balance, entry order, advance/settled wording, Urdu | 19/19 |
 | `scripts/verify-follow-ups.ts` | follow-up candidates from real purchase dates, duplicate prevention, editable message, outcome + conversion maths, tenant isolation | **50/50** |
-| `scripts/verify-ai-query-types.ts` | every assistant query type against real records: balances, today's cash, low stock, supplier purchases, inactive + reorder customers | **25/25** |
+| `scripts/verify-ai-query-types.ts` | every assistant query type against real records: balances, today's cash, low stock, supplier purchases, inactive + reorder + overdue customers | **28/28** |
 | `scripts/verify-receipt.ts` | sale receipt text: saved totals, paid/outstanding wording, overpayment, notes, Urdu, no profit language | **26/26** |
 | `scripts/verify-reports.ts` | any-period report: inclusive window, presets, sales / cash / purchases / expenses / COGS / profit, stock valuation rule, point-in-time position, limitations, tenant isolation | **53/53** |
+| `scripts/verify-due-dates.ts` | due date stored as business-timezone midnight, overdue rule, paid/voided/no-date exclusions, insights + reports + sales list agreement, assistant overdue answer, tenant isolation | **30/30** |
 
-Total: **396 assertions passing**. `npx tsc --noEmit` and `npm run build` are
+Total: **429 assertions passing**. `npx tsc --noEmit` and `npm run build` are
 clean.
 
 The 10 acceptance workflows: register+trial · add customer · credit sale (stock

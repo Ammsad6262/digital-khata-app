@@ -81,6 +81,8 @@ export type CreateSaleInput = {
   paymentMethod?: "cash" | "bank" | "cheque" | "jazzcash" | "easypaisa" | "other";
   notes?: string | null;
   date?: string;
+  /** YYYY-MM-DD. Optional agreed payment date. */
+  dueDate?: string | null;
 };
 
 /**

@@ -1245,6 +1245,50 @@ export async function processQuery(
         href: `/khata/${c.id}`,
       }));
     }
+  } else if (queryType === "OVERDUE_CUSTOMERS") {
+    const { startOfTodayInTz } = await import("@/lib/utils/date");
+    const groups = await prisma.sale.groupBy({
+      by: ["customerId"],
+      where: {
+        userId,
+        voidedAt: null,
+        dueDate: { lt: startOfTodayInTz("Asia/Karachi") },
+        outstanding: { gt: 0 },
+      },
+      _sum: { outstanding: true },
+      _count: { _all: true },
+    });
+
+    if (groups.length === 0) {
+      resultText = "No customer is past their agreed payment date.";
+      resultData = [];
+    } else {
+      const customers = await prisma.customer.findMany({
+        where: { id: { in: groups.map((g) => g.customerId) }, userId },
+        select: { id: true, name: true },
+      });
+      const nameById = new Map(customers.map((c) => [c.id, c.name]));
+      const total = groups.reduce(
+        (sum, g) => sum.plus(toDecimalOrZero(g._sum.outstanding)),
+        new Decimal(0),
+      );
+      resultText = `${groups.length} ${
+        groups.length === 1 ? "customer is" : "customers are"
+      } past their agreed date, owing Rs. ${Number(total).toLocaleString()} in total.`;
+      resultData = groups
+        .slice()
+        .sort(
+          (a, b) =>
+            Number(toDecimalOrZero(b._sum.outstanding)) -
+            Number(toDecimalOrZero(a._sum.outstanding)),
+        )
+        .slice(0, 20)
+        .map((g) => ({
+          name: nameById.get(g.customerId) ?? "Customer",
+          balance: toDecimalOrZero(g._sum.outstanding).toString(),
+          href: `/khata/${g.customerId}`,
+        }));
+    }
   } else if (queryType === "REORDER_CANDIDATES") {
     const candidates = await getFollowUpCandidates(userId);
 

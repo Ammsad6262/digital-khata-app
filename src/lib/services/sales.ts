@@ -21,6 +21,7 @@ import {
   startOfTodayInTz,
   startOfWeekInTz,
   startOfMonthInTz,
+  startOfDayInTz,
   getDateRangeForFilter,
 } from "@/lib/utils/date";
 import type { Prisma } from "@prisma/client";
@@ -33,6 +34,10 @@ export type SaleView = {
   outstanding: string;
   notes: string | null;
   date: Date;
+  /** Date the customer agreed to pay by, if one was recorded. */
+  dueDate: Date | null;
+  /** Outstanding > 0 and dueDate is before today (business timezone). */
+  isOverdue: boolean;
   voidedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
@@ -52,6 +57,55 @@ export type SaleWithItems = SaleView & {
   }>;
 };
 
+/**
+ * Sales that are past their agreed due date with money still owed.
+ * "Due today" is not overdue; tomorrow it is. Voided and fully paid sales never
+ * count. Shared by insights and reports so both always agree.
+ */
+export type OverdueSummary = {
+  total: string;
+  salesCount: number;
+  customersCount: number;
+};
+
+export async function getOverdueSummary(userId: string): Promise<OverdueSummary> {
+  const groups = await prisma.sale.groupBy({
+    by: ["customerId"],
+    where: {
+      userId,
+      voidedAt: null,
+      dueDate: { lt: startOfTodayInTz() },
+      outstanding: { gt: 0 },
+    },
+    _sum: { outstanding: true },
+    _count: { _all: true },
+  });
+
+  const total = groups.reduce(
+    (sum, row) => sum.plus(toDecimalOrZero(row._sum.outstanding)),
+    new Decimal(0),
+  );
+
+  return {
+    total: total.toString(),
+    salesCount: groups.reduce((sum, row) => sum + Number(row._count._all ?? 0), 0),
+    customersCount: groups.length,
+  };
+}
+
+/**
+ * A sale is overdue only when money is still owed AND the agreed date has
+ * passed. A due date of "today" is not overdue until tomorrow.
+ */
+export function computeIsOverdue(
+  outstanding: Decimal | string | number,
+  dueDate: Date | null,
+): boolean {
+  if (!dueDate) return false;
+  if (new Decimal(outstanding).lte(0)) return false;
+  return dueDate.getTime() < startOfTodayInTz().getTime();
+}
+
 function toView(s: Prisma.SaleGetPayload<{}>): SaleView {
   return {
     id: s.id,
@@ -61,6 +115,8 @@ function toView(s: Prisma.SaleGetPayload<{}>): SaleView {
     outstanding: s.outstanding.toString(),
     notes: s.notes,
     date: s.date,
+    dueDate: s.dueDate,
+    isOverdue: computeIsOverdue(s.outstanding.toString(), s.dueDate),
     voidedAt: s.voidedAt,
     createdAt: s.createdAt,
     updatedAt: s.updatedAt,
@@ -109,6 +165,8 @@ export type SaleListItem = {
   outstanding: string;
   notes: string | null;
   date: Date;
+  dueDate: Date | null;
+  isOverdue: boolean;
   voidedAt: Date | null;
 };
 
@@ -168,6 +226,8 @@ export async function listSalesFiltered(
       outstanding: s.outstanding.toString(),
       notes: s.notes,
       date: s.date,
+      dueDate: s.dueDate,
+      isOverdue: computeIsOverdue(s.outstanding.toString(), s.dueDate),
       voidedAt: s.voidedAt,
     }));
   });
@@ -293,6 +353,18 @@ export async function createSale(input: unknown, userId?: string | null): Promis
     const outstanding = totalAmount.minus(paidAmount);
     const saleDate = data.date ? new Date(data.date) : new Date();
 
+    // Optional "pay by" date. A bare YYYY-MM-DD is treated as midnight in the
+    // business timezone so "due today" means today, not 5 AM.
+    let dueDate: Date | null = null;
+    if (data.dueDate) {
+      dueDate = /^\d{4}-\d{2}-\d{2}$/.test(data.dueDate)
+        ? startOfDayInTz(data.dueDate)
+        : new Date(data.dueDate);
+      if (!dueDate || Number.isNaN(dueDate.getTime())) {
+        throw new BadRequestError("api.sale.invalidDueDate");
+      }
+    }
+
     // 5. Batch validation — for each item with a batchId, verify the batch is
     //    valid AND has enough remaining quantity.
     //
@@ -375,6 +447,7 @@ export async function createSale(input: unknown, userId?: string | null): Promis
         outstanding,
         notes: data.notes ?? null,
         date: saleDate,
+        dueDate,
         items: {
           create: items.map((i) => ({
             productId: i.productId,

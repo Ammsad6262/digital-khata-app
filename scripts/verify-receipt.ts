@@ -54,6 +54,8 @@ function sale(overrides: Partial<SaleWithItems> = {}): SaleWithItems {
     outstanding: "2500",
     notes: null,
     date,
+    dueDate: null,
+    isOverdue: false,
     voidedAt: null,
     createdAt: date,
     updatedAt: date,

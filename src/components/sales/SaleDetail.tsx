@@ -17,6 +17,7 @@ import { useState } from "react";
 import {
   ArrowLeft,
   AlertCircle,
+  CalendarClock,
   ChevronRight,
   Phone,
   ShoppingCart,
@@ -36,7 +37,7 @@ import { EmptyState } from "@/components/shared/EmptyState";
 import { Button } from "@/components/ui/Button";
 import { Decimal } from "@/lib/utils/decimal";
 import { formatMoney, formatQuantity } from "@/lib/utils/money";
-import { formatDateTime } from "@/lib/utils/date";
+import { formatDateTime, formatDate } from "@/lib/utils/date";
 import { cn } from "@/lib/utils/cn";
 import { useLanguage } from "@/providers/language-provider";
 
@@ -95,7 +96,9 @@ export function SaleDetail({ saleId }: { saleId: string }) {
     ? { label: t("sale.voided"), color: "bg-slate-100 text-slate-600 border-slate-200" }
     : isFullyPaid
       ? { label: t("sale.paid"), color: "bg-brand-50 text-brand-700 border-brand-200" }
-      : { label: t("sale.partial"), color: "bg-amber-50 text-amber-700 border-amber-200" };
+      : sale.isOverdue
+        ? { label: t("sale.overdue"), color: "bg-red-50 text-red-700 border-red-200" }
+        : { label: t("sale.partial"), color: "bg-amber-50 text-amber-700 border-amber-200" };
 
   return (
     <div className="space-y-4">
@@ -123,6 +126,18 @@ export function SaleDetail({ saleId }: { saleId: string }) {
             <p className="mt-0.5 text-xs text-slate-500">
               {formatDateTime(new Date(sale.date))}
             </p>
+            {sale.dueDate ? (
+              <p
+                className={cn(
+                  "mt-1 flex items-center gap-1 text-xs",
+                  sale.isOverdue ? "font-medium text-red-600" : "text-slate-500",
+                )}
+              >
+                <CalendarClock className="h-3 w-3" />
+                {tParams("sale.dueOn", { date: formatDate(new Date(sale.dueDate)) })}
+                {sale.isOverdue ? ` · ${t("sale.overdue")}` : ""}
+              </p>
+            ) : null}
           </div>
           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-brand-50">
             <ShoppingCart className="h-6 w-6 text-brand-700" />

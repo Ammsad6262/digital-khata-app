@@ -171,6 +171,11 @@ async function main() {
     await sale(quiet.id, rice.id, daysAgo(70), 500);
     await sale(quiet.id, sugar.id, daysAgo(50), 500);
     await sale(quiet.id, tea.id, daysAgo(30), 500);
+    // All three are past an agreed date and still unpaid -> overdue.
+    await prisma.sale.updateMany({
+      where: { userId: user.id, customerId: quiet.id },
+      data: { dueDate: daysAgo(40) },
+    });
 
     // Regular: rice every 20 days, last 35 days ago -> reorder candidate.
     await sale(regular.id, rice.id, daysAgo(75), 500);
@@ -375,6 +380,24 @@ async function main() {
       "reminders due today are reported",
       reminders.queryResult?.result.includes("1 due today"),
       reminders.queryResult?.result,
+    );
+
+    const overdue = await processQuery(user.id, ai({ queryType: "OVERDUE_CUSTOMERS" }), null);
+    const overdueRows = rows(overdue.queryResult?.data);
+    check(
+      "overdue customers are listed",
+      overdueRows.length === 1 && overdueRows[0]?.name === "Quiet Query",
+      JSON.stringify(overdueRows),
+    );
+    check(
+      "the overdue answer states the total",
+      overdue.queryResult?.result.includes("1,500"),
+      overdue.queryResult?.result,
+    );
+    check(
+      "overdue rows open the customer's khata",
+      overdueRows[0]?.href === `/khata/${quiet.id}`,
+      `${overdueRows[0]?.href}`,
     );
 
     // -- Cleanup ------------------------------------------------------------

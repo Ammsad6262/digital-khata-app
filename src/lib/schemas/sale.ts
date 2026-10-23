@@ -48,6 +48,18 @@ export const createSaleSchema = z
     paymentMethod: paymentMethodSchema.optional(),
     notes: z.string().trim().max(500).optional().nullable(),
     date: z.string().datetime().optional(),
+    // Optional "pay by" date: YYYY-MM-DD or an ISO datetime. Validated again
+    // in the service where it is converted to a real Date.
+    dueDate: z
+      .string()
+      .trim()
+      .refine(
+        (value) =>
+          /^\d{4}-\d{2}-\d{2}$/.test(value) || !Number.isNaN(Date.parse(value)),
+        "Due date must be a valid date.",
+      )
+      .optional()
+      .nullable(),
   })
   .refine(
     (data) => {

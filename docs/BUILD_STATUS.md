@@ -1,6 +1,6 @@
 # Build Status — Platform Expansion
 
-Last updated: Stage 3 + Insights + AI gating + assistant queries complete (2026-10-20).
+Last updated: Stage 3 + Insights + AI gating + assistant queries + reports complete (2026-10-23).
 
 ## Environment
 
@@ -524,6 +524,53 @@ show what worked.
   assistant-writes 33, growth 26, contact-actions 36, statement 19, ai-gating 8,
   acceptance 31, follow-ups 50, ai-query-types 25 — **317 assertions, 0
   failures**. `tsc --noEmit` and `npm run build` clean.
+
+## Completed — Reports for any period + honest profit caveats
+
+Section G/H of the master prompt asks for a financial overview that separates
+sales revenue, cash received, receivables, payables, purchases, expenses and
+profit — with date filters and with the limitations stated. That now exists.
+
+- **`src/lib/services/reports.ts`** computes one window (`from`/`to`, inclusive)
+  from the owner's own records:
+  - sales billed (`SaleItem.quantity × unitPrice`), sales count;
+  - cash received from `Payment` rows only;
+  - purchases billed and cash paid to suppliers (`purchase.paidAmount` +
+    `SupplierPayment.amount`, no double count);
+  - expenses total, count, and per-category breakdown;
+  - cost of goods, gross profit, net estimate and margin (reusing
+    `getProfitLossRange` in `profit-loss.ts`);
+  - receivables, payables and stock value **as of today**;
+  - top 8 products by revenue in the window.
+- **Presets and custom dates**: `GET /api/reports?preset=month` (today, week,
+  month, lastMonth, last7, last30, year) or `?from=YYYY-MM-DD&to=YYYY-MM-DD`.
+  Dates are parsed as calendar days in the business timezone, ranges over 366
+  days are rejected, and a reversed range is a 400.
+- **Limitations are part of the payload**, not an afterthought:
+  cost basis (batch cost → product purchase price), "only recorded expenses",
+  "receivables/payables are as of today", "sales count when invoiced, not when
+  paid", plus conditional warnings when no expenses were recorded, when sold
+  lines have no purchase price, and when no sold product has any cost at all.
+  Each is translated (EN/UR) and rendered in an amber "What this report does
+  not know" block.
+- **UI**: `/more/reports` + More drawer entry. Period chips, native date inputs,
+  Money in / Money out, Profit estimate (with an "Estimate" badge), position
+  today, top products, expense bars, limitations. The dashboard P&L card now
+  carries the same caveat and links to the full report.
+- **Bug fixed while building this**: `SALES_SUMMARY` in the assistant added
+  `sale.paidAmount` to `Payment.amount`. `createSale` already writes a Payment
+  row for money taken at sale time, so cash received was double counted. It now
+  counts `Payment` rows once; the test fixture was made realistic (a sale-time
+  payment plus a later payment) to lock the fix.
+
+### Verification
+- `scripts/verify-reports.ts` — **47/47**: inclusive single-day window, invalid
+  / reversed / over-long ranges, every preset, exact sales / cash / purchases /
+  expenses / COGS / gross / net / margin, batch-cost precedence, point-in-time
+  receivables & payables & stock, top products, each limitation, old-window
+  exclusion, cross-tenant isolation.
+- Re-ran platform 9, insights 24, acceptance 31, ai-query-types 25 — all pass.
+  **390 assertions, 0 failures**; `tsc --noEmit` and `npm run build` clean.
 
 ### Share a sale receipt
 - `buildSaleReceipt()` (`src/lib/utils/receipt.ts`) writes the receipt from the

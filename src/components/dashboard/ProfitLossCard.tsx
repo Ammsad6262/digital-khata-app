@@ -21,6 +21,7 @@
  */
 
 import { useState } from "react";
+import Link from "next/link";
 import { TrendingDown, TrendingUp } from "lucide-react";
 import { useProfitLoss } from "@/hooks/use-dashboard";
 import { Money } from "@/components/shared/Money";
@@ -145,6 +146,14 @@ export function ProfitLossCard() {
           />
         </div>
       </div>
+
+      {/* Honest caveat: this is a computed estimate, not an audited profit. */}
+      <p className="px-1 text-[11px] leading-relaxed text-slate-400">
+        {t("pnl.estimateNote")}{" "}
+        <Link href="/more/reports" className="font-medium text-brand-700 underline-offset-2 hover:underline">
+          {t("pnl.fullReport")}
+        </Link>
+      </p>
     </section>
   );
 }

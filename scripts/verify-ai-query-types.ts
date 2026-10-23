@@ -124,26 +124,47 @@ async function main() {
       data: { userId: other.id, name: "Foreign Query", openingBalance: 99999 },
     });
 
-    async function sale(customerId: string, productId: string, date: Date, total: number) {
+    async function sale(
+      customerId: string,
+      productId: string,
+      date: Date,
+      total: number,
+      paid = 0,
+    ) {
       const s = await prisma.sale.create({
         data: {
           userId: user.id,
           customerId,
           totalAmount: total,
-          paidAmount: 0,
-          outstanding: total,
+          paidAmount: paid,
+          outstanding: total - paid,
           date,
         },
       });
       await prisma.saleItem.create({
         data: { saleId: s.id, productId, quantity: 1, unitPrice: total, total },
       });
+      // createSale() records money taken at sale time as a Payment row too.
+      if (paid > 0) {
+        await prisma.payment.create({
+          data: {
+            userId: user.id,
+            customerId,
+            saleId: s.id,
+            amount: paid,
+            method: "cash",
+            date,
+          },
+        });
+      }
     }
 
-    // Ahmed: one sale today (2000), one today payment (1000).
-    await sale(ahmed.id, rice.id, new Date(), 2000);
+    // Ahmed: one sale today (2,000) with 500 paid at the counter, then a
+    // further 500 payment later the same day. Cash received must be 1,000 —
+    // not 1,500, which would count the sale-time payment twice.
+    await sale(ahmed.id, rice.id, new Date(), 2000, 500);
     await prisma.payment.create({
-      data: { userId: user.id, customerId: ahmed.id, amount: 1000, method: "cash", date: new Date() },
+      data: { userId: user.id, customerId: ahmed.id, amount: 500, method: "cash", date: new Date() },
     });
 
     // Quiet: three different products on days 70/50/30 -> inactive.

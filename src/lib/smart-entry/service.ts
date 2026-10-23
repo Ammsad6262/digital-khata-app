@@ -1138,24 +1138,26 @@ export async function processQuery(
       ...(rangeStart ? { date: { gte: rangeStart } } : {}),
     };
 
+    // Cash actually received in the period. Every payment — including one
+    // taken at sale time — is a Payment row, so counting Payment.amount once
+    // is correct. Adding sale.paidAmount on top would double-count.
     const [sales, paymentsAgg] = await Promise.all([
       prisma.sale.findMany({
         where,
-        select: { totalAmount: true, paidAmount: true },
+        select: { totalAmount: true },
       }),
       prisma.payment.aggregate({
         _sum: { amount: true },
         where: {
           userId,
           voidedAt: null,
-          ...(rangeStart && { date: { gte: rangeStart } }),
+          ...(rangeStart ? { date: { gte: rangeStart } } : {}),
         },
       }),
     ]);
 
     const totalSales = sales.reduce((sum, s) => sum + Number(s.totalAmount), 0);
-    const paidAtSale = sales.reduce((sum, s) => sum + Number(s.paidAmount), 0);
-    const received = paidAtSale + Number(paymentsAgg._sum.amount ?? 0);
+    const received = Number(paymentsAgg._sum.amount ?? 0);
     const label =
       dateRange === "today"
         ? "Today"

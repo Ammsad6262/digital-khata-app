@@ -189,6 +189,73 @@ export function startOfYearInTz(timezone: string = "Asia/Karachi"): Date {
 }
 
 /**
+ * Parse a `YYYY-MM-DD` calendar date into the UTC moment that is midnight of
+ * that day in the business timezone. Returns null when the string is not a
+ * real calendar date (e.g. "2026-02-31").
+ *
+ * Used by reports so a custom range means the same thing to the user as it
+ * does to the database, regardless of the server's own timezone.
+ */
+export function startOfDayInTz(
+  dateStr: string,
+  timezone: string = "Asia/Karachi",
+): Date | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateStr);
+  if (!match) return null;
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+
+  const asUtc = new Date(Date.UTC(year, month - 1, day));
+  // Reject overflow like 2026-02-31 (which JS would roll into March).
+  if (
+    asUtc.getUTCFullYear() !== year ||
+    asUtc.getUTCMonth() !== month - 1 ||
+    asUtc.getUTCDate() !== day
+  ) {
+    return null;
+  }
+
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: timezone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(asUtc);
+
+  const get = (type: string): number =>
+    parseInt(parts.find((p) => p.type === type)?.value ?? "0", 10);
+
+  const offsetMinutes = get("hour") * 60 + get("minute");
+  return new Date(asUtc.getTime() - offsetMinutes * 60000);
+}
+
+/** `YYYY-MM-DD` for a given instant, in the business timezone. */
+export function dateStringInTz(
+  date: Date = new Date(),
+  timezone: string = "Asia/Karachi",
+): string {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: timezone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const get = (type: string): string =>
+    parts.find((p) => p.type === type)?.value ?? "";
+  return `${get("year")}-${get("month")}-${get("day")}`;
+}
+
+/** Today's calendar date (`YYYY-MM-DD`) in the business timezone. */
+export function todayDateStringInTz(timezone: string = "Asia/Karachi"): string {
+  return dateStringInTz(new Date(), timezone);
+}
+
+/**
  * Compute a date range { start, end } for a given filter preset.
  * Returns { start: Date, end?: Date } where:
  *   - start = inclusive start of the period

@@ -56,6 +56,7 @@ import {
   Gift,
   Sparkles,
   MessageSquare,
+  BarChart3,
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { useLanguage } from "@/providers/language-provider";
@@ -120,6 +121,12 @@ const GROUPS: MoreGroup[] = [
         titleKey: "more.insights",
         descKey: "more.insightsDesc",
         icon: TrendingUp,
+      },
+      {
+        href: "/more/reports",
+        titleKey: "more.reports",
+        descKey: "more.reportsDesc",
+        icon: BarChart3,
       },
     ],
   },

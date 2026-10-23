@@ -51,6 +51,7 @@ export type ProfitLossStats = {
 async function computePeriod(
   startDate: Date | null,
   userId?: string | null,
+  endDate: Date | null = null,
 ): Promise<ProfitLossPeriod> {
   // Multi-tenant isolation: when userId is set, only count sales/expenses
   // belonging to that user. When null, show all (backward compat for pre-auth data).
@@ -74,6 +75,15 @@ async function computePeriod(
   //   3. 0 if neither is set (free stock, or product has no purchase price)
   //
   // We use a subquery for expenses because it's a different table (no JOIN needed).
+  // Date window, composed once and reused. `endDate` is exclusive so a report
+  // for a single day cannot leak the next day's rows.
+  const saleRange = Prisma.sql`${
+    startDate ? Prisma.sql`AND s."date" >= ${startDate}` : Prisma.sql``
+  } ${endDate ? Prisma.sql`AND s."date" < ${endDate}` : Prisma.sql``}`;
+  const expenseRange = Prisma.sql`${
+    startDate ? Prisma.sql`AND "date" >= ${startDate}` : Prisma.sql``
+  } ${endDate ? Prisma.sql`AND "date" < ${endDate}` : Prisma.sql``}`;
+
   const rows = await prisma.$queryRaw<Array<{
     revenue: Decimal | null;
     cogs: Decimal | null;
@@ -86,9 +96,7 @@ async function computePeriod(
         (SELECT SUM(si."quantity" * si."unitPrice")
          FROM "SaleItem" si
          JOIN "Sale" s ON si."saleId" = s.id
-         WHERE s."voidedAt" IS NULL ${saleUserFilter} ${
-           startDate ? Prisma.sql`AND s."date" >= ${startDate}` : Prisma.sql``
-         }),
+         WHERE s."voidedAt" IS NULL ${saleUserFilter} ${saleRange}),
         0
       ) AS revenue,
       COALESCE(
@@ -97,23 +105,17 @@ async function computePeriod(
          JOIN "Sale" s ON si."saleId" = s.id
          LEFT JOIN "StockMove" sm ON si."stockMoveId" = sm.id
          LEFT JOIN "Product" p ON si."productId" = p.id
-         WHERE s."voidedAt" IS NULL ${saleUserFilter} ${
-           startDate ? Prisma.sql`AND s."date" >= ${startDate}` : Prisma.sql``
-         }),
+         WHERE s."voidedAt" IS NULL ${saleUserFilter} ${saleRange}),
         0
       ) AS cogs,
       COALESCE(
-        (SELECT SUM("amount") FROM "Expense" WHERE "voidedAt" IS NULL ${expenseUserFilter} ${
-          startDate ? Prisma.sql`AND "date" >= ${startDate}` : Prisma.sql``
-        }),
+        (SELECT SUM("amount") FROM "Expense" WHERE "voidedAt" IS NULL ${expenseUserFilter} ${expenseRange}),
         0
       ) AS expenses,
-      (SELECT COUNT(*) FROM "Sale" WHERE "voidedAt" IS NULL ${expenseUserFilter} ${
-        startDate ? Prisma.sql`AND "date" >= ${startDate}` : Prisma.sql``
-      }) AS sales_count,
-      (SELECT COUNT(*) FROM "Expense" WHERE "voidedAt" IS NULL ${expenseUserFilter} ${
-        startDate ? Prisma.sql`AND "date" >= ${startDate}` : Prisma.sql``
-      }) AS expense_count
+      -- Counts run on the bare table (no alias), so they use the unaliased
+      -- user/date fragments, not the "s."-qualified ones.
+      (SELECT COUNT(*) FROM "Sale" WHERE "voidedAt" IS NULL ${expenseUserFilter} ${expenseRange}) AS sales_count,
+      (SELECT COUNT(*) FROM "Expense" WHERE "voidedAt" IS NULL ${expenseUserFilter} ${expenseRange}) AS expense_count
   `;
 
   const row = rows[0];
@@ -170,4 +172,20 @@ export async function getProfitLossStats(
       allTime: allTimeStats,
     };
   });
+}
+
+/**
+ * Profit & loss for an arbitrary date window.
+ *
+ * `from` is inclusive, `to` is exclusive (pass the start of the day after the
+ * last day you want). Used by the reports page so it can offer custom ranges
+ * instead of only today/week/month/all-time. Not cached: reports are expected
+ * to reflect the latest sale/payment/expense immediately.
+ */
+export async function getProfitLossRange(
+  userId: string,
+  from: Date,
+  to: Date,
+): Promise<ProfitLossPeriod> {
+  return computePeriod(from, userId, to);
 }

@@ -75,6 +75,22 @@ that reads your own database rows.
   Voided sales do not offer a receipt; posted sales are corrected by voiding, not
   by editing, so history stays auditable.
 
+### Reports for any period (`/more/reports`)
+- Pick Today / This week / This month / Last month / Last 7 days / Last 30 days,
+  or two dates. The server resolves them as calendar days in the business
+  timezone and rejects reversed or over-long ranges.
+- **Money in** shows sales billed and cash actually received; **Money out** shows
+  purchases billed, cash paid to suppliers and recorded expenses. These are kept
+  separate on purpose — a big sales figure is not cash.
+- **Profit estimate** shows cost of goods, gross profit, recorded expenses and a
+  net estimate with its margin, badged "Estimate".
+- **Where you stand today** shows receivables, payables and stock value, labelled
+  as today's position rather than the period's.
+- **What this report does not know** lists the limitations that actually apply:
+  the cost basis, unrecorded expenses, the point-in-time balances, invoiced vs
+  paid, and — when relevant — sold lines with no purchase price. The dashboard
+  P&L card carries the same caveat and links here.
+
 ### Follow-up workflow (`/more/follow-ups`)
 - **Candidates come from purchase dates, not guesses.** A customer appears when
   the gap since their last purchase of a product is at least 1.25× their own
@@ -150,8 +166,9 @@ Bug 6 was found by the acceptance suite, not by inspection.
 | `scripts/verify-follow-ups.ts` | follow-up candidates from real purchase dates, duplicate prevention, editable message, outcome + conversion maths, tenant isolation | **50/50** |
 | `scripts/verify-ai-query-types.ts` | every assistant query type against real records: balances, today's cash, low stock, supplier purchases, inactive + reorder customers | **25/25** |
 | `scripts/verify-receipt.ts` | sale receipt text: saved totals, paid/outstanding wording, overpayment, notes, Urdu, no profit language | **26/26** |
+| `scripts/verify-reports.ts` | any-period report: inclusive window, presets, sales / cash / purchases / expenses / COGS / profit, point-in-time position, limitations, tenant isolation | **47/47** |
 
-Total: **343 assertions passing**. `npx tsc --noEmit` and `npm run build` are
+Total: **390 assertions passing**. `npx tsc --noEmit` and `npm run build` are
 clean.
 
 The 10 acceptance workflows: register+trial · add customer · credit sale (stock
@@ -219,7 +236,7 @@ npm run dev                              # http://localhost:3000
 
 Log in as `sadatrehman2004@gmail.com` (owns all the data). Then open the ☰
 drawer (top-right) → **Suppliers**, **Reminders**, **Insights**, **Growth plan**,
-**Transactions**; the dashboard also shows the Reminders card.
+**Reports**, **Transactions**; the dashboard also shows the Reminders card.
 
 Never run `test-foundation.ts` or `audit-data-integrity.ts` while the dev server
 is in use — they wipe all tables.

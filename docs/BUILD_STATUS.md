@@ -542,6 +542,10 @@ profit — with date filters and with the limitations stated. That now exists.
     `getProfitLossRange` in `profit-loss.ts`);
   - receivables, payables and stock value **as of today**;
   - top 8 products by revenue in the window.
+- **One stock valuation rule** (`src/lib/utils/stock-valuation.ts`), shared by
+  the stock screen and reports: positive on-hand quantity × each product's
+  purchase price; negative stock is ignored; products with stock but no purchase
+  price are reported as "not valued" instead of being valued at zero.
 - **Presets and custom dates**: `GET /api/reports?preset=month` (today, week,
   month, lastMonth, last7, last30, year) or `?from=YYYY-MM-DD&to=YYYY-MM-DD`.
   Dates are parsed as calendar days in the business timezone, ranges over 366
@@ -556,7 +560,9 @@ profit — with date filters and with the limitations stated. That now exists.
 - **UI**: `/more/reports` + More drawer entry. Period chips, native date inputs,
   Money in / Money out, Profit estimate (with an "Estimate" badge), position
   today, top products, expense bars, limitations. The dashboard P&L card now
-  carries the same caveat and links to the full report.
+  carries the same caveat and links to the full report. The stock screen shows
+  the same stock value at the top, with its method stated and an amber warning
+  when products in stock have no purchase price.
 - **Bug fixed while building this**: `SALES_SUMMARY` in the assistant added
   `sale.paidAmount` to `Payment.amount`. `createSale` already writes a Payment
   row for money taken at sale time, so cash received was double counted. It now
@@ -564,13 +570,14 @@ profit — with date filters and with the limitations stated. That now exists.
   payment plus a later payment) to lock the fix.
 
 ### Verification
-- `scripts/verify-reports.ts` — **47/47**: inclusive single-day window, invalid
+- `scripts/verify-reports.ts` — **53/53**: inclusive single-day window, invalid
   / reversed / over-long ranges, every preset, exact sales / cash / purchases /
-  expenses / COGS / gross / net / margin, batch-cost precedence, point-in-time
-  receivables & payables & stock, top products, each limitation, old-window
-  exclusion, cross-tenant isolation.
+  expenses / COGS / gross / net / margin, batch-cost precedence, the stock
+  valuation rule (positive only, missing price counted, exact decimals),
+  point-in-time receivables & payables & stock, top products, each limitation,
+  old-window exclusion, cross-tenant isolation.
 - Re-ran platform 9, insights 24, acceptance 31, ai-query-types 25 — all pass.
-  **390 assertions, 0 failures**; `tsc --noEmit` and `npm run build` clean.
+  **396 assertions, 0 failures**; `tsc --noEmit` and `npm run build` clean.
 
 ### Share a sale receipt
 - `buildSaleReceipt()` (`src/lib/utils/receipt.ts`) writes the receipt from the

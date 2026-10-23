@@ -25,6 +25,7 @@ import {
   type ReportData,
 } from "@/lib/services/reports";
 import { dateStringInTz, todayDateStringInTz } from "@/lib/utils/date";
+import { computeStockValuation } from "@/lib/utils/stock-valuation";
 
 let passed = 0;
 let failed = 0;
@@ -110,6 +111,21 @@ async function main() {
       monthRange.from,
     );
 
+    // ── Stock valuation rule (pure) ──────────────────────────────────────
+    console.log("\n== Stock valuation rule ==");
+    const valued = computeStockValuation([
+      { currentStock: 10, purchasePrice: 120 },
+      { currentStock: 2, purchasePrice: 0 },
+      { currentStock: -5, purchasePrice: 100 },
+      { currentStock: 0, purchasePrice: 50 },
+    ]);
+    check("positive stock is valued at purchase price", money(valued.value) === 1200, valued.value);
+    check("stock with no price is counted as unvalued", valued.unvaluedProducts === 1);
+    check("negative and zero stock are ignored", valued.productsWithStock === 2);
+
+    const fractional = computeStockValuation([{ currentStock: "1.5", purchasePrice: "10.25" }]);
+    check("valuation keeps exact decimals (15.38)", fractional.value === "15.38", fractional.value);
+
     // ── Fixtures ─────────────────────────────────────────────────────────
     console.log("\n== Fixtures ==");
     const rice = await prisma.product.create({
@@ -131,6 +147,18 @@ async function main() {
         unit: "kg",
         purchasePrice: 0,
         sellingPrice: 160,
+      },
+    });
+    // In stock but no purchase price: stock value must say it is not valued.
+    const salt = await prisma.product.create({
+      data: {
+        userId: userA.id,
+        name: "Salt",
+        sku: `SALT-${stamp}`,
+        unit: "kg",
+        purchasePrice: 0,
+        sellingPrice: 60,
+        openingStock: 5,
       },
     });
 
@@ -370,8 +398,10 @@ async function main() {
     // Payables: opening 2,000 + outstanding 3,000 + 0 − supplier payment 1,000.
     check("payables are as of now (4,000)", money(report.position.payables) === 4000, report.position.payables);
     check("one supplier is owed", report.position.payablesCount === 1, String(report.position.payablesCount));
-    // Stock: rice opening 0 + purchased 20 − sold 17 = 3 bags × 120. Sugar is −2 × 0.
+    // Stock: rice opening 0 + purchased 20 − sold 17 = 3 bags × 120. Sugar is
+    // −2 (ignored); salt is 5 × 0 (unvalued, counted separately).
     check("stock value = 360", money(report.position.stockValue) === 360, report.position.stockValue);
+    check("one product in stock is not valued", report.position.stockNotValued === 1, String(report.position.stockNotValued));
 
     check("top product is rice", report.topProducts[0]?.name === "Basmati Rice", report.topProducts[0]?.name);
     check(
@@ -394,6 +424,12 @@ async function main() {
       report.limitations.some((l) => l.key === "reports.limit.missingCost" && l.params?.count === 1),
     );
     check("no-expense warning is absent when an expense exists", !limitationKeys.includes("reports.limit.noExpenses"));
+    check(
+      "stock valuation gap is reported",
+      report.limitations.some(
+        (l) => l.key === "reports.limit.stockValuation" && l.params?.count === 1,
+      ),
+    );
 
     // ── Old window ───────────────────────────────────────────────────────
     console.log("\n== Old window ==");

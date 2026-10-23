@@ -90,6 +90,10 @@ that reads your own database rows.
   the cost basis, unrecorded expenses, the point-in-time balances, invoiced vs
   paid, and — when relevant — sold lines with no purchase price. The dashboard
   P&L card carries the same caveat and links here.
+- **Stock value has one definition**: positive on-hand quantity × each product's
+  purchase price. Negative stock is ignored, and products in stock without a
+  purchase price are shown as "not valued" rather than counted as zero. The
+  stock screen shows the same figure with the method stated.
 
 ### Follow-up workflow (`/more/follow-ups`)
 - **Candidates come from purchase dates, not guesses.** A customer appears when
@@ -166,9 +170,9 @@ Bug 6 was found by the acceptance suite, not by inspection.
 | `scripts/verify-follow-ups.ts` | follow-up candidates from real purchase dates, duplicate prevention, editable message, outcome + conversion maths, tenant isolation | **50/50** |
 | `scripts/verify-ai-query-types.ts` | every assistant query type against real records: balances, today's cash, low stock, supplier purchases, inactive + reorder customers | **25/25** |
 | `scripts/verify-receipt.ts` | sale receipt text: saved totals, paid/outstanding wording, overpayment, notes, Urdu, no profit language | **26/26** |
-| `scripts/verify-reports.ts` | any-period report: inclusive window, presets, sales / cash / purchases / expenses / COGS / profit, point-in-time position, limitations, tenant isolation | **47/47** |
+| `scripts/verify-reports.ts` | any-period report: inclusive window, presets, sales / cash / purchases / expenses / COGS / profit, stock valuation rule, point-in-time position, limitations, tenant isolation | **53/53** |
 
-Total: **390 assertions passing**. `npx tsc --noEmit` and `npm run build` are
+Total: **396 assertions passing**. `npx tsc --noEmit` and `npm run build` are
 clean.
 
 The 10 acceptance workflows: register+trial · add customer · credit sale (stock

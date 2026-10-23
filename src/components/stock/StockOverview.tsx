@@ -19,6 +19,9 @@ import { Search, X, Package, AlertTriangle, Plus, PackageCheck, PackageX, Sparkl
 import { useProductsWithStock, useProductSearch } from "@/hooks/use-products";
 import type { ProductWithStock } from "@/lib/services/products";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { Money } from "@/components/shared/Money";
+import { useCurrencySymbol } from "@/hooks/use-currency-symbol";
+import { computeStockValuation } from "@/lib/utils/stock-valuation";
 import { Decimal } from "@/lib/utils/decimal";
 import { formatQuantity } from "@/lib/utils/money";
 import { cn } from "@/lib/utils/cn";
@@ -37,7 +40,15 @@ export function StockOverview() {
   const { query, setQuery, data: searchData } = useProductSearch();
   const { data: allProducts, isLoading, isError, error, refetch } = useProductsWithStock();
   const [stockFilter, setStockFilter] = useState<StockFilter>("all");
-  const { t } = useLanguage();
+  const { t, tParams } = useLanguage();
+  const symbol = useCurrencySymbol();
+
+  // One valuation definition shared with the reports page: positive stock only,
+  // at each product's recorded purchase price.
+  const valuation = useMemo(
+    () => computeStockValuation(allProducts ?? []),
+    [allProducts],
+  );
 
   // Combine search results (if query) with all products list.
   const products = useMemo(() => {
@@ -73,6 +84,35 @@ export function StockOverview() {
 
   return (
     <div className="space-y-3">
+      {/* Stock valuation — same method as the reports page */}
+      {allProducts && allProducts.length > 0 ? (
+        <div className="rounded-xl border border-slate-200 bg-white p-3.5">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-xs font-medium text-slate-500">{t("stock.stockValue")}</p>
+              <p className="mt-0.5 text-xl font-bold tabular-nums text-slate-900">
+                <Money value={valuation.value} symbol={symbol} />
+              </p>
+              <p className="mt-0.5 text-[11px] text-slate-500">{t("stock.stockValueHint")}</p>
+            </div>
+            <Link
+              href="/more/reports"
+              className="shrink-0 rounded-lg border border-slate-200 px-2.5 py-1.5 text-[11px] font-semibold text-slate-600 hover:bg-slate-50"
+            >
+              {t("stock.viewReport")}
+            </Link>
+          </div>
+          {valuation.unvaluedProducts > 0 ? (
+            <p className="mt-2 rounded-lg bg-amber-50 px-2.5 py-1.5 text-[11px] leading-relaxed text-amber-800">
+              {tParams(
+                valuation.unvaluedProducts === 1 ? "stock.notValuedOne" : "stock.notValued",
+                { count: valuation.unvaluedProducts },
+              )}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+
       {/* Search bar */}
       <div className="relative">
         <Search

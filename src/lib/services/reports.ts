@@ -37,6 +37,7 @@ import { getProfitLossRange, type ProfitLossPeriod } from "@/lib/services/profit
 import { listOutstandingCustomers } from "@/lib/services/customers";
 import { listSuppliersWithBalance } from "@/lib/services/suppliers";
 import { listProductsWithStock } from "@/lib/services/products";
+import { computeStockValuation } from "@/lib/utils/stock-valuation";
 
 export type ReportLimitation = {
   /** Translation key, e.g. "reports.limit.cogs". */
@@ -85,6 +86,8 @@ export type ReportData = {
     payablesCount: number;
     stockValue: string;
     stockProducts: number;
+    /** Products with stock but no purchase price — left out of stockValue. */
+    stockNotValued: number;
   };
   topProducts: ReportTopProduct[];
   limitations: ReportLimitation[];
@@ -317,10 +320,7 @@ export async function getReport(
     (sum, s) => sum.plus(new Decimal(s.balance).gt(0) ? s.balance : 0),
     new Decimal(0),
   );
-  const stockValue = products.reduce(
-    (sum, p) => sum.plus(new Decimal(p.currentStock).times(p.purchasePrice)),
-    new Decimal(0),
-  );
+  const stock = computeStockValuation(products);
 
   // Product names for the top rows, in one query (no N+1).
   const productIds = topRows.map((row) => row.productId);
@@ -367,6 +367,12 @@ export async function getReport(
   if (revenue.gt(0) && cogs.eq(0)) {
     limitations.push({ key: "reports.limit.noCostData" });
   }
+  if (stock.unvaluedProducts > 0) {
+    limitations.push({
+      key: "reports.limit.stockValuation",
+      params: { count: stock.unvaluedProducts },
+    });
+  }
 
   return {
     from,
@@ -393,8 +399,9 @@ export async function getReport(
       receivablesCount: receivablesList.length,
       payables: payables.toString(),
       payablesCount: suppliersList.filter((s) => new Decimal(s.balance).gt(0)).length,
-      stockValue: stockValue.toDecimalPlaces(2).toString(),
-      stockProducts: products.length,
+      stockValue: stock.value,
+      stockProducts: stock.productsWithStock,
+      stockNotValued: stock.unvaluedProducts,
     },
     topProducts,
     limitations,

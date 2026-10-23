@@ -229,6 +229,11 @@ export const translations = {
 
   // ─── Stock ───
   "stock.searchPlaceholder": { en: "Search product by name or SKU...", ur: "نام یا کوڈ سے مصنوعات تلاش کریں..." },
+  "stock.stockValue": { en: "Stock value", ur: "اسٹاک کی قیمت" },
+  "stock.stockValueHint": { en: "On-hand quantity × each product's purchase price. Negative stock is ignored.", ur: "موجود مقدار × ہر مصنوعہ کی خرید قیمت۔ منفی اسٹاک شامل نہیں۔" },
+  "stock.viewReport": { en: "Reports", ur: "رپورٹس" },
+  "stock.notValued": { en: "{count} products with stock have no purchase price, so they are not included in this value.", ur: "{count} مصنوعات جن کا اسٹاک موجود ہے مگر خرید قیمت درج نہیں، اس لیے وہ اس قیمت میں شامل نہیں۔" },
+  "stock.notValuedOne": { en: "1 product with stock has no purchase price, so it is not included in this value.", ur: "1 مصنوعہ جس کا اسٹاک موجود ہے مگر خرید قیمت درج نہیں، اس لیے وہ اس قیمت میں شامل نہیں۔" },
   "stock.addStock": { en: "Add Stock", ur: "اسٹاک شامل کریں" },
   "stock.inStock": { en: "In Stock", ur: "اسٹاک میں" },
   "stock.outOfStock": { en: "Out of Stock", ur: "ختم" },
@@ -683,6 +688,7 @@ export const translations = {
   "reports.limit.noExpenses": { en: "You recorded no expenses in this period, so the net figure is not a true profit.", ur: "اس مدت میں کوئی خرچ درج نہیں، اس لیے خالص رقم حقیقی منافع نہیں۔" },
   "reports.limit.missingCost": { en: "{count} sold line(s) have no purchase price recorded. Their cost counts as zero, which overstates profit.", ur: "{count} بکی ہوئی اشیاء کی خرید قیمت درج نہیں۔ ان کی لاگت صفر گنی گئی ہے، جس سے منافع بڑھ کر دکھتا ہے۔" },
   "reports.limit.noCostData": { en: "None of the products sold in this period have a purchase price recorded, so cost of goods is zero and the profit figure is not usable yet.", ur: "اس مدت میں بکی کسی مصنوعہ کی خرید قیمت درج نہیں، اس لیے لاگت صفر ہے اور منافع کا عدد ابھی قابلِ استعمال نہیں۔" },
+  "reports.limit.stockValuation": { en: "{count} product(s) with stock have no purchase price, so their value is missing from stock value.", ur: "{count} مصنوعات جن کا اسٹاک موجود ہے مگر خرید قیمت درج نہیں، ان کی قیمت اسٹاک ویلیو میں شامل نہیں۔" },
   "reports.error": { en: "Could not load this report.", ur: "یہ رپورٹ لوڈ نہیں ہو سکی۔" },
   "reports.retry": { en: "Retry", ur: "دوبارہ کوشش" },
   "reports.footerNote": { en: "Every figure is calculated from your records. The profit figure is an estimate — read the notes above.", ur: "ہر عدد آپ کے ریکارڈ سے حساب کیا گیا ہے۔ منافع کا عدد اندازہ ہے — اوپر دی گئی نوٹس پڑھیں۔" },

@@ -632,6 +632,38 @@ there was nothing to be overdue against.
 
 ---
 
+## Completed — whole-sale discounts
+
+A wholesale sale often ends in "give me 500 off". Until now the only way to do
+that was to lower each line price, which loses the real selling price and makes
+the receipt look wrong.
+
+- **`Sale.discountAmount`** (default 0) — production DDL:
+  `prisma/production/20261023_sale_discount.sql` (additive, idempotent).
+- **`totalAmount = items total − discount`** is stored. The khata balance,
+  outstanding, receipt, P&L revenue and reports all read `totalAmount`, so the
+  discounted figure is the only figure that can leak out.
+- **Refusals**: a negative discount, a discount larger than the goods, and money
+  taken above the discounted total are all rejected inside the sale transaction
+  (no partial sale, no stray payment row).
+- **Sale form**: an "Items total" row, a discount field, then the real total;
+  the full-payment button fills the discounted total.
+- **Sale page + receipt**: "Before discount → Discount → Total", so the
+  customer can check the arithmetic. The receipt never hides the discount.
+- **Reports**: sales billed is net, plus a "Discounts given (already deducted)"
+  line, and a limitation note that top-product values are before discount.
+
+### Verification
+- `scripts/verify-discounts.ts` — **36/36**: billed maths, zero/full discount,
+  all three refusals with no partial writes, receipt wording, P&L revenue,
+  report billed/discounts/cash, top-product gross values, khata balance, sales
+  list, tenant isolation.
+- Re-ran reports 53, receipt 26, acceptance 31, due-dates 30, platform 9,
+  insights 24, assistant queries 28 — all pass.
+  **465 assertions, 0 failures**; `tsc --noEmit` and `npm run build` clean.
+
+---
+
 ## 🔑 Blockers / required from owner
 
 1. **`GEMINI_API_KEY`** — required for Smart Entry, the expanded voice assistant,

@@ -2,7 +2,7 @@
  * Profit & Loss service layer.
  *
  * Computes the full P&L picture for the dashboard:
- *   Revenue     = SUM(saleItem.quantity × saleItem.unitPrice)   [active sales only]
+ *   Revenue     = SUM(sale.totalAmount)                        [active sales only, net of discount]
  *   COGS        = SUM(saleItem.quantity × batch.unitCost)        [if linked to a batch]
  *               + SUM(saleItem.quantity × product.purchasePrice) [fallback for untracked items]
  *   Gross Profit = Revenue − COGS
@@ -93,9 +93,8 @@ async function computePeriod(
   }>>`
     SELECT
       COALESCE(
-        (SELECT SUM(si."quantity" * si."unitPrice")
-         FROM "SaleItem" si
-         JOIN "Sale" s ON si."saleId" = s.id
+        (SELECT SUM(s."totalAmount")
+         FROM "Sale" s
          WHERE s."voidedAt" IS NULL ${saleUserFilter} ${saleRange}),
         0
       ) AS revenue,

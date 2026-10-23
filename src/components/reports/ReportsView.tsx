@@ -273,6 +273,14 @@ export function ReportsView() {
                 <p className="text-[11px] text-emerald-700">
                   {countLabel(data.sales.count, "reports.salesCountOne", "reports.salesCount")}
                 </p>
+                {Number(data.sales.discounts) > 0 ? (
+                  <p className="text-[11px] text-emerald-700">
+                    {t("reports.discountsGiven")}{" "}
+                    <span className="font-semibold">
+                      <Money value={data.sales.discounts} symbol={symbol} />
+                    </span>
+                  </p>
+                ) : null}
                 <div className="mt-1 border-t border-emerald-200 pt-1.5">
                   <Figure
                     label={t("reports.cashReceived")}

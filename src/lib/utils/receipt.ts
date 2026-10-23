@@ -33,6 +33,7 @@ export function buildSaleReceipt(
 ): string {
   const money = (value: string | number | Decimal) => formatMoney(value, currencySymbol);
   const total = new Decimal(sale.totalAmount);
+  const discount = new Decimal(sale.discountAmount);
   const paid = new Decimal(sale.paidAmount);
   const outstanding = new Decimal(sale.outstanding);
 
@@ -55,6 +56,12 @@ export function buildSaleReceipt(
   });
 
   lines.push("");
+  if (discount.gt(0)) {
+    lines.push(
+      tParams("receipt.subtotal", { amount: money(total.plus(discount).toString()) }),
+    );
+    lines.push(tParams("receipt.discount", { amount: money(discount.toString()) }));
+  }
   lines.push(tParams("receipt.total", { amount: money(total.toString()) }));
   lines.push(tParams("receipt.paid", { amount: money(paid.toString()) }));
 

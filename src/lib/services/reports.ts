@@ -8,7 +8,8 @@
  * say so in plain language.
  *
  * Key definitions:
- *   Sales billed        = SUM(SaleItem.quantity × unitPrice) for active sales
+ *   Sales billed        = SUM(Sale.totalAmount) for active sales (net of discount)
+ *   Discounts given     = SUM(Sale.discountAmount) in the window
  *   Cash received       = SUM(Payment.amount) in the window (every payment,
  *                         including one taken at sale time, is a Payment row)
  *   Purchases billed    = SUM(Purchase.totalAmount) for active purchases
@@ -66,6 +67,8 @@ export type ReportData = {
   timezone: string;
   sales: {
     billed: string;
+    /** Discounts given in the window (already subtracted from billed). */
+    discounts: string;
     cashReceived: string;
     count: number;
   };
@@ -251,6 +254,7 @@ export async function getReport(
   const [
     profit,
     paymentAgg,
+    discountAgg,
     purchaseAgg,
     supplierPaymentAgg,
     expenseGroups,
@@ -264,6 +268,10 @@ export async function getReport(
     getProfitLossRange(userId, fromDate, toDateExclusive),
     prisma.payment.aggregate({
       _sum: { amount: true },
+      where: { userId, voidedAt: null, date: dateFilter },
+    }),
+    prisma.sale.aggregate({
+      _sum: { discountAmount: true },
       where: { userId, voidedAt: null, date: dateFilter },
     }),
     prisma.purchase.aggregate({
@@ -299,6 +307,7 @@ export async function getReport(
   ]);
 
   const cashReceived = toDecimalOrZero(paymentAgg._sum.amount);
+  const discountsGiven = toDecimalOrZero(discountAgg._sum.discountAmount);
 
   const purchasesBilled = toDecimalOrZero(purchaseAgg._sum.totalAmount);
   const purchasesPaidAtPurchase = toDecimalOrZero(purchaseAgg._sum.paidAmount);
@@ -380,6 +389,9 @@ export async function getReport(
       params: { count: stock.unvaluedProducts },
     });
   }
+  if (discountsGiven.gt(0)) {
+    limitations.push({ key: "reports.limit.discounts" });
+  }
 
   return {
     from,
@@ -387,6 +399,7 @@ export async function getReport(
     timezone,
     sales: {
       billed: profit.revenue,
+      discounts: discountsGiven.toString(),
       cashReceived: cashReceived.toString(),
       count: profit.salesCount,
     },

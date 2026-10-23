@@ -61,6 +61,7 @@ export function NewSaleForm() {
   const [customer, setCustomer] = useState<SelectedCustomer | null>(null);
   const [items, setItems] = useState<LineItem[]>([]);
   const [paidAmount, setPaidAmount] = useState<string>("");
+  const [discountAmount, setDiscountAmount] = useState<string>("");
   const [dueDate, setDueDate] = useState<string>("");
   const [notes, setNotes] = useState<string>("");
   const [customerError, setCustomerError] = useState<string | null>(null);
@@ -92,17 +93,27 @@ export function NewSaleForm() {
       grandTotal = grandTotal.plus(lineTotal);
     }
 
+    const discount = parseDecimalSafe(discountAmount || "0");
+    // Clamp only for display; validation below blocks a real over-discount.
+    const discountClamped = discount.lt(0)
+      ? new Decimal(0)
+      : discount.gt(grandTotal)
+        ? grandTotal
+        : discount;
+    const netTotal = grandTotal.minus(discountClamped);
     const paid = parseDecimalSafe(paidAmount || "0");
-    const paidClamped = paid.gt(grandTotal) ? grandTotal : paid;
-    const outstanding = grandTotal.minus(paidClamped);
+    const paidClamped = paid.gt(netTotal) ? netTotal : paid;
+    const outstanding = netTotal.minus(paidClamped);
 
     return {
       lineTotals,
       grandTotal,
+      discount: discountClamped,
+      netTotal,
       paid: paidClamped,
       outstanding,
     };
-  }, [items, paidAmount]);
+  }, [items, paidAmount, discountAmount]);
 
   // ── Line item management ─────────────────────────────────────────────
   const addedProductIds = useMemo(
@@ -143,6 +154,7 @@ export function NewSaleForm() {
       items?: string;
       itemErrors: Array<{ quantity?: string; unitPrice?: string; stock?: string }>;
       paidAmount?: string;
+      discount?: string;
     } = { itemErrors: [] };
 
     if (!customer) {
@@ -176,20 +188,28 @@ export function NewSaleForm() {
       errors.itemErrors[idx] = itemErrors;
     });
 
+    const discount = parseDecimalSafe(discountAmount || "0");
+    if (discount.lt(0) || !discount.isFinite()) {
+      errors.discount = t("sale.discountNotNegative");
+    } else if (discount.gt(totals.grandTotal)) {
+      errors.discount = t("sale.discountExceedsTotal");
+    }
+
     const paid = parseDecimalSafe(paidAmount || "0");
     if (paid.lt(0) || !paid.isFinite()) {
       errors.paidAmount = t("sale.paidNotNegative");
-    } else if (paid.gt(totals.grandTotal)) {
+    } else if (paid.gt(totals.netTotal)) {
       errors.paidAmount = t("sale.paidExceedsTotal");
     }
 
     return errors;
-  }, [customer, items, paidAmount, totals.grandTotal]);
+  }, [customer, items, paidAmount, discountAmount, totals.grandTotal, totals.netTotal]);
 
   const hasBlockingErrors =
     !!validation.customer ||
     !!validation.items ||
     !!validation.paidAmount ||
+    !!validation.discount ||
     validation.itemErrors.some((e) => e.quantity || e.unitPrice);
 
   const hasStockWarnings = validation.itemErrors.some((e) => e.stock);
@@ -217,6 +237,7 @@ export function NewSaleForm() {
           batchId: i.batchId,
         })),
         paidAmount: paidAmount || "0",
+        discountAmount: discountAmount || "0",
         paymentMethod: "cash",
         notes: notes.trim() || null,
         dueDate: dueDate || null,
@@ -396,10 +417,40 @@ export function NewSaleForm() {
 
           <div className="rounded-xl border border-slate-200 bg-white p-3">
             <div className="space-y-1.5 text-sm">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between text-slate-500">
+                <span>{t("sale.itemsTotal")}</span>
+                <span className="tabular-nums">
+                  <Money value={totals.grandTotal.toString()} />
+                </span>
+              </div>
+
+              <div>
+                <label className="mb-1 block text-xs font-medium text-slate-600">
+                  {t("sale.discount")}
+                </label>
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  step="any"
+                  min="0"
+                  value={discountAmount}
+                  onChange={(e) => setDiscountAmount(e.target.value)}
+                  placeholder="0"
+                  className={`w-full rounded-lg border bg-white px-3 py-2.5 text-sm tabular-nums focus:outline-none focus:ring-2 ${
+                    validation.discount
+                      ? "border-red-300 focus:border-red-500 focus:ring-red-500/30"
+                      : "border-slate-300 focus:border-brand-500 focus:ring-brand-500/30"
+                  }`}
+                />
+                {validation.discount ? (
+                  <p className="mt-1 text-xs text-red-600">{validation.discount}</p>
+                ) : null}
+              </div>
+
+              <div className="flex items-center justify-between border-t border-slate-100 pt-1.5">
                 <span className="text-slate-600">{t("sale.total")}</span>
                 <span className="font-bold tabular-nums text-slate-900">
-                  <Money value={totals.grandTotal.toString()} />
+                  <Money value={totals.netTotal.toString()} />
                 </span>
               </div>
 
@@ -427,7 +478,7 @@ export function NewSaleForm() {
                 <div className="mt-1.5 flex gap-1.5">
                   <button
                     type="button"
-                    onClick={() => setPaidAmount(totals.grandTotal.toString())}
+                    onClick={() => setPaidAmount(totals.netTotal.toString())}
                     className="rounded-md bg-brand-50 px-2 py-1 text-[11px] font-medium text-brand-700 hover:bg-brand-100"
                   >
                     {t("sale.fullPayment")}

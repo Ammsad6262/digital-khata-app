@@ -107,6 +107,19 @@ that reads your own database rows.
   disagree. The assistant answers "who is overdue?" with a tappable row per
   customer.
 
+### Discounts on a sale
+- A sale can carry a whole-sale discount. The customer is billed the item total
+  minus the discount, and that billed total is what every screen, the khata
+  balance, the receipt, profit and reports use.
+- The discount is refused if it is negative or larger than the goods. Money
+  taken at sale time can never exceed the discounted total.
+- The sale page and the receipt show **before discount → discount → total**, so
+  the line maths still adds up for the customer.
+- Revenue is read from `Sale.totalAmount` (already discounted), so profit and
+  reports can never silently count the pre-discount value. Reports also show
+  the discounts given in the period, and say that top-product values are before
+  the discount.
+
 ### Follow-up workflow (`/more/follow-ups`)
 - **Candidates come from purchase dates, not guesses.** A customer appears when
   the gap since their last purchase of a product is at least 1.25× their own
@@ -184,8 +197,9 @@ Bug 6 was found by the acceptance suite, not by inspection.
 | `scripts/verify-receipt.ts` | sale receipt text: saved totals, paid/outstanding wording, overpayment, notes, Urdu, no profit language | **26/26** |
 | `scripts/verify-reports.ts` | any-period report: inclusive window, presets, sales / cash / purchases / expenses / COGS / profit, stock valuation rule, point-in-time position, limitations, tenant isolation | **53/53** |
 | `scripts/verify-due-dates.ts` | due date stored as business-timezone midnight, overdue rule, paid/voided/no-date exclusions, insights + reports + sales list agreement, assistant overdue answer, tenant isolation | **30/30** |
+| `scripts/verify-discounts.ts` | discounted billed total, full and zero discount, negative/over-total/over-paid refusals with no partial writes, receipt wording, revenue + report + khata agreement, tenant isolation | **36/36** |
 
-Total: **429 assertions passing**. `npx tsc --noEmit` and `npm run build` are
+Total: **465 assertions passing**. `npx tsc --noEmit` and `npm run build` are
 clean.
 
 The 10 acceptance workflows: register+trial · add customer · credit sale (stock
@@ -201,13 +215,16 @@ New models: `Supplier`, `Purchase`, `PurchaseItem`, `SupplierPayment`,
 `Reminder`, `FollowUp`.
 New columns: `Customer.nextFollowUpAt`, `Supplier.nextFollowUpAt`, purchase
 totals (`totalAmount`, `paidAmount`, `outstanding`), purchase-item lines,
-supplier/reference links on ledger rows.
+supplier/reference links on ledger rows, `Sale.dueDate` and
+`Sale.discountAmount`.
 Uniqueness: `@@unique([userId, phone])` on `Customer`,
 `@@unique([sku, userId])` on `Product` (per-tenant, not global).
 
 Production DDL: `prisma/production/20261020_stage2_3_delta.sql` (suppliers,
-purchases, reminders) and `prisma/production/20261023_follow_ups.sql` (the
-`FollowUp` table) — both additive, transactional, idempotent. The stage 2-3 file
+purchases, reminders), `prisma/production/20261023_follow_ups.sql` (the
+`FollowUp` table), `prisma/production/20261023_sale_due_date.sql` (sale due
+dates) and `prisma/production/20261023_sale_discount.sql` (sale discounts) —
+all additive, transactional, idempotent. The stage 2-3 file
 was applied twice to a scratch database and verified to produce a schema
 identical to Prisma's.
 

@@ -87,6 +87,7 @@ export function SaleDetail({ saleId }: { saleId: string }) {
   }
 
   const total = new Decimal(sale.totalAmount);
+  const discount = new Decimal(sale.discountAmount);
   const paid = new Decimal(sale.paidAmount);
   const outstanding = new Decimal(sale.outstanding);
   const isFullyPaid = outstanding.lte(0);
@@ -245,7 +246,23 @@ export function SaleDetail({ saleId }: { saleId: string }) {
             );
           })}
           <div className="border-t border-slate-200 bg-slate-50 px-3 py-2">
-            <div className="flex items-baseline justify-between">
+            {discount.gt(0) ? (
+              <>
+                <div className="flex items-baseline justify-between text-xs text-slate-500">
+                  <span>{t("sale.subtotal")}</span>
+                  <span className="tabular-nums">
+                    <Money value={total.plus(discount).toString()} />
+                  </span>
+                </div>
+                <div className="mt-0.5 flex items-baseline justify-between text-xs font-medium text-amber-700">
+                  <span>{t("sale.discountLabel")}</span>
+                  <span className="tabular-nums">
+                    − <Money value={sale.discountAmount} />
+                  </span>
+                </div>
+              </>
+            ) : null}
+            <div className={cn("flex items-baseline justify-between", discount.gt(0) && "mt-1")}>
               <span className="text-sm font-medium text-slate-700">{t("sale.total")}</span>
               <span className="text-sm font-bold tabular-nums text-slate-900">
                 <Money value={sale.totalAmount} />

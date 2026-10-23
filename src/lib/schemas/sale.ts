@@ -45,6 +45,13 @@ export const createSaleSchema = z
       .transform((v) => (typeof v === "string" ? Number(v) : v))
       .refine((v) => Number.isFinite(v) && v >= 0, "Paid amount must be a non-negative number.")
       .default(0),
+    // Whole-sale discount. The service subtracts it from the item total and
+    // rejects a discount larger than the items themselves.
+    discountAmount: z
+      .union([z.number(), z.string()])
+      .transform((v) => (typeof v === "string" ? Number(v) : v))
+      .refine((v) => Number.isFinite(v) && v >= 0, "Discount must be a non-negative number.")
+      .default(0),
     paymentMethod: paymentMethodSchema.optional(),
     notes: z.string().trim().max(500).optional().nullable(),
     date: z.string().datetime().optional(),

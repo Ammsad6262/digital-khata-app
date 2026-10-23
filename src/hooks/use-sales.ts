@@ -78,6 +78,8 @@ export type CreateSaleInput = {
     batchId?: string | null;
   }>;
   paidAmount: number | string;
+  /** Whole-sale discount; the API subtracts it from the item total. */
+  discountAmount?: number | string;
   paymentMethod?: "cash" | "bank" | "cheque" | "jazzcash" | "easypaisa" | "other";
   notes?: string | null;
   date?: string;

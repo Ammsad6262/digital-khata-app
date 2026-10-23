@@ -29,7 +29,10 @@ import type { Prisma } from "@prisma/client";
 export type SaleView = {
   id: string;
   customerId: string;
+  /** What the customer is billed: item total minus discount. */
   totalAmount: string;
+  /** Whole-sale discount (0 when none). */
+  discountAmount: string;
   paidAmount: string;
   outstanding: string;
   notes: string | null;
@@ -111,6 +114,7 @@ function toView(s: Prisma.SaleGetPayload<{}>): SaleView {
     id: s.id,
     customerId: s.customerId,
     totalAmount: s.totalAmount.toString(),
+    discountAmount: s.discountAmount.toString(),
     paidAmount: s.paidAmount.toString(),
     outstanding: s.outstanding.toString(),
     notes: s.notes,
@@ -161,6 +165,7 @@ export type SaleListItem = {
   customerName: string;
   customerPhone: string | null;
   totalAmount: string;
+  discountAmount: string;
   paidAmount: string;
   outstanding: string;
   notes: string | null;
@@ -222,6 +227,7 @@ export async function listSalesFiltered(
       customerName: s.customer.name,
       customerPhone: s.customer.phone ?? null,
       totalAmount: s.totalAmount.toString(),
+      discountAmount: s.discountAmount.toString(),
       paidAmount: s.paidAmount.toString(),
       outstanding: s.outstanding.toString(),
       notes: s.notes,
@@ -335,13 +341,26 @@ export async function createSale(input: unknown, userId?: string | null): Promis
       total: new Decimal(i.quantity).times(new Decimal(i.unitPrice)),
       batchId: i.batchId ?? null,
     }));
-    const totalAmount = items.reduce(
+    const itemsTotal = items.reduce(
       (sum, i) => sum.plus(i.total),
       new Decimal(0),
     );
+    const discountAmount = new Decimal(data.discountAmount);
+
+    // A discount can never be larger than the goods themselves, otherwise the
+    // customer would be billed a negative amount.
+    if (discountAmount.gt(itemsTotal)) {
+      throw new BadRequestError(
+        "api.sale.discountExceedsTotal",
+        undefined,
+        { discount: discountAmount.toString(), total: itemsTotal.toString() },
+      );
+    }
+
+    const totalAmount = itemsTotal.minus(discountAmount);
     const paidAmount = new Decimal(data.paidAmount);
 
-    // 4. Verify paidAmount <= totalAmount
+    // 4. Verify paidAmount <= the discounted total
     if (paidAmount.gt(totalAmount)) {
       throw new BadRequestError(
         "api.sale.paidExceedsTotal",
@@ -443,6 +462,7 @@ export async function createSale(input: unknown, userId?: string | null): Promis
         ...(userId && { userId }),
         customerId: data.customerId,
         totalAmount,
+        discountAmount,
         paidAmount,
         outstanding,
         notes: data.notes ?? null,

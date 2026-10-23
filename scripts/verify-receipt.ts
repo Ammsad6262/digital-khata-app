@@ -50,6 +50,7 @@ function sale(overrides: Partial<SaleWithItems> = {}): SaleWithItems {
     customerName: "Ahmed Khan",
     customerPhone: "03001234567",
     totalAmount: "4500",
+    discountAmount: "0",
     paidAmount: "2000",
     outstanding: "2500",
     notes: null,

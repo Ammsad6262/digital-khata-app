@@ -715,6 +715,34 @@ owner had to screenshot the sale page.
 
 ---
 
+## Completed — every table in the backup (not just the old ones)
+
+The backup file was still exporting only the original khata tables. Suppliers,
+purchases, supplier payments, reminders and follow-ups were missing — and a
+restore would have quietly turned discounted sales back into full-price sales
+and erased due dates and follow-up dates.
+
+- **Full JSON backup now includes** suppliers, purchases, purchase items,
+  supplier payments, reminders and follow-ups, in dependency-safe order.
+- **Missing fields are restored**: `Sale.discountAmount`, `Sale.dueDate`,
+  `Customer.nextFollowUpAt`, `StockMove.batchName` /
+  `remainingQuantity`, and the supplier link on ledger transactions.
+- **Old backups still import.** A file made before these tables existed is
+  accepted, with empty newer tables, instead of failing.
+- **Integrity checks cover the new links** (supplier → purchase, purchase →
+  item, reminder/follow-up → customer/product). A dangling reference aborts the
+  whole import before anything is deleted.
+- **CSV export** now offers the same new tables.
+
+### Verification
+- `npx tsx scripts/verify-backup.ts` — **39/39** assertions: export counts,
+  discount/due-date/follow-up round trip, purchase batch and ledger link,
+  stock rebuilt without double counting, other business untouched, corrupt
+  backup rejected with no changes, and an old-format backup importing cleanly.
+- `tsc --noEmit` clean.
+
+---
+
 ## 🔑 Blockers / required from owner
 
 1. **`GEMINI_API_KEY`** — required for Smart Entry, the expanded voice assistant,

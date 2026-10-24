@@ -48,6 +48,12 @@ export type BackupFile = {
     expenses: number;
     transactions: number;
     settings: number;
+    suppliers: number;
+    purchases: number;
+    purchaseItems: number;
+    supplierPayments: number;
+    reminders: number;
+    followUps: number;
   };
   data: {
     settings: Array<Record<string, unknown>>;
@@ -60,6 +66,12 @@ export type BackupFile = {
     stockMoves: Array<Record<string, unknown>>;
     expenses: Array<Record<string, unknown>>;
     transactions: Array<Record<string, unknown>>;
+    suppliers: Array<Record<string, unknown>>;
+    purchases: Array<Record<string, unknown>>;
+    purchaseItems: Array<Record<string, unknown>>;
+    supplierPayments: Array<Record<string, unknown>>;
+    reminders: Array<Record<string, unknown>>;
+    followUps: Array<Record<string, unknown>>;
   };
 };
 
@@ -101,6 +113,12 @@ export async function exportBackup(userId?: string | null): Promise<BackupFile> 
     stockMoves,
     expenses,
     transactions,
+    suppliers,
+    purchases,
+    purchaseItems,
+    supplierPayments,
+    reminders,
+    followUps,
   ] = await Promise.all([
     prisma.setting.findMany({ where: userWhere }),
     prisma.customer.findMany({ where: userWhere }),
@@ -112,6 +130,14 @@ export async function exportBackup(userId?: string | null): Promise<BackupFile> 
     prisma.stockMove.findMany({ where: userWhere }),
     prisma.expense.findMany({ where: userWhere }),
     prisma.transaction.findMany({ where: userWhere }),
+    prisma.supplier.findMany({ where: userWhere }),
+    prisma.purchase.findMany({ where: userWhere }),
+    prisma.purchaseItem.findMany({
+      where: userId ? { purchase: { userId } } : undefined,
+    }),
+    prisma.supplierPayment.findMany({ where: userWhere }),
+    prisma.reminder.findMany({ where: userWhere }),
+    prisma.followUp.findMany({ where: userWhere }),
   ]);
 
   const setting = settings[0];
@@ -133,6 +159,12 @@ export async function exportBackup(userId?: string | null): Promise<BackupFile> 
       expenses: expenses.length,
       transactions: transactions.length,
       settings: settings.length,
+      suppliers: suppliers.length,
+      purchases: purchases.length,
+      purchaseItems: purchaseItems.length,
+      supplierPayments: supplierPayments.length,
+      reminders: reminders.length,
+      followUps: followUps.length,
     },
     data: {
       settings: settings.map((s) => serialize(s)),
@@ -145,6 +177,12 @@ export async function exportBackup(userId?: string | null): Promise<BackupFile> 
       stockMoves: stockMoves.map((s) => serialize(s)),
       expenses: expenses.map((s) => serialize(s)),
       transactions: transactions.map((s) => serialize(s)),
+      suppliers: suppliers.map((s) => serialize(s)),
+      purchases: purchases.map((s) => serialize(s)),
+      purchaseItems: purchaseItems.map((s) => serialize(s)),
+      supplierPayments: supplierPayments.map((s) => serialize(s)),
+      reminders: reminders.map((s) => serialize(s)),
+      followUps: followUps.map((s) => serialize(s)),
     },
   };
 }
@@ -176,7 +214,13 @@ export type ExportableTable =
   | "payments"
   | "stockMoves"
   | "expenses"
-  | "transactions";
+  | "transactions"
+  | "suppliers"
+  | "purchases"
+  | "purchaseItems"
+  | "supplierPayments"
+  | "reminders"
+  | "followUps";
 
 export const EXPORTABLE_TABLES: Array<{ value: ExportableTable; label: string; description: string }> = [
   { value: "customers", label: "Customers", description: "All customers with balances" },
@@ -187,6 +231,12 @@ export const EXPORTABLE_TABLES: Array<{ value: ExportableTable; label: string; d
   { value: "stockMoves", label: "Stock Movements", description: "Purchases + adjustments" },
   { value: "expenses", label: "Expenses", description: "All business expenses" },
   { value: "transactions", label: "Transactions", description: "Unified ledger" },
+  { value: "suppliers", label: "Suppliers", description: "Suppliers with payables" },
+  { value: "purchases", label: "Purchases", description: "All purchase invoices" },
+  { value: "purchaseItems", label: "Purchase Items", description: "Line items per purchase" },
+  { value: "supplierPayments", label: "Supplier Payments", description: "Payments made to suppliers" },
+  { value: "reminders", label: "Reminders", description: "Follow-up reminders" },
+  { value: "followUps", label: "Follow-ups", description: "Sales opportunities and outcomes" },
 ];
 
 /**
@@ -202,6 +252,7 @@ export async function fetchTableRows(
 ): Promise<Array<Record<string, unknown>>> {
   const userWhere = userId ? { userId } : undefined;
   const saleItemWhere = userId ? { sale: { userId } } : undefined;
+  const purchaseItemWhere = userId ? { purchase: { userId } } : undefined;
 
   switch (table) {
     case "customers":         return (await prisma.customer.findMany({ where: userWhere, orderBy: { name: "asc" } })).map(serialize);
@@ -212,6 +263,12 @@ export async function fetchTableRows(
     case "stockMoves":        return (await prisma.stockMove.findMany({ where: userWhere, orderBy: { date: "desc" } })).map(serialize);
     case "expenses":          return (await prisma.expense.findMany({ where: userWhere, orderBy: { date: "desc" } })).map(serialize);
     case "transactions":      return (await prisma.transaction.findMany({ where: userWhere, orderBy: { date: "desc" } })).map(serialize);
+    case "suppliers":         return (await prisma.supplier.findMany({ where: userWhere, orderBy: { name: "asc" } })).map(serialize);
+    case "purchases":         return (await prisma.purchase.findMany({ where: userWhere, orderBy: { date: "desc" } })).map(serialize);
+    case "purchaseItems":     return (await prisma.purchaseItem.findMany({ where: purchaseItemWhere, orderBy: { purchaseId: "asc" } })).map(serialize);
+    case "supplierPayments":  return (await prisma.supplierPayment.findMany({ where: userWhere, orderBy: { date: "desc" } })).map(serialize);
+    case "reminders":         return (await prisma.reminder.findMany({ where: userWhere, orderBy: { dueAt: "asc" } })).map(serialize);
+    case "followUps":         return (await prisma.followUp.findMany({ where: userWhere, orderBy: { createdAt: "desc" } })).map(serialize);
   }
 }
 
@@ -325,7 +382,27 @@ export function parseBackupFile(content: string): BackupFile {
     }
   }
 
-  return parsed as BackupFile;
+  // Backups made before suppliers/purchases/reminders existed are still valid.
+  // Fill the newer tables so the rest of the code can read them safely.
+  const backup = parsed as BackupFile;
+  const hadSuppliers = Array.isArray(backup.data.suppliers);
+  backup.data.suppliers ??= [];
+  backup.data.purchases ??= [];
+  backup.data.purchaseItems ??= [];
+  backup.data.supplierPayments ??= [];
+  backup.data.reminders ??= [];
+  backup.data.followUps ??= [];
+
+  // An older backup has no supplier table, so any supplier link on a ledger
+  // row cannot be restored. Drop the link instead of failing the whole import.
+  if (!hadSuppliers) {
+    backup.data.transactions = backup.data.transactions.map((t) => ({
+      ...t,
+      supplierId: null,
+    }));
+  }
+
+  return backup;
 }
 
 /**
@@ -356,6 +433,12 @@ export async function importBackup(
 
   const backup = parseBackupFile(content);
 
+  // Reminders and follow-ups belong to a person, not just a business. A
+  // legacy backup containing them cannot be restored without an owner.
+  if (!userId && (backup.data.reminders.length > 0 || backup.data.followUps.length > 0)) {
+    throw new BadRequestError("api.backup.import.userRequired");
+  }
+
   // Pre-flight integrity checks: verify all FK references exist within the backup.
   verifyIntegrity(backup);
 
@@ -367,8 +450,15 @@ export async function importBackup(
     // so we scope it via its parent Sale.
     const userWhere = userId ? { userId } : undefined;
     const saleItemWhere = userId ? { sale: { userId } } : undefined;
+    const purchaseItemWhere = userId ? { purchase: { userId } } : undefined;
 
     await tx.transaction.deleteMany({ where: userWhere });
+    await tx.followUp.deleteMany({ where: userWhere });
+    await tx.reminder.deleteMany({ where: userWhere });
+    await tx.supplierPayment.deleteMany({ where: userWhere });
+    await tx.purchaseItem.deleteMany({ where: purchaseItemWhere });
+    await tx.purchase.deleteMany({ where: userWhere });
+    await tx.supplier.deleteMany({ where: userWhere });
     await tx.saleItem.deleteMany({ where: saleItemWhere });
     await tx.payment.deleteMany({ where: userWhere });
     await tx.sale.deleteMany({ where: userWhere });
@@ -419,45 +509,18 @@ export async function importBackup(
       });
     }
 
-    // 4. Customer Adjustments (FK: customer)
-    if (backup.data.customerAdjustments.length > 0) {
-      await tx.customerAdjustment.createMany({
-        data: backup.data.customerAdjustments.map((r) => ({
-          ...deserializeCustomerAdjustment(r),
+    // 4. Suppliers (no FK dependencies except the user)
+    if (backup.data.suppliers.length > 0) {
+      await tx.supplier.createMany({
+        data: backup.data.suppliers.map((r) => ({
+          ...deserializeSupplier(r),
           ...(userId && { userId }),
         })),
       });
     }
 
-    // 5. Sales (FK: customer)
-    if (backup.data.sales.length > 0) {
-      await tx.sale.createMany({
-        data: backup.data.sales.map((r) => ({
-          ...deserializeSale(r),
-          ...(userId && { userId }),
-        })),
-      });
-    }
-
-    // 6. Sale Items (FK: sale + product). SaleItem has no userId column —
-    //    its ownership is inherited from its parent Sale.
-    if (backup.data.saleItems.length > 0) {
-      await tx.saleItem.createMany({
-        data: backup.data.saleItems.map(deserializeSaleItem),
-      });
-    }
-
-    // 7. Payments (FK: customer + optional sale)
-    if (backup.data.payments.length > 0) {
-      await tx.payment.createMany({
-        data: backup.data.payments.map((r) => ({
-          ...deserializePayment(r),
-          ...(userId && { userId }),
-        })),
-      });
-    }
-
-    // 8. Stock Moves (FK: product)
+    // 5. Stock Moves (FK: product). Inserted before sale items and purchase
+    //    items because both can point at a batch.
     if (backup.data.stockMoves.length > 0) {
       await tx.stockMove.createMany({
         data: backup.data.stockMoves.map((r) => ({
@@ -467,7 +530,83 @@ export async function importBackup(
       });
     }
 
-    // 9. Expenses (no FK)
+    // 6. Sales (FK: customer)
+    if (backup.data.sales.length > 0) {
+      await tx.sale.createMany({
+        data: backup.data.sales.map((r) => ({
+          ...deserializeSale(r),
+          ...(userId && { userId }),
+        })),
+      });
+    }
+
+    // 7. Sale Items (FK: sale + product + optional stock move). SaleItem has
+    //    no userId column — its ownership is inherited from its parent Sale.
+    if (backup.data.saleItems.length > 0) {
+      await tx.saleItem.createMany({
+        data: backup.data.saleItems.map(deserializeSaleItem),
+      });
+    }
+
+    // 8. Purchases (FK: supplier)
+    if (backup.data.purchases.length > 0) {
+      await tx.purchase.createMany({
+        data: backup.data.purchases.map((r) => ({
+          ...deserializePurchase(r),
+          ...(userId && { userId }),
+        })),
+      });
+    }
+
+    // 9. Purchase Items (FK: purchase + product + optional stock move).
+    //    PurchaseItem has no userId column — ownership comes from its purchase.
+    if (backup.data.purchaseItems.length > 0) {
+      await tx.purchaseItem.createMany({
+        data: backup.data.purchaseItems.map(deserializePurchaseItem),
+      });
+    }
+
+    // 10. Supplier Payments (FK: supplier + optional purchase)
+    if (backup.data.supplierPayments.length > 0) {
+      await tx.supplierPayment.createMany({
+        data: backup.data.supplierPayments.map((r) => ({
+          ...deserializeSupplierPayment(r),
+          ...(userId && { userId }),
+        })),
+      });
+    }
+
+    // 11. Reminders (FK: optional customer / supplier / product)
+    if (backup.data.reminders.length > 0) {
+      await tx.reminder.createMany({
+        data: backup.data.reminders.map((r) => ({
+          ...deserializeReminder(r),
+          userId: userId as string,
+        })),
+      });
+    }
+
+    // 12. Follow-ups (FK: customer + optional product)
+    if (backup.data.followUps.length > 0) {
+      await tx.followUp.createMany({
+        data: backup.data.followUps.map((r) => ({
+          ...deserializeFollowUp(r),
+          userId: userId as string,
+        })),
+      });
+    }
+
+    // 13. Payments (FK: customer + optional sale)
+    if (backup.data.payments.length > 0) {
+      await tx.payment.createMany({
+        data: backup.data.payments.map((r) => ({
+          ...deserializePayment(r),
+          ...(userId && { userId }),
+        })),
+      });
+    }
+
+    // 14. Expenses (no FK)
     if (backup.data.expenses.length > 0) {
       await tx.expense.createMany({
         data: backup.data.expenses.map((r) => ({
@@ -477,7 +616,17 @@ export async function importBackup(
       });
     }
 
-    // 10. Transactions (FK: optional customer + optional product)
+    // 15. Customer Adjustments (FK: customer)
+    if (backup.data.customerAdjustments.length > 0) {
+      await tx.customerAdjustment.createMany({
+        data: backup.data.customerAdjustments.map((r) => ({
+          ...deserializeCustomerAdjustment(r),
+          ...(userId && { userId }),
+        })),
+      });
+    }
+
+    // 16. Transactions (FK: optional customer + product + supplier)
     if (backup.data.transactions.length > 0) {
       await tx.transaction.createMany({
         data: backup.data.transactions.map((r) => ({
@@ -488,9 +637,27 @@ export async function importBackup(
     }
   });
 
+  // Count what was actually restored rather than trusting the file's summary.
   return {
     success: true,
-    imported: backup.counts,
+    imported: {
+      settings: backup.data.settings.length,
+      customers: backup.data.customers.length,
+      products: backup.data.products.length,
+      sales: backup.data.sales.length,
+      saleItems: backup.data.saleItems.length,
+      payments: backup.data.payments.length,
+      customerAdjustments: backup.data.customerAdjustments.length,
+      stockMoves: backup.data.stockMoves.length,
+      expenses: backup.data.expenses.length,
+      transactions: backup.data.transactions.length,
+      suppliers: backup.data.suppliers.length,
+      purchases: backup.data.purchases.length,
+      purchaseItems: backup.data.purchaseItems.length,
+      supplierPayments: backup.data.supplierPayments.length,
+      reminders: backup.data.reminders.length,
+      followUps: backup.data.followUps.length,
+    },
   };
 }
 
@@ -509,6 +676,9 @@ function verifyIntegrity(backup: BackupFile): void {
   const customerIds = new Set(backup.data.customers.map((c) => c.id as string));
   const productIds = new Set(backup.data.products.map((p) => p.id as string));
   const saleIds = new Set(backup.data.sales.map((s) => s.id as string));
+  const supplierIds = new Set(backup.data.suppliers.map((s) => s.id as string));
+  const purchaseIds = new Set(backup.data.purchases.map((p) => p.id as string));
+  const stockMoveIds = new Set(backup.data.stockMoves.map((m) => m.id as string));
 
   // Sale.customerId must exist
   for (const s of backup.data.sales) {
@@ -580,7 +750,115 @@ function verifyIntegrity(backup: BackupFile): void {
     }
   }
 
-  // Transaction.customerId + productId (both optional)
+  // SaleItem.stockMoveId is optional — only check if present
+  for (const si of backup.data.saleItems) {
+    if (si.stockMoveId && !stockMoveIds.has(si.stockMoveId as string)) {
+      throw new BadRequestError(
+        "api.backup.fkSaleItemStockMove",
+        undefined,
+        { id: String(si.id), stockMoveId: String(si.stockMoveId) },
+      );
+    }
+  }
+
+  // Purchase.supplierId must exist
+  for (const p of backup.data.purchases) {
+    if (!supplierIds.has(p.supplierId as string)) {
+      throw new BadRequestError(
+        "api.backup.fkPurchaseSupplier",
+        undefined,
+        { id: String(p.id), supplierId: String(p.supplierId) },
+      );
+    }
+  }
+
+  // PurchaseItem.purchaseId + productId must exist; stockMoveId is optional
+  for (const pi of backup.data.purchaseItems) {
+    if (!purchaseIds.has(pi.purchaseId as string)) {
+      throw new BadRequestError(
+        "api.backup.fkPurchaseItemPurchase",
+        undefined,
+        { id: String(pi.id), purchaseId: String(pi.purchaseId) },
+      );
+    }
+    if (!productIds.has(pi.productId as string)) {
+      throw new BadRequestError(
+        "api.backup.fkPurchaseItemProduct",
+        undefined,
+        { id: String(pi.id), productId: String(pi.productId) },
+      );
+    }
+    if (pi.stockMoveId && !stockMoveIds.has(pi.stockMoveId as string)) {
+      throw new BadRequestError(
+        "api.backup.fkPurchaseItemStockMove",
+        undefined,
+        { id: String(pi.id), stockMoveId: String(pi.stockMoveId) },
+      );
+    }
+  }
+
+  // SupplierPayment.supplierId must exist; purchaseId is optional
+  for (const sp of backup.data.supplierPayments) {
+    if (!supplierIds.has(sp.supplierId as string)) {
+      throw new BadRequestError(
+        "api.backup.fkSupplierPaymentSupplier",
+        undefined,
+        { id: String(sp.id), supplierId: String(sp.supplierId) },
+      );
+    }
+    if (sp.purchaseId && !purchaseIds.has(sp.purchaseId as string)) {
+      throw new BadRequestError(
+        "api.backup.fkSupplierPaymentPurchase",
+        undefined,
+        { id: String(sp.id), purchaseId: String(sp.purchaseId) },
+      );
+    }
+  }
+
+  // Reminder links are all optional
+  for (const r of backup.data.reminders) {
+    if (r.customerId && !customerIds.has(r.customerId as string)) {
+      throw new BadRequestError(
+        "api.backup.fkReminderCustomer",
+        undefined,
+        { id: String(r.id), customerId: String(r.customerId) },
+      );
+    }
+    if (r.supplierId && !supplierIds.has(r.supplierId as string)) {
+      throw new BadRequestError(
+        "api.backup.fkReminderSupplier",
+        undefined,
+        { id: String(r.id), supplierId: String(r.supplierId) },
+      );
+    }
+    if (r.productId && !productIds.has(r.productId as string)) {
+      throw new BadRequestError(
+        "api.backup.fkReminderProduct",
+        undefined,
+        { id: String(r.id), productId: String(r.productId) },
+      );
+    }
+  }
+
+  // FollowUp.customerId must exist; productId is optional
+  for (const f of backup.data.followUps) {
+    if (!customerIds.has(f.customerId as string)) {
+      throw new BadRequestError(
+        "api.backup.fkFollowUpCustomer",
+        undefined,
+        { id: String(f.id), customerId: String(f.customerId) },
+      );
+    }
+    if (f.productId && !productIds.has(f.productId as string)) {
+      throw new BadRequestError(
+        "api.backup.fkFollowUpProduct",
+        undefined,
+        { id: String(f.id), productId: String(f.productId) },
+      );
+    }
+  }
+
+  // Transaction.customerId + productId + supplierId (all optional)
   for (const t of backup.data.transactions) {
     if (t.customerId && !customerIds.has(t.customerId as string)) {
       throw new BadRequestError(
@@ -594,6 +872,13 @@ function verifyIntegrity(backup: BackupFile): void {
         "api.backup.fkTransactionProduct",
         undefined,
         { id: String(t.id), productId: String(t.productId) },
+      );
+    }
+    if (t.supplierId && !supplierIds.has(t.supplierId as string)) {
+      throw new BadRequestError(
+        "api.backup.fkTransactionSupplier",
+        undefined,
+        { id: String(t.id), supplierId: String(t.supplierId) },
       );
     }
   }
@@ -631,6 +916,7 @@ function deserializeCustomer(row: Record<string, unknown>) {
     address: (row.address as string | null) ?? null,
     notes: (row.notes as string | null) ?? null,
     openingBalance: new Decimal(row.openingBalance as string | number),
+    nextFollowUpAt: row.nextFollowUpAt ? deserializeDate(row.nextFollowUpAt) : null,
     isDeleted: (row.isDeleted as boolean) ?? false,
     createdAt: deserializeDate(row.createdAt),
     updatedAt: deserializeDate(row.updatedAt),
@@ -654,15 +940,109 @@ function deserializeProduct(row: Record<string, unknown>) {
   };
 }
 
+function deserializeSupplier(row: Record<string, unknown>) {
+  return {
+    id: row.id as string,
+    name: row.name as string,
+    phone: (row.phone as string | null) ?? null,
+    email: (row.email as string | null) ?? null,
+    address: (row.address as string | null) ?? null,
+    notes: (row.notes as string | null) ?? null,
+    openingBalance: new Decimal((row.openingBalance as string | number | undefined) ?? 0),
+    nextFollowUpAt: row.nextFollowUpAt ? deserializeDate(row.nextFollowUpAt) : null,
+    isDeleted: (row.isDeleted as boolean) ?? false,
+    createdAt: deserializeDate(row.createdAt),
+    updatedAt: deserializeDate(row.updatedAt),
+  };
+}
+
+function deserializePurchase(row: Record<string, unknown>) {
+  return {
+    id: row.id as string,
+    supplierId: row.supplierId as string,
+    totalAmount: new Decimal(row.totalAmount as string | number),
+    paidAmount: new Decimal((row.paidAmount as string | number | undefined) ?? 0),
+    outstanding: new Decimal(row.outstanding as string | number),
+    notes: (row.notes as string | null) ?? null,
+    date: deserializeDate(row.date),
+    voidedAt: row.voidedAt ? deserializeDate(row.voidedAt) : null,
+    createdAt: deserializeDate(row.createdAt),
+    updatedAt: deserializeDate(row.updatedAt),
+  };
+}
+
+function deserializePurchaseItem(row: Record<string, unknown>) {
+  return {
+    id: row.id as string,
+    purchaseId: row.purchaseId as string,
+    productId: row.productId as string,
+    quantity: new Decimal(row.quantity as string | number),
+    unitCost: new Decimal(row.unitCost as string | number),
+    total: new Decimal(row.total as string | number),
+    stockMoveId: (row.stockMoveId as string | null) ?? null,
+  };
+}
+
+function deserializeSupplierPayment(row: Record<string, unknown>) {
+  return {
+    id: row.id as string,
+    supplierId: row.supplierId as string,
+    purchaseId: (row.purchaseId as string | null) ?? null,
+    amount: new Decimal(row.amount as string | number),
+    method: (row.method as string) ?? "cash",
+    notes: (row.notes as string | null) ?? null,
+    date: deserializeDate(row.date),
+    voidedAt: row.voidedAt ? deserializeDate(row.voidedAt) : null,
+    createdAt: deserializeDate(row.createdAt),
+    updatedAt: deserializeDate(row.updatedAt),
+  };
+}
+
+function deserializeReminder(row: Record<string, unknown>) {
+  return {
+    id: row.id as string,
+    title: row.title as string,
+    notes: (row.notes as string | null) ?? null,
+    type: (row.type as string) ?? "custom",
+    dueAt: deserializeDate(row.dueAt),
+    completedAt: row.completedAt ? deserializeDate(row.completedAt) : null,
+    priority: (row.priority as string) ?? "normal",
+    customerId: (row.customerId as string | null) ?? null,
+    supplierId: (row.supplierId as string | null) ?? null,
+    productId: (row.productId as string | null) ?? null,
+    createdAt: deserializeDate(row.createdAt),
+    updatedAt: deserializeDate(row.updatedAt),
+  };
+}
+
+function deserializeFollowUp(row: Record<string, unknown>) {
+  return {
+    id: row.id as string,
+    customerId: row.customerId as string,
+    productId: (row.productId as string | null) ?? null,
+    kind: (row.kind as string) ?? "reorder",
+    reason: row.reason as string,
+    message: row.message as string,
+    outcome: (row.outcome as string) ?? "pending",
+    outcomeNote: (row.outcomeNote as string | null) ?? null,
+    contactedAt: row.contactedAt ? deserializeDate(row.contactedAt) : null,
+    resolvedAt: row.resolvedAt ? deserializeDate(row.resolvedAt) : null,
+    createdAt: deserializeDate(row.createdAt),
+    updatedAt: deserializeDate(row.updatedAt),
+  };
+}
+
 function deserializeSale(row: Record<string, unknown>) {
   return {
     id: row.id as string,
     customerId: row.customerId as string,
     totalAmount: new Decimal(row.totalAmount as string | number),
+    discountAmount: new Decimal((row.discountAmount as string | number | undefined) ?? 0),
     paidAmount: new Decimal(row.paidAmount as string | number),
     outstanding: new Decimal(row.outstanding as string | number),
     notes: (row.notes as string | null) ?? null,
     date: deserializeDate(row.date),
+    dueDate: row.dueDate ? deserializeDate(row.dueDate) : null,
     voidedAt: row.voidedAt ? deserializeDate(row.voidedAt) : null,
     createdAt: deserializeDate(row.createdAt),
     updatedAt: deserializeDate(row.updatedAt),
@@ -717,6 +1097,10 @@ function deserializeStockMove(row: Record<string, unknown>) {
     quantity: new Decimal(row.quantity as string | number),
     reason: (row.reason as string | null) ?? null,
     unitCost: row.unitCost ? new Decimal(row.unitCost as string | number) : null,
+    batchName: (row.batchName as string | null) ?? null,
+    remainingQuantity: new Decimal(
+      (row.remainingQuantity as string | number | undefined) ?? 0,
+    ),
     date: deserializeDate(row.date),
     voidedAt: row.voidedAt ? deserializeDate(row.voidedAt) : null,
     createdAt: deserializeDate(row.createdAt),
@@ -745,6 +1129,7 @@ function deserializeTransaction(row: Record<string, unknown>) {
     refId: row.refId as string,
     customerId: (row.customerId as string | null) ?? null,
     productId: (row.productId as string | null) ?? null,
+    supplierId: (row.supplierId as string | null) ?? null,
     amount: new Decimal(row.amount as string | number),
     direction: row.direction as string,
     date: deserializeDate(row.date),

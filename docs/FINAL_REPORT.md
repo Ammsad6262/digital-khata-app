@@ -142,6 +142,14 @@ that reads your own database rows.
 - A voided sale shows a clear "not a valid receipt" notice. Figures come from
   the saved sale, never recalculated.
 
+### Backup covers the whole business
+- The JSON backup includes suppliers, purchases, purchase items, supplier
+  payments, reminders and follow-ups — not just the original khata tables.
+- Restoring keeps discounts, due dates, next-follow-up dates, purchase batches
+  and supplier ledger links. Old backups still import with empty newer tables.
+- Integrity checks run before anything is deleted, so a corrupt file cannot
+  wipe the business.
+
 ### Follow-up workflow (`/more/follow-ups`)
 - **Candidates come from purchase dates, not guesses.** A customer appears when
   the gap since their last purchase of a product is at least 1.25× their own

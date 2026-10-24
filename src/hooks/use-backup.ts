@@ -25,6 +25,12 @@ type ImportResult = {
     expenses: number;
     transactions: number;
     settings: number;
+    suppliers: number;
+    purchases: number;
+    purchaseItems: number;
+    supplierPayments: number;
+    reminders: number;
+    followUps: number;
   };
 };
 
@@ -146,7 +152,7 @@ export function useImportBackup() {
     onSuccess: (data) => {
       const c = data.imported;
       toast.success(
-        `Backup restored: ${c.customers} customers, ${c.sales} sales, ${c.payments} payments, ${c.products} products`,
+        `Backup restored: ${c.customers} customers, ${c.sales} sales, ${c.payments} payments, ${c.products} products, ${c.suppliers} suppliers, ${c.purchases} purchases, ${c.reminders} reminders`,
       );
     },
     onError: (error) => {

@@ -37,12 +37,15 @@ import { useAudioRecorder } from "@/hooks/smart-entry/use-audio-recorder";
 
 const PUBLIC_PAGES = ["/login", "/register"];
 const DASHBOARD_PATH = "/dashboard";
+// Printable receipts render without the app chrome, so the paper is the page.
+const RECEIPT_PATH = /^\/sales\/[^/]+\/receipt$/;
 
 export function Providers({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const isPublicPage = PUBLIC_PAGES.some(
     (p) => pathname === p || pathname.startsWith(p + "/"),
   );
+  const isReceiptPage = RECEIPT_PATH.test(pathname);
 
   const showFab = !isPublicPage && pathname === DASHBOARD_PATH;
 
@@ -70,26 +73,30 @@ export function Providers({ children }: { children: ReactNode }) {
               <Screen>{children}</Screen>
             ) : (
               <AuthGate>
-                <Screen>
-                  {children}
-                  <BottomNav />
-                  {showFab ? (
-                    <>
-                      <QuickAddMenu />
-                      <HoldToTalkFab
-                        recorder={recorder}
-                        smartEntry={smartEntry}
-                        onModalOpen={handleModalOpen}
-                      />
-                      <SmartEntryModal
-                        open={modalOpen}
-                        onClose={handleClose}
-                        smartEntry={smartEntry}
-                        recorder={recorder}
-                      />
-                    </>
-                  ) : null}
-                </Screen>
+                {isReceiptPage ? (
+                  children
+                ) : (
+                  <Screen>
+                    {children}
+                    <BottomNav />
+                    {showFab ? (
+                      <>
+                        <QuickAddMenu />
+                        <HoldToTalkFab
+                          recorder={recorder}
+                          smartEntry={smartEntry}
+                          onModalOpen={handleModalOpen}
+                        />
+                        <SmartEntryModal
+                          open={modalOpen}
+                          onClose={handleClose}
+                          smartEntry={smartEntry}
+                          recorder={recorder}
+                        />
+                      </>
+                    ) : null}
+                  </Screen>
+                )}
               </AuthGate>
             )}
           </ToastProvider>

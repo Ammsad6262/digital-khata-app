@@ -304,6 +304,7 @@ export function SaleDetail({ saleId }: { saleId: string }) {
           message={buildSaleReceipt(sale, { t, tParams }, symbol, {
             businessName: settings?.businessName,
           })}
+          printHref={`/sales/${sale.id}/receipt`}
         />
       ) : null}
 

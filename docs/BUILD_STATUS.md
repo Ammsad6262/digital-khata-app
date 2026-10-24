@@ -691,6 +691,30 @@ list — and the assistant never saw the custom ones at all.
 
 ---
 
+## Completed — printable receipt
+
+A WhatsApp text receipt is useful, but a shop also needs paper. Until now the
+owner had to screenshot the sale page.
+
+- **New route** `/sales/<id>/receipt` — a clean, paper-shaped receipt with the
+  business name, customer, item table, before-discount/discount/total, paid,
+  still to pay, due date and notes.
+- **No app chrome**: the route renders outside `Screen`/`BottomNav`, so there is
+  no navigation to cut off. The back/print toolbar and hint are `print:hidden`.
+- **Print or save as PDF** with the browser's native dialog — no external app.
+- **Voided sales** show a red "not a valid receipt" notice instead of pretending
+  the sale is valid.
+- Figures come from the saved sale only; nothing is recalculated on the receipt.
+
+### Verification
+- Opened a real discounted sale receipt: correct business name, 2 × Rs. 150,
+  before-discount Rs. 300, discount Rs. 50, total Rs. 250, paid Rs. 100,
+  still to pay Rs. 150, notes shown, no bottom navigation, print button present.
+- `tsc --noEmit` and `npm run build` clean (route listed as
+  `ƒ /sales/[id]/receipt`).
+
+---
+
 ## 🔑 Blockers / required from owner
 
 1. **`GEMINI_API_KEY`** — required for Smart Entry, the expanded voice assistant,

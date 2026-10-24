@@ -9,17 +9,21 @@
  */
 
 import { useState } from "react";
-import { Check, Copy, MessageCircle } from "lucide-react";
+import Link from "next/link";
+import { Check, Copy, MessageCircle, Printer } from "lucide-react";
 import { getContactWhatsAppLink } from "@/lib/utils/whatsapp";
 import { useLanguage } from "@/providers/language-provider";
 
 export function ShareReceipt({
   phone,
   message,
+  printHref,
 }: {
   phone: string | null | undefined;
   /** Already-built receipt text. */
   message: string;
+  /** Printable receipt page for this sale. */
+  printHref?: string;
 }) {
   const { t } = useLanguage();
   const [copied, setCopied] = useState(false);
@@ -64,6 +68,16 @@ export function ShareReceipt({
           {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
           {copied ? t("statement.copied") : t("statement.copy")}
         </button>
+
+        {printHref ? (
+          <Link
+            href={printHref}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 active:scale-[0.97]"
+          >
+            <Printer className="h-3.5 w-3.5" />
+            {t("receipt.print")}
+          </Link>
+        ) : null}
       </div>
     </section>
   );

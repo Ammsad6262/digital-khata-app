@@ -132,6 +132,16 @@ that reads your own database rows.
 - Editing an old product keeps its existing unit even if that unit is no longer
   in the list, so a rename can never silently change a product's unit.
 
+### Printable receipt
+- Every sale now has a clean receipt page at `/sales/<id>/receipt`, opened
+  from **Print receipt** on the sale page. It shows the business name, customer,
+  items, before-discount/discount/total, paid, still to pay, due date and notes.
+- The page has no bottom navigation or floating buttons; the only toolbar (back
+  and print) is hidden by the browser's print styles, so the paper is the page.
+  It can be printed or saved as PDF without leaving the app.
+- A voided sale shows a clear "not a valid receipt" notice. Figures come from
+  the saved sale, never recalculated.
+
 ### Follow-up workflow (`/more/follow-ups`)
 - **Candidates come from purchase dates, not guesses.** A customer appears when
   the gap since their last purchase of a product is at least 1.25× their own

@@ -253,6 +253,7 @@ function QuickAddCustomer({
           onCreated({
             id: customer.id,
             name: customer.name,
+            companyName: customer.companyName,
             phone: customer.phone,
             balance: "0",
           });

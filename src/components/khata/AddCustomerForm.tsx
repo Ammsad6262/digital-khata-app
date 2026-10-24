@@ -41,6 +41,7 @@ export function AddCustomerForm() {
     resolver: zodResolver(createCustomerSchema),
     defaultValues: {
       name: "",
+      companyName: null,
       phone: "",
       address: null,
       notes: null,
@@ -80,6 +81,15 @@ export function AddCustomerForm() {
             autoComplete="off"
             {...form.register("name")}
             error={form.formState.errors.name?.message ?? null}
+          />
+
+          <TextField
+            label={t("customer.companyName")}
+            placeholder={t("customer.companyNamePlaceholder")}
+            autoComplete="organization"
+            {...form.register("companyName")}
+            error={form.formState.errors.companyName?.message ?? null}
+            hint={t("customer.companyNameHint")}
           />
 
           <TextField

@@ -14,22 +14,47 @@
  *   - Pull-to-refresh: drag down from the top to refetch
  */
 
-import { Search, X, Users, AlertCircle, UserPlus, UserPlus2, Plus, Sparkles, Lightbulb, ChevronRight } from "lucide-react";
+import { Search, X, Users, AlertCircle, UserPlus, UserPlus2, Plus, Sparkles, Lightbulb, ChevronRight, ArrowDownWideNarrow } from "lucide-react";
 import Link from "next/link";
+import { useMemo, useState } from "react";
 import { useCustomerSearch } from "@/hooks/use-customers";
 import { CustomerRow } from "@/components/khata/CustomerRow";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { PullToRefresh } from "@/components/shared/PullToRefresh";
 import { Button } from "@/components/ui/Button";
+import { Decimal } from "@/lib/utils/decimal";
+import { cn } from "@/lib/utils/cn";
 import { useLanguage } from "@/providers/language-provider";
+import type { TranslationKey } from "@/lib/i18n/translations";
+
+type CustomerSort = "name" | "highest" | "lowest";
+
+const SORTS: Array<{ value: CustomerSort; labelKey: TranslationKey }> = [
+  { value: "name", labelKey: "customer.sortName" },
+  { value: "highest", labelKey: "customer.sortHighest" },
+  { value: "lowest", labelKey: "customer.sortLowest" },
+];
 
 export function KhataList() {
   const { query, setQuery, data, isLoading, isError, error, refetch } =
     useCustomerSearch();
   const { t } = useLanguage();
+  const [sort, setSort] = useState<CustomerSort>("name");
 
   const isShortQuery = query.trim().length > 0 && query.trim().length < 2;
   const isEmpty = !data || data.length === 0;
+
+  const sorted = useMemo(() => {
+    if (!data) return [];
+    return [...data].sort((a, b) => {
+      if (sort === "name") return a.name.localeCompare(b.name);
+      const balanceA = new Decimal(a.balance);
+      const balanceB = new Decimal(b.balance);
+      return sort === "highest"
+        ? balanceB.cmp(balanceA)
+        : balanceA.cmp(balanceB);
+    });
+  }, [data, sort]);
 
   return (
     <PullToRefresh onRefresh={async () => { await refetch(); }} className="-mx-4 px-4 sm:-mx-6 sm:px-6">
@@ -67,6 +92,35 @@ export function KhataList() {
             </p>
           ) : null}
         </div>
+
+        {/* Sort chips — only meaningful when there are customers to sort */}
+        {!isLoading && !isEmpty ? (
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+            <span className="flex shrink-0 items-center gap-1 pl-1 text-[11px] font-medium text-slate-500">
+              <ArrowDownWideNarrow className="h-3.5 w-3.5" />
+              {t("customer.sortBy")}
+            </span>
+            {SORTS.map((item) => {
+              const active = sort === item.value;
+              return (
+                <button
+                  key={item.value}
+                  type="button"
+                  onClick={() => setSort(item.value)}
+                  aria-pressed={active}
+                  className={cn(
+                    "shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors",
+                    active
+                      ? "border-brand-600 bg-brand-50 text-brand-700"
+                      : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50",
+                  )}
+                >
+                  {t(item.labelKey)}
+                </button>
+              );
+            })}
+          </div>
+        ) : null}
 
         {/* Body — loading / error / empty / list */}
         {isLoading ? (
@@ -110,17 +164,17 @@ export function KhataList() {
               <p className="text-xs text-slate-500">
                 {query.trim() ? (
                   <>
-                    {data?.length} {data?.length === 1 ? t("customer.result") : t("customer.results")} {t("customer.for")} &ldquo;{query.trim()}&rdquo;
+                    {sorted.length} {sorted.length === 1 ? t("customer.result") : t("customer.results")} {t("customer.for")} &ldquo;{query.trim()}&rdquo;
                   </>
                 ) : (
                   <>
-                    {data?.length} {data?.length === 1 ? t("customer.customer") : t("customer.customers")} {t("customer.total")}
+                    {sorted.length} {sorted.length === 1 ? t("customer.customer") : t("customer.customers")} {t("customer.total")}
                   </>
                 )}
               </p>
             </div>
             <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
-              {data?.map((customer, idx) => (
+              {sorted.map((customer, idx) => (
                 <div
                   key={customer.id}
                   className={idx > 0 ? "border-t border-slate-100" : ""}

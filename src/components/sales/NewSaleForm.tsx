@@ -74,6 +74,7 @@ export function NewSaleForm() {
       setCustomer({
         id: prefilledCustomer.id,
         name: prefilledCustomer.name,
+        companyName: prefilledCustomer.companyName,
         phone: prefilledCustomer.phone ?? "",
         balance: prefilledCustomer.balance,
       });

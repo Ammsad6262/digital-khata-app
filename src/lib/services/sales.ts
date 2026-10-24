@@ -17,6 +17,7 @@ import { Decimal, toDecimalOrZero } from "@/lib/utils/decimal";
 import { BadRequestError, NotFoundError } from "@/lib/errors";
 import { createSaleSchema } from "@/lib/schemas/sale";
 import { cached, invalidateCache } from "@/lib/utils/cache";
+import { recordAudit } from "@/lib/services/audit";
 import {
   startOfTodayInTz,
   startOfWeekInTz,
@@ -574,6 +575,21 @@ export async function createSale(input: unknown, userId?: string | null): Promis
     include: { customer: true },
   });
 
+  if (userId) {
+    await recordAudit(userId, {
+      action: "sale.create",
+      entityType: "Sale",
+      entityId: result.id,
+      summary: `Sale to ${withCustomer.customer.name}`,
+      metadata: {
+        total: result.totalAmount.toString(),
+        paid: result.paidAmount.toString(),
+        outstanding: result.outstanding.toString(),
+        customerId: result.customerId,
+      },
+    });
+  }
+
   return {
     ...toView(result),
     customerName: withCustomer.customer.name,
@@ -693,6 +709,16 @@ export async function voidSale(id: string, userId?: string | null): Promise<{ id
   invalidateCache("dashboard");
   invalidateCache("sales");
   invalidateCache("profit-loss");
+
+  if (userId) {
+    await recordAudit(userId, {
+      action: "sale.void",
+      entityType: "Sale",
+      entityId: id,
+      summary: "Voided a sale",
+      metadata: { voidedAt: result.voidedAt.toISOString() },
+    });
+  }
 
   return result;
 }

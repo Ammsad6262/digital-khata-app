@@ -17,6 +17,7 @@ import { Decimal, toDecimalOrZero } from "@/lib/utils/decimal";
 import { NotFoundError, BadRequestError } from "@/lib/errors";
 import { createProductSchema, updateProductSchema } from "@/lib/schemas/product";
 import { cached, invalidateCache } from "@/lib/utils/cache";
+import { recordAudit } from "@/lib/services/audit";
 import type { Prisma } from "@prisma/client";
 
 export type ProductView = {
@@ -257,6 +258,17 @@ export async function createProduct(input: unknown, userId?: string | null): Pro
   });
   invalidateCache("products");
   invalidateCache("dashboard");
+
+  if (userId) {
+    await recordAudit(userId, {
+      action: "product.create",
+      entityType: "Product",
+      entityId: product.id,
+      summary: `Product: ${product.name}`,
+      metadata: { sku: product.sku, unit: product.unit },
+    });
+  }
+
   return toView(product);
 }
 
@@ -365,6 +377,32 @@ export async function createProductWithOpeningStock(
   invalidateCache("dashboard");
   invalidateCache("profit-loss");
 
+  if (userId) {
+    await recordAudit(userId, {
+      action: "product.create",
+      entityType: "Product",
+      entityId: result.product.id,
+      summary: `Product with opening stock: ${result.product.name}`,
+      metadata: {
+        sku: result.product.sku,
+        unit: result.product.unit,
+        openingStock: result.product.openingStock.toString(),
+      },
+    });
+    if (result.stockMove) {
+      await recordAudit(userId, {
+        action: "stock.adjust",
+        entityType: "StockMove",
+        entityId: result.stockMove.id,
+        summary: `Opening stock: ${result.product.name}`,
+        metadata: {
+          quantity: result.stockMove.quantity.toString(),
+          type: result.stockMove.type,
+        },
+      });
+    }
+  }
+
   return {
     product: toView(result.product),
     stockMove: result.stockMove
@@ -403,6 +441,21 @@ export async function updateProduct(id: string, input: unknown, userId?: string 
   invalidateCache("products");
   invalidateCache("dashboard");
 
+  if (userId) {
+    await recordAudit(userId, {
+      action: "product.update",
+      entityType: "Product",
+      entityId: updated.id,
+      summary: `Updated product: ${updated.name}`,
+      metadata: {
+        sku: updated.sku,
+        unit: updated.unit,
+        purchasePrice: updated.purchasePrice.toString(),
+        sellingPrice: updated.sellingPrice.toString(),
+      },
+    });
+  }
+
   return toView(updated);
 }
 
@@ -413,7 +466,7 @@ export async function updateProduct(id: string, input: unknown, userId?: string 
  */
 export async function deleteProduct(id: string, userId?: string | null): Promise<{ id: string; deleted: true }> {
   // Verify ownership first — throws 404 if not owned by this user
-  await getProduct(id, userId);
+  const existing = await getProduct(id, userId);
 
   // Block soft-delete if product has any ACTIVE (non-voided) sales or stock moves.
   const [saleItemCount, stockMoveCount] = await Promise.all([
@@ -440,6 +493,16 @@ export async function deleteProduct(id: string, userId?: string | null): Promise
 
   invalidateCache("products");
   invalidateCache("dashboard");
+
+  if (userId) {
+    await recordAudit(userId, {
+      action: "product.delete",
+      entityType: "Product",
+      entityId: id,
+      summary: `Deleted product: ${existing.name}`,
+      metadata: { sku: existing.sku, unit: existing.unit },
+    });
+  }
 
   return { id, deleted: true };
 }

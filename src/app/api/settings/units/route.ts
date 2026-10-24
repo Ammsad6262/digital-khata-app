@@ -11,7 +11,7 @@
  * Response 400: invalid input OR unit already exists
  *
  * Security:
- *   - userId is taken from the JWT cookie (requireActiveAccess) — NEVER from
+ *   - userId is taken from the JWT cookie (requireUserId) — NEVER from
  *     the request body.
  *   - The customUnits list belongs ONLY to this user.
  */
@@ -22,7 +22,7 @@ import { getSettings, updateSettings } from "@/lib/services/settings";
 import { ok, fail, parseJsonBody } from "@/lib/utils/api";
 import { BadRequestError } from "@/lib/errors";
 import { tServer } from "@/lib/i18n/server";
-import { requireActiveAccess } from "@/lib/auth/get-current-user";
+import { requireUserId } from "@/lib/auth/get-current-user";
 
 // Built-in units that ship with the app — these can't be re-added as "custom"
 // (would be redundant). The same list is used by ProductForm + SettingsPage.
@@ -44,7 +44,7 @@ export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
   try {
-    const userId = await requireActiveAccess(req);
+    const userId = await requireUserId(req);
     const { data, error } = await parseJsonBody<unknown>(req);
     if (error || !data) {
       return fail(new BadRequestError(error || tServer("api.errors.invalidBody")));

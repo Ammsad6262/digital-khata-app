@@ -78,6 +78,7 @@ model User {
   supplierPayments SupplierPayment[]
   reminders       Reminder[]
   followUps       FollowUp[]
+  auditLogs       AuditLog[]
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -150,6 +151,9 @@ model Customer {
   userId         String?
   user           User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
   name           String
+  // Optional trading/shop name. A wholesale customer may be a business whose
+  // contact person is different from the shop name.
+  companyName    String?
   // NOTE: phone is unique *per business* (see @@unique below), not globally —
   // two different shops may legitimately store the same customer phone number.
   phone          String?
@@ -770,4 +774,28 @@ model FollowUp {
   @@index([userId, outcome])
   @@index([customerId])
   @@index([productId])
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// AUDIT LOG - a plain record of important actions (who did what, and when).
+// Only the owner of the account can read their own rows. Financial details are
+// kept in `metadata` as strings, never as floating-point money.
+// ────────────────────────────────────────────────────────────────────────────
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // e.g. "sale.create", "sale.void", "settings.update", "backup.import"
+  action     String
+  entityType String
+  entityId   String?
+  summary    String?
+  metadata   Json?
+
+  createdAt  DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([entityType, entityId])
 }

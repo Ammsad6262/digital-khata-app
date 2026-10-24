@@ -13,6 +13,7 @@ import { prisma } from "@/lib/db/prisma";
 import { Decimal, toDecimalOrZero } from "@/lib/utils/decimal";
 import { NotFoundError, BadRequestError } from "@/lib/errors";
 import { invalidateCache } from "@/lib/utils/cache";
+import { recordAudit } from "@/lib/services/audit";
 import { createSupplierPaymentSchema } from "@/lib/schemas/supplier-payment";
 import { getSupplier } from "@/lib/services/suppliers";
 import type { Prisma } from "@prisma/client";
@@ -212,6 +213,21 @@ export async function createSupplierPayment(
   invalidateCache("suppliers");
   invalidateCache("dashboard");
   invalidateCache("transactions");
+
+  if (userId) {
+    await recordAudit(userId, {
+      action: "supplierPayment.create",
+      entityType: "SupplierPayment",
+      entityId: created.id,
+      summary: `Payment to ${created.supplier.name}`,
+      metadata: {
+        amount: created.amount.toString(),
+        method: created.method,
+        supplierId: created.supplierId,
+      },
+    });
+  }
+
   return toView(created);
 }
 
@@ -238,5 +254,16 @@ export async function voidSupplierPayment(
   invalidateCache("suppliers");
   invalidateCache("dashboard");
   invalidateCache("transactions");
+
+  if (userId) {
+    await recordAudit(userId, {
+      action: "supplierPayment.void",
+      entityType: "SupplierPayment",
+      entityId: id,
+      summary: "Voided a supplier payment",
+      metadata: { voidedAt: result.voidedAt.toISOString() },
+    });
+  }
+
   return result;
 }

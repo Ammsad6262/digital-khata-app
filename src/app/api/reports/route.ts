@@ -12,11 +12,11 @@
 import { NextRequest } from "next/server";
 import { getReportForRange, getReportForPreset } from "@/lib/services/reports";
 import { ok, fail, getQueryParam } from "@/lib/utils/api";
-import { requireActiveAccess } from "@/lib/auth/get-current-user";
+import { requireUserId } from "@/lib/auth/get-current-user";
 
 export async function GET(req: NextRequest) {
   try {
-    const userId = await requireActiveAccess(req);
+    const userId = await requireUserId(req);
     const timezone = getQueryParam(req, "timezone") ?? "Asia/Karachi";
     const preset = getQueryParam(req, "preset");
 

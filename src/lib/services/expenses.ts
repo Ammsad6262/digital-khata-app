@@ -18,6 +18,7 @@ import { prisma } from "@/lib/db/prisma";
 import { NotFoundError, BadRequestError } from "@/lib/errors";
 import { createExpenseSchema } from "@/lib/schemas/expense";
 import { invalidateCache } from "@/lib/utils/cache";
+import { recordAudit } from "@/lib/services/audit";
 import { Decimal } from "@/lib/utils/decimal";
 import {
   startOfTodayInTz,
@@ -162,6 +163,19 @@ export async function recordExpense(input: unknown, userId?: string | null): Pro
   invalidateCache("dashboard");
   invalidateCache("profit-loss");
 
+  if (userId) {
+    await recordAudit(userId, {
+      action: "expense.create",
+      entityType: "Expense",
+      entityId: expense.id,
+      summary: `Expense: ${expense.name}`,
+      metadata: {
+        amount: expense.amount.toString(),
+        category: expense.category,
+      },
+    });
+  }
+
   return toView(expense);
 }
 
@@ -202,6 +216,19 @@ export async function updateExpense(id: string, input: unknown, userId?: string 
   invalidateCache("dashboard");
   invalidateCache("profit-loss");
 
+  if (userId) {
+    await recordAudit(userId, {
+      action: "expense.update",
+      entityType: "Expense",
+      entityId: updated.id,
+      summary: `Updated expense: ${updated.name}`,
+      metadata: {
+        amount: updated.amount.toString(),
+        category: updated.category,
+      },
+    });
+  }
+
   return toView(updated);
 }
 
@@ -228,6 +255,16 @@ export async function voidExpense(id: string, userId?: string | null): Promise<{
 
   invalidateCache("dashboard");
   invalidateCache("profit-loss");
+
+  if (userId) {
+    await recordAudit(userId, {
+      action: "expense.void",
+      entityType: "Expense",
+      entityId: id,
+      summary: "Voided an expense",
+      metadata: { voidedAt: result.voidedAt.toISOString() },
+    });
+  }
 
   return result;
 }

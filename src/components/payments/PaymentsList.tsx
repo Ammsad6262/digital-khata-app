@@ -12,8 +12,8 @@
  */
 
 import Link from "next/link";
-import { useState } from "react";
-import { AlertCircle, Wallet } from "lucide-react";
+import { useMemo, useState } from "react";
+import { AlertCircle, Search, Wallet, X } from "lucide-react";
 import { usePaymentsList } from "@/hooks/use-payments";
 import type { PaymentFilter } from "@/lib/services/payments";
 import { EmptyState } from "@/components/shared/EmptyState";
@@ -24,6 +24,7 @@ import { formatDate, formatTime } from "@/lib/utils/date";
 import { formatMoney } from "@/lib/utils/money";
 import { cn } from "@/lib/utils/cn";
 import { useLanguage } from "@/providers/language-provider";
+import type { TranslationKey } from "@/lib/i18n/translations";
 
 type PaymentFilterKey = "transactions.today" | "transactions.thisWeek" | "transactions.thisMonth" | "transactions.all";
 const FILTERS: Array<{ value: PaymentFilter; labelKey: PaymentFilterKey }> = [
@@ -45,17 +46,38 @@ const METHOD_BADGES: Record<string, { labelKey: MethodLabelKey; bg: string; text
 
 export function PaymentsList() {
   const [filter, setFilter] = useState<PaymentFilter>("today");
+  const [search, setSearch] = useState("");
+  const [method, setMethod] = useState("all");
   const { data, isLoading, isError, error, refetch } = usePaymentsList(filter);
   const { t } = useLanguage();
 
-  // Compute summary stats for the selected filter.
+  const methods = useMemo(() => {
+    if (!data) return [];
+    return Array.from(new Set(data.map((payment) => payment.method))).sort();
+  }, [data]);
+
+  const filtered = useMemo(() => {
+    if (!data) return [];
+    const query = search.trim().toLowerCase();
+    return data.filter((payment) => {
+      if (method !== "all" && payment.method !== method) return false;
+      if (query) {
+        const haystack =
+          `${payment.customerName} ${payment.customerPhone ?? ""} ${payment.id}`.toLowerCase();
+        if (!haystack.includes(query)) return false;
+      }
+      return true;
+    });
+  }, [data, search, method]);
+
+  // Compute summary stats for the selected date + search/method filters.
   const summary = (() => {
-    if (!data || data.length === 0) return { count: 0, total: new Decimal(0) };
+    if (filtered.length === 0) return { count: 0, total: new Decimal(0) };
     let total = new Decimal(0);
-    for (const p of data) {
+    for (const p of filtered) {
       total = total.plus(new Decimal(p.amount));
     }
-    return { count: data.length, total };
+    return { count: filtered.length, total };
   })();
 
   return (
@@ -79,8 +101,69 @@ export function PaymentsList() {
         ))}
       </div>
 
+      {/* Search by customer, phone, or payment ID */}
+      <div className="relative">
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+        <input
+          type="search"
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+          placeholder={t("payment.searchPlaceholder")}
+          aria-label={t("payment.searchPlaceholder")}
+          className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-9 pr-9 text-sm text-slate-900 placeholder:text-slate-400 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
+        />
+        {search ? (
+          <button
+            type="button"
+            onClick={() => setSearch("")}
+            aria-label={t("common.clearSearchAria")}
+            className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        ) : null}
+      </div>
+
+      {/* Payment-method chips — only methods present in this period */}
+      {methods.length > 1 ? (
+        <div className="flex gap-1.5 overflow-x-auto pb-1">
+          <button
+            type="button"
+            onClick={() => setMethod("all")}
+            aria-pressed={method === "all"}
+            className={cn(
+              "shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
+              method === "all"
+                ? "border-slate-900 bg-slate-900 text-white"
+                : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50",
+            )}
+          >
+            {t("payment.allMethods")}
+          </button>
+          {methods.map((value) => {
+            const active = method === value;
+            return (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setMethod(value)}
+                aria-pressed={active}
+                className={cn(
+                  "shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
+                  active
+                    ? "border-slate-900 bg-slate-900 text-white"
+                    : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50",
+                )}
+              >
+                {t(`method.${value}` as TranslationKey)}
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
+
       {/* Summary */}
-      {data && data.length > 0 ? (
+      {filtered.length > 0 ? (
         <div className="rounded-xl border border-slate-200 bg-white p-3">
           <div className="flex items-center justify-between text-xs">
             <span className="text-slate-500">
@@ -125,9 +208,27 @@ export function PaymentsList() {
             </Link>
           }
         />
+      ) : filtered.length === 0 ? (
+        <EmptyState
+          title={t("payment.noMatches")}
+          description={t("payment.noMatchesDesc")}
+          icon={<Search className="h-6 w-6" />}
+          action={
+            <Button
+              onClick={() => {
+                setSearch("");
+                setMethod("all");
+              }}
+              variant="outline"
+              size="sm"
+            >
+              {t("payment.clearFilters")}
+            </Button>
+          }
+        />
       ) : (
         <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
-          {data.map((payment, idx) => (
+          {filtered.map((payment, idx) => (
             <PaymentRow key={payment.id} payment={payment} isFirst={idx === 0} />
           ))}
         </div>
@@ -184,7 +285,10 @@ function PaymentRow({
           </span>
           <span>·</span>
           <span>
-            {formatDate(new Date(payment.date))} · {formatTime(new Date(payment.date))}
+            {formatDate(new Date(payment.date))} · {formatTime(new Date(payment.date))} ·{" "}
+            <span className="font-mono text-[10px] text-slate-400">
+              #{payment.id.slice(-6).toUpperCase()}
+            </span>
           </span>
         </div>
       </div>

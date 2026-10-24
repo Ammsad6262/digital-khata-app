@@ -22,6 +22,7 @@ export const phoneSchema = z
 
 export const createCustomerSchema = z.object({
   name: z.string().trim().min(1, "Name is required.").max(100),
+  companyName: z.string().trim().max(150).optional().nullable(),
   phone: phoneSchema,
   address: z.string().trim().max(300).optional().nullable(),
   notes: z.string().trim().max(500).optional().nullable(),

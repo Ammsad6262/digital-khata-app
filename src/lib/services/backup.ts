@@ -24,6 +24,7 @@
 import { prisma } from "@/lib/db/prisma";
 import { BadRequestError } from "@/lib/errors";
 import { Decimal } from "@/lib/utils/decimal";
+import { recordAudit } from "@/lib/services/audit";
 
 // ────────────────────────────────────────────────────────────────────────────
 // Types
@@ -638,27 +639,35 @@ export async function importBackup(
   });
 
   // Count what was actually restored rather than trusting the file's summary.
-  return {
-    success: true,
-    imported: {
-      settings: backup.data.settings.length,
-      customers: backup.data.customers.length,
-      products: backup.data.products.length,
-      sales: backup.data.sales.length,
-      saleItems: backup.data.saleItems.length,
-      payments: backup.data.payments.length,
-      customerAdjustments: backup.data.customerAdjustments.length,
-      stockMoves: backup.data.stockMoves.length,
-      expenses: backup.data.expenses.length,
-      transactions: backup.data.transactions.length,
-      suppliers: backup.data.suppliers.length,
-      purchases: backup.data.purchases.length,
-      purchaseItems: backup.data.purchaseItems.length,
-      supplierPayments: backup.data.supplierPayments.length,
-      reminders: backup.data.reminders.length,
-      followUps: backup.data.followUps.length,
-    },
+  const imported: BackupFile["counts"] = {
+    settings: backup.data.settings.length,
+    customers: backup.data.customers.length,
+    products: backup.data.products.length,
+    sales: backup.data.sales.length,
+    saleItems: backup.data.saleItems.length,
+    payments: backup.data.payments.length,
+    customerAdjustments: backup.data.customerAdjustments.length,
+    stockMoves: backup.data.stockMoves.length,
+    expenses: backup.data.expenses.length,
+    transactions: backup.data.transactions.length,
+    suppliers: backup.data.suppliers.length,
+    purchases: backup.data.purchases.length,
+    purchaseItems: backup.data.purchaseItems.length,
+    supplierPayments: backup.data.supplierPayments.length,
+    reminders: backup.data.reminders.length,
+    followUps: backup.data.followUps.length,
   };
+
+  if (userId) {
+    await recordAudit(userId, {
+      action: "backup.import",
+      entityType: "Business",
+      summary: "Restored a backup",
+      metadata: imported,
+    });
+  }
+
+  return { success: true, imported };
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -912,6 +921,7 @@ function deserializeCustomer(row: Record<string, unknown>) {
   return {
     id: row.id as string,
     name: row.name as string,
+    companyName: (row.companyName as string | null) ?? null,
     phone: (row.phone as string | null) ?? null,
     address: (row.address as string | null) ?? null,
     notes: (row.notes as string | null) ?? null,

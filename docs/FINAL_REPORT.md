@@ -94,6 +94,15 @@ that reads your own database rows.
   purchase price. Negative stock is ignored, and products in stock without a
   purchase price are shown as "not valued" rather than counted as zero. The
   stock screen shows the same figure with the method stated.
+- **Compared with the previous period** shows the same-length window immediately
+  before the selected one. A percentage appears only when the earlier window had
+  a real figure; a zero baseline is never turned into a fake percentage.
+- **How customers paid**, **who owes you**, **who you owe** and **low stock** are
+  separate sections, each linked to the record it describes.
+- **Sales by customer** and **purchases by supplier** break the period down
+  without mixing "paid at purchase" with supplier payments recorded later.
+- **Export CSV** is built from the same payload on screen, so the file cannot
+  disagree with the report. It includes every section and the limitations.
 
 ### Due dates and overdue money
 - A sale can carry an optional agreed payment date. It is stored as midnight in
@@ -169,6 +178,46 @@ that reads your own database rows.
 - Saving the same opportunity twice returns the existing one — duplicates are
   impossible. A closed follow-up frees the opportunity again.
 
+### Payment recovery (`/more/recovery`)
+- A collection list built from real open sales, highest priority first. It shows
+  the outstanding balance, the overdue part, invoice count, days overdue, last
+  payment and next reminder.
+- Unlinked payments are allocated to the oldest open invoices **in memory for
+  due-date purposes only**. The stored `Sale.outstanding` is never rewritten.
+- Logging a contact is a completed `payment_collection` reminder and never
+  changes a balance. Creating a reminder does not mark anyone as contacted.
+- The pre-written WhatsApp message uses the real balance and due date; it does
+  not invent a discount or a promise.
+
+### Audit trail (`/more/audit`)
+- Financial and master-data actions write a best-effort audit row after the
+  business transaction commits: sales, payments, purchases, supplier payments,
+  expenses, stock, products, customers, suppliers, settings, backup import,
+  follow-up outcomes, recovery contacts and clear-all.
+- Rows are scoped to the signed-in business and shown newest first. Audit logging
+  never makes a successful business action fail.
+- Clear-all keeps settings and audit history, and records `data.clear`.
+
+### Billing foundation (no fake payment)
+- `BILLING_ENABLED` defaults to **false**. While false, `hasActiveAccess()`
+  returns true and `getSubscriptionStatus()` reports `BILLING_DISABLED` with no
+  expiry pressure.
+- The subscription screen says plainly that online payments are not connected,
+  nothing will expire and every feature is available. No price, checkout or
+  payment is simulated.
+- The real trial and redemption-code flow remains in place for when billing is
+  configured and explicitly enabled.
+
+### Faster lists and editable customers
+- Sales search by customer, phone, sale ID or amount, with unpaid / partial /
+  paid / overdue filters.
+- Payments search by customer, phone or payment ID, with payment-method filters.
+- Expenses search by name, note or category, with category filters.
+- Customers sort by name, highest balance or lowest balance.
+- Customers can be edited at `/khata/<id>/edit`, including an optional shop /
+  company name. Opening balance stays fixed (use an adjustment), so history
+  remains auditable.
+
 ### Voice / text assistant
 - Read queries: expenses, sales + cash received (respecting today / week / month),
   customer balances (one named customer, or everyone who owes), stock level, low
@@ -217,7 +266,7 @@ Bug 6 was found by the acceptance suite, not by inspection.
 | `scripts/verify-reminders.ts` | reminder + follow-up sync | 24/24 |
 | `scripts/verify-insights.ts` | insight figures match the ledger | 24/24 |
 | `scripts/verify-growth.ts` | growth amounts, priority, totals, empty business, tenant isolation, narration guard | 26/26 |
-| `scripts/verify-ai-gating.ts` | AI endpoints 403 for expired accounts (incl. growth) | 8/8 |
+| `scripts/verify-ai-gating.ts` | AI entitlement gate; with billing disabled, expired accounts are intentionally allowed through, and invalid tokens still get 401 | 8/8 |
 | `scripts/verify-assistant-writes.ts` | voice write-path extraction | 33/33 |
 | `scripts/verify-ai-queries.ts` | live Gemini routing | 5/5 |
 | `scripts/verify-contact-actions.ts` | phone normalisation, Call/WhatsApp links, reminder enrichment, snooze, supplier reorder | 36/36 |
@@ -225,13 +274,18 @@ Bug 6 was found by the acceptance suite, not by inspection.
 | `scripts/verify-follow-ups.ts` | follow-up candidates from real purchase dates, duplicate prevention, editable message, outcome + conversion maths, tenant isolation | **50/50** |
 | `scripts/verify-ai-query-types.ts` | every assistant query type against real records: balances, today's cash, low stock, supplier purchases, inactive + reorder + overdue customers | **28/28** |
 | `scripts/verify-receipt.ts` | sale receipt text: saved totals, paid/outstanding wording, overpayment, notes, Urdu, no profit language | **26/26** |
-| `scripts/verify-reports.ts` | any-period report: inclusive window, presets, sales / cash / purchases / expenses / COGS / profit, stock valuation rule, point-in-time position, limitations, tenant isolation | **53/53** |
+| `scripts/verify-reports.ts` | any-period report: inclusive window, presets, sales / cash / purchases / expenses / COGS / profit, stock valuation rule, point-in-time position, comparison window, payment methods, balance lists, low stock, customer/supplier breakdowns, limitations, tenant isolation | **61/61** |
 | `scripts/verify-due-dates.ts` | due date stored as business-timezone midnight, overdue rule, paid/voided/no-date exclusions, insights + reports + sales list agreement, assistant overdue answer, tenant isolation | **30/30** |
 | `scripts/verify-discounts.ts` | discounted billed total, full and zero discount, negative/over-total/over-paid refusals with no partial writes, receipt wording, revenue + report + khata agreement, tenant isolation | **36/36** |
 | `scripts/verify-units.ts` | custom units saved per business, reachable by the assistant, usable on a product, visible on the stock list, never shared across businesses | **9/9** |
+| `scripts/verify-backup.ts` | every business table exported/restored, old-format backups, integrity guard, no double counting | **39/39** |
+| `scripts/verify-recovery.ts` | recovery list from real open sales, unlinked-payment allocation, filters, contact log, reminder, message, tenant isolation | **42/42** |
+| `scripts/verify-audit.ts` | audit rows for every financial action, real totals in metadata, tenant isolation, clear-all retention | **27/27** |
 
-Total: **474 assertions passing**. `npx tsc --noEmit` and `npm run build` are
-clean.
+Total: **590 assertions recorded across all suites**. After the latest changes,
+**524 assertions were re-run with 0 failures** (the live Gemini suites were not
+re-run because the free-tier quota is exhausted). `npx tsc --noEmit` and
+`npm run build` are clean.
 
 The 10 acceptance workflows: register+trial · add customer · credit sale (stock
 and ledger move) · record payment · record expense · add stock · buy from
@@ -243,19 +297,21 @@ supplier on credit · pay supplier (overpay rejected) · create+complete reminde
 ## 4. Database changes
 
 New models: `Supplier`, `Purchase`, `PurchaseItem`, `SupplierPayment`,
-`Reminder`, `FollowUp`.
-New columns: `Customer.nextFollowUpAt`, `Supplier.nextFollowUpAt`, purchase
-totals (`totalAmount`, `paidAmount`, `outstanding`), purchase-item lines,
-supplier/reference links on ledger rows, `Sale.dueDate` and
-`Sale.discountAmount`.
+`Reminder`, `FollowUp`, `AuditLog`.
+New columns: `Customer.nextFollowUpAt`, `Customer.companyName`,
+`Supplier.nextFollowUpAt`, purchase totals (`totalAmount`, `paidAmount`,
+`outstanding`), purchase-item lines, supplier/reference links on ledger rows,
+`Sale.dueDate` and `Sale.discountAmount`.
 Uniqueness: `@@unique([userId, phone])` on `Customer`,
 `@@unique([sku, userId])` on `Product` (per-tenant, not global).
 
 Production DDL: `prisma/production/20261020_stage2_3_delta.sql` (suppliers,
 purchases, reminders), `prisma/production/20261023_follow_ups.sql` (the
 `FollowUp` table), `prisma/production/20261023_sale_due_date.sql` (sale due
-dates) and `prisma/production/20261023_sale_discount.sql` (sale discounts) —
-all additive, transactional, idempotent. The stage 2-3 file
+dates), `prisma/production/20261023_sale_discount.sql` (sale discounts),
+`prisma/production/20261024_audit_log.sql` (audit trail) and
+`prisma/production/20261024_customer_company.sql` (optional shop/company name)
+— all additive, transactional where relevant, idempotent. The stage 2-3 file
 was applied twice to a scratch database and verified to produce a schema
 identical to Prisma's.
 
@@ -267,10 +323,10 @@ No schema change was needed for the three new voice write intents.
 
 | Item | Status | Blocker |
 |---|---|---|
-| Production deploy | not started | the delta must be applied to Supabase (needs the DB password or approval to run DDL); `GEMINI_API_KEY` must be added to Vercel |
+| Production deploy | not started | the six additive DDL files must be applied to Supabase (needs the DB password or approval to run DDL); `GEMINI_API_KEY` must be added to Vercel |
 | Push `main` / open PR | deliberately not done | waiting for your review + the production delta |
-| Paid premium / AI tier | not built, by your decision | you said you will not go with a premium plan, so none was added. Gating continues to ride the existing trial + redeem codes; no payment flow exists to fake. |
-| Forgot-password / reset | does not exist | `PATCH /api/account/password` requires the current password; a reset flow needs email or an admin decision |
+| Billing / paid tier | intentionally off | `BILLING_ENABLED` defaults to false, so no feature is paywalled and no payment is simulated. The trial + redemption-code foundation remains; enabling billing requires a real provider. |
+| Forgot-password / reset | does not exist | `PATCH /api/account/password` requires the current password; a reset flow needs an email provider or an admin-issued reset code decision |
 | AI narration quality | works, with fallback | the current key is **Gemini free tier: 20 requests/day/model**. Testing exhausted `gemini-3.8-flash` (429) and the other models intermittently return 503. The chain falls through and the page degrades to the computed summary. A paid key removes the ceiling. |
 | Live DB migration drift | known | 6 migrations exist in the live DB but not in the repo; the repo's `20261006010000_add_smart_entry_session` is absent from the live history although the table exists |
 | Demo data | local only | seeded in the Docker dev DB; the live site was not touched |

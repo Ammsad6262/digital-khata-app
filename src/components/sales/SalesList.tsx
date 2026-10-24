@@ -12,8 +12,8 @@
  */
 
 import Link from "next/link";
-import { useState } from "react";
-import { AlertCircle, ShoppingCart, Receipt, Plus, Sparkles, ArrowRight, Calendar, CalendarDays, CalendarRange, LayoutGrid } from "lucide-react";
+import { useMemo, useState } from "react";
+import { AlertCircle, ShoppingCart, Receipt, Plus, Sparkles, ArrowRight, Calendar, CalendarDays, CalendarRange, LayoutGrid, Search, X } from "lucide-react";
 import { useSalesList } from "@/hooks/use-sales";
 import type { SaleFilter } from "@/lib/services/sales";
 import { EmptyState } from "@/components/shared/EmptyState";
@@ -25,6 +25,7 @@ import { formatDate, formatTime } from "@/lib/utils/date";
 import { formatMoney } from "@/lib/utils/money";
 import { cn } from "@/lib/utils/cn";
 import { useLanguage } from "@/providers/language-provider";
+import type { TranslationKey } from "@/lib/i18n/translations";
 
 const FILTERS: Array<{
   value: SaleFilter;
@@ -37,21 +38,56 @@ const FILTERS: Array<{
   { value: "all", labelKey: "transactions.all", icon: LayoutGrid },
 ];
 
+type SaleStatusFilter = "all" | "unpaid" | "partial" | "paid" | "overdue";
+
+const STATUS_FILTERS: Array<{
+  value: SaleStatusFilter;
+  labelKey: TranslationKey;
+}> = [
+  { value: "all", labelKey: "sale.filterAll" },
+  { value: "unpaid", labelKey: "sale.filterUnpaid" },
+  { value: "partial", labelKey: "sale.filterPartial" },
+  { value: "paid", labelKey: "sale.filterPaid" },
+  { value: "overdue", labelKey: "sale.filterOverdue" },
+];
+
 export function SalesList() {
   const [filter, setFilter] = useState<SaleFilter>("today");
+  const [status, setStatus] = useState<SaleStatusFilter>("all");
+  const [search, setSearch] = useState("");
   const { data, isLoading, isError, error, refetch } = useSalesList(filter);
   const { t } = useLanguage();
 
-  // Compute summary stats for the selected filter.
+  const filtered = useMemo(() => {
+    if (!data) return [];
+    const query = search.trim().toLowerCase();
+    return data.filter((sale) => {
+      const paid = new Decimal(sale.paidAmount);
+      const outstanding = new Decimal(sale.outstanding);
+      if (status === "unpaid" && !paid.eq(0)) return false;
+      if (status === "partial" && !(outstanding.gt(0) && paid.gt(0))) return false;
+      if (status === "paid" && !outstanding.eq(0)) return false;
+      if (status === "overdue" && !sale.isOverdue) return false;
+      if (query) {
+        const haystack = `${sale.customerName} ${sale.customerPhone ?? ""} ${sale.id} ${sale.totalAmount}`.toLowerCase();
+        if (!haystack.includes(query)) return false;
+      }
+      return true;
+    });
+  }, [data, search, status]);
+
+  // Compute summary stats for the selected date + status/search filters.
   const summary = (() => {
-    if (!data || data.length === 0) return { count: 0, total: new Decimal(0), outstanding: new Decimal(0) };
+    if (filtered.length === 0) {
+      return { count: 0, total: new Decimal(0), outstanding: new Decimal(0) };
+    }
     let total = new Decimal(0);
     let outstanding = new Decimal(0);
-    for (const s of data) {
+    for (const s of filtered) {
       total = total.plus(new Decimal(s.totalAmount));
       outstanding = outstanding.plus(new Decimal(s.outstanding));
     }
-    return { count: data.length, total, outstanding };
+    return { count: filtered.length, total, outstanding };
   })();
 
   return (
@@ -80,8 +116,54 @@ export function SalesList() {
           })}
         </div>
 
+        {/* Search by customer, phone, or sale ID */}
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <input
+            type="search"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder={t("sale.searchListPlaceholder")}
+            aria-label={t("sale.searchListPlaceholder")}
+            className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-9 pr-9 text-sm text-slate-900 placeholder:text-slate-400 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
+          />
+          {search ? (
+            <button
+              type="button"
+              onClick={() => setSearch("")}
+              aria-label={t("common.clearSearchAria")}
+              className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          ) : null}
+        </div>
+
+        {/* Payment-status chips */}
+        <div className="flex gap-1.5 overflow-x-auto pb-1">
+          {STATUS_FILTERS.map((item) => {
+            const active = status === item.value;
+            return (
+              <button
+                key={item.value}
+                type="button"
+                onClick={() => setStatus(item.value)}
+                aria-pressed={active}
+                className={cn(
+                  "shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
+                  active
+                    ? "border-slate-900 bg-slate-900 text-white"
+                    : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50",
+                )}
+              >
+                {t(item.labelKey)}
+              </button>
+            );
+          })}
+        </div>
+
       {/* Summary */}
-      {data && data.length > 0 ? (
+      {filtered.length > 0 ? (
         <div className="rounded-xl border border-slate-200 bg-white p-3">
           <div className="flex items-center justify-between text-xs">
             <span className="text-slate-500">
@@ -117,28 +199,28 @@ export function SalesList() {
           }
         />
       ) : !data || data.length === 0 ? (
+        <EmptySalesState filter={filter} />
+      ) : filtered.length === 0 ? (
         <EmptyState
-          title={filter === "all" ? t("sale.noSales") : t("sale.noSalesPeriod")}
-          description={
-            filter === "all"
-              ? t("sale.noSalesDesc")
-              : t("sale.noSalesPeriodDesc")
-          }
-          icon={<ShoppingCart className="h-6 w-6" />}
+          title={t("sale.noMatches")}
+          description={t("sale.noMatchesDesc")}
+          icon={<Search className="h-6 w-6" />}
           action={
-            <Link href="/sales/new">
-              <Button size="sm">
-                <ShoppingCart className="h-4 w-4" />
-                {t("action.newSale")}
-              </Button>
-            </Link>
+            <Button
+              onClick={() => {
+                setSearch("");
+                setStatus("all");
+              }}
+              variant="outline"
+              size="sm"
+            >
+              {t("sale.clearFilters")}
+            </Button>
           }
         />
-      ) : !data || data.length === 0 ? (
-        <EmptySalesState filter={filter} />
       ) : (
         <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
-          {data.map((sale, idx) => (
+          {filtered.map((sale, idx) => (
             <SaleRow key={sale.id} sale={sale} isFirst={idx === 0} />
           ))}
         </div>
@@ -186,7 +268,10 @@ function SaleRow({
           {sale.customerName}
         </p>
         <p className="text-[11px] text-slate-500">
-          {formatDate(new Date(sale.date))} · {formatTime(new Date(sale.date))}
+          {formatDate(new Date(sale.date))} · {formatTime(new Date(sale.date))} ·{" "}
+          <span className="font-mono text-[10px] text-slate-400">
+            #{sale.id.slice(-6).toUpperCase()}
+          </span>
         </p>
       </div>
 

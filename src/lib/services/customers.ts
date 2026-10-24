@@ -20,6 +20,7 @@ import { prisma } from "@/lib/db/prisma";
 import { Decimal, toDecimalOrZero } from "@/lib/utils/decimal";
 import { NotFoundError, BadRequestError } from "@/lib/errors";
 import { cached, invalidateCache } from "@/lib/utils/cache";
+import { recordAudit } from "@/lib/services/audit";
 import { createCustomerSchema, updateCustomerSchema } from "@/lib/schemas/customer";
 import type { Prisma } from "@prisma/client";
 
@@ -27,6 +28,7 @@ import type { Prisma } from "@prisma/client";
 export type CustomerView = {
   id: string;
   name: string;
+  companyName: string | null;
   phone: string | null;
   address: string | null;
   notes: string | null;
@@ -46,6 +48,7 @@ function toView(c: Prisma.CustomerGetPayload<{}>): CustomerView {
   return {
     id: c.id,
     name: c.name,
+    companyName: c.companyName ?? null,
     phone: c.phone ?? null,
     address: c.address,
     notes: c.notes,
@@ -252,6 +255,7 @@ export async function createCustomer(input: unknown, userId?: string | null): Pr
   const customer = await prisma.customer.create({
     data: {
       name: data.name,
+      companyName: data.companyName?.trim() || null,
       phone: data.phone,
       address: data.address ?? null,
       notes: data.notes ?? null,
@@ -261,6 +265,17 @@ export async function createCustomer(input: unknown, userId?: string | null): Pr
   });
   invalidateCache("customers");
   invalidateCache("dashboard");
+
+  if (userId) {
+    await recordAudit(userId, {
+      action: "customer.create",
+      entityType: "Customer",
+      entityId: customer.id,
+      summary: `Customer: ${customer.name}`,
+      metadata: { phone: customer.phone, openingBalance: customer.openingBalance.toString() },
+    });
+  }
+
   return toView(customer);
 }
 
@@ -274,6 +289,7 @@ export async function updateCustomer(id: string, input: unknown, userId?: string
     where: { id },
     data: {
       ...(data.name !== undefined && { name: data.name }),
+      ...(data.companyName !== undefined && { companyName: data.companyName?.trim() || null }),
       ...(data.phone !== undefined && { phone: data.phone }),
       ...(data.address !== undefined && { address: data.address }),
       ...(data.notes !== undefined && { notes: data.notes }),
@@ -282,12 +298,25 @@ export async function updateCustomer(id: string, input: unknown, userId?: string
     },
   });
 
+  invalidateCache("customers");
+  invalidateCache("dashboard");
+
+  if (userId) {
+    await recordAudit(userId, {
+      action: "customer.update",
+      entityType: "Customer",
+      entityId: updated.id,
+      summary: `Updated customer: ${updated.name}`,
+      metadata: { phone: updated.phone },
+    });
+  }
+
   return toView(updated);
 }
 
 export async function deleteCustomer(id: string, userId?: string | null): Promise<{ id: string; deleted: true }> {
   // Verify ownership first — throws 404 if not owned by this user
-  await getCustomer(id, userId);
+  const existing = await getCustomer(id, userId);
   // Block soft-delete if customer has any ACTIVE (non-voided) transactions.
   // Voided sales/payments don't count — they don't affect the balance.
   // Also count CustomerAdjustment (was missing before).
@@ -310,6 +339,19 @@ export async function deleteCustomer(id: string, userId?: string | null): Promis
     data: { isDeleted: true },
   });
 
+  invalidateCache("customers");
+  invalidateCache("dashboard");
+
+  if (userId) {
+    await recordAudit(userId, {
+      action: "customer.delete",
+      entityType: "Customer",
+      entityId: id,
+      summary: `Deleted customer: ${existing.name}`,
+      metadata: { phone: existing.phone },
+    });
+  }
+
   return { id, deleted: true };
 }
 
@@ -320,12 +362,13 @@ export async function deleteCustomer(id: string, userId?: string | null): Promis
 export type CustomerSearchResult = {
   id: string;
   name: string;
+  companyName: string | null;
   phone: string | null;
   balance: string; // signed
 };
 
 /**
- * Search customers by name OR phone (case-insensitive contains).
+ * Search customers by name, shop/company name OR phone (case-insensitive contains).
  * Returns customers with their current balance precomputed.
  *
  * - Empty/null/whitespace query → returns all customers (sorted by name).
@@ -353,10 +396,11 @@ export async function searchCustomers(query: string | null | undefined, userId?:
       ...(userId && { userId }),
       OR: [
         { name: { contains: q } },
+        { companyName: { contains: q } },
         { phone: { contains: q } },
       ],
     },
-    select: { id: true, name: true, phone: true, openingBalance: true },
+    select: { id: true, name: true, companyName: true, phone: true, openingBalance: true },
     orderBy: { name: "asc" },
     take: 50,
   });
@@ -393,7 +437,13 @@ export async function searchCustomers(query: string | null | undefined, userId?:
       .plus(salesMap.get(c.id) ?? new Decimal(0))
       .minus(paymentsMap.get(c.id) ?? new Decimal(0))
       .plus(adjMap.get(c.id) ?? new Decimal(0));
-    return { id: c.id, name: c.name, phone: c.phone ?? null, balance: balance.toString() };
+    return {
+      id: c.id,
+      name: c.name,
+      companyName: c.companyName ?? null,
+      phone: c.phone ?? null,
+      balance: balance.toString(),
+    };
   });
 
   return withBalances;
@@ -408,7 +458,7 @@ export async function listAllCustomersWithBalance(userId?: string | null): Promi
   return cached(cacheKey, async () => {
     const customers = await prisma.customer.findMany({
       where: { isDeleted: false, ...(userId && { userId }) },
-      select: { id: true, name: true, phone: true, openingBalance: true },
+      select: { id: true, name: true, companyName: true, phone: true, openingBalance: true },
       orderBy: { name: "asc" },
     });
 
@@ -433,19 +483,31 @@ export async function listAllCustomersWithBalance(userId?: string | null): Promi
         _sum: { amount: true },
         where: { customerId: { in: customerIds }, voidedAt: null },
       }),
-  ]);
+    ]);
 
-  const salesMap = new Map(salesByCustomer.map((s) => [s.customerId, toDecimalOrZero(s._sum.totalAmount)]));
-  const paymentsMap = new Map(paymentsByCustomer.map((p) => [p.customerId, toDecimalOrZero(p._sum.amount)]));
-  const adjMap = new Map(adjustmentsByCustomer.map((a) => [a.customerId, toDecimalOrZero(a._sum.amount)]));
+    const salesMap = new Map(
+      salesByCustomer.map((s) => [s.customerId, toDecimalOrZero(s._sum.totalAmount)]),
+    );
+    const paymentsMap = new Map(
+      paymentsByCustomer.map((p) => [p.customerId, toDecimalOrZero(p._sum.amount)]),
+    );
+    const adjMap = new Map(
+      adjustmentsByCustomer.map((a) => [a.customerId, toDecimalOrZero(a._sum.amount)]),
+    );
 
-  return customers.map((c) => {
-    const balance = toDecimalOrZero(c.openingBalance)
-      .plus(salesMap.get(c.id) ?? new Decimal(0))
-      .minus(paymentsMap.get(c.id) ?? new Decimal(0))
-      .plus(adjMap.get(c.id) ?? new Decimal(0));
-    return { id: c.id, name: c.name, phone: c.phone ?? null, balance: balance.toString() };
-  });
+    return customers.map((c) => {
+      const balance = toDecimalOrZero(c.openingBalance)
+        .plus(salesMap.get(c.id) ?? new Decimal(0))
+        .minus(paymentsMap.get(c.id) ?? new Decimal(0))
+        .plus(adjMap.get(c.id) ?? new Decimal(0));
+      return {
+        id: c.id,
+        name: c.name,
+        companyName: c.companyName ?? null,
+        phone: c.phone ?? null,
+        balance: balance.toString(),
+      };
+    });
   });
 }
 

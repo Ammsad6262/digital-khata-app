@@ -12,8 +12,8 @@
  */
 
 import Link from "next/link";
-import { useState } from "react";
-import { AlertCircle, Receipt } from "lucide-react";
+import { useMemo, useState } from "react";
+import { AlertCircle, Receipt, Search, X } from "lucide-react";
 import { useExpensesList } from "@/hooks/use-expenses";
 import type { ExpenseFilter } from "@/lib/services/expenses";
 import { EmptyState } from "@/components/shared/EmptyState";
@@ -46,17 +46,37 @@ const CATEGORY_BADGES: Record<string, { labelKey: CategoryKey; bg: string; text:
 
 export function ExpensesList() {
   const [filter, setFilter] = useState<ExpenseFilter>("today");
+  const [search, setSearch] = useState("");
+  const [category, setCategory] = useState("all");
   const { data, isLoading, isError, error, refetch } = useExpensesList(filter);
   const { t } = useLanguage();
 
-  // Compute summary stats for the selected filter.
+  const categories = useMemo(() => {
+    if (!data) return [];
+    return Array.from(new Set(data.map((expense) => expense.category))).sort();
+  }, [data]);
+
+  const filtered = useMemo(() => {
+    if (!data) return [];
+    const query = search.trim().toLowerCase();
+    return data.filter((expense) => {
+      if (category !== "all" && expense.category !== category) return false;
+      if (query) {
+        const haystack = `${expense.name} ${expense.notes ?? ""} ${expense.category}`.toLowerCase();
+        if (!haystack.includes(query)) return false;
+      }
+      return true;
+    });
+  }, [data, search, category]);
+
+  // Compute summary stats for the selected date + search/category filters.
   const summary = (() => {
-    if (!data || data.length === 0) return { count: 0, total: new Decimal(0) };
+    if (filtered.length === 0) return { count: 0, total: new Decimal(0) };
     let total = new Decimal(0);
-    for (const e of data) {
+    for (const e of filtered) {
       total = total.plus(new Decimal(e.amount));
     }
-    return { count: data.length, total };
+    return { count: filtered.length, total };
   })();
 
   return (
@@ -80,8 +100,70 @@ export function ExpensesList() {
         ))}
       </div>
 
+      {/* Search by name, note, or category */}
+      <div className="relative">
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+        <input
+          type="search"
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+          placeholder={t("expense.searchPlaceholder")}
+          aria-label={t("expense.searchPlaceholder")}
+          className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-9 pr-9 text-sm text-slate-900 placeholder:text-slate-400 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
+        />
+        {search ? (
+          <button
+            type="button"
+            onClick={() => setSearch("")}
+            aria-label={t("common.clearSearchAria")}
+            className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        ) : null}
+      </div>
+
+      {/* Category chips — only categories that appear in this period */}
+      {categories.length > 1 ? (
+        <div className="flex gap-1.5 overflow-x-auto pb-1">
+          <button
+            type="button"
+            onClick={() => setCategory("all")}
+            aria-pressed={category === "all"}
+            className={cn(
+              "shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
+              category === "all"
+                ? "border-slate-900 bg-slate-900 text-white"
+                : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50",
+            )}
+          >
+            {t("expense.filterAll")}
+          </button>
+          {categories.map((value) => {
+            const badge = CATEGORY_BADGES[value];
+            const active = category === value;
+            return (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setCategory(value)}
+                aria-pressed={active}
+                className={cn(
+                  "shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium capitalize transition-colors",
+                  active
+                    ? "border-slate-900 bg-slate-900 text-white"
+                    : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50",
+                )}
+              >
+                {badge ? t(badge.labelKey) : value}
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
+
       {/* Summary */}
-      {data && data.length > 0 ? (
+      {filtered.length > 0 ? (
         <div className="rounded-xl border border-slate-200 bg-white p-3">
           <div className="flex items-center justify-between text-xs">
             <span className="text-slate-500">
@@ -126,9 +208,27 @@ export function ExpensesList() {
             </Link>
           }
         />
+      ) : filtered.length === 0 ? (
+        <EmptyState
+          title={t("expense.noMatches")}
+          description={t("expense.noMatchesDesc")}
+          icon={<Search className="h-6 w-6" />}
+          action={
+            <Button
+              onClick={() => {
+                setSearch("");
+                setCategory("all");
+              }}
+              variant="outline"
+              size="sm"
+            >
+              {t("expense.clearFilters")}
+            </Button>
+          }
+        />
       ) : (
         <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
-          {data.map((expense, idx) => (
+          {filtered.map((expense, idx) => (
             <ExpenseRow key={expense.id} expense={expense} isFirst={idx === 0} />
           ))}
         </div>

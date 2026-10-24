@@ -15,13 +15,13 @@ import {
   type PaymentFilter,
 } from "@/lib/services/payments";
 import { ok, fail, parseJsonBody, getQueryParam } from "@/lib/utils/api";
-import { requireActiveAccess } from "@/lib/auth/get-current-user";
+import { requireUserId } from "@/lib/auth/get-current-user";
 
 const VALID_FILTERS: PaymentFilter[] = ["today", "yesterday", "week", "lastWeek", "month", "lastMonth", "year", "all"];
 
 export async function GET(req: NextRequest) {
   try {
-    const userId = await requireActiveAccess(req);
+    const userId = await requireUserId(req);
     const filterRaw = getQueryParam(req, "filter");
 
     // No filter → return recent 50 with customer info.
@@ -53,7 +53,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const userId = await requireActiveAccess(req);
+    const userId = await requireUserId(req);
     const { data, error } = await parseJsonBody<unknown>(req);
     if (error) return fail(new Error(error));
 

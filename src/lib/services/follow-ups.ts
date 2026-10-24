@@ -18,6 +18,7 @@ import { BadRequestError, NotFoundError } from "@/lib/errors";
 import { invalidateCache } from "@/lib/utils/cache";
 import { Decimal, toDecimalOrZero } from "@/lib/utils/decimal";
 import { listOutstandingCustomers } from "@/lib/services/customers";
+import { recordAudit } from "@/lib/services/audit";
 
 export const FOLLOW_UP_OUTCOMES = [
   "pending",
@@ -481,6 +482,17 @@ export async function updateFollowUp(
   });
 
   invalidateCache("dashboard");
+
+  if (input.outcome !== undefined) {
+    await recordAudit(userId, {
+      action: "followUp.update",
+      entityType: "FollowUp",
+      entityId: id,
+      summary: `Follow-up outcome: ${updated.customer.name} — ${updated.outcome}`,
+      metadata: { outcome: updated.outcome, kind: updated.kind },
+    });
+  }
+
   return toView(updated as unknown as FollowUpRow);
 }
 

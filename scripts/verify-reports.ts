@@ -413,6 +413,64 @@ async function main() {
       "sugar appears second with 2 sold",
       report.topProducts[1]?.name === "Sugar" && report.topProducts[1]?.quantity === "2",
     );
+    check(
+      "customer-wise sales show billed value and count",
+      report.sales.byCustomer.length === 1 &&
+        report.sales.byCustomer[0]?.name === "Ahmed Buyer" &&
+        money(report.sales.byCustomer[0]?.billed ?? "0") === 2420 &&
+        report.sales.byCustomer[0]?.count === 2,
+      JSON.stringify(report.sales.byCustomer),
+    );
+    check(
+      "supplier-wise purchases separate paid-at-purchase from later payments",
+      report.purchases.bySupplier.length === 1 &&
+        report.purchases.bySupplier[0]?.name === "Karachi Wholesale" &&
+        money(report.purchases.bySupplier[0]?.billed ?? "0") === 5000 &&
+        money(report.purchases.bySupplier[0]?.paidAtPurchase ?? "0") === 2000 &&
+        money(report.purchases.bySupplier[0]?.supplierPayments ?? "0") === 1000,
+      JSON.stringify(report.purchases.bySupplier),
+    );
+
+    check(
+      "payments are grouped by method (cash 800 / 2)",
+      report.collections.byMethod.length === 1 &&
+        report.collections.byMethod[0]?.method === "cash" &&
+        money(report.collections.byMethod[0]?.amount ?? "0") === 800 &&
+        report.collections.byMethod[0]?.count === 2,
+      JSON.stringify(report.collections.byMethod),
+    );
+    check(
+      "customer balance list shows who owes you",
+      report.balances.customers.length === 1 &&
+        report.balances.customers[0]?.name === "Ahmed Buyer" &&
+        money(report.balances.customers[0]?.balance ?? "0") === 6370,
+      JSON.stringify(report.balances.customers),
+    );
+    check(
+      "supplier balance list shows who you owe",
+      report.balances.suppliers.length === 1 &&
+        report.balances.suppliers[0]?.name === "Karachi Wholesale" &&
+        money(report.balances.suppliers[0]?.balance ?? "0") === 4000,
+      JSON.stringify(report.balances.suppliers),
+    );
+    check(
+      "low-stock list uses the product threshold",
+      report.lowStock.some((product) => product.name === "Basmati Rice") &&
+        report.lowStock.some((product) => product.name === "Sugar"),
+      JSON.stringify(report.lowStock.map((p) => p.name)),
+    );
+    const yesterday = dateStringInTz(new Date(Date.now() - 86_400_000), TZ);
+    check(
+      "comparison window is the day before",
+      report.comparison.from === yesterday && report.comparison.to === yesterday,
+      `${report.comparison.from}..${report.comparison.to}`,
+    );
+    check(
+      "comparison has no percentage when the previous day was empty",
+      report.comparison.changes.salesPct === null &&
+        money(report.comparison.salesBilled) === 0,
+      String(report.comparison.changes.salesPct),
+    );
 
     const limitationKeys = report.limitations.map((l) => l.key);
     check("report always states the cost basis", limitationKeys.includes("reports.limit.cogs"));

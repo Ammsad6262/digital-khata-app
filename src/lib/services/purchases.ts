@@ -22,6 +22,7 @@ import { prisma } from "@/lib/db/prisma";
 import { Decimal, toDecimalOrZero } from "@/lib/utils/decimal";
 import { NotFoundError, BadRequestError } from "@/lib/errors";
 import { invalidateCache } from "@/lib/utils/cache";
+import { recordAudit } from "@/lib/services/audit";
 import { createPurchaseSchema } from "@/lib/schemas/purchase";
 import { getSupplier } from "@/lib/services/suppliers";
 import type { Prisma } from "@prisma/client";
@@ -272,6 +273,20 @@ export async function createPurchase(
   invalidateCache("dashboard");
   invalidateCache("profit-loss");
 
+  if (userId) {
+    await recordAudit(userId, {
+      action: "purchase.create",
+      entityType: "Purchase",
+      entityId: created.id,
+      summary: `Purchase from ${created.supplier.name}`,
+      metadata: {
+        total: created.totalAmount.toString(),
+        paid: created.paidAmount.toString(),
+        supplierId: created.supplierId,
+      },
+    });
+  }
+
   return toView(created, new Decimal(0));
 }
 
@@ -326,5 +341,16 @@ export async function voidPurchase(
   invalidateCache("products");
   invalidateCache("dashboard");
   invalidateCache("profit-loss");
+
+  if (userId) {
+    await recordAudit(userId, {
+      action: "purchase.void",
+      entityType: "Purchase",
+      entityId: id,
+      summary: "Voided a purchase",
+      metadata: { voidedAt: result.voidedAt.toISOString() },
+    });
+  }
+
   return result;
 }

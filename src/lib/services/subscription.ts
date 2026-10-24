@@ -13,10 +13,23 @@ const CODE_PREFIX = "DKH";
 const CODE_SEGMENT_LENGTH = 4;
 const CODE_SEGMENTS = 3;
 
-export type SubscriptionStatus = "TRIAL_ACTIVE" | "TRIAL_EXPIRED" | "ACTIVE" | "EXPIRED";
+/**
+ * Billing is opt-in. Until a real payment provider is connected, this stays
+ * false and every feature (including AI) remains available. Set
+ * BILLING_ENABLED=true only after the provider is configured and tested.
+ */
+export const BILLING_ENABLED = process.env.BILLING_ENABLED === "true";
+
+export type SubscriptionStatus =
+  | "TRIAL_ACTIVE"
+  | "TRIAL_EXPIRED"
+  | "ACTIVE"
+  | "EXPIRED"
+  | "BILLING_DISABLED";
 
 export type SubscriptionView = {
   status: SubscriptionStatus;
+  billingEnabled: boolean;
   isTrial: boolean;
   isActive: boolean;
   isExpired: boolean;
@@ -92,6 +105,25 @@ export async function getSubscriptionStatus(userId: string): Promise<Subscriptio
     sub = await prisma.userSubscription.findUniqueOrThrow({ where: { userId } });
   }
 
+  // No payment provider is connected. Report that plainly instead of showing
+  // a trial countdown that has no effect on access.
+  if (!BILLING_ENABLED) {
+    return {
+      status: "BILLING_DISABLED",
+      billingEnabled: false,
+      isTrial: false,
+      isActive: true,
+      isExpired: false,
+      trialStartedAt: sub.trialStartedAt,
+      trialExpiresAt: sub.trialExpiresAt,
+      accessStartedAt: sub.accessStartedAt,
+      accessExpiresAt: sub.accessExpiresAt,
+      effectiveExpiresAt: null,
+      remainingDays: null,
+      canRedeem: true,
+    };
+  }
+
   const now = new Date();
   const effectiveExpiry = getEffectiveExpiry(sub);
   const isExpired = effectiveExpiry <= now;
@@ -106,6 +138,7 @@ export async function getSubscriptionStatus(userId: string): Promise<Subscriptio
 
   return {
     status, isTrial: status === "TRIAL_ACTIVE" || status === "TRIAL_EXPIRED",
+    billingEnabled: BILLING_ENABLED,
     isActive: status === "TRIAL_ACTIVE" || status === "ACTIVE",
     isExpired: status === "TRIAL_EXPIRED" || status === "EXPIRED",
     trialStartedAt: sub.trialStartedAt, trialExpiresAt: sub.trialExpiresAt,
@@ -116,6 +149,10 @@ export async function getSubscriptionStatus(userId: string): Promise<Subscriptio
 }
 
 export async function hasActiveAccess(userId: string): Promise<boolean> {
+  // No billing provider is configured yet. Do not lock the owner out of the
+  // product they already use: all features stay available until a real,
+  // server-verified subscription is connected.
+  if (!BILLING_ENABLED) return true;
   const status = await getSubscriptionStatus(userId);
   return status.isActive;
 }

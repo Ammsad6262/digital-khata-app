@@ -11,7 +11,7 @@
  */
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiGet, apiPost, apiDelete } from "@/lib/utils/api-client";
+import { apiGet, apiPost, apiPatch, apiDelete } from "@/lib/utils/api-client";
 import type {
   CustomerView,
   CustomerWithBalance,
@@ -159,6 +159,7 @@ export function useCreateCustomer() {
   return useMutation({
     mutationFn: (input: {
       name: string;
+      companyName?: string | null;
       phone: string | null;
       address?: string | null;
       notes?: string | null;
@@ -180,6 +181,7 @@ export function useCreateCustomer() {
       const tempCustomer: CustomerSearchResult = {
         id: `temp-${Date.now()}`,
         name: input.name,
+        companyName: input.companyName ?? null,
         phone: input.phone,
         balance: String(input.openingBalance ?? 0),
       };
@@ -204,6 +206,30 @@ export function useCreateCustomer() {
 
     onSuccess: () => {
       // Refetch all customer lists + dashboard
+      queryClient.invalidateQueries({ queryKey: customerKeys.all });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+    },
+  });
+}
+
+/** Update a customer's editable details (not the opening balance). */
+export function useUpdateCustomer() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      id,
+      ...input
+    }: {
+      id: string;
+      name?: string;
+      companyName?: string | null;
+      phone?: string | null;
+      address?: string | null;
+      notes?: string | null;
+    }) => apiPatch<CustomerView>(`/api/customers/${id}`, input),
+    onSuccess: (customer) => {
+      queryClient.setQueryData(customerKeys.detail(customer.id), customer);
       queryClient.invalidateQueries({ queryKey: customerKeys.all });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
     },

@@ -25,6 +25,7 @@ import { NotFoundError, BadRequestError } from "@/lib/errors";
 import { createPaymentSchema } from "@/lib/schemas/payment";
 import { Decimal } from "@/lib/utils/decimal";
 import { invalidateCache } from "@/lib/utils/cache";
+import { recordAudit } from "@/lib/services/audit";
 import {
   startOfTodayInTz,
   startOfWeekInTz,
@@ -284,6 +285,21 @@ export async function recordPayment(input: unknown, userId?: string | null): Pro
     include: { customer: true },
   });
 
+  if (userId) {
+    await recordAudit(userId, {
+      action: "payment.create",
+      entityType: "Payment",
+      entityId: payment.id,
+      summary: `Payment from ${withCustomer.customer.name}`,
+      metadata: {
+        amount: payment.amount.toString(),
+        method: payment.method,
+        customerId: payment.customerId,
+        saleId: payment.saleId,
+      },
+    });
+  }
+
   return {
     ...toView(withCustomer),
     customerName: withCustomer.customer.name,
@@ -342,6 +358,16 @@ export async function voidPayment(id: string, userId?: string | null): Promise<{
   invalidateCache("dashboard");
   invalidateCache("sales");
   invalidateCache("profit-loss");
+
+  if (userId) {
+    await recordAudit(userId, {
+      action: "payment.void",
+      entityType: "Payment",
+      entityId: id,
+      summary: "Voided a payment",
+      metadata: { voidedAt: result.voidedAt.toISOString() },
+    });
+  }
 
   return result;
 }
@@ -463,6 +489,19 @@ export async function updatePayment(
     where: { id: result.id },
     include: { customer: true },
   });
+
+  if (userId) {
+    await recordAudit(userId, {
+      action: "payment.update",
+      entityType: "Payment",
+      entityId: result.id,
+      summary: `Updated a payment from ${withCustomer.customer.name}`,
+      metadata: {
+        amount: withCustomer.amount.toString(),
+        method: withCustomer.method,
+      },
+    });
+  }
 
   return {
     ...toView(withCustomer),

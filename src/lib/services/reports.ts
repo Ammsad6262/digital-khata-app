@@ -61,6 +61,84 @@ export type ReportTopProduct = {
   revenue: string;
 };
 
+export type ReportFollowUps = {
+  total: number;
+  pending: number;
+  contacted: number;
+  interested: number;
+  orderPlaced: number;
+  notInterested: number;
+  noResponse: number;
+  /** Outcomes recorded (resolvedAt) inside the selected window. */
+  resolved: number;
+};
+
+export type ReportPaymentMethod = {
+  method: string;
+  amount: string;
+  count: number;
+};
+
+export type ReportCustomerSales = {
+  customerId: string;
+  name: string;
+  billed: string;
+  count: number;
+};
+
+export type ReportSupplierPurchases = {
+  supplierId: string;
+  name: string;
+  billed: string;
+  paidAtPurchase: string;
+  supplierPayments: string;
+  count: number;
+};
+
+export type ReportCustomerBalance = {
+  id: string;
+  name: string;
+  phone: string | null;
+  balance: string;
+};
+
+export type ReportSupplierBalance = {
+  id: string;
+  name: string;
+  phone: string | null;
+  balance: string;
+};
+
+export type ReportLowStockProduct = {
+  id: string;
+  name: string;
+  unit: string;
+  currentStock: string;
+  lowStockThreshold: number;
+};
+
+/**
+ * Same-length window immediately before the selected one. Percent changes are
+ * null when the previous window had no figure to compare against — we never
+ * invent a percentage from a zero baseline.
+ */
+export type ReportComparison = {
+  from: string;
+  to: string;
+  salesBilled: string;
+  cashReceived: string;
+  purchasesBilled: string;
+  expenses: string;
+  netProfit: string;
+  changes: {
+    salesPct: string | null;
+    cashPct: string | null;
+    purchasesPct: string | null;
+    expensesPct: string | null;
+    netProfitPct: string | null;
+  };
+};
+
 export type ReportData = {
   from: string; // YYYY-MM-DD, inclusive
   to: string; // YYYY-MM-DD, inclusive
@@ -71,11 +149,15 @@ export type ReportData = {
     discounts: string;
     cashReceived: string;
     count: number;
+    /** Customers with the highest billed value in the window. */
+    byCustomer: ReportCustomerSales[];
   };
   purchases: {
     billed: string;
     cashPaid: string;
     count: number;
+    /** Suppliers with the highest billed value in the window. */
+    bySupplier: ReportSupplierPurchases[];
   };
   expenses: {
     total: string;
@@ -98,6 +180,20 @@ export type ReportData = {
     overdueCustomersCount: number;
   };
   topProducts: ReportTopProduct[];
+  followUps: ReportFollowUps;
+  /** Payment methods used by customers in the selected window. */
+  collections: {
+    byMethod: ReportPaymentMethod[];
+  };
+  /** Same-length window immediately before the selected one. */
+  comparison: ReportComparison;
+  /** Point-in-time balances, highest first. */
+  balances: {
+    customers: ReportCustomerBalance[];
+    suppliers: ReportSupplierBalance[];
+  };
+  /** Products at or below their low-stock threshold, lowest first. */
+  lowStock: ReportLowStockProduct[];
   limitations: ReportLimitation[];
 };
 
@@ -244,6 +340,35 @@ async function countLinesWithoutCost(
   return Number(rows[0]?.count ?? 0);
 }
 
+/** Calendar-day number for a YYYY-MM-DD string, independent of timezone. */
+function calendarDayNumber(value: string): number {
+  const [year, month, day] = value.split("-").map(Number) as [number, number, number];
+  return Math.floor(Date.UTC(year, month - 1, day) / 86_400_000);
+}
+
+/** Add calendar days to a YYYY-MM-DD string without timezone drift. */
+function addCalendarDays(value: string, delta: number): string {
+  const [year, month, day] = value.split("-").map(Number) as [number, number, number];
+  const next = new Date(Date.UTC(year, month - 1, day + delta));
+  return `${next.getUTCFullYear()}-${String(next.getUTCMonth() + 1).padStart(2, "0")}-${String(
+    next.getUTCDate(),
+  ).padStart(2, "0")}`;
+}
+
+/**
+ * Percent change from the previous window. Null when there is no baseline —
+ * a zero-to-something move is not a percentage the owner should trust.
+ */
+function percentChange(current: Decimal, previous: Decimal): string | null {
+  if (previous.eq(0)) return null;
+  return current
+    .minus(previous)
+    .div(previous.abs())
+    .times(100)
+    .toDecimalPlaces(1)
+    .toString();
+}
+
 export async function getReport(
   userId: string,
   range: ReportRange,
@@ -251,9 +376,24 @@ export async function getReport(
   const { from, to, timezone, fromDate, toDateExclusive } = range;
   const dateFilter = { gte: fromDate, lt: toDateExclusive };
 
+  // Previous window of exactly the same number of calendar days. Its end is
+  // the start of the current window, so the two windows never overlap.
+  const days = calendarDayNumber(to) - calendarDayNumber(from) + 1;
+  const previousTo = addCalendarDays(from, -1);
+  const previousFrom = addCalendarDays(previousTo, -(days - 1));
+  const previousFromDate = startOfDayInTz(previousFrom, timezone);
+  if (!previousFromDate) {
+    throw new BadRequestError("api.report.invalidDate", { from, to });
+  }
+  const previousDateFilter = { gte: previousFromDate, lt: fromDate };
+
   const [
     profit,
     paymentAgg,
+    paymentMethodGroups,
+    saleCustomerGroups,
+    purchaseSupplierGroups,
+    supplierPaymentBySupplier,
     discountAgg,
     purchaseAgg,
     supplierPaymentAgg,
@@ -264,9 +404,43 @@ export async function getReport(
     overdueSummary,
     topRows,
     missingCostLines,
+    followUpGroups,
+    followUpResolved,
+    previousProfit,
+    previousPaymentAgg,
+    previousPurchaseAgg,
+    previousExpenseAgg,
   ] = await Promise.all([
     getProfitLossRange(userId, fromDate, toDateExclusive),
     prisma.payment.aggregate({
+      _sum: { amount: true },
+      where: { userId, voidedAt: null, date: dateFilter },
+    }),
+    prisma.payment.groupBy({
+      by: ["method"],
+      _sum: { amount: true },
+      _count: { _all: true },
+      where: { userId, voidedAt: null, date: dateFilter },
+      orderBy: { _sum: { amount: "desc" } },
+    }),
+    prisma.sale.groupBy({
+      by: ["customerId"],
+      _sum: { totalAmount: true },
+      _count: { _all: true },
+      where: { userId, voidedAt: null, date: dateFilter },
+      orderBy: { _sum: { totalAmount: "desc" } },
+      take: 10,
+    }),
+    prisma.purchase.groupBy({
+      by: ["supplierId"],
+      _sum: { totalAmount: true, paidAmount: true },
+      _count: { _all: true },
+      where: { userId, voidedAt: null, date: dateFilter },
+      orderBy: { _sum: { totalAmount: "desc" } },
+      take: 10,
+    }),
+    prisma.supplierPayment.groupBy({
+      by: ["supplierId"],
       _sum: { amount: true },
       where: { userId, voidedAt: null, date: dateFilter },
     }),
@@ -304,6 +478,27 @@ export async function getReport(
       take: 8,
     }),
     countLinesWithoutCost(userId, fromDate, toDateExclusive),
+    prisma.followUp.groupBy({
+      by: ["outcome"],
+      _count: { _all: true },
+      where: { userId, createdAt: dateFilter },
+    }),
+    prisma.followUp.count({
+      where: { userId, resolvedAt: dateFilter },
+    }),
+    getProfitLossRange(userId, previousFromDate, fromDate),
+    prisma.payment.aggregate({
+      _sum: { amount: true },
+      where: { userId, voidedAt: null, date: previousDateFilter },
+    }),
+    prisma.purchase.aggregate({
+      _sum: { totalAmount: true },
+      where: { userId, voidedAt: null, date: previousDateFilter },
+    }),
+    prisma.expense.aggregate({
+      _sum: { amount: true },
+      where: { userId, voidedAt: null, date: previousDateFilter },
+    }),
   ]);
 
   const cashReceived = toDecimalOrZero(paymentAgg._sum.amount);
@@ -363,6 +558,128 @@ export async function getReport(
     })
     .filter((row): row is ReportTopProduct => row !== null);
 
+  // Customer-wise sales for the period (top 10 by billed value).
+  const saleCustomerIds = saleCustomerGroups.map((row) => row.customerId);
+  const saleCustomers =
+    saleCustomerIds.length > 0
+      ? await prisma.customer.findMany({
+          where: { id: { in: saleCustomerIds }, userId },
+          select: { id: true, name: true },
+        })
+      : [];
+  const customerNameMap = new Map(saleCustomers.map((customer) => [customer.id, customer.name]));
+  const salesByCustomer: ReportCustomerSales[] = saleCustomerGroups.map((row) => ({
+    customerId: row.customerId,
+    name: customerNameMap.get(row.customerId) ?? "—",
+    billed: toDecimalOrZero(row._sum.totalAmount).toString(),
+    count: Number(row._count._all ?? 0),
+  }));
+
+  // Supplier-wise purchases for the period (top 10 by billed value).
+  const purchaseSupplierIds = purchaseSupplierGroups.map((row) => row.supplierId);
+  const purchaseSuppliers =
+    purchaseSupplierIds.length > 0
+      ? await prisma.supplier.findMany({
+          where: { id: { in: purchaseSupplierIds }, userId },
+          select: { id: true, name: true },
+        })
+      : [];
+  const supplierNameMap = new Map(
+    purchaseSuppliers.map((supplier) => [supplier.id, supplier.name]),
+  );
+  const supplierPaymentMap = new Map(
+    supplierPaymentBySupplier.map((row) => [
+      row.supplierId,
+      toDecimalOrZero(row._sum.amount),
+    ]),
+  );
+  const purchasesBySupplier: ReportSupplierPurchases[] = purchaseSupplierGroups.map((row) => ({
+    supplierId: row.supplierId,
+    name: supplierNameMap.get(row.supplierId) ?? "—",
+    billed: toDecimalOrZero(row._sum.totalAmount).toString(),
+    paidAtPurchase: toDecimalOrZero(row._sum.paidAmount).toString(),
+    supplierPayments: (supplierPaymentMap.get(row.supplierId) ?? new Decimal(0)).toString(),
+    count: Number(row._count._all ?? 0),
+  }));
+
+  const followUpCount = (outcome: string): number =>
+    Number(followUpGroups.find((row) => row.outcome === outcome)?._count._all ?? 0);
+  const followUps: ReportFollowUps = {
+    total: followUpGroups.reduce(
+      (sum, row) => sum + Number(row._count._all ?? 0),
+      0,
+    ),
+    pending: followUpCount("pending"),
+    contacted: followUpCount("contacted"),
+    interested: followUpCount("interested"),
+    orderPlaced: followUpCount("order_placed"),
+    notInterested: followUpCount("not_interested"),
+    noResponse: followUpCount("no_response"),
+    resolved: followUpResolved,
+  };
+
+  const collectionsByMethod: ReportPaymentMethod[] = paymentMethodGroups.map((row) => ({
+    method: row.method,
+    amount: toDecimalOrZero(row._sum.amount).toString(),
+    count: Number(row._count._all ?? 0),
+  }));
+
+  const customerBalances: ReportCustomerBalance[] = receivablesList
+    .filter((customer) => new Decimal(customer.balance).gt(0))
+    .sort((a, b) => new Decimal(b.balance).cmp(new Decimal(a.balance)))
+    .slice(0, 10)
+    .map((customer) => ({
+      id: customer.id,
+      name: customer.name,
+      phone: customer.phone,
+      balance: customer.balance,
+    }));
+
+  const supplierBalances: ReportSupplierBalance[] = suppliersList
+    .filter((supplier) => new Decimal(supplier.balance).gt(0))
+    .sort((a, b) => new Decimal(b.balance).cmp(new Decimal(a.balance)))
+    .slice(0, 10)
+    .map((supplier) => ({
+      id: supplier.id,
+      name: supplier.name,
+      phone: supplier.phone,
+      balance: supplier.balance,
+    }));
+
+  const lowStock: ReportLowStockProduct[] = products
+    .filter((product) => product.isLowStock)
+    .sort((a, b) => new Decimal(a.currentStock).cmp(new Decimal(b.currentStock)))
+    .slice(0, 10)
+    .map((product) => ({
+      id: product.id,
+      name: product.name,
+      unit: product.unit,
+      currentStock: product.currentStock,
+      lowStockThreshold: product.lowStockThreshold,
+    }));
+
+  const previousSales = new Decimal(previousProfit.revenue);
+  const previousCash = toDecimalOrZero(previousPaymentAgg._sum.amount);
+  const previousPurchases = toDecimalOrZero(previousPurchaseAgg._sum.totalAmount);
+  const previousExpenses = toDecimalOrZero(previousExpenseAgg._sum.amount);
+  const previousNet = new Decimal(previousProfit.netProfit);
+  const comparison: ReportComparison = {
+    from: previousFrom,
+    to: previousTo,
+    salesBilled: previousSales.toString(),
+    cashReceived: previousCash.toString(),
+    purchasesBilled: previousPurchases.toString(),
+    expenses: previousExpenses.toString(),
+    netProfit: previousNet.toString(),
+    changes: {
+      salesPct: percentChange(new Decimal(profit.revenue), previousSales),
+      cashPct: percentChange(cashReceived, previousCash),
+      purchasesPct: percentChange(purchasesBilled, previousPurchases),
+      expensesPct: percentChange(expenseTotal, previousExpenses),
+      netProfitPct: percentChange(new Decimal(profit.netProfit), previousNet),
+    },
+  };
+
   const revenue = new Decimal(profit.revenue);
   const cogs = new Decimal(profit.cogs);
   const limitations: ReportLimitation[] = [
@@ -392,6 +709,9 @@ export async function getReport(
   if (discountsGiven.gt(0)) {
     limitations.push({ key: "reports.limit.discounts" });
   }
+  if (payables.gt(0)) {
+    limitations.push({ key: "reports.limit.payablesNoDueDate" });
+  }
 
   return {
     from,
@@ -402,11 +722,13 @@ export async function getReport(
       discounts: discountsGiven.toString(),
       cashReceived: cashReceived.toString(),
       count: profit.salesCount,
+      byCustomer: salesByCustomer,
     },
     purchases: {
       billed: purchasesBilled.toString(),
       cashPaid: cashPaidToSuppliers.toString(),
       count: Number(purchaseAgg._count._all ?? 0),
+      bySupplier: purchasesBySupplier,
     },
     expenses: {
       total: expenseTotal.toString(),
@@ -427,6 +749,16 @@ export async function getReport(
       overdueCustomersCount: overdueSummary.customersCount,
     },
     topProducts,
+    followUps,
+    collections: {
+      byMethod: collectionsByMethod,
+    },
+    comparison,
+    balances: {
+      customers: customerBalances,
+      suppliers: supplierBalances,
+    },
+    lowStock,
     limitations,
   };
 }

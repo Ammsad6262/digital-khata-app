@@ -17,6 +17,7 @@ import { prisma } from "@/lib/db/prisma";
 import { Decimal, toDecimalOrZero } from "@/lib/utils/decimal";
 import { NotFoundError, BadRequestError } from "@/lib/errors";
 import { cached, invalidateCache } from "@/lib/utils/cache";
+import { recordAudit } from "@/lib/services/audit";
 import { createSupplierSchema, updateSupplierSchema } from "@/lib/schemas/supplier";
 import type { Prisma } from "@prisma/client";
 
@@ -246,6 +247,17 @@ export async function createSupplier(
   });
   invalidateCache("suppliers");
   invalidateCache("dashboard");
+
+  if (userId) {
+    await recordAudit(userId, {
+      action: "supplier.create",
+      entityType: "Supplier",
+      entityId: supplier.id,
+      summary: `Supplier: ${supplier.name}`,
+      metadata: { phone: supplier.phone, openingBalance: supplier.openingBalance.toString() },
+    });
+  }
+
   return toView(supplier);
 }
 
@@ -270,6 +282,18 @@ export async function updateSupplier(
     },
   });
   invalidateCache("suppliers");
+  invalidateCache("dashboard");
+
+  if (userId) {
+    await recordAudit(userId, {
+      action: "supplier.update",
+      entityType: "Supplier",
+      entityId: updated.id,
+      summary: `Updated supplier: ${updated.name}`,
+      metadata: { phone: updated.phone },
+    });
+  }
+
   return toView(updated);
 }
 
@@ -278,7 +302,7 @@ export async function deleteSupplier(
   id: string,
   userId?: string | null,
 ): Promise<{ id: string; deleted: true }> {
-  await getSupplier(id, userId);
+  const existing = await getSupplier(id, userId);
 
   const [purchaseCount, paymentCount] = await Promise.all([
     prisma.purchase.count({ where: { supplierId: id, voidedAt: null } }),
@@ -294,5 +318,16 @@ export async function deleteSupplier(
   await prisma.supplier.update({ where: { id }, data: { isDeleted: true } });
   invalidateCache("suppliers");
   invalidateCache("dashboard");
+
+  if (userId) {
+    await recordAudit(userId, {
+      action: "supplier.delete",
+      entityType: "Supplier",
+      entityId: id,
+      summary: `Deleted supplier: ${existing.name}`,
+      metadata: { phone: existing.phone },
+    });
+  }
+
   return { id, deleted: true };
 }

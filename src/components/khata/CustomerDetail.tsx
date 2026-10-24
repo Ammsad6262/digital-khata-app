@@ -18,6 +18,7 @@ import { useState } from "react";
 import {
   ArrowLeft,
   AlertCircle,
+  Pencil,
   Phone,
   MapPin,
   StickyNote,
@@ -122,7 +123,21 @@ export function CustomerDetail({ customerId }: { customerId: string }) {
         </div>
 
         <div className="space-y-2.5 p-4">
-          <h2 className="text-base font-semibold text-slate-900">{customer.name}</h2>
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <h2 className="text-base font-semibold text-slate-900">{customer.name}</h2>
+              {customer.companyName ? (
+                <p className="text-xs text-slate-500">{customer.companyName}</p>
+              ) : null}
+            </div>
+            <Link
+              href={`/khata/${customer.id}/edit`}
+              className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-slate-200 px-2 py-1 text-[11px] font-semibold text-slate-600 hover:bg-slate-50"
+            >
+              <Pencil className="h-3 w-3" />
+              {t("customer.editCustomer")}
+            </Link>
+          </div>
 
           <div className="space-y-1.5 text-sm">
             {customer.phone ? (

@@ -28,6 +28,11 @@ export function CustomerRow({ customer }: { customer: CustomerSearchResult }) {
         <p className="truncate text-sm font-medium text-slate-900">
           {customer.name}
         </p>
+        {customer.companyName ? (
+          <p className="truncate text-[11px] text-slate-500">
+            {customer.companyName}
+          </p>
+        ) : null}
         {customer.phone ? (
           <p className="flex items-center gap-1 text-xs text-slate-500">
             <Phone className="h-3 w-3" />

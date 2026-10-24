@@ -15,11 +15,11 @@ import {
   createSupplier,
 } from "@/lib/services/suppliers";
 import { ok, fail, parseJsonBody, getQueryParam } from "@/lib/utils/api";
-import { requireActiveAccess } from "@/lib/auth/get-current-user";
+import { requireUserId } from "@/lib/auth/get-current-user";
 
 export async function GET(req: NextRequest) {
   try {
-    const userId = await requireActiveAccess(req);
+    const userId = await requireUserId(req);
     const queryParam = getQueryParam(req, "q");
 
     if (queryParam !== undefined && queryParam !== null && queryParam.trim() !== "") {
@@ -36,7 +36,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const userId = await requireActiveAccess(req);
+    const userId = await requireUserId(req);
     const { data, error } = await parseJsonBody<unknown>(req);
     if (error) return fail(new Error(error));
 

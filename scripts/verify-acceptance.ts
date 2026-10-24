@@ -25,6 +25,7 @@ import { createReminder, setReminderCompleted, getReminderCounts } from "@/lib/s
 import { getBusinessInsights } from "@/lib/services/insights";
 import { getGrowthPlan } from "@/lib/services/growth";
 import { GET as growthGET } from "@/app/api/growth/route";
+import { BILLING_ENABLED } from "@/lib/services/subscription";
 
 let passed = 0;
 let failed = 0;
@@ -232,7 +233,14 @@ async function main() {
       headers: { cookie: `${AUTH_COOKIE_NAME}=${expired.token}` },
     });
     const expiredRes = await growthGET(expiredReq);
-    check("expired account blocked from growth API (403)", expiredRes.status === 403, `${expiredRes.status}`);
+    const expectedStatus = BILLING_ENABLED ? 403 : 200;
+    check(
+      BILLING_ENABLED
+        ? "expired account blocked from growth API (403)"
+        : "expired account still allowed while billing is off (200)",
+      expiredRes.status === expectedStatus,
+      `${expiredRes.status}`,
+    );
   } finally {
     console.log("\n── Cleanup ──");
     await prisma.user.deleteMany({

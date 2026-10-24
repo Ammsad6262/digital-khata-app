@@ -743,6 +743,77 @@ and erased due dates and follow-up dates.
 
 ---
 
+## Completed — reports v2, recovery, audit and honest billing
+
+### Reports now answer the next question
+- **Compared with the previous period**: every headline figure (sales billed,
+  cash received, purchases, expenses, net estimate) shows the same-length window
+  immediately before it, with a percentage only when the earlier window had a
+  figure to compare against. A zero baseline never produces a fake percentage.
+- **How customers paid**: payment totals and counts by method.
+- **Who owes you / who you owe**: the highest customer and supplier balances,
+  linked to the real khata/supplier pages.
+- **Low stock**: products at or below their own threshold, lowest first.
+- **Sales by customer** and **purchases by supplier** for the period. Supplier
+  rows separate "paid at purchase" from supplier payments recorded in the
+  period, so the two are never added together twice.
+- **Export CSV** builds the file from the same payload already on screen, so the
+  download cannot disagree with the report. It includes every section and the
+  limitations.
+- `scripts/verify-reports.ts` now covers the comparison window, method
+  breakdown, balance lists, low stock, customer-wise sales and supplier-wise
+  purchases — **61/61**.
+
+### Payment recovery (`/more/recovery`)
+- A prioritised collection list built from real open sales. Unlinked payments are
+  allocated to the oldest open invoices in memory for due-date purposes only;
+  they never rewrite `Sale.outstanding`.
+- Filters for overdue, due soon and no due date; evidence (days overdue, amount,
+  invoice count, last payment) and a pre-written WhatsApp message.
+- Logging a contact is a completed `payment_collection` reminder and never
+  changes a balance. Creating a reminder does not mark anyone as contacted.
+- `scripts/verify-recovery.ts` — **42/42**.
+
+### Audit trail (`/more/audit`)
+- Every financial and master-data action writes a best-effort audit row after the
+  business transaction commits: sales, payments, purchases, supplier payments,
+  expenses, stock, products, customers, suppliers, settings, backup import,
+  follow-up outcomes, recovery contacts and clear-all.
+- Rows are scoped to the signed-in business, newest first. Audit logging never
+  makes a successful business action fail.
+- Clear-all keeps settings and audit history, and records `data.clear`.
+- `scripts/verify-audit.ts` — **27/27**.
+
+### Billing foundation without a paywall
+- `BILLING_ENABLED` defaults to **false**. While it is false,
+  `hasActiveAccess()` returns true and `getSubscriptionStatus()` reports
+  `BILLING_DISABLED` with no expiry pressure.
+- The subscription screen says plainly that online payments are not connected,
+  nothing will expire and every feature is available. It shows no price, no
+  checkout and no fake payment. When billing is enabled later, the real trial and
+  redemption flow remains in place.
+
+### Faster lists and editable customers
+- Sales: search by customer, phone, sale ID or amount; filter by unpaid, partial,
+  paid or overdue. The summary follows the filtered rows.
+- Payments: search by customer, phone or payment ID; filter by payment method.
+- Expenses: search by name, note or category; filter by category.
+- Customers: sort by name, highest balance or lowest balance.
+- Customers can now be edited in the app at `/khata/<id>/edit`, including an
+  optional **shop / company name**. The opening balance stays fixed (use an
+  adjustment), so history remains auditable.
+- The backup exports and restores `Customer.companyName`.
+
+### Verification
+- All non-AI suites re-run after these changes: **524 assertions, 0 failures**
+  (platform 9, purchases 27, reminders 24, insights 24, acceptance 31, growth 26,
+  contact-actions 36, statement 19, follow-ups 50, reports 61, receipt 26,
+  due-dates 30, discounts 36, units 9, backup 39, recovery 42, audit 27,
+  AI gating 8 with billing disabled).
+- `npx tsc --noEmit` and `npm run build` clean.
+
+---
+
 ## 🔑 Blockers / required from owner
 
 1. **`GEMINI_API_KEY`** — required for Smart Entry, the expanded voice assistant,
@@ -750,5 +821,15 @@ and erased due dates and follow-up dates.
 2. **GitHub write access** — to push `feat/platform-expansion` and open a PR.
 3. **Vercel / deployment access** — to ship changes; pushing code does not update
    a live site by itself.
-4. **Supabase DB password** — only needed when we run managed migrations.
+4. **Supabase DB password** - only needed when we run managed migrations.
 5. **Rotate the Supabase access token** that was shared in chat.
+6. **Production DDL is still pending**: `20261020_stage2_3_delta.sql`,
+   `20261023_follow_ups.sql`, `20261023_sale_due_date.sql`,
+   `20261023_sale_discount.sql`, `20261024_audit_log.sql` and
+   `20261024_customer_company.sql`. Apply only with explicit approval.
+7. **Forgot-password / reset** needs a decision: email reset link (requires an
+   email provider) or an admin-issued reset code. Until then, the signed-in
+   change-password screen is the only reset path.
+8. **Billing stays disabled by default.** Do not set `BILLING_ENABLED=true` until
+   a real payment provider is configured and tested. While it is false, no
+   feature is paywalled and no payment is simulated.

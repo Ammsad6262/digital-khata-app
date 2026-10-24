@@ -14,6 +14,7 @@ import { POST as executePOST } from "@/app/api/smart-entry/execute/route";
 import { POST as cancelPOST } from "@/app/api/smart-entry/cancel/route";
 import { GET as growthGET } from "@/app/api/growth/route";
 import { POST as growthSummaryPOST } from "@/app/api/growth/summary/route";
+import { BILLING_ENABLED } from "@/lib/services/subscription";
 
 let passed = 0;
 let failed = 0;
@@ -70,20 +71,31 @@ async function main() {
     console.log("\n── Expired account ──");
     const body = { type: "text", text: "sold 2 boxes to Ahmed for 500" };
 
+    // When billing is not configured, Part 20 says core and AI use must not be
+    // paywalled. The gate is therefore bypassed intentionally; the test then
+    // proves the request is NOT rejected by the entitlement gate.
+    const gateCheck = (label: string, status: number) => {
+      if (BILLING_ENABLED) {
+        check(`${label} → 403`, status === 403, `got ${status}`);
+      } else {
+        check(`${label} passes the gate while billing is off`, status !== 403, `got ${status}`);
+      }
+    };
+
     const interpretRes = await interpretPOST(
       makeReq("/api/smart-entry/interpret", expired.token, body),
     );
-    check("interpret → 403", interpretRes.status === 403, `got ${interpretRes.status}`);
+    gateCheck("interpret", interpretRes.status);
 
     const executeRes = await executePOST(
       makeReq("/api/smart-entry/execute", expired.token, { sessionId: "x" }),
     );
-    check("execute → 403", executeRes.status === 403, `got ${executeRes.status}`);
+    gateCheck("execute", executeRes.status);
 
     const cancelRes = await cancelPOST(
       makeReq("/api/smart-entry/cancel", expired.token, { sessionId: "x" }),
     );
-    check("cancel → 403", cancelRes.status === 403, `got ${cancelRes.status}`);
+    gateCheck("cancel", cancelRes.status);
 
     const unauthorized = await interpretPOST(
       makeReq("/api/smart-entry/interpret", "not-a-token", body),
@@ -91,12 +103,12 @@ async function main() {
     check("invalid token → 401", unauthorized.status === 401, `got ${unauthorized.status}`);
 
     const growthRes = await growthGET(makeGet("/api/growth", expired.token));
-    check("growth plan → 403", growthRes.status === 403, `got ${growthRes.status}`);
+    gateCheck("growth plan", growthRes.status);
 
     const growthSummaryRes = await growthSummaryPOST(
       makeReq("/api/growth/summary", expired.token, {}),
     );
-    check("growth AI summary → 403", growthSummaryRes.status === 403, `got ${growthSummaryRes.status}`);
+    gateCheck("growth AI summary", growthSummaryRes.status);
 
     console.log("\n── Active trial ──");
     // Empty body: the gate must pass and validation must reject the payload.

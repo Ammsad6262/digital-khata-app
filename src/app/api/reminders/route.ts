@@ -13,7 +13,7 @@ import {
   type ReminderFilter,
 } from "@/lib/services/reminders";
 import { ok, fail, parseJsonBody, getQueryParam } from "@/lib/utils/api";
-import { requireActiveAccess } from "@/lib/auth/get-current-user";
+import { requireUserId } from "@/lib/auth/get-current-user";
 
 const FILTERS: ReminderFilter[] = ["overdue", "today", "upcoming", "completed", "all"];
 
@@ -25,7 +25,7 @@ function parseFilter(value: string | null | undefined): ReminderFilter {
 
 export async function GET(req: NextRequest) {
   try {
-    const userId = await requireActiveAccess(req);
+    const userId = await requireUserId(req);
     const filter = parseFilter(getQueryParam(req, "filter"));
     const timezone = getQueryParam(req, "timezone") ?? "Asia/Karachi";
 
@@ -42,7 +42,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const userId = await requireActiveAccess(req);
+    const userId = await requireUserId(req);
     const { data, error } = await parseJsonBody<unknown>(req);
     if (error) return fail(new Error(error));
 

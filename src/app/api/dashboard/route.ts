@@ -11,7 +11,7 @@ import { getDashboardStats } from "@/lib/services/dashboard";
 import { withCircuitBreaker, getCircuitBreakerState } from "@/lib/utils/circuit-breaker";
 import { ok, fail } from "@/lib/utils/api";
 import { tServer } from "@/lib/i18n/server";
-import { requireActiveAccess } from "@/lib/auth/get-current-user";
+import { requireUserId } from "@/lib/auth/get-current-user";
 
 export const dynamic = "force-dynamic";
 
@@ -29,7 +29,7 @@ const FALLBACK_DASHBOARD = {
 
 export async function GET(req: NextRequest) {
   try {
-    const userId = await requireActiveAccess(req);
+    const userId = await requireUserId(req);
 
     const cbState = getCircuitBreakerState();
 

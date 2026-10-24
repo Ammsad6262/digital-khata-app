@@ -102,6 +102,7 @@ export function AddPaymentForm() {
     setCustomer({
       id: linkedSale.customerId,
       name: linkedSale.customerName,
+      companyName: null,
       phone: linkedSale.customerPhone,
       balance: "0", // we don't need the customer's overall balance for sale-linked payments
     });

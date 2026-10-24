@@ -13,6 +13,7 @@ import { Decimal } from "@/lib/utils/decimal";
 import { NotFoundError, BadRequestError } from "@/lib/errors";
 import { createStockMoveSchema } from "@/lib/schemas/stock";
 import { invalidateCache } from "@/lib/utils/cache";
+import { recordAudit } from "@/lib/services/audit";
 import type { Prisma } from "@prisma/client";
 
 export type StockMoveView = {
@@ -139,12 +140,27 @@ export async function addStockMove(input: unknown, userId?: string | null): Prom
   invalidateCache("dashboard");
   invalidateCache("profit-loss");
 
+  if (userId) {
+    await recordAudit(userId, {
+      action: "stock.adjust",
+      entityType: "StockMove",
+      entityId: move.id,
+      summary: `${move.type} stock movement`,
+      metadata: {
+        productId: move.productId,
+        quantity: move.quantity.toString(),
+        type: move.type,
+        unitCost: move.unitCost?.toString() ?? null,
+      },
+    });
+  }
+
   return toView(move);
 }
 
 /** Void a stock move — atomic + cleans up the Transaction mirror. */
 export async function voidStockMove(id: string, userId?: string | null): Promise<{ id: string; voidedAt: Date }> {
-  return await prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx) => {
     const move = await tx.stockMove.findUnique({ where: { id } });
     if (!move) throw new NotFoundError("api.resource.stockMove", id);
     // Tenant isolation: a user can only void their own stock moves.
@@ -166,6 +182,18 @@ export async function voidStockMove(id: string, userId?: string | null): Promise
 
     return { id, voidedAt: now };
   });
+
+  if (userId) {
+    await recordAudit(userId, {
+      action: "stock.adjust",
+      entityType: "StockMove",
+      entityId: id,
+      summary: "Voided a stock movement",
+      metadata: { voidedAt: result.voidedAt.toISOString() },
+    });
+  }
+
+  return result;
 }
 
 // ────────────────────────────────────────────────────────────────────────────

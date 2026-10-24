@@ -26,6 +26,8 @@ import {
   Crown,
   Gift,
   Menu,
+  HandCoins,
+  History,
 } from "lucide-react";
 import { ScreenContent } from "@/components/layout/Screen";
 import { MoreButton } from "@/components/layout/MoreButton";
@@ -75,6 +77,20 @@ const GROUPS: SectionGroup[] = [
         titleKey: "more.backup",
         descKey: "more.backupDesc",
         icon: Database,
+        color: "bg-slate-100 text-slate-700",
+      },
+      {
+        href: "/more/recovery",
+        titleKey: "more.recovery",
+        descKey: "more.recoveryDesc",
+        icon: HandCoins,
+        color: "bg-rose-50 text-rose-700",
+      },
+      {
+        href: "/more/audit",
+        titleKey: "more.audit",
+        descKey: "more.auditDesc",
+        icon: History,
         color: "bg-slate-100 text-slate-700",
       },
     ],

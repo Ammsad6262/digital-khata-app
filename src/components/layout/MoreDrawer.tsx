@@ -57,6 +57,8 @@ import {
   Sparkles,
   MessageSquare,
   BarChart3,
+  HandCoins,
+  History,
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { useLanguage } from "@/providers/language-provider";
@@ -138,6 +140,18 @@ const GROUPS: MoreGroup[] = [
         titleKey: "more.backup",
         descKey: "more.backupDesc",
         icon: Database,
+      },
+      {
+        href: "/more/recovery",
+        titleKey: "more.recovery",
+        descKey: "more.recoveryDesc",
+        icon: HandCoins,
+      },
+      {
+        href: "/more/audit",
+        titleKey: "more.audit",
+        descKey: "more.auditDesc",
+        icon: History,
       },
     ],
   },

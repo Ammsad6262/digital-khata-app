@@ -12,7 +12,7 @@
  * Response 201: { product, stockMove }
  *
  * Security:
- *   - userId is taken from the JWT cookie (requireActiveAccess) — NEVER from
+ *   - userId is taken from the JWT cookie (requireUserId) — NEVER from
  *     the request body.
  *   - All input is validated via createProductSchema (Zod).
  *   - SKU uniqueness is enforced by the database. Prisma P2002 → 409 Conflict.
@@ -22,13 +22,13 @@ import { NextRequest } from "next/server";
 import { createProductWithOpeningStock } from "@/lib/services/products";
 import { ok, fail, parseJsonBody } from "@/lib/utils/api";
 import { tServer } from "@/lib/i18n/server";
-import { requireActiveAccess } from "@/lib/auth/get-current-user";
+import { requireUserId } from "@/lib/auth/get-current-user";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
   try {
-    const userId = await requireActiveAccess(req);
+    const userId = await requireUserId(req);
     const { data, error } = await parseJsonBody<unknown>(req);
     if (error || !data) {
       return fail(new Error(error || tServer("api.errors.invalidBody")));

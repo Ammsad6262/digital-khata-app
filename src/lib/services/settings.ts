@@ -7,6 +7,7 @@
 
 import { prisma } from "@/lib/db/prisma";
 import type { Prisma } from "@prisma/client";
+import { recordAudit } from "@/lib/services/audit";
 
 export type SettingView = {
   businessName: string | null;
@@ -82,6 +83,12 @@ export async function clearAllData(userId: string): Promise<{
     customerAdjustments: number;
     customers: number;
     products: number;
+    suppliers: number;
+    purchases: number;
+    purchaseItems: number;
+    supplierPayments: number;
+    reminders: number;
+    followUps: number;
   };
 }> {
   const result = await prisma.$transaction(async (tx) => {
@@ -92,8 +99,17 @@ export async function clearAllData(userId: string): Promise<{
     const stockMoves = await tx.stockMove.deleteMany({ where: { userId } });
     const expenses = await tx.expense.deleteMany({ where: { userId } });
     const customerAdjustments = await tx.customerAdjustment.deleteMany({ where: { userId } });
+    const purchaseItems = await tx.purchaseItem.deleteMany({
+      where: { purchase: { userId } },
+    });
+    const supplierPayments = await tx.supplierPayment.deleteMany({ where: { userId } });
+    const purchases = await tx.purchase.deleteMany({ where: { userId } });
+    const reminders = await tx.reminder.deleteMany({ where: { userId } });
+    const followUps = await tx.followUp.deleteMany({ where: { userId } });
     const customers = await tx.customer.deleteMany({ where: { userId } });
     const products = await tx.product.deleteMany({ where: { userId } });
+    const suppliers = await tx.supplier.deleteMany({ where: { userId } });
+    await tx.smartEntrySession.deleteMany({ where: { userId } });
 
     return {
       transactions: transactions.count,
@@ -105,7 +121,22 @@ export async function clearAllData(userId: string): Promise<{
       customerAdjustments: customerAdjustments.count,
       customers: customers.count,
       products: products.count,
+      suppliers: suppliers.count,
+      purchases: purchases.count,
+      purchaseItems: purchaseItems.count,
+      supplierPayments: supplierPayments.count,
+      reminders: reminders.count,
+      followUps: followUps.count,
     };
+  });
+
+  // Keep a record that the owner cleared the business data, even though the
+  // business rows themselves are gone.
+  await recordAudit(userId, {
+    action: "data.clear",
+    entityType: "Business",
+    summary: "Cleared all business data",
+    metadata: result,
   });
 
   return { deleted: result };
@@ -143,5 +174,18 @@ export async function updateSettings(
       ...(input.theme !== undefined && { theme: input.theme }),
     },
   });
+
+  await recordAudit(userId, {
+    action: "settings.update",
+    entityType: "Setting",
+    entityId: updated.id,
+    summary: "Updated business settings",
+    metadata: {
+      businessName: updated.businessName,
+      currency: updated.currency,
+      timezone: updated.timezone,
+    },
+  });
+
   return toView(updated);
 }

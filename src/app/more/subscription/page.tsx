@@ -9,6 +9,15 @@ import { formatDate } from "@/lib/utils/date";
 import { cn } from "@/lib/utils/cn";
 import { useLanguage } from "@/providers/language-provider";
 
+const INCLUDED_FEATURES = [
+  "subscription.feature.customers",
+  "subscription.feature.products",
+  "subscription.feature.sales",
+  "subscription.feature.expenses",
+  "subscription.feature.dashboard",
+  "subscription.feature.backup",
+] as const;
+
 export default function SubscriptionPage() {
   const { t } = useLanguage();
   return (
@@ -37,6 +46,46 @@ function SubscriptionContent() {
   if (isLoading) return <div className="space-y-4"><div className="h-48 animate-pulse rounded-2xl bg-slate-200" /><div className="h-32 animate-pulse rounded-xl bg-slate-200" /></div>;
   if (isError) return <EmptyState title={t("subscription.unableToCheck")} description={error instanceof Error ? error.message : ""} icon={<AlertCircle className="h-6 w-6" />} action={<Button onClick={() => refetch()} variant="outline" size="sm"><RefreshCw className="h-4 w-4" />{t("subscription.tryAgain")}</Button>} />;
   if (!subscription) return null;
+
+  // Billing is not connected. Say so plainly: there is nothing to buy and no
+  // feature is locked. No fake prices, no fake checkout, no trial pressure.
+  if (!subscription.billingEnabled) {
+    return (
+      <div className="space-y-4">
+        <div className="rounded-2xl border border-brand-200 bg-white p-5 shadow-sm">
+          <div className="flex items-start gap-3">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-brand-600 text-white">
+              <CheckCircle2 className="h-6 w-6" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-slate-900">
+                {t("subscription.billingOffTitle")}
+              </p>
+              <p className="mt-1 text-xs leading-relaxed text-slate-600">
+                {t("subscription.billingOffDesc")}
+              </p>
+            </div>
+          </div>
+        </div>
+        <div className="rounded-xl border border-slate-200 bg-white p-4">
+          <h3 className="mb-3 text-sm font-semibold text-slate-900">
+            {t("subscription.whatsIncluded")}
+          </h3>
+          <div className="space-y-2">
+            {INCLUDED_FEATURES.map((feature) => (
+              <div key={feature} className="flex items-center gap-2 text-sm text-slate-700">
+                <Check className="h-4 w-4 shrink-0 text-brand-600" />
+                {t(feature)}
+              </div>
+            ))}
+          </div>
+        </div>
+        <p className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] leading-relaxed text-slate-500">
+          {t("subscription.billingOffNote")}
+        </p>
+      </div>
+    );
+  }
 
   const isTrial = subscription.isTrial;
   const isActive = subscription.isActive;
@@ -82,7 +131,7 @@ function SubscriptionContent() {
       </div>
       <div className="rounded-xl border border-slate-200 bg-white p-4">
         <h3 className="mb-3 text-sm font-semibold text-slate-900">{t("subscription.whatsIncluded")}</h3>
-        <div className="space-y-2">{["Customers & Khata", "Products & Stock", "Sales & Payments", "Expenses & Reports", "Dashboard & Analytics", "Backup & Export"].map((f) => (<div key={f} className="flex items-center gap-2 text-sm text-slate-700"><Check className="h-4 w-4 shrink-0 text-brand-600" />{f}</div>))}</div>
+        <div className="space-y-2">{INCLUDED_FEATURES.map((f) => (<div key={f} className="flex items-center gap-2 text-sm text-slate-700"><Check className="h-4 w-4 shrink-0 text-brand-600" />{t(f)}</div>))}</div>
       </div>
       {history && history.length > 0 ? (
         <div className="rounded-xl border border-slate-200 bg-white p-4">

@@ -185,14 +185,12 @@ export function ExpensesOverview() {
       <section className="space-y-2">
         <div className="flex items-center justify-between">
           <h2 className="px-1 text-sm font-semibold text-slate-700">{t("expense.recent")}</h2>
-          {listQuery.data && listQuery.data.length > 5 ? (
-            <Link
-              href="/more/expenses"
-              className="text-xs font-medium text-brand-600 hover:underline"
-            >
-              {t("expense.viewAll")} <ChevronRight className="inline h-3 w-3 rtl-flip" />
-            </Link>
-          ) : null}
+          <Link
+            href="/more/expenses"
+            className="text-xs font-medium text-brand-600 hover:underline"
+          >
+            {t("expense.viewAll")} <ChevronRight className="inline h-3 w-3 rtl-flip" />
+          </Link>
         </div>
 
         {listQuery.isLoading ? (

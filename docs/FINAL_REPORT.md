@@ -115,6 +115,18 @@ that reads your own database rows.
   customers, from one shared `getOverdueSummary()` so the two screens can never
   disagree. The assistant answers "who is overdue?" with a tappable row per
   customer.
+- A purchase can also carry an optional pay-by date. A payable is overdue only
+  when money is still owed on that invoice **and** the date has passed; opening
+  balances and purchases without a date are never labelled overdue.
+- Supplier payments not linked to an invoice are applied to open invoices
+  oldest-due-first for the overdue view. This allocation is display/report only:
+  it never changes `Purchase.outstanding` or the supplier's total payable, and
+  the report says so.
+- The purchase form has the date field, the supplier ledger marks overdue
+  invoices, and Reports has an **Overdue payables** section with supplier, due
+  date, days late, remaining amount and a tap-through to pay. CSV export includes
+  the same rows. Insights shows an amber strip only when something is overdue.
+- Backup exports and restores purchase due dates; older backups still import.
 
 ### Discounts on a sale
 - A sale can carry a whole-sale discount. The customer is billed the item total
@@ -262,11 +274,11 @@ Bug 6 was found by the acceptance suite, not by inspection.
 |---|---|---|
 | `scripts/verify-acceptance.ts` | the 10 owner workflows, end to end | **31/31** |
 | `scripts/verify-platform.ts` | platform / core operations | 9/9 |
-| `scripts/verify-purchases.ts` | supplier payment + payable maths, purchase totals, stock, overpay rejection, duplicate + cross-tenant blocking | 27/27 |
+| `scripts/verify-purchases.ts` | supplier payment + payable maths, purchase totals, stock, overpay rejection, duplicate + cross-tenant blocking, purchase due dates and overdue-payable allocation | 42/42 |
 | `scripts/verify-reminders.ts` | reminder + follow-up sync | 24/24 |
-| `scripts/verify-insights.ts` | insight figures match the ledger | 24/24 |
+| `scripts/verify-insights.ts` | insight figures match the ledger, including overdue payables | 26/26 |
 | `scripts/verify-growth.ts` | growth amounts, priority, totals, empty business, tenant isolation, narration guard | 26/26 |
-| `scripts/verify-ai-gating.ts` | AI entitlement gate; with billing disabled, expired accounts are intentionally allowed through, and invalid tokens still get 401 | 8/8 |
+| `scripts/verify-ai-gating.ts` | AI entitlement gate; with billing disabled, expired accounts are intentionally allowed through, invalid tokens still get 401, and core customer data stays available to an expired account | 9/9 |
 | `scripts/verify-assistant-writes.ts` | voice write-path extraction | 33/33 |
 | `scripts/verify-ai-queries.ts` | live Gemini routing | 5/5 |
 | `scripts/verify-contact-actions.ts` | phone normalisation, Call/WhatsApp links, reminder enrichment, snooze, supplier reorder | 36/36 |
@@ -274,18 +286,21 @@ Bug 6 was found by the acceptance suite, not by inspection.
 | `scripts/verify-follow-ups.ts` | follow-up candidates from real purchase dates, duplicate prevention, editable message, outcome + conversion maths, tenant isolation | **50/50** |
 | `scripts/verify-ai-query-types.ts` | every assistant query type against real records: balances, today's cash, low stock, supplier purchases, inactive + reorder + overdue customers | **28/28** |
 | `scripts/verify-receipt.ts` | sale receipt text: saved totals, paid/outstanding wording, overpayment, notes, Urdu, no profit language | **26/26** |
-| `scripts/verify-reports.ts` | any-period report: inclusive window, presets, sales / cash / purchases / expenses / COGS / profit, stock valuation rule, point-in-time position, comparison window, payment methods, balance lists, low stock, customer/supplier breakdowns, limitations, tenant isolation | **61/61** |
+| `scripts/verify-reports.ts` | any-period report: inclusive window, presets, sales / cash / purchases / expenses / COGS / profit, stock valuation rule, point-in-time position, overdue payables, comparison window, payment methods, balance lists, low stock, customer/supplier breakdowns, limitations, tenant isolation | **67/67** |
 | `scripts/verify-due-dates.ts` | due date stored as business-timezone midnight, overdue rule, paid/voided/no-date exclusions, insights + reports + sales list agreement, assistant overdue answer, tenant isolation | **30/30** |
 | `scripts/verify-discounts.ts` | discounted billed total, full and zero discount, negative/over-total/over-paid refusals with no partial writes, receipt wording, revenue + report + khata agreement, tenant isolation | **36/36** |
 | `scripts/verify-units.ts` | custom units saved per business, reachable by the assistant, usable on a product, visible on the stock list, never shared across businesses | **9/9** |
-| `scripts/verify-backup.ts` | every business table exported/restored, old-format backups, integrity guard, no double counting | **39/39** |
+| `scripts/verify-backup.ts` | every business table exported/restored (including sale and purchase due dates), old-format backups, integrity guard, no double counting | **42/42** |
 | `scripts/verify-recovery.ts` | recovery list from real open sales, unlinked-payment allocation, filters, contact log, reminder, message, tenant isolation | **42/42** |
 | `scripts/verify-audit.ts` | audit rows for every financial action, real totals in metadata, tenant isolation, clear-all retention | **27/27** |
 
-Total: **590 assertions recorded across all suites**. After the latest changes,
-**524 assertions were re-run with 0 failures** (the live Gemini suites were not
-re-run because the free-tier quota is exhausted). `npx tsc --noEmit` and
-`npm run build` are clean.
+Total: **617 assertions recorded across all suites**. After the latest changes,
+**551 non-AI assertions were re-run with 0 failures**; the deterministic
+assistant query-type suite (28/28) and write-path suite (33/33) also passed.
+Live Gemini routing was spot-checked after the query-type schema fix (the first
+cases passed, including `LOW_STOCK`); a full live re-run was interrupted by
+transient Gemini 503 responses, not by an application failure.
+`npx tsc --noEmit` and `npm run build` are clean.
 
 The 10 acceptance workflows: register+trial · add customer · credit sale (stock
 and ledger move) · record payment · record expense · add stock · buy from
@@ -301,7 +316,7 @@ New models: `Supplier`, `Purchase`, `PurchaseItem`, `SupplierPayment`,
 New columns: `Customer.nextFollowUpAt`, `Customer.companyName`,
 `Supplier.nextFollowUpAt`, purchase totals (`totalAmount`, `paidAmount`,
 `outstanding`), purchase-item lines, supplier/reference links on ledger rows,
-`Sale.dueDate` and `Sale.discountAmount`.
+`Sale.dueDate`, `Sale.discountAmount` and `Purchase.dueDate`.
 Uniqueness: `@@unique([userId, phone])` on `Customer`,
 `@@unique([sku, userId])` on `Product` (per-tenant, not global).
 
@@ -309,8 +324,9 @@ Production DDL: `prisma/production/20261020_stage2_3_delta.sql` (suppliers,
 purchases, reminders), `prisma/production/20261023_follow_ups.sql` (the
 `FollowUp` table), `prisma/production/20261023_sale_due_date.sql` (sale due
 dates), `prisma/production/20261023_sale_discount.sql` (sale discounts),
-`prisma/production/20261024_audit_log.sql` (audit trail) and
+`prisma/production/20261024_audit_log.sql` (audit trail),
 `prisma/production/20261024_customer_company.sql` (optional shop/company name)
+and `prisma/production/20261025_purchase_due_date.sql` (purchase pay-by dates)
 — all additive, transactional where relevant, idempotent. The stage 2-3 file
 was applied twice to a scratch database and verified to produce a schema
 identical to Prisma's.
@@ -323,7 +339,7 @@ No schema change was needed for the three new voice write intents.
 
 | Item | Status | Blocker |
 |---|---|---|
-| Production deploy | not started | the six additive DDL files must be applied to Supabase (needs the DB password or approval to run DDL); `GEMINI_API_KEY` must be added to Vercel |
+| Production deploy | not started | the seven additive DDL files must be applied to Supabase (needs the DB password or approval to run DDL); `GEMINI_API_KEY` must be added to Vercel |
 | Push `main` / open PR | deliberately not done | waiting for your review + the production delta |
 | Billing / paid tier | intentionally off | `BILLING_ENABLED` defaults to false, so no feature is paywalled and no payment is simulated. The trial + redemption-code foundation remains; enabling billing requires a real provider. |
 | Forgot-password / reset | does not exist | `PATCH /api/account/password` requires the current password; a reset flow needs an email provider or an admin-issued reset code decision |

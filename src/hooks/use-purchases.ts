@@ -37,6 +37,7 @@ export type CreatePurchaseInput = {
   paidAmount: number | string;
   notes?: string | null;
   date?: string;
+  dueDate?: string | null;
 };
 
 export function useCreatePurchase(supplierId: string) {

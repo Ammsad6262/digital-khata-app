@@ -14,14 +14,14 @@ import {
   deleteReminder,
 } from "@/lib/services/reminders";
 import { ok, fail, parseJsonBody } from "@/lib/utils/api";
-import { requireActiveAccess } from "@/lib/auth/get-current-user";
+import { requireUserId } from "@/lib/auth/get-current-user";
 
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const userId = await requireActiveAccess(req);
+    const userId = await requireUserId(req);
     const { id } = await params;
     const reminder = await getReminder(id, userId);
     return ok(reminder);
@@ -35,7 +35,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const userId = await requireActiveAccess(req);
+    const userId = await requireUserId(req);
     const { id } = await params;
     const { data, error } = await parseJsonBody<Record<string, unknown>>(req);
     if (error) return fail(new Error(error));
@@ -63,7 +63,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const userId = await requireActiveAccess(req);
+    const userId = await requireUserId(req);
     const { id } = await params;
     const result = await deleteReminder(id, userId);
     return ok(result);

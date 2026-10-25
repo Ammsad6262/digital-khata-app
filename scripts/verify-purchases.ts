@@ -8,13 +8,15 @@
 
 import { prisma } from "@/lib/db/prisma";
 import { createSupplier, getSupplierBalance } from "@/lib/services/suppliers";
-import { createPurchase, listPurchasesBySupplier, voidPurchase } from "@/lib/services/purchases";
+import { createPurchase, getPurchase, listPurchasesBySupplier, voidPurchase } from "@/lib/services/purchases";
 import {
   createSupplierPayment,
   listSupplierPayments,
   voidSupplierPayment,
 } from "@/lib/services/supplier-payments";
 import { createProduct, getProductStock } from "@/lib/services/products";
+import { getOverduePayables } from "@/lib/services/payables";
+import { dateStringInTz } from "@/lib/utils/date";
 
 let passed = 0;
 let failed = 0;
@@ -178,6 +180,93 @@ async function main() {
 
     const payments = await listSupplierPayments(supplier.id, userA.id);
     check("voided payment still listed (audit trail)", payments.length === 1 && !!payments[0]?.voidedAt);
+
+    // ── Test 9: due dates + overdue payables allocation ──────────────
+    console.log("\n── Test 9: purchase due dates and overdue payables ──");
+    const dueSupplier = await createSupplier(
+      { name: "Due Date Supplier", openingBalance: 0 },
+      userA.id,
+    );
+    const tenDaysAgo = dateStringInTz(new Date(Date.now() - 10 * 86_400_000));
+    const yesterday = dateStringInTz(new Date(Date.now() - 86_400_000));
+
+    const oldInvoice = await createPurchase(
+      {
+        supplierId: dueSupplier.id,
+        items: [{ productId: product.id, quantity: 1, unitCost: 1000 }],
+        paidAmount: 0,
+        dueDate: tenDaysAgo,
+      },
+      userA.id,
+    );
+    const recentInvoice = await createPurchase(
+      {
+        supplierId: dueSupplier.id,
+        items: [{ productId: product.id, quantity: 1, unitCost: 500 }],
+        paidAmount: 0,
+        dueDate: yesterday,
+      },
+      userA.id,
+    );
+    const noDueInvoice = await createPurchase(
+      {
+        supplierId: dueSupplier.id,
+        items: [{ productId: product.id, quantity: 1, unitCost: 300 }],
+        paidAmount: 0,
+      },
+      userA.id,
+    );
+
+    check(
+      "due date stored on the purchase",
+      !!oldInvoice.dueDate && dateStringInTz(oldInvoice.dueDate) === tenDaysAgo,
+      String(oldInvoice.dueDate),
+    );
+    check("overdue invoice is flagged", oldInvoice.isOverdue === true);
+    check("invoice without a due date is not overdue", noDueInvoice.isOverdue === false);
+
+    // An unlinked payment pays the oldest open invoice first, then the next.
+    await createSupplierPayment(
+      { supplierId: dueSupplier.id, amount: 1200, method: "cash" },
+      userA.id,
+    );
+
+    const duePurchases = await listPurchasesBySupplier(dueSupplier.id, userA.id);
+    const oldView = duePurchases.find((p) => p.id === oldInvoice.id);
+    const recentView = duePurchases.find((p) => p.id === recentInvoice.id);
+    const noDueView = duePurchases.find((p) => p.id === noDueInvoice.id);
+
+    check("oldest invoice is fully paid by allocation", oldView?.remaining === "0", String(oldView?.remaining));
+    check("recent invoice receives the next allocation", recentView?.remaining === "300", String(recentView?.remaining));
+    check("invoice without due date is paid last", noDueView?.remaining === "300", String(noDueView?.remaining));
+
+    const recentSingle = await getPurchase(recentInvoice.id, userA.id);
+    check(
+      "single-purchase view uses the same allocation as the list",
+      recentSingle.remaining === "300",
+      recentSingle.remaining,
+    );
+    await expectFailure(
+      "another tenant cannot fetch the purchase",
+      () => getPurchase(recentInvoice.id, userB.id),
+    );
+
+    const overdue = await getOverduePayables(userA.id);
+    check("one overdue payable remains", overdue.count === 1, String(overdue.count));
+    check("overdue total is 300", overdue.total === "300", overdue.total);
+    check("overdue row is the recent invoice", overdue.rows[0]?.purchaseId === recentInvoice.id, String(overdue.rows[0]?.purchaseId));
+    check("days overdue = 1", overdue.rows[0]?.daysOverdue === 1, String(overdue.rows[0]?.daysOverdue));
+    check(
+      "paid oldest invoice is not listed as overdue",
+      !overdue.rows.some((row) => row.purchaseId === oldInvoice.id),
+    );
+    check(
+      "invoice without due date is not listed as overdue",
+      !overdue.rows.some((row) => row.purchaseId === noDueInvoice.id),
+    );
+
+    const otherOverdue = await getOverduePayables(userB.id);
+    check("overdue payables are tenant-isolated", otherOverdue.count === 0 && otherOverdue.total === "0");
   } finally {
     console.log("\n── Cleanup ──");
     await prisma.user.deleteMany({ where: { id: { in: [userA.id, userB.id] } } });

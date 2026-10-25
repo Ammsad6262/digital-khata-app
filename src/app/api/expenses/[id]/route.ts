@@ -2,14 +2,14 @@ import { NextRequest } from "next/server";
 import { getExpense, updateExpense, voidExpense } from "@/lib/services/expenses";
 import { ok, fail, parseJsonBody } from "@/lib/utils/api";
 import { BadRequestError } from "@/lib/errors";
-import { requireActiveAccess } from "@/lib/auth/get-current-user";
+import { requireUserId } from "@/lib/auth/get-current-user";
 
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const userId = await requireActiveAccess(req);
+    const userId = await requireUserId(req);
     const { id } = await params;
     const expense = await getExpense(id, userId);
     return ok(expense);
@@ -23,7 +23,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const userId = await requireActiveAccess(req);
+    const userId = await requireUserId(req);
     const { id } = await params;
     const { data, error } = await parseJsonBody<unknown>(req);
     if (error) return fail(new Error(error));
@@ -39,7 +39,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const userId = await requireActiveAccess(req);
+    const userId = await requireUserId(req);
     const { id } = await params;
     const url = new URL(req.url);
     const action = url.searchParams.get("action");

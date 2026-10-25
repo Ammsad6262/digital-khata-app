@@ -8,14 +8,14 @@
 import { NextRequest } from "next/server";
 import { updateFollowUp } from "@/lib/services/follow-ups";
 import { ok, fail, parseJsonBody } from "@/lib/utils/api";
-import { requireActiveAccess } from "@/lib/auth/get-current-user";
+import { requireUserId } from "@/lib/auth/get-current-user";
 
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const userId = await requireActiveAccess(req);
+    const userId = await requireUserId(req);
     const { id } = await params;
     const { data, error } = await parseJsonBody<unknown>(req);
     if (error) return fail(new Error(error));

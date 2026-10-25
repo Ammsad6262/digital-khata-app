@@ -36,6 +36,7 @@ import { useReport, type ReportQuery } from "@/hooks/use-report";
 import { useCurrencySymbol } from "@/hooks/use-currency-symbol";
 import { useLanguage } from "@/providers/language-provider";
 import { cn } from "@/lib/utils/cn";
+import { formatDate } from "@/lib/utils/date";
 import type { TranslationKey } from "@/lib/i18n/translations";
 import type { ReportData, ReportLimitation } from "@/lib/services/reports";
 
@@ -235,6 +236,25 @@ export function ReportsView() {
     add("Stock products", data.position.stockProducts);
     add("Stock not valued", data.position.stockNotValued);
     add("Overdue receivables", data.position.overdue);
+    add("");
+    add("Overdue payables");
+    add("Total overdue", data.overduePayables.total);
+    add("Invoices", data.overduePayables.count);
+    add("Suppliers", data.overduePayables.suppliersCount);
+    for (const row of data.overduePayables.rows) {
+      add(
+        "Supplier",
+        row.supplierName,
+        "Invoice",
+        row.purchaseId,
+        "Due",
+        row.dueDate,
+        "Days overdue",
+        row.daysOverdue,
+        "Remaining",
+        row.remaining,
+      );
+    }
     add("");
     add("Compared with previous period", `${data.comparison.from} to ${data.comparison.to}`);
     add("Sales billed (previous)", data.comparison.salesBilled);
@@ -698,6 +718,90 @@ export function ReportsView() {
                 </Link>
               </div>
             ) : null}
+          </Section>
+
+          {/* ── Overdue payables ──────────────────────────────────────── */}
+          <Section
+            title={t("reports.overduePayables")}
+            hint={t("reports.overduePayablesHint")}
+            icon={<Truck className="h-4 w-4" />}
+          >
+            {data.overduePayables.count === 0 ? (
+              <p className="text-sm text-slate-500">{t("reports.noOverduePayables")}</p>
+            ) : (
+              <>
+                <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2">
+                  <p className="text-sm font-bold text-red-800">
+                    <Money value={data.overduePayables.total} symbol={symbol} />
+                  </p>
+                  <p className="text-[11px] font-medium text-red-700">
+                    {countLabel(
+                      data.overduePayables.count,
+                      "reports.invoicesCountOne",
+                      "reports.invoicesCount",
+                    )}{" "}
+                    ·{" "}
+                    {countLabel(
+                      data.overduePayables.suppliersCount,
+                      "reports.suppliersCountOne",
+                      "reports.suppliersCount",
+                    )}
+                  </p>
+                </div>
+                <ul className="divide-y divide-slate-100">
+                  {data.overduePayables.rows.map((row) => (
+                    <li
+                      key={row.purchaseId}
+                      className="flex items-start justify-between gap-3 py-2"
+                    >
+                      <div className="min-w-0">
+                        <Link
+                          href={`/more/suppliers/${row.supplierId}`}
+                          className="block truncate text-sm font-medium text-slate-900 hover:underline"
+                        >
+                          {row.supplierName}
+                        </Link>
+                        <p className="text-[11px] text-slate-500">
+                          {t("purchase.dueOn")}: {formatDate(row.dueDate)} ·{" "}
+                          <span className="font-semibold text-red-600">
+                            {countLabel(
+                              row.daysOverdue,
+                              "reports.daysOverdueOne",
+                              "reports.daysOverdue",
+                            )}
+                          </span>
+                        </p>
+                      </div>
+                      <div className="shrink-0 text-right">
+                        <p className="text-sm font-semibold tabular-nums text-amber-800">
+                          <Money value={row.remaining} symbol={symbol} />
+                        </p>
+                        <Link
+                          href={`/more/suppliers/${row.supplierId}`}
+                          className="text-[11px] font-semibold text-brand-700 hover:underline"
+                        >
+                          {t("reports.paySupplier")}
+                        </Link>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+                {data.overduePayables.count > data.overduePayables.rows.length ? (
+                  <p className="mt-2 text-[11px] text-slate-500">
+                    {tParams("reports.showingOldest", {
+                      shown: data.overduePayables.rows.length,
+                      count: data.overduePayables.count,
+                    })}
+                  </p>
+                ) : null}
+                <Link
+                  href="/more/suppliers"
+                  className="mt-2 inline-block text-[11px] font-semibold text-brand-700 hover:underline"
+                >
+                  {t("reports.viewSuppliers")}
+                </Link>
+              </>
+            )}
           </Section>
 
           {/* ── Top products ───────────────────────────────────────────── */}

@@ -13,6 +13,7 @@ import { createSupplier } from "@/lib/services/suppliers";
 import { createPurchase } from "@/lib/services/purchases";
 import { createSupplierPayment } from "@/lib/services/supplier-payments";
 import { createReminder } from "@/lib/services/reminders";
+import { dateStringInTz } from "@/lib/utils/date";
 
 const prisma = new PrismaClient();
 const email = process.argv[2] ?? "sadatrehman2004@gmail.com";
@@ -72,6 +73,8 @@ async function main() {
         items: [{ productId: product.id, quantity: qty, unitCost: cost }],
         paidAmount: paid,
         notes: "Demo purchase seeded locally",
+        date: dateStringInTz(new Date(Date.now() - 15 * 86_400_000)),
+        dueDate: dateStringInTz(new Date(Date.now() - 5 * 86_400_000)),
       },
       userId,
     );

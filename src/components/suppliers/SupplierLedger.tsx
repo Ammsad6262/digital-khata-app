@@ -16,6 +16,7 @@ import { EmptyState } from "@/components/shared/EmptyState";
 import { useLanguage } from "@/providers/language-provider";
 import { useCurrencySymbol } from "@/hooks/use-currency-symbol";
 import { useToast } from "@/providers/toast-provider";
+import { formatDate } from "@/lib/utils/date";
 import {
   usePurchasesBySupplier,
   useVoidPurchase,
@@ -116,6 +117,18 @@ export function SupplierLedger({ supplierId }: { supplierId: string }) {
                       <p className="truncate text-xs text-slate-500">
                         {p.items.map((i) => `${i.productName} × ${i.quantity}`).join(", ")}
                       </p>
+                      {p.dueDate ? (
+                        <p
+                          className={`mt-0.5 text-[11px] ${
+                            p.isOverdue
+                              ? "font-semibold text-red-600"
+                              : "text-slate-500"
+                          }`}
+                        >
+                          {t("purchase.dueOn")}: {formatDate(p.dueDate)}
+                          {p.isOverdue ? ` · ${t("reports.overdue")}` : ""}
+                        </p>
+                      ) : null}
                     </div>
                     <div className="shrink-0 text-right">
                       <p className="text-sm font-semibold text-slate-900">

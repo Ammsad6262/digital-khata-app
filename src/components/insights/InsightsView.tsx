@@ -158,8 +158,18 @@ export function InsightsView() {
                 <Money value={data.overdue.total} symbol={symbol} />
               </p>
               <p className="text-[11px] text-red-700">
-                {data.overdue.salesCount} {t("insights.salesWord")} ·{" "}
-                {data.overdue.customersCount} {t("insights.customers")}
+                {data.overdue.salesCount}{" "}
+                {t(
+                  data.overdue.salesCount === 1
+                    ? "insights.saleOne"
+                    : "insights.salesWord",
+                )}{" "}
+                · {data.overdue.customersCount}{" "}
+                {t(
+                  data.overdue.customersCount === 1
+                    ? "insights.customerOne"
+                    : "insights.customers",
+                )}
               </p>
               <p className="mt-0.5 text-[11px] text-red-600">{t("insights.overdueHint")}</p>
             </div>
@@ -168,6 +178,45 @@ export function InsightsView() {
               className="shrink-0 rounded-lg border border-red-300 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-red-700 hover:bg-red-100"
             >
               {t("insights.viewSales")}
+            </Link>
+          </div>
+        </div>
+      ) : null}
+
+      {/* Overdue supplier invoices — only when one actually exists */}
+      {Number(data.overduePayables.total) > 0 ? (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-3.5">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-xs font-medium text-amber-800">
+                {t("insights.overduePayables")}
+              </p>
+              <p className="mt-1 text-lg font-bold text-amber-900">
+                <Money value={data.overduePayables.total} symbol={symbol} />
+              </p>
+              <p className="text-[11px] text-amber-800">
+                {data.overduePayables.invoicesCount}{" "}
+                {t(
+                  data.overduePayables.invoicesCount === 1
+                    ? "insights.invoiceOne"
+                    : "insights.invoices",
+                )}{" "}
+                · {data.overduePayables.suppliersCount}{" "}
+                {t(
+                  data.overduePayables.suppliersCount === 1
+                    ? "insights.supplierOne"
+                    : "insights.suppliers",
+                )}
+              </p>
+              <p className="mt-0.5 text-[11px] text-amber-700">
+                {t("insights.overduePayablesHint")}
+              </p>
+            </div>
+            <Link
+              href="/more/suppliers"
+              className="shrink-0 rounded-lg border border-amber-300 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-amber-800 hover:bg-amber-100"
+            >
+              {t("insights.viewSuppliers")}
             </Link>
           </div>
         </div>

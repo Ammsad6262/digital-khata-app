@@ -24,7 +24,7 @@ import {
   currentMonthRange,
   type ReportData,
 } from "@/lib/services/reports";
-import { dateStringInTz, todayDateStringInTz } from "@/lib/utils/date";
+import { dateStringInTz, todayDateStringInTz, startOfDayInTz } from "@/lib/utils/date";
 import { computeStockValuation } from "@/lib/utils/stock-valuation";
 
 let passed = 0;
@@ -61,6 +61,10 @@ async function main() {
   const now = new Date();
   const oldDate = new Date(Date.now() - 40 * 86_400_000);
   const oldDay = dateStringInTz(oldDate, TZ);
+  const twoDaysAgo = startOfDayInTz(
+    dateStringInTz(new Date(Date.now() - 2 * 86_400_000), TZ),
+    TZ,
+  );
 
   console.log("\n== Setup ==");
   const userA = await prisma.user.create({
@@ -299,6 +303,7 @@ async function main() {
         paidAmount: 2000,
         outstanding: 3000,
         date: now,
+        dueDate: twoDaysAgo,
       },
     });
     await prisma.supplierPayment.create({
@@ -398,6 +403,29 @@ async function main() {
     // Payables: opening 2,000 + outstanding 3,000 + 0 − supplier payment 1,000.
     check("payables are as of now (4,000)", money(report.position.payables) === 4000, report.position.payables);
     check("one supplier is owed", report.position.payablesCount === 1, String(report.position.payablesCount));
+    check(
+      "overdue payables total 2,000",
+      money(report.overduePayables.total) === 2000,
+      report.overduePayables.total,
+    );
+    check("one purchase invoice is overdue", report.overduePayables.count === 1, String(report.overduePayables.count));
+    check(
+      "one supplier has an overdue invoice",
+      report.overduePayables.suppliersCount === 1,
+      String(report.overduePayables.suppliersCount),
+    );
+    check(
+      "overdue row carries the supplier, due date and 2 days late",
+      report.overduePayables.rows[0]?.supplierName === "Karachi Wholesale" &&
+        report.overduePayables.rows[0]?.purchaseId === purchase.id &&
+        report.overduePayables.rows[0]?.daysOverdue === 2,
+      JSON.stringify(report.overduePayables.rows[0]),
+    );
+    check(
+      "overdue payables never exceed total payables",
+      money(report.overduePayables.total) <= money(report.position.payables),
+      `${report.overduePayables.total} > ${report.position.payables}`,
+    );
     // Stock: rice opening 0 + purchased 20 − sold 17 = 3 bags × 120. Sugar is
     // −2 (ignored); salt is 5 × 0 (unvalued, counted separately).
     check("stock value = 360", money(report.position.stockValue) === 360, report.position.stockValue);
@@ -509,6 +537,10 @@ async function main() {
       foreignReport.topProducts.length === 1 && foreignReport.topProducts[0]?.name === "Foreign Item",
     );
     check("another tenant's receivables are their own", money(foreignReport.position.receivables) === 1776, foreignReport.position.receivables);
+    check(
+      "another tenant's overdue payables are invisible",
+      foreignReport.overduePayables.count === 0 && money(foreignReport.overduePayables.total) === 0,
+    );
 
     // ── Cleanup ──────────────────────────────────────────────────────────
     console.log("\n== Cleanup ==");

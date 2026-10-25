@@ -37,6 +37,7 @@ import {
 import { getProfitLossRange, type ProfitLossPeriod } from "@/lib/services/profit-loss";
 import { listOutstandingCustomers } from "@/lib/services/customers";
 import { listSuppliersWithBalance } from "@/lib/services/suppliers";
+import { getOverduePayables } from "@/lib/services/payables";
 import { listProductsWithStock } from "@/lib/services/products";
 import { getOverdueSummary } from "@/lib/services/sales";
 import { computeStockValuation } from "@/lib/utils/stock-valuation";
@@ -117,6 +118,15 @@ export type ReportLowStockProduct = {
   lowStockThreshold: number;
 };
 
+export type ReportOverduePayable = {
+  purchaseId: string;
+  supplierId: string;
+  supplierName: string;
+  remaining: string;
+  dueDate: string;
+  daysOverdue: number;
+};
+
 /**
  * Same-length window immediately before the selected one. Percent changes are
  * null when the previous window had no figure to compare against — we never
@@ -178,6 +188,14 @@ export type ReportData = {
     overdue: string;
     overdueSalesCount: number;
     overdueCustomersCount: number;
+  };
+  /** Open purchase invoices whose agreed pay-by date has passed (as of today). */
+  overduePayables: {
+    total: string;
+    count: number;
+    suppliersCount: number;
+    /** Oldest due date first, capped for display. */
+    rows: ReportOverduePayable[];
   };
   topProducts: ReportTopProduct[];
   followUps: ReportFollowUps;
@@ -402,6 +420,7 @@ export async function getReport(
     suppliersList,
     products,
     overdueSummary,
+    overduePayables,
     topRows,
     missingCostLines,
     followUpGroups,
@@ -468,6 +487,7 @@ export async function getReport(
     listSuppliersWithBalance(userId),
     listProductsWithStock(userId),
     getOverdueSummary(userId),
+    getOverduePayables(userId),
     prisma.saleItem.groupBy({
       by: ["productId"],
       _sum: { quantity: true, total: true },
@@ -747,6 +767,19 @@ export async function getReport(
       overdue: overdueSummary.total,
       overdueSalesCount: overdueSummary.salesCount,
       overdueCustomersCount: overdueSummary.customersCount,
+    },
+    overduePayables: {
+      total: overduePayables.total,
+      count: overduePayables.count,
+      suppliersCount: overduePayables.suppliersCount,
+      rows: overduePayables.rows.slice(0, 10).map((row) => ({
+        purchaseId: row.purchaseId,
+        supplierId: row.supplierId,
+        supplierName: row.supplierName,
+        remaining: row.remaining,
+        dueDate: row.dueDate,
+        daysOverdue: row.daysOverdue,
+      })),
     },
     topProducts,
     followUps,

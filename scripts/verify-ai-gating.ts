@@ -14,6 +14,7 @@ import { POST as executePOST } from "@/app/api/smart-entry/execute/route";
 import { POST as cancelPOST } from "@/app/api/smart-entry/cancel/route";
 import { GET as growthGET } from "@/app/api/growth/route";
 import { POST as growthSummaryPOST } from "@/app/api/growth/summary/route";
+import { GET as customersGET } from "@/app/api/customers/route";
 import { BILLING_ENABLED } from "@/lib/services/subscription";
 
 let passed = 0;
@@ -101,6 +102,15 @@ async function main() {
       makeReq("/api/smart-entry/interpret", "not-a-token", body),
     );
     check("invalid token → 401", unauthorized.status === 401, `got ${unauthorized.status}`);
+
+    // Core bookkeeping is not part of the AI entitlement. An expired trial can
+    // still read its own customer list, whether or not billing is configured.
+    const coreRes = await customersGET(makeGet("/api/customers", expired.token));
+    check(
+      "core customer list is not paywalled for an expired account",
+      coreRes.status === 200,
+      `got ${coreRes.status}`,
+    );
 
     const growthRes = await growthGET(makeGet("/api/growth", expired.token));
     gateCheck("growth plan", growthRes.status);

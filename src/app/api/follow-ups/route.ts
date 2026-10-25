@@ -15,7 +15,7 @@ import {
   createFollowUp,
 } from "@/lib/services/follow-ups";
 import { ok, fail, parseJsonBody, getQueryParam } from "@/lib/utils/api";
-import { requireActiveAccess } from "@/lib/auth/get-current-user";
+import { requireUserId } from "@/lib/auth/get-current-user";
 
 type Filter = "open" | "resolved" | "all";
 
@@ -25,7 +25,7 @@ function parseFilter(value: string | null | undefined): Filter {
 
 export async function GET(req: NextRequest) {
   try {
-    const userId = await requireActiveAccess(req);
+    const userId = await requireUserId(req);
     const filter = parseFilter(getQueryParam(req, "filter"));
 
     const [items, stats] = await Promise.all([
@@ -41,7 +41,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const userId = await requireActiveAccess(req);
+    const userId = await requireUserId(req);
     const { data, error } = await parseJsonBody<unknown>(req);
     if (error) return fail(new Error(error));
 

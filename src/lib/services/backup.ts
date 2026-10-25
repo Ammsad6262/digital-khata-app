@@ -975,6 +975,7 @@ function deserializePurchase(row: Record<string, unknown>) {
     outstanding: new Decimal(row.outstanding as string | number),
     notes: (row.notes as string | null) ?? null,
     date: deserializeDate(row.date),
+    dueDate: row.dueDate ? deserializeDate(row.dueDate) : null,
     voidedAt: row.voidedAt ? deserializeDate(row.voidedAt) : null,
     createdAt: deserializeDate(row.createdAt),
     updatedAt: deserializeDate(row.updatedAt),

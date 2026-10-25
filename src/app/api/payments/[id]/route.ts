@@ -2,14 +2,14 @@ import { NextRequest } from "next/server";
 import { getPayment, voidPayment, updatePayment } from "@/lib/services/payments";
 import { ok, fail, parseJsonBody } from "@/lib/utils/api";
 import { BadRequestError } from "@/lib/errors";
-import { requireActiveAccess } from "@/lib/auth/get-current-user";
+import { requireUserId } from "@/lib/auth/get-current-user";
 
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const userId = await requireActiveAccess(req);
+    const userId = await requireUserId(req);
     const { id } = await params;
     const payment = await getPayment(id, userId);
     return ok(payment);
@@ -29,7 +29,7 @@ export async function GET(
  * denormalized paidAmount + outstanding columns are recomputed atomically.
  *
  * Security:
- *   - userId from JWT cookie via requireActiveAccess
+ *   - userId from JWT cookie via requireUserId
  *   - getPayment() throws 404 if not owned by this user / voided
  *   - All mutations happen in a single prisma.$transaction (atomic)
  */
@@ -38,7 +38,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const userId = await requireActiveAccess(req);
+    const userId = await requireUserId(req);
     const { id } = await params;
     const { data, error } = await parseJsonBody<unknown>(req);
     if (error) return fail(new Error(error));
@@ -55,7 +55,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const userId = await requireActiveAccess(req);
+    const userId = await requireUserId(req);
     const { id } = await params;
     const url = new URL(req.url);
     const action = url.searchParams.get("action");

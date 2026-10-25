@@ -11,14 +11,14 @@ import {
   createSupplierPayment,
 } from "@/lib/services/supplier-payments";
 import { ok, fail, parseJsonBody } from "@/lib/utils/api";
-import { requireActiveAccess } from "@/lib/auth/get-current-user";
+import { requireUserId } from "@/lib/auth/get-current-user";
 
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const userId = await requireActiveAccess(req);
+    const userId = await requireUserId(req);
     const { id } = await params;
     const data = await listSupplierPayments(id, userId);
     return ok(data);
@@ -32,7 +32,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const userId = await requireActiveAccess(req);
+    const userId = await requireUserId(req);
     const { id } = await params;
     const { data, error } = await parseJsonBody<unknown>(req);
     if (error) return fail(new Error(error));

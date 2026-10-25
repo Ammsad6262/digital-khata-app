@@ -76,6 +76,7 @@ async function main() {
     );
 
     const dueDateInput = "2026-10-30";
+    const purchaseDueDateInput = "2026-11-15";
     const sale = await createSale(
       {
         customerId: customer.id,
@@ -96,6 +97,7 @@ async function main() {
         supplierId: supplier.id,
         items: [{ productId: product.id, quantity: 10, unitCost: 100, batchName: "Backup batch" }],
         paidAmount: 400,
+        dueDate: purchaseDueDateInput,
       },
       userA.id,
     );
@@ -134,6 +136,13 @@ async function main() {
       await prisma.sale.findUnique({ where: { id: sale.id }, select: { dueDate: true } })
     )?.dueDate?.toISOString();
     check("setup saved a due date", !!originalDue);
+    const originalPurchaseDue = (
+      await prisma.purchase.findUnique({
+        where: { id: purchase.id },
+        select: { dueDate: true },
+      })
+    )?.dueDate?.toISOString();
+    check("setup saved a purchase due date", !!originalPurchaseDue);
 
     // ── Export ──
     console.log("\n== Export ==");
@@ -148,6 +157,12 @@ async function main() {
     const saleRow = exported.data.sales.find((s) => s.id === sale.id);
     check("sale discount exported", String(saleRow?.discountAmount) === "50", String(saleRow?.discountAmount));
     check("sale due date exported", String(saleRow?.dueDate) === originalDue, String(saleRow?.dueDate));
+    const purchaseRow = exported.data.purchases.find((p) => p.id === purchase.id);
+    check(
+      "purchase due date exported",
+      String(purchaseRow?.dueDate) === originalPurchaseDue,
+      String(purchaseRow?.dueDate),
+    );
 
     const customerRow = exported.data.customers.find((c) => c.id === customer.id);
     check("next follow-up date exported", !!customerRow?.nextFollowUpAt);
@@ -231,6 +246,11 @@ async function main() {
       include: { items: { include: { stockMove: true } } },
     });
     check("purchase restored", !!purchaseAfter);
+    check(
+      "purchase due date restored",
+      purchaseAfter?.dueDate?.toISOString() === originalPurchaseDue,
+      purchaseAfter?.dueDate?.toISOString(),
+    );
     check("purchase item restored", purchaseAfter?.items.length === 1, purchaseAfter?.items.length);
     check(
       "purchase item batch restored",

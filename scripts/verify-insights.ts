@@ -137,6 +137,7 @@ async function main() {
         paidAmount: 0,
         outstanding: 700,
         date: d5,
+        dueDate: d5,
       },
     });
 
@@ -178,6 +179,13 @@ async function main() {
     // Payables
     check("payables total = 1200", insights.payables.total === "1200", insights.payables.total);
     check("payables supplier count = 1", insights.payables.suppliersCount === 1, `${insights.payables.suppliersCount}`);
+    check(
+      "overdue payable is reported from the purchase due date",
+      insights.overduePayables.total === "700" &&
+        insights.overduePayables.invoicesCount === 1 &&
+        insights.overduePayables.suppliersCount === 1,
+      JSON.stringify(insights.overduePayables),
+    );
 
     // Inactive customers
     check(
@@ -197,6 +205,10 @@ async function main() {
     check("empty business has no slow movers", empty.slowMovers.length === 0);
     check("empty business receivables = 0", empty.receivables.total === "0", empty.receivables.total);
     check("empty business payables = 0", empty.payables.total === "0", empty.payables.total);
+    check(
+      "empty business has no overdue payables",
+      empty.overduePayables.total === "0" && empty.overduePayables.invoicesCount === 0,
+    );
     check("empty business has no trend baseline", empty.salesTrend.changePct === null);
     check("empty business month sales = 0", empty.salesTrend.thisMonth === "0", empty.salesTrend.thisMonth);
 

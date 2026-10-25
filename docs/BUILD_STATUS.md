@@ -96,9 +96,9 @@ counted exactly once. Applied in `getSupplierBalance`, `listSuppliersWithBalance
   → `CREATE_CREDIT_SALE`, Ahmed, Rice, 5 box, 1200, paid 2000.
 
 ### Verification
-- `scripts/verify-purchases.ts` → **27/27 passed** — stock in/out, payable math,
+- `scripts/verify-purchases.ts` → **42/42 passed** — stock in/out, payable math,
   part-payment, overpay guard, duplicate guard, tenant isolation ×3, void guards,
-  ledger sync.
+  ledger sync, purchase due dates and oldest-due-first overdue allocation.
 - `scripts/verify-platform.ts` → **9/9 passed**
 - `scripts/verify-ai.ts` → real Gemini call OK
 - `npm run typecheck` → clean
@@ -150,9 +150,10 @@ has not deployed anything.
   a missing baseline returns `changePct: null` instead of inventing a number.
 
 ### Verification
-- `scripts/verify-insights.ts` → **24/24 passed** — 30-day window boundaries,
+- `scripts/verify-insights.ts` → **26/26 passed** — 30-day window boundaries,
   top-product ordering, slow-mover stock value, month totals, receivables,
-  payables, inactive-customer detection, empty business, tenant isolation.
+  payables, overdue payables, inactive-customer detection, empty business,
+  tenant isolation.
 
 ---
 
@@ -632,6 +633,58 @@ there was nothing to be overdue against.
 
 ---
 
+## Completed — purchase due dates and overdue payables
+
+The sale side already had agreed dates; the supplier side did not, so reports
+could not honestly label a payable as overdue. This closes that gap.
+
+- **`Purchase.dueDate`** (nullable) — optional agreed pay-by date, stored as
+  midnight in the business timezone. Production DDL:
+  `prisma/production/20261025_purchase_due_date.sql` (additive, idempotent).
+- **The rule**: a purchase is overdue only when `remaining > 0` **and**
+  `dueDate < start of today`. Due today is not overdue; a purchase with no due
+  date is never overdue. Supplier opening balances have no due date, so they are
+  never labelled overdue.
+- **Allocation is explicit**: payments linked to an invoice pay that invoice.
+  Supplier payments with no invoice link are applied to open invoices
+  oldest-due-first (no-due-date invoices last). This is a display/report
+  allocation only; it never rewrites `Purchase.outstanding` or the supplier's
+  payable. The report limitation states this in plain language.
+- **Purchase form**: optional "Pay by" field with a hint.
+- **Supplier ledger**: shows the agreed date and marks an overdue invoice.
+  "Remaining" now reflects all allocated payments, not only payments explicitly
+  linked to that invoice.
+- **Reports**: a new **Overdue payables** section with total, invoice count,
+  supplier count, oldest-first rows, due date, days late and a tap-through to the
+  supplier. CSV export includes the same rows. The old "payables have no due
+  date" limitation was replaced with the real allocation rule.
+- **Insights**: an amber overdue-supplier strip appears only when an invoice is
+  actually past its date.
+- **Backup**: purchase due dates are exported and restored exactly; older
+  backups without the field still import.
+
+### Verification
+- `scripts/verify-purchases.ts` — **42/42**, including due-date storage, overdue
+  flag, unlinked-payment allocation oldest-due-first, no-due-date exclusion,
+  invoice-level remaining, single-invoice consistency, and tenant isolation.
+- `scripts/verify-reports.ts` — **67/67**, including overdue-payable total,
+  invoice/supplier counts, days late, the rule that overdue payables cannot
+  exceed total payables, and tenant isolation.
+- `scripts/verify-insights.ts` — **26/26**, including the overdue-payable strip
+  data and an empty business reporting zero.
+- `scripts/verify-backup.ts` — **42/42**, including purchase due-date export and
+  restore.
+- `npx tsc --noEmit` clean.
+
+### AI routing schema fix
+Gemini's native response schema still listed only the original ten query types.
+`LOW_STOCK`, `INACTIVE_CUSTOMERS`, `OVERDUE_CUSTOMERS`, `REORDER_CANDIDATES`
+and `SUPPLIER_PURCHASES` were accepted by the prompt and Zod validator but could
+not be returned by the model. All five are now in the schema enum. A live
+spot-check maps "Show products that are running low" to `LOW_STOCK`.
+
+---
+
 ## Completed — whole-sale discounts
 
 A wholesale sale often ends in "give me 500 off". Until now the only way to do
@@ -725,7 +778,7 @@ and erased due dates and follow-up dates.
 - **Full JSON backup now includes** suppliers, purchases, purchase items,
   supplier payments, reminders and follow-ups, in dependency-safe order.
 - **Missing fields are restored**: `Sale.discountAmount`, `Sale.dueDate`,
-  `Customer.nextFollowUpAt`, `StockMove.batchName` /
+  `Purchase.dueDate`, `Customer.nextFollowUpAt`, `StockMove.batchName` /
   `remainingQuantity`, and the supplier link on ledger transactions.
 - **Old backups still import.** A file made before these tables existed is
   accepted, with empty newer tables, instead of failing.
@@ -735,10 +788,11 @@ and erased due dates and follow-up dates.
 - **CSV export** now offers the same new tables.
 
 ### Verification
-- `npx tsx scripts/verify-backup.ts` — **39/39** assertions: export counts,
-  discount/due-date/follow-up round trip, purchase batch and ledger link,
-  stock rebuilt without double counting, other business untouched, corrupt
-  backup rejected with no changes, and an old-format backup importing cleanly.
+- `npx tsx scripts/verify-backup.ts` — **42/42** assertions: export counts,
+  discount/sale-due-date/purchase-due-date/follow-up round trip, purchase batch
+  and ledger link, stock rebuilt without double counting, other business
+  untouched, corrupt backup rejected with no changes, and an old-format backup
+  importing cleanly.
 - `tsc --noEmit` clean.
 
 ---
@@ -761,8 +815,8 @@ and erased due dates and follow-up dates.
   download cannot disagree with the report. It includes every section and the
   limitations.
 - `scripts/verify-reports.ts` now covers the comparison window, method
-  breakdown, balance lists, low stock, customer-wise sales and supplier-wise
-  purchases — **61/61**.
+  breakdown, balance lists, low stock, customer-wise sales, supplier-wise
+  purchases and overdue payables — **67/67**.
 
 ### Payment recovery (`/more/recovery`)
 - A prioritised collection list built from real open sales. Unlinked payments are
@@ -805,11 +859,11 @@ and erased due dates and follow-up dates.
 - The backup exports and restores `Customer.companyName`.
 
 ### Verification
-- All non-AI suites re-run after these changes: **524 assertions, 0 failures**
-  (platform 9, purchases 27, reminders 24, insights 24, acceptance 31, growth 26,
-  contact-actions 36, statement 19, follow-ups 50, reports 61, receipt 26,
-  due-dates 30, discounts 36, units 9, backup 39, recovery 42, audit 27,
-  AI gating 8 with billing disabled).
+- All non-AI suites re-run after these changes: **551 assertions, 0 failures**
+  (platform 9, purchases 42, reminders 24, insights 26, acceptance 31, growth 26,
+  contact-actions 36, statement 19, follow-ups 50, reports 67, receipt 26,
+  due-dates 30, discounts 36, units 9, backup 42, recovery 42, audit 27,
+  AI gating 9 with billing disabled).
 - `npx tsc --noEmit` and `npm run build` clean.
 
 ---
@@ -825,8 +879,9 @@ and erased due dates and follow-up dates.
 5. **Rotate the Supabase access token** that was shared in chat.
 6. **Production DDL is still pending**: `20261020_stage2_3_delta.sql`,
    `20261023_follow_ups.sql`, `20261023_sale_due_date.sql`,
-   `20261023_sale_discount.sql`, `20261024_audit_log.sql` and
-   `20261024_customer_company.sql`. Apply only with explicit approval.
+   `20261023_sale_discount.sql`, `20261024_audit_log.sql`,
+   `20261024_customer_company.sql` and `20261025_purchase_due_date.sql`.
+   Apply only with explicit approval.
 7. **Forgot-password / reset** needs a decision: email reset link (requires an
    email provider) or an admin-issued reset code. Until then, the signed-in
    change-password screen is the only reset path.

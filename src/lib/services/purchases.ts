@@ -25,6 +25,7 @@ import { invalidateCache } from "@/lib/utils/cache";
 import { recordAudit } from "@/lib/services/audit";
 import { createPurchaseSchema } from "@/lib/schemas/purchase";
 import { getSupplier } from "@/lib/services/suppliers";
+import { startOfDayInTz, startOfTodayInTz } from "@/lib/utils/date";
 import type { Prisma } from "@prisma/client";
 
 const purchaseInclude = {
@@ -63,10 +64,21 @@ export type PurchaseView = {
   remaining: string;
   notes: string | null;
   date: Date;
+  /** Date the supplier agreed to be paid by, if one was recorded. */
+  dueDate: Date | null;
+  /** Remaining > 0 and dueDate is before today (business timezone). */
+  isOverdue: boolean;
   voidedAt: Date | null;
   createdAt: Date;
   items: PurchaseItemView[];
 };
+
+/** Overdue means there is still money on this invoice and its due date passed. */
+function computeIsOverdue(remaining: Decimal, dueDate: Date | null): boolean {
+  if (!dueDate) return false;
+  if (remaining.lte(0)) return false;
+  return dueDate.getTime() < startOfTodayInTz().getTime();
+}
 
 function toView(p: PurchaseRow, paidSince: Decimal): PurchaseView {
   const remaining = toDecimalOrZero(p.outstanding).minus(paidSince);
@@ -81,6 +93,8 @@ function toView(p: PurchaseRow, paidSince: Decimal): PurchaseView {
     remaining: remaining.toString(),
     notes: p.notes,
     date: p.date,
+    dueDate: p.dueDate,
+    isOverdue: computeIsOverdue(remaining, p.dueDate),
     voidedAt: p.voidedAt,
     createdAt: p.createdAt,
     items: p.items.map((it) => ({
@@ -95,46 +109,127 @@ function toView(p: PurchaseRow, paidSince: Decimal): PurchaseView {
   };
 }
 
-/** Attach post-purchase payment totals in a single grouped query (no N+1). */
-async function decorate(rows: PurchaseRow[]): Promise<PurchaseView[]> {
+/** Attach post-purchase payment totals in grouped queries (no N+1).
+ *
+ * Payments linked to an invoice are applied to that invoice. Payments made
+ * against the supplier's overall balance are applied to open invoices
+ * oldest-due-first (invoices without a due date last). This is a display
+ * allocation only: it never rewrites `Purchase.outstanding` or the supplier
+ * payable.
+ */
+async function decorate(
+  rows: PurchaseRow[],
+  userId: string,
+): Promise<PurchaseView[]> {
   if (rows.length === 0) return [];
-  const grouped = await prisma.supplierPayment.groupBy({
-    by: ["purchaseId"],
-    _sum: { amount: true },
-    where: { purchaseId: { in: rows.map((r) => r.id) }, voidedAt: null },
-  });
-  const map = new Map(
-    grouped.map((g) => [g.purchaseId, toDecimalOrZero(g._sum.amount)]),
+
+  const supplierIds = [...new Set(rows.map((r) => r.supplierId))];
+
+  const [linkedGroups, unlinkedGroups, openRows] = await Promise.all([
+    prisma.supplierPayment.groupBy({
+      by: ["purchaseId"],
+      _sum: { amount: true },
+      where: {
+        purchaseId: { in: rows.map((r) => r.id) },
+        voidedAt: null,
+        userId,
+      },
+    }),
+    prisma.supplierPayment.groupBy({
+      by: ["supplierId"],
+      _sum: { amount: true },
+      where: {
+        supplierId: { in: supplierIds },
+        purchaseId: null,
+        voidedAt: null,
+        userId,
+      },
+    }),
+    // Allocation must consider every open invoice for the supplier, not only
+    // the rows on this screen. Otherwise a single-invoice view would hand it
+    // every unlinked payment and show the wrong remaining amount.
+    prisma.purchase.findMany({
+      where: { userId, voidedAt: null, supplierId: { in: supplierIds } },
+      select: {
+        id: true,
+        supplierId: true,
+        outstanding: true,
+        date: true,
+        dueDate: true,
+      },
+    }),
+  ]);
+
+  const linkedMap = new Map(
+    linkedGroups.map((g) => [g.purchaseId, toDecimalOrZero(g._sum.amount)]),
   );
-  return rows.map((r) => toView(r, map.get(r.id) ?? new Decimal(0)));
+  const unlinkedMap = new Map(
+    unlinkedGroups.map((g) => [g.supplierId, toDecimalOrZero(g._sum.amount)]),
+  );
+
+  const rowsBySupplier = new Map<string, (typeof openRows)[number][]>();
+  for (const row of openRows) {
+    const list = rowsBySupplier.get(row.supplierId) ?? [];
+    list.push(row);
+    rowsBySupplier.set(row.supplierId, list);
+  }
+
+  // Voided rows keep only their directly linked payments.
+  const paidMap = new Map<string, Decimal>();
+  for (const row of rows) {
+    paidMap.set(row.id, linkedMap.get(row.id) ?? new Decimal(0));
+  }
+
+  for (const [supplierId, list] of rowsBySupplier) {
+    let unallocated = unlinkedMap.get(supplierId) ?? new Decimal(0);
+    const ordered = [...list].sort((a, b) => {
+      const aDue = a.dueDate?.getTime() ?? Number.POSITIVE_INFINITY;
+      const bDue = b.dueDate?.getTime() ?? Number.POSITIVE_INFINITY;
+      if (aDue !== bDue) return aDue - bDue;
+      return a.date.getTime() - b.date.getTime();
+    });
+
+    for (const row of ordered) {
+      let paid = linkedMap.get(row.id) ?? new Decimal(0);
+      const remaining = toDecimalOrZero(row.outstanding).minus(paid);
+      if (remaining.gt(0) && unallocated.gt(0)) {
+        const allocated = remaining.lt(unallocated) ? remaining : unallocated;
+        paid = paid.plus(allocated);
+        unallocated = unallocated.minus(allocated);
+      }
+      paidMap.set(row.id, paid);
+    }
+  }
+
+  return rows.map((r) => toView(r, paidMap.get(r.id) ?? new Decimal(0)));
 }
 
 /** List purchases for one supplier (newest first). */
 export async function listPurchasesBySupplier(
   supplierId: string,
-  userId?: string | null,
+  userId: string,
 ): Promise<PurchaseView[]> {
   await getSupplier(supplierId, userId); // 404s if not owned by this tenant
   const rows = await prisma.purchase.findMany({
-    where: { supplierId, ...(userId && { userId }) },
+    where: { supplierId, userId },
     include: purchaseInclude,
     orderBy: { date: "desc" },
     take: 200,
   });
-  return decorate(rows);
+  return decorate(rows, userId);
 }
 
 /** Fetch one purchase (404 if not found / not owned). */
 export async function getPurchase(
   id: string,
-  userId?: string | null,
+  userId: string,
 ): Promise<PurchaseView> {
   const row = await prisma.purchase.findFirst({
-    where: { id, ...(userId && { userId }) },
+    where: { id, userId },
     include: purchaseInclude,
   });
   if (!row) throw new NotFoundError("api.resource.purchase", id);
-  const [view] = await decorate([row]);
+  const [view] = await decorate([row], userId);
   return view!;
 }
 
@@ -195,6 +290,18 @@ export async function createPurchase(
     const outstanding = totalAmount.minus(paid);
     const purchaseDate = data.date ?? new Date();
 
+    // Optional "pay by" date. A bare YYYY-MM-DD is treated as midnight in the
+    // business timezone so "due today" means today, not 5 AM.
+    let dueDate: Date | null = null;
+    if (data.dueDate) {
+      dueDate = /^\d{4}-\d{2}-\d{2}$/.test(data.dueDate)
+        ? startOfDayInTz(data.dueDate)
+        : new Date(data.dueDate);
+      if (!dueDate || Number.isNaN(dueDate.getTime())) {
+        throw new BadRequestError("api.purchase.invalidDueDate");
+      }
+    }
+
     // Double-submit guard: an identical purchase seconds ago is a duplicate.
     const recent = await tx.purchase.findFirst({
       where: {
@@ -218,6 +325,7 @@ export async function createPurchase(
         outstanding,
         notes: data.notes ?? null,
         date: purchaseDate,
+        dueDate,
       },
     });
 
@@ -283,6 +391,7 @@ export async function createPurchase(
         total: created.totalAmount.toString(),
         paid: created.paidAmount.toString(),
         supplierId: created.supplierId,
+        dueDate: created.dueDate?.toISOString() ?? null,
       },
     });
   }

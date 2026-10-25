@@ -46,6 +46,7 @@ export function PurchaseForm({ supplierId }: { supplierId: string }) {
   const [paidAmount, setPaidAmount] = useState("0");
   const [notes, setNotes] = useState("");
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [dueDate, setDueDate] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const productMap = useMemo(
@@ -110,6 +111,7 @@ export function PurchaseForm({ supplierId }: { supplierId: string }) {
         paidAmount: Number(paidAmount) || 0,
         notes: notes.trim() || null,
         date,
+        dueDate: dueDate || null,
       });
       toast.success(t("purchase.recorded"));
       router.push(`/more/suppliers/${supplierId}`);
@@ -252,6 +254,14 @@ export function PurchaseForm({ supplierId }: { supplierId: string }) {
           type="date"
           value={date}
           onChange={(e) => setDate(e.target.value)}
+        />
+        <TextField
+          label={t("purchase.dueDate")}
+          name="dueDate"
+          type="date"
+          value={dueDate}
+          onChange={(e) => setDueDate(e.target.value)}
+          hint={t("purchase.dueDateHint")}
         />
         <div className="space-y-1">
           <label htmlFor="purchase-notes" className="block text-sm font-medium text-slate-700">

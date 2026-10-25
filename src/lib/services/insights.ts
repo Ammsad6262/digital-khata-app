@@ -16,6 +16,7 @@ import { listOutstandingCustomers } from "@/lib/services/customers";
 import { listProductsWithStock } from "@/lib/services/products";
 import { listSuppliersWithBalance } from "@/lib/services/suppliers";
 import { getOverdueSummary } from "@/lib/services/sales";
+import { getOverduePayables } from "@/lib/services/payables";
 
 const TZ = "Asia/Karachi";
 const RANGE_DAYS = 30;
@@ -73,6 +74,8 @@ export type BusinessInsights = {
   payables: { total: string; suppliersCount: number };
   /** Sales past their agreed due date with money still owed. */
   overdue: { total: string; salesCount: number; customersCount: number };
+  /** Purchase invoices past their agreed pay-by date with money still owed. */
+  overduePayables: { total: string; invoicesCount: number; suppliersCount: number };
 };
 
 function pctChange(current: Decimal, previous: Decimal): number | null {
@@ -205,6 +208,7 @@ export async function getBusinessInsights(
 
   // ── Overdue: sales past their agreed date with money still owed ─────────
   const overdue = await getOverdueSummary(userId);
+  const overduePayables = await getOverduePayables(userId);
 
   // ── Inactive customers who still owe money ──────────────────────────────
   const inactiveCustomers: InactiveCustomer[] = outstanding
@@ -241,6 +245,11 @@ export async function getBusinessInsights(
       total: overdue.total,
       salesCount: overdue.salesCount,
       customersCount: overdue.customersCount,
+    },
+    overduePayables: {
+      total: overduePayables.total,
+      invoicesCount: overduePayables.count,
+      suppliersCount: overduePayables.suppliersCount,
     },
   };
 }

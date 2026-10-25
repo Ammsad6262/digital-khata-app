@@ -627,6 +627,9 @@ model Purchase {
 
   notes     String?
   date      DateTime @default(now()) // can be backdated
+  // Optional date the supplier agreed to be paid by. Stored as midnight in the
+  // business timezone, exactly like Sale.dueDate.
+  dueDate   DateTime?
   voidedAt  DateTime? // null = active; set when voided
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -636,6 +639,7 @@ model Purchase {
 
   @@index([supplierId])
   @@index([date])
+  @@index([dueDate])
   @@index([voidedAt])
   @@index([userId])
 }

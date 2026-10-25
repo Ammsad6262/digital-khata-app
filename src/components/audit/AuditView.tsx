@@ -62,6 +62,8 @@ const ACTION_KEYS: Record<string, string> = {
   "data.clear": "audit.action.dataClear",
   "recovery.contact": "audit.action.recoveryContact",
   "followUp.update": "audit.action.followUpUpdate",
+  "password.reset_code_issued": "audit.action.passwordResetCodeIssued",
+  "password.reset": "audit.action.passwordReset",
 };
 
 function groupFor(action: string): Exclude<AuditGroup, "all"> {

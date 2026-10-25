@@ -43,11 +43,18 @@ export async function PATCH(req: NextRequest) {
     // Hash new password
     const newHash = await bcrypt.hash(parsed.newPassword, 10);
 
-    // Update
-    await prisma.user.update({
-      where: { id: userId },
-      data: { passwordHash: newHash },
-    });
+    // Update the password and revoke any outstanding admin-issued reset code
+    // atomically: a partial failure must never leave an old code usable.
+    await prisma.$transaction([
+      prisma.user.update({
+        where: { id: userId },
+        data: { passwordHash: newHash },
+      }),
+      prisma.passwordResetCode.updateMany({
+        where: { userId, usedAt: null, revokedAt: null },
+        data: { revokedAt: new Date() },
+      }),
+    ]);
 
     return ok({ changed: true });
   } catch (error) {

@@ -40,7 +40,9 @@ export type AuditAction =
   | "backup.import"
   | "data.clear"
   | "recovery.contact"
-  | "followUp.update";
+  | "followUp.update"
+  | "password.reset_code_issued"
+  | "password.reset";
 
 export type AuditInput = {
   action: AuditAction;

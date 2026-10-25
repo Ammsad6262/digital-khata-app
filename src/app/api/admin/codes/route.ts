@@ -1,18 +1,10 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
 import { generateCodes, listCodesAdmin, disableCode, enableCode } from "@/lib/services/subscription";
+import { requireAdmin } from "@/lib/auth/admin";
 import { ok, fail, parseJsonBody } from "@/lib/utils/api";
-import { UnauthorizedError } from "@/lib/errors";
 
 export const dynamic = "force-dynamic";
-
-function verifyAdmin(req: NextRequest): boolean {
-  const adminSecret = process.env.ADMIN_SECRET;
-  if (!adminSecret || adminSecret.length < 16) return false;
-  const provided = req.headers.get("x-admin-secret");
-  if (!provided) return false;
-  return provided === adminSecret;
-}
 
 const generateSchema = z.object({
   durationDays: z.number().int().min(1).max(3650),
@@ -28,7 +20,7 @@ const toggleSchema = z.object({
 
 export async function GET(req: NextRequest) {
   try {
-    if (!verifyAdmin(req)) throw new UnauthorizedError("api.admin.unauthorized");
+    requireAdmin(req);
     const codes = await listCodesAdmin();
     return ok(codes);
   } catch (error) {
@@ -38,7 +30,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    if (!verifyAdmin(req)) throw new UnauthorizedError("api.admin.unauthorized");
+    requireAdmin(req);
     const { data, error } = await parseJsonBody<unknown>(req);
     if (error) return fail(new Error(error));
 
@@ -58,7 +50,7 @@ export async function POST(req: NextRequest) {
 
 export async function PATCH(req: NextRequest) {
   try {
-    if (!verifyAdmin(req)) throw new UnauthorizedError("api.admin.unauthorized");
+    requireAdmin(req);
     const { data, error } = await parseJsonBody<unknown>(req);
     if (error) return fail(new Error(error));
 

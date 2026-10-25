@@ -293,14 +293,14 @@ Bug 6 was found by the acceptance suite, not by inspection.
 | `scripts/verify-backup.ts` | every business table exported/restored (including sale and purchase due dates), old-format backups, integrity guard, no double counting | **42/42** |
 | `scripts/verify-recovery.ts` | recovery list from real open sales, unlinked-payment allocation, filters, contact log, reminder, message, tenant isolation | **42/42** |
 | `scripts/verify-audit.ts` | audit rows for every financial action, real totals in metadata, tenant isolation, clear-all retention | **27/27** |
+| `scripts/verify-password-reset.ts` | admin-issued reset codes: format, hash-only storage, 30-minute expiry, single use, reuse, wrong code, cross-account use, attempt lockout, reissue revocation, normal-change revocation, clear-all cleanup, admin-route secret checks, generic public error | **42/42** |
 
-Total: **617 assertions recorded across all suites**. After the latest changes,
-**551 non-AI assertions were re-run with 0 failures**; the deterministic
-assistant query-type suite (28/28) and write-path suite (33/33) also passed.
-Live Gemini routing was spot-checked after the query-type schema fix (the first
-cases passed, including `LOW_STOCK`); a full live re-run was interrupted by
-transient Gemini 503 responses, not by an application failure.
-`npx tsc --noEmit` and `npm run build` are clean.
+Total: **659 assertions recorded across all suites**. After the latest changes,
+**654 deterministic assertions were re-run with 0 failures** (including the
+assistant query-type 28/28 and write-path 33/33 suites). The remaining 5 are the
+live Gemini routing checks; those were spot-checked, but transient Gemini 503
+responses prevented a full clean re-run. `npx tsc --noEmit` and `npm run build`
+are clean.
 
 The 10 acceptance workflows: register+trial · add customer · credit sale (stock
 and ledger move) · record payment · record expense · add stock · buy from
@@ -312,7 +312,7 @@ supplier on credit · pay supplier (overpay rejected) · create+complete reminde
 ## 4. Database changes
 
 New models: `Supplier`, `Purchase`, `PurchaseItem`, `SupplierPayment`,
-`Reminder`, `FollowUp`, `AuditLog`.
+`Reminder`, `FollowUp`, `AuditLog`, `PasswordResetCode`.
 New columns: `Customer.nextFollowUpAt`, `Customer.companyName`,
 `Supplier.nextFollowUpAt`, purchase totals (`totalAmount`, `paidAmount`,
 `outstanding`), purchase-item lines, supplier/reference links on ledger rows,
@@ -325,11 +325,12 @@ purchases, reminders), `prisma/production/20261023_follow_ups.sql` (the
 `FollowUp` table), `prisma/production/20261023_sale_due_date.sql` (sale due
 dates), `prisma/production/20261023_sale_discount.sql` (sale discounts),
 `prisma/production/20261024_audit_log.sql` (audit trail),
-`prisma/production/20261024_customer_company.sql` (optional shop/company name)
-and `prisma/production/20261025_purchase_due_date.sql` (purchase pay-by dates)
-— all additive, transactional where relevant, idempotent. The stage 2-3 file
-was applied twice to a scratch database and verified to produce a schema
-identical to Prisma's.
+`prisma/production/20261024_customer_company.sql` (optional shop/company name),
+`prisma/production/20261025_purchase_due_date.sql` (purchase pay-by dates) and
+`prisma/production/20261025_password_reset_codes.sql` (one-time reset-code
+hashes, server-only with RLS enabled) — all additive, transactional where
+relevant, idempotent. The stage 2-3 file was applied twice to a scratch database
+and verified to produce a schema identical to Prisma's.
 
 No schema change was needed for the three new voice write intents.
 
@@ -339,10 +340,10 @@ No schema change was needed for the three new voice write intents.
 
 | Item | Status | Blocker |
 |---|---|---|
-| Production deploy | not started | the seven additive DDL files must be applied to Supabase (needs the DB password or approval to run DDL); `GEMINI_API_KEY` must be added to Vercel |
+| Production deploy | not started | the eight additive DDL files must be applied to Supabase (needs the DB password or approval to run DDL); `GEMINI_API_KEY` and `ADMIN_SECRET` must be added to Vercel |
 | Push `main` / open PR | deliberately not done | waiting for your review + the production delta |
 | Billing / paid tier | intentionally off | `BILLING_ENABLED` defaults to false, so no feature is paywalled and no payment is simulated. The trial + redemption-code foundation remains; enabling billing requires a real provider. |
-| Forgot-password / reset | does not exist | `PATCH /api/account/password` requires the current password; a reset flow needs an email provider or an admin-issued reset code decision |
+| Password reset | implemented locally | admin-issued one-time code, no email provider. Production needs the new DDL file and an `ADMIN_SECRET` of 16+ characters. |
 | AI narration quality | works, with fallback | the current key is **Gemini free tier: 20 requests/day/model**. Testing exhausted `gemini-3.8-flash` (429) and the other models intermittently return 503. The chain falls through and the page degrades to the computed summary. A paid key removes the ceiling. |
 | Live DB migration drift | known | 6 migrations exist in the live DB but not in the repo; the repo's `20261006010000_add_smart_entry_session` is absent from the live history although the table exists |
 | Demo data | local only | seeded in the Docker dev DB; the live site was not touched |
@@ -356,8 +357,10 @@ No schema change was needed for the three new voice write intents.
    day per model, which the tests alone can exhaust.
 2. Supabase database password — required to apply the delta (or explicit
    approval to run the DDL).
-3. GitHub write access — to push the branch and open the PR.
-4. Vercel access — to set env vars and deploy.
+3. `ADMIN_SECRET` — 16+ characters, set in Vercel (and locally in `.env`) to
+   issue password-reset codes from `/admin/codes`.
+4. GitHub write access — to push the branch and open the PR.
+5. Vercel access — to set env vars and deploy.
 
 **Rotate the secrets that were shared in chat:** the Supabase access token, the
 Gemini API key and the GitHub PAT.
@@ -371,9 +374,14 @@ npx tsx scripts/seed-new-features.ts     # non-destructive demo data
 npm run dev                              # http://localhost:3000
 ```
 
-Log in as `sadatrehman2004@gmail.com` (owns all the data). Then open the ☰
-drawer (top-right) → **Suppliers**, **Reminders**, **Insights**, **Growth plan**,
-**Reports**, **Transactions**; the dashboard also shows the Reminders card.
+Log in as `demo@example.com` / `password` (or `sadatrehman2004@gmail.com`, which
+owns all the data). Then open the ☰ drawer (top-right) → **Suppliers**,
+**Reminders**, **Insights**, **Growth plan**, **Reports**, **Transactions**; the
+dashboard also shows the Reminders card.
+
+To review password reset locally, open `/admin/codes`, enter the `ADMIN_SECRET`
+from `.env`, issue a code for an account, copy it and open the prefilled
+`/reset-password` page. No email is sent.
 
 Never run `test-foundation.ts` or `audit-data-integrity.ts` while the dev server
 is in use — they wipe all tables.

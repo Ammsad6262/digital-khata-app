@@ -35,7 +35,7 @@ import { SmartEntryModal } from "@/components/smart-entry/SmartEntryModal";
 import { useSmartEntry } from "@/hooks/smart-entry/use-smart-entry";
 import { useAudioRecorder } from "@/hooks/smart-entry/use-audio-recorder";
 
-const PUBLIC_PAGES = ["/login", "/register"];
+const PUBLIC_PAGES = ["/login", "/register", "/reset-password", "/admin"];
 const DASHBOARD_PATH = "/dashboard";
 // Printable receipts render without the app chrome, so the paper is the page.
 const RECEIPT_PATH = /^\/sales\/[^/]+\/receipt$/;

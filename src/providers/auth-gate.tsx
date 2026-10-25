@@ -32,7 +32,7 @@ type AuthUser = {
 };
 
 // Pages that don't need auth (login/register are standalone)
-const PUBLIC_PAGES = ["/login", "/register"];
+const PUBLIC_PAGES = ["/login", "/register", "/reset-password", "/admin"];
 
 // Pages that remain accessible even when subscription is expired
 // (so the user can reactivate their account)

@@ -15,7 +15,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 // Public routes that don't require JWT auth
-// (admin/codes uses x-admin-secret header instead of JWT cookie)
+// (admin endpoints use x-admin-secret instead of a JWT cookie)
 const PUBLIC_ROUTES = [
   "/api/auth/register",
   "/api/auth/login",
@@ -23,8 +23,10 @@ const PUBLIC_ROUTES = [
   "/api/auth/status",
   "/api/auth/me",
   "/api/auth/unlock",
+  "/api/auth/reset-password",
   "/api/health",
   "/api/admin/codes",
+  "/api/admin/password-reset",
 ];
 
 export const config = {

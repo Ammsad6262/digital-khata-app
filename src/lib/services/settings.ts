@@ -110,6 +110,7 @@ export async function clearAllData(userId: string): Promise<{
     const products = await tx.product.deleteMany({ where: { userId } });
     const suppliers = await tx.supplier.deleteMany({ where: { userId } });
     await tx.smartEntrySession.deleteMany({ where: { userId } });
+    await tx.passwordResetCode.deleteMany({ where: { userId } });
 
     return {
       transactions: transactions.count,

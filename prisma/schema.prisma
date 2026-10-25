@@ -79,6 +79,31 @@ model User {
   reminders       Reminder[]
   followUps       FollowUp[]
   auditLogs       AuditLog[]
+  passwordResetCodes PasswordResetCode[]
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// PASSWORD RESET CODE — issued by the admin, single-use, short-lived.
+//
+// Only a hash of the code is stored. The plaintext code is shown once to the
+// admin and never written to the database or logs. A code is invalid as soon
+// as it is used, revoked (a newer code was issued), or expired.
+// ────────────────────────────────────────────────────────────────────────────
+
+model PasswordResetCode {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  codeHash  String
+  expiresAt DateTime
+  usedAt    DateTime?
+  revokedAt DateTime?
+  attempts  Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([userId, expiresAt])
+  @@index([codeHash])
 }
 
 // ────────────────────────────────────────────────────────────────────────────

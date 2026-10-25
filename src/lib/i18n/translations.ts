@@ -725,6 +725,8 @@ export const translations = {
   "audit.action.dataClear": { en: "All business data cleared", ur: "تمام کاروباری ڈیٹا صاف ہوا" },
   "audit.action.recoveryContact": { en: "Payment recovery contact", ur: "وصولی رابطہ" },
   "audit.action.followUpUpdate": { en: "Follow-up outcome", ur: "فالو اپ نتیجہ" },
+  "audit.action.passwordResetCodeIssued": { en: "Password reset code issued", ur: "پاس ورڈ ری سیٹ کوڈ جاری کیا گیا" },
+  "audit.action.passwordReset": { en: "Password reset", ur: "پاس ورڈ ری سیٹ" },
   "recovery.title": { en: "Payment Recovery", ur: "وصولی مہم" },
   "recovery.subtitle": { en: "Who owes money, how old it is, and what to do next.", ur: "کس پر قرض ہے، کتنا پرانا ہے، اور اگلا قدم کیا ہے۔" },
   "recovery.totalOutstanding": { en: "Total pending", ur: "کل واجب الادا" },
@@ -1111,6 +1113,7 @@ export const translations = {
   // ─── Auth pages (login / register) ───
   "auth.email": { en: "Email", ur: "ای میل" },
   "auth.password": { en: "Password", ur: "پاس ورڈ" },
+  "auth.forgotPassword": { en: "Forgot password?", ur: "پاس ورڈ بھول گئے؟" },
   "auth.name": { en: "Name", ur: "نام" },
   "auth.emailPlaceholder": { en: "you@example.com", ur: "you@example.com" },
   "auth.passwordMinPlaceholder": { en: "At least 6 characters", ur: "کم از کم ۶ حروف" },
@@ -1135,6 +1138,23 @@ export const translations = {
   "auth.serverUnreachable": { en: "Cannot reach server. Check your connection.", ur: "سرور تک رسائی نہیں۔ اپنا کنکشن چیک کریں۔" },
   "auth.pleaseLoginContinue": { en: "Please log in to continue.", ur: "جاری رکھنے کے لیے لاگ ان کریں۔" },
   "auth.requestTimeout": { en: "Request timed out. Please retry.", ur: "درخواست کا وقت ختم ہو گیا۔ دوبارہ کوشش کریں۔" },
+
+  // ─── Password reset (admin-issued code) ───
+  "reset.title": { en: "Reset your password", ur: "اپنا پاس ورڈ دوبارہ سیٹ کریں" },
+  "reset.subtitle": { en: "Enter the one-time code from your administrator.", ur: "اپنے ایڈمن سے ملنے والا ایک بار استعمال ہونے والا کوڈ درج کریں۔" },
+  "reset.adminHint": { en: "No email is sent. Ask the business administrator for a one-time reset code, then enter it here.", ur: "کوئی ای میل نہیں بھیجی جاتی۔ کاروبار کے ایڈمن سے ایک بار استعمال ہونے والا ری سیٹ کوڈ لیں اور یہاں درج کریں۔" },
+  "reset.code": { en: "Reset code", ur: "ری سیٹ کوڈ" },
+  "reset.codeHint": { en: "Spaces and dashes are ignored.", ur: "خالی جگہیں اور ڈیش نظر انداز ہو جاتے ہیں۔" },
+  "reset.newPassword": { en: "New password", ur: "نیا پاس ورڈ" },
+  "reset.confirmPassword": { en: "Confirm new password", ur: "نیا پاس ورڈ دوبارہ درج کریں" },
+  "reset.submit": { en: "Set new password", ur: "نیا پاس ورڈ سیٹ کریں" },
+  "reset.submitting": { en: "Changing password...", ur: "پاس ورڈ تبدیل ہو رہا ہے..." },
+  "reset.successTitle": { en: "Password changed", ur: "پاس ورڈ تبدیل ہو گیا" },
+  "reset.successBody": { en: "Your new password is active. Log in with it now.", ur: "آپ کا نیا پاس ورڈ فعال ہے۔ اب اسی سے لاگ ان کریں۔" },
+  "reset.backToLogin": { en: "Back to login", ur: "لاگ ان پر واپس جائیں" },
+  "reset.allFieldsRequired": { en: "Fill in every field.", ur: "تمام خانے بھریں۔" },
+  "reset.passwordMismatch": { en: "The two passwords do not match.", ur: "دونوں پاس ورڈ ایک جیسے نہیں ہیں۔" },
+  "reset.failed": { en: "Could not reset the password. Please try again.", ur: "پاس ورڈ ری سیٹ نہیں ہو سکا۔ دوبارہ کوشش کریں۔" },
 
   // ─── Dashboard extras ───
   "dashboard.subtitle": { en: "Your business at a glance", ur: "آپ کا کاروبار ایک نظر میں" },
@@ -1616,6 +1636,7 @@ export const translations = {
   "api.errors.unknown": { en: "Unknown error", ur: "نامعلوم خرابی" },
 
   // Resources
+  "api.resource.user": { en: "User", ur: "صارف" },
   "api.resource.customer": { en: "Customer", ur: "گاہک" },
   "api.resource.supplier": { en: "Supplier", ur: "سپلائر" },
   "api.resource.sale": { en: "Sale", ur: "فروخت" },
@@ -1693,6 +1714,10 @@ export const translations = {
   "api.password.currentRequired": { en: "Current password is required.", ur: "موجودہ پاس ورڈ درکار ہے۔" },
   "api.password.tooShort": { en: "New password must be at least 6 characters.", ur: "نیا پاس ورڈ کم از کم ۶ حروف کا ہو۔" },
   "api.password.incorrectCurrent": { en: "Current password is incorrect.", ur: "موجودہ پاس ورڈ غلط ہے۔" },
+  "api.password.resetEmailRequired": { en: "Enter a valid email address.", ur: "درست ای میل درج کریں۔" },
+  "api.password.resetCodeRequired": { en: "Enter the reset code.", ur: "ری سیٹ کوڈ درج کریں۔" },
+  "api.password.resetInvalid": { en: "This reset code is invalid or has expired. Ask your administrator for a new code.", ur: "یہ ری سیٹ کوڈ غلط ہے یا ختم ہو چکا ہے۔ اپنے ایڈمن سے نیا کوڈ لیں۔" },
+  "api.password.resetRateLimited": { en: "Too many attempts. Try again in {seconds} seconds.", ur: "بہت زیادہ کوششیں۔ {seconds} سیکنڈ بعد دوبارہ کوشش کریں۔" },
 
   // PIN
   "api.pin.tooShort": { en: "PIN must be at least 4 digits.", ur: "PIN کم از کم ۴ ہندسوں کا ہو۔" },
@@ -1808,7 +1833,7 @@ export const translations = {
 
   // ─── Admin codes page ───
   "admin.title": { en: "Admin Access", ur: "ایڈمن رسائی" },
-  "admin.subtitle": { en: "Enter the admin secret to manage activation codes.", ur: "ایکٹیویشن کوڈز کا انتظام کرنے کے لیے ایڈمن سیکریٹ درج کریں۔" },
+  "admin.subtitle": { en: "Enter the admin secret to manage activation codes and password resets.", ur: "ایکٹیویشن کوڈز اور پاس ورڈ ری سیٹ کا انتظام کرنے کے لیے ایڈمن سیکریٹ درج کریں۔" },
   "admin.secretPlaceholder": { en: "Admin secret", ur: "ایڈمن سیکریٹ" },
   "admin.authenticate": { en: "Authenticate", ur: "تصدیق کریں" },
   "admin.invalidSecret": { en: "Invalid admin secret.", ur: "غلط ایڈمن سیکریٹ۔" },
@@ -1827,6 +1852,20 @@ export const translations = {
   "admin.active": { en: "Active", ur: "فعال" },
   "admin.disabled": { en: "Disabled", ur: "غیر فعال" },
   "admin.used": { en: "used", ur: "استعمال شدہ" },
+  "admin.lock": { en: "Lock", ur: "لاک کریں" },
+  "admin.passwordResetTitle": { en: "Password reset", ur: "پاس ورڈ ری سیٹ" },
+  "admin.passwordResetSubtitle": { en: "Issue a one-time code when someone cannot log in. No email is sent.", ur: "جب کوئی لاگ ان نہ کر سکے تو ایک بار استعمال ہونے والا کوڈ جاری کریں۔ کوئی ای میل نہیں بھیجی جاتی۔" },
+  "admin.userEmail": { en: "User email", ur: "صارف کی ای میل" },
+  "admin.userEmailRequired": { en: "Enter the user's email.", ur: "صارف کی ای میل درج کریں۔" },
+  "admin.generateResetCode": { en: "Generate reset code", ur: "ری سیٹ کوڈ بنائیں" },
+  "admin.resetCodeFor": { en: "Reset code for {name} ({email})", ur: "{name} ({email}) کے لیے ری سیٹ کوڈ" },
+  "admin.resetCodeExpires": { en: "Expires at {time}. Shown only once.", ur: "{time} پر ختم ہو جائے گا۔ صرف ایک بار دکھایا گیا ہے۔" },
+  "admin.copyCode": { en: "Copy code", ur: "کوڈ کاپی کریں" },
+  "admin.copyResetMessage": { en: "Copy message", ur: "پیغام کاپی کریں" },
+  "admin.copyFailed": { en: "Could not copy. Select the text manually.", ur: "کاپی نہیں ہو سکا۔ متن خود منتخب کریں۔" },
+  "admin.openResetPage": { en: "Open reset page", ur: "ری سیٹ صفحہ کھولیں" },
+  "admin.resetCodeOnce": { en: "Share this code privately. It cannot be shown again after you leave this page.", ur: "یہ کوڈ خفیہ طریقے سے شیئر کریں۔ اس صفحے سے جانے کے بعد یہ دوبارہ نہیں دکھایا جا سکے گا۔" },
+  "admin.resetMessage": { en: "Your Dukhata password reset code is {code}. Open {link} and enter it. It expires in {minutes} minutes.", ur: "آپ کا دکھاتہ پاس ورڈ ری سیٹ کوڈ {code} ہے۔ {link} کھولیں اور اسے درج کریں۔ یہ {minutes} منٹ میں ختم ہو جائے گا۔" },
 
   // ─── Follow-ups (sales growth workflow) ───
   "more.followUps": { en: "Follow-ups", ur: "فالو اپ" },

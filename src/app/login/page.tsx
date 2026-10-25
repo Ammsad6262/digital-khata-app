@@ -9,6 +9,7 @@
  */
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Mail, Lock, Loader2, AlertCircle } from "lucide-react";
 import { useToast } from "@/providers/toast-provider";
@@ -74,10 +75,16 @@ export default function LoginPage() {
           ) : null}
 
           <div>
-            <label className="mb-1 block text-xs font-medium text-slate-600">{t("auth.email")}</label>
+            <label
+              htmlFor="login-email"
+              className="mb-1 block text-xs font-medium text-slate-600"
+            >
+              {t("auth.email")}
+            </label>
             <div className="relative">
               <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <input
+                id="login-email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -90,10 +97,24 @@ export default function LoginPage() {
           </div>
 
           <div>
-            <label className="mb-1 block text-xs font-medium text-slate-600">{t("auth.password")}</label>
+            <div className="mb-1 flex items-center justify-between">
+              <label
+                htmlFor="login-password"
+                className="block text-xs font-medium text-slate-600"
+              >
+                {t("auth.password")}
+              </label>
+              <Link
+                href="/reset-password"
+                className="text-xs font-semibold text-brand-600 hover:underline"
+              >
+                {t("auth.forgotPassword")}
+              </Link>
+            </div>
             <div className="relative">
               <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <input
+                id="login-password"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}

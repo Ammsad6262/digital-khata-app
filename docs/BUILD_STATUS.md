@@ -838,6 +838,28 @@ and erased due dates and follow-up dates.
 - Clear-all keeps settings and audit history, and records `data.clear`.
 - `scripts/verify-audit.ts` — **27/27**.
 
+### Password reset without an email provider
+- `/login` now has **Forgot password?**, which opens `/reset-password`.
+- The business admin signs in at `/admin/codes` with `ADMIN_SECRET`, enters the
+  user's email and issues a one-time code. No email is sent and no email service
+  is required.
+- Codes use the form `XXXX-XXXX-XXXX`, are stored only as a salted SHA-256 hash,
+  expire after 30 minutes and can be used once. Five wrong attempts revoke the
+  code; issuing a new code revokes every older unused code for that account.
+- The reset page accepts spaces or dashes, sets the new password and then sends
+  the user back to login. It never auto-logs-in.
+- Unknown email, wrong code, expired code and a reused code all return the same
+  generic message, so the public endpoint cannot be used to discover accounts.
+- The admin screen can copy the code or a ready-to-send message and open the
+  reset page with the email already filled in.
+- A normal password change revokes outstanding codes atomically, and **Clear all
+  data** deletes them.
+- `scripts/verify-password-reset.ts` — **42/42**: format and hashing, 30-minute
+  expiry, single use, reuse, wrong code, cross-account use, attempt lockout,
+  reissue revocation, normal-change revocation, clear-all cleanup, admin-route
+  secret checks and the public route's generic error. The full admin → reset →
+  login path was also checked in the browser and through the running HTTP server.
+
 ### Billing foundation without a paywall
 - `BILLING_ENABLED` defaults to **false**. While it is false,
   `hasActiveAccess()` returns true and `getSubscriptionStatus()` reports
@@ -859,11 +881,15 @@ and erased due dates and follow-up dates.
 - The backup exports and restores `Customer.companyName`.
 
 ### Verification
-- All non-AI suites re-run after these changes: **551 assertions, 0 failures**
-  (platform 9, purchases 42, reminders 24, insights 26, acceptance 31, growth 26,
-  contact-actions 36, statement 19, follow-ups 50, reports 67, receipt 26,
-  due-dates 30, discounts 36, units 9, backup 42, recovery 42, audit 27,
-  AI gating 9 with billing disabled).
+- All deterministic suites re-run after these changes: **654 assertions,
+  0 failures** (platform 9, purchases 42, reminders 24, insights 26, acceptance
+  31, growth 26, contact-actions 36, statement 19, follow-ups 50, reports 67,
+  receipt 26, due-dates 30, discounts 36, units 9, backup 42, recovery 42,
+  audit 27, AI gating 9 with billing disabled, assistant write-path 33,
+  assistant query-types 28, password reset 42).
+- **659 assertions are recorded across all suites.** The remaining 5 are the
+  live Gemini routing checks; those were spot-checked, but transient Gemini 503s
+  prevented a full clean re-run.
 - `npx tsc --noEmit` and `npm run build` clean.
 
 ---
@@ -880,11 +906,11 @@ and erased due dates and follow-up dates.
 6. **Production DDL is still pending**: `20261020_stage2_3_delta.sql`,
    `20261023_follow_ups.sql`, `20261023_sale_due_date.sql`,
    `20261023_sale_discount.sql`, `20261024_audit_log.sql`,
-   `20261024_customer_company.sql` and `20261025_purchase_due_date.sql`.
-   Apply only with explicit approval.
-7. **Forgot-password / reset** needs a decision: email reset link (requires an
-   email provider) or an admin-issued reset code. Until then, the signed-in
-   change-password screen is the only reset path.
+   `20261024_customer_company.sql`, `20261025_purchase_due_date.sql` and
+   `20261025_password_reset_codes.sql`. Apply only with explicit approval.
+7. **Production must set `ADMIN_SECRET`** (16+ characters) in Vercel. Without
+   it, `/admin/codes` and password-reset issuance return 401. The secret is set
+   in the local `.env`; it is not committed.
 8. **Billing stays disabled by default.** Do not set `BILLING_ENABLED=true` until
    a real payment provider is configured and tested. While it is false, no
    feature is paywalled and no payment is simulated.

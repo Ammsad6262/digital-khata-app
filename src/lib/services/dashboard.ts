@@ -17,6 +17,7 @@ import { Decimal, toDecimalOrZero } from "@/lib/utils/decimal";
 import { startOfTodayInTz } from "@/lib/utils/date";
 import { computeStockForAllProducts } from "@/lib/services/products";
 import { UnauthorizedError } from "@/lib/errors";
+import { cached, invalidateCache } from "@/lib/utils/cache";
 
 export type DashboardStats = {
   totalReceivables: string;
@@ -51,18 +52,21 @@ export type RecentTransaction = {
 };
 
 // ────────────────────────────────────────────────────────────────────────────
-// In-memory cache — 5 second TTL (very short so dashboard stays fresh)
+// Cache — 5 second TTL (very short so dashboard stays fresh)
 // ────────────────────────────────────────────────────────────────────────────
 // The dashboard is the home screen — users open it to see CURRENT numbers.
 // A 5s cache absorbs a double-load from React Query (mount + refetch) but
 // is short enough that data added moments ago appears on the next refresh.
-const dashboardCache = new Map<string, { data: DashboardStats; expiresAt: number }>();
+//
+// It uses the SHARED cache (utils/cache.ts) under the "dashboard:<userId>"
+// key, so every mutation's `invalidateCache("dashboard")` actually clears it.
+// (Previously this service kept a private Map that nothing ever cleared, so
+// a sale/payment/expense could leave the home screen stale for 5 seconds.)
 const DASHBOARD_CACHE_TTL_MS = 5_000; // 5 seconds
 
-/** Clear the dashboard cache — called by invalidateCache("dashboard") after
- *  any mutation (sale/payment/expense/etc.) so the next read gets fresh data. */
+/** Clear the dashboard cache — kept for callers that want an explicit reset. */
 export function clearDashboardCache(): void {
-  dashboardCache.clear();
+  invalidateCache("dashboard");
 }
 
 export async function getDashboardStats(
@@ -73,13 +77,18 @@ export async function getDashboardStats(
     throw new UnauthorizedError("api.dashboard.authRequired");
   }
 
-  // Return cached data if still fresh (per-user cache key)
-  const cacheKey = userId;
-  const cached = dashboardCache.get(cacheKey);
-  if (cached && Date.now() < cached.expiresAt) {
-    return cached.data;
-  }
+  // Per-user cache key so different tenants never share results.
+  return cached(
+    `dashboard:${userId}`,
+    () => computeDashboardStats(userId, timezone),
+    DASHBOARD_CACHE_TTL_MS,
+  );
+}
 
+async function computeDashboardStats(
+  userId: string,
+  timezone: string,
+): Promise<DashboardStats> {
   const today = startOfTodayInTz(timezone);
 
   // All queries below are scoped by userId. We use Prisma.sql tagged template
@@ -216,9 +225,6 @@ export async function getDashboardStats(
     lowStockProducts,
     recentTransactions,
   };
-
-  // Cache the result (per-user)
-  dashboardCache.set(cacheKey, { data: result, expiresAt: Date.now() + DASHBOARD_CACHE_TTL_MS });
 
   return result;
 }

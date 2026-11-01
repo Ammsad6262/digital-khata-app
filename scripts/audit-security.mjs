@@ -15,7 +15,7 @@
  */
 
 import { readFileSync } from "fs";
-const envFile = readFileSync("/home/z/my-project/digital-khata-app/.env", "utf-8");
+const envFile = readFileSync(new URL("../.env", import.meta.url), "utf-8");
 for (const line of envFile.split("\n")) {
   const m = line.match(/^([A-Z_]+)=(.*)$/);
   if (m) process.env[m[1]] = m[2];

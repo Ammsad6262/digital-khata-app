@@ -17,7 +17,7 @@
 
 import { NextResponse } from "next/server";
 import { ZodError } from "zod";
-import { AppError, ErrorCode, ValidationError } from "@/lib/errors";
+import { AppError, BadRequestError, ErrorCode, ValidationError } from "@/lib/errors";
 import { tServer } from "@/lib/i18n/server";
 
 export interface ApiSuccess<T> {
@@ -154,24 +154,33 @@ export function fail(error: unknown): NextResponse<ApiError> {
 /** Maximum request body size (1 MB). Prevents DoS via huge payloads. */
 const MAX_BODY_SIZE = 1024 * 1024;
 
-/** Parse a JSON body safely. Returns null on parse failure. Rejects bodies > 1MB. */
+/**
+ * Parse a JSON body safely.
+ *
+ * An empty body returns `{ data: null, error: null }` so callers can apply
+ * their own "body required" rule. A malformed or oversized body throws a
+ * BadRequestError (400) — every route handler runs inside a try/catch, so it
+ * is reported as a client error instead of leaking out as a 500.
+ */
 export async function parseJsonBody<T>(
   req: Request,
 ): Promise<{ data: T | null; error: string | null }> {
+  let text: string;
   try {
-    const text = await req.text();
-    if (!text) return { data: null, error: null };
-    if (text.length > MAX_BODY_SIZE) {
-      return {
-        data: null,
-        error: tServer("api.errors.bodyTooLarge", {
-          max: String(MAX_BODY_SIZE / 1024),
-        }),
-      };
-    }
+    text = await req.text();
+  } catch {
+    throw new BadRequestError("api.errors.invalidJson");
+  }
+  if (!text) return { data: null, error: null };
+  if (text.length > MAX_BODY_SIZE) {
+    throw new BadRequestError("api.errors.bodyTooLarge", undefined, {
+      max: String(MAX_BODY_SIZE / 1024),
+    });
+  }
+  try {
     return { data: JSON.parse(text) as T, error: null };
   } catch {
-    return { data: null, error: tServer("api.errors.invalidJson") };
+    throw new BadRequestError("api.errors.invalidJson");
   }
 }
 

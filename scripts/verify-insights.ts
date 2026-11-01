@@ -160,7 +160,18 @@ async function main() {
     const expectedThisMonth = [d5, d10]
       .filter((d) => d.getTime() >= monthStart.getTime())
       .reduce((sum, d) => sum + (d.getTime() === d5.getTime() ? 1500 : 400), 0);
-    const expectedLastMonth = d40.getTime() >= lastMonthStart.getTime() && d40.getTime() < monthStart.getTime() ? 3000 : 0;
+    // Every sale that falls in the previous calendar month counts — not only the
+  // 40-day-old one. Early in a month, the 5- and 10-day-old sales are also in
+  // the previous month, so the expectation must include them.
+  const expectedLastMonth = [d5, d10, d40]
+    .filter(
+      (d) => d.getTime() >= lastMonthStart.getTime() && d.getTime() < monthStart.getTime(),
+    )
+    .reduce(
+      (sum, d) =>
+        sum + (d.getTime() === d5.getTime() ? 1500 : d.getTime() === d10.getTime() ? 400 : 3000),
+      0,
+    );
     check(
       `this month = ${expectedThisMonth}`,
       Number(insights.salesTrend.thisMonth) === expectedThisMonth,

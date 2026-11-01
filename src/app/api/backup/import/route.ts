@@ -23,7 +23,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { importBackup, parseBackupFile } from "@/lib/services/backup";
 import { requireUserId } from "@/lib/auth/get-current-user";
-import { fail, ok } from "@/lib/utils/api";
+import { fail, ok, parseJsonBody } from "@/lib/utils/api";
+import { BadRequestError } from "@/lib/errors";
 import { z } from "zod";
 
 export const dynamic = "force-dynamic";
@@ -39,7 +40,10 @@ const importSchema = z.object({
 export async function POST(req: NextRequest) {
   try {
     const userId = await requireUserId(req);
-    const body = (await req.json()) as unknown;
+    const { data: body, error } = await parseJsonBody<unknown>(req);
+    if (error || body === null) {
+      return fail(new BadRequestError("api.errors.invalidBody"));
+    }
     const parsed = importSchema.parse(body);
 
     // Phase 1: Parse + validate (fast — returns immediately on bad files)

@@ -209,6 +209,7 @@ export type AssistantError = {
   code:
     | "AI_UNAVAILABLE"
     | "AI_EXHAUSTED"
+    | "AI_SLOW"
     | "NOT_UNDERSTOOD"
     | "INVALID_INPUT"
     | "SERVER";

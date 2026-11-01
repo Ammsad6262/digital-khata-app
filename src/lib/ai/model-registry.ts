@@ -457,8 +457,14 @@ export async function runWithRotation<T>(options: {
   preferredId?: string;
   maxOutputRetries?: number;
   onModelSelected?: (model: string) => void;
+  /**
+   * Absolute timestamp (epoch ms) after which no further model is tried.
+   * Bounds total latency when the provider is slow; a caller that hits it gets
+   * a fast, honest timeout instead of waiting on another model.
+   */
+  deadlineAt?: number;
 }): Promise<{ value: T; model: string; attempts: number }> {
-  const { operation, preferredId, onModelSelected } = options;
+  const { operation, preferredId, onModelSelected, deadlineAt } = options;
   const maxOutputRetries = options.maxOutputRetries ?? 1;
 
   const usable = await getUsableModels(preferredId);
@@ -474,8 +480,13 @@ export async function runWithRotation<T>(options: {
   let lastError: unknown = null;
   let attempts = 0;
   let outputRetries = 0;
+  let deadlineHit = false;
 
   for (const candidate of usable) {
+    if (deadlineAt && Date.now() >= deadlineAt) {
+      deadlineHit = true;
+      break;
+    }
     attempts += 1;
     await markAttempt(candidate.id);
     onModelSelected?.(candidate.id);
@@ -510,8 +521,28 @@ export async function runWithRotation<T>(options: {
     }
   }
 
-  const failure = classifyGeminiError(lastError);
   const retryAt = await nextRetryAt();
+
+  const timedOut =
+    deadlineHit || (lastError as { name?: string } | null)?.name === "AITimeoutError";
+
+  if (timedOut) {
+    throw new AIExhaustedError(
+      "The AI is responding slowly right now.",
+      retryAt,
+      "timeout",
+    );
+  }
+
+  if (!lastError) {
+    throw new AIExhaustedError(
+      "The AI did not answer.",
+      retryAt,
+      "empty",
+    );
+  }
+
+  const failure = classifyGeminiError(lastError);
   throw new AIExhaustedError(
     failure.message,
     retryAt,

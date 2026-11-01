@@ -23,8 +23,8 @@
 import { prisma } from "@/lib/db/prisma";
 import { handleMessage, confirmAction, cancelAction } from "@/lib/assistant/service";
 import { runWithRotation, AIExhaustedError, _resetMemoryUsage } from "@/lib/ai/model-registry";
-import { _setGeminiClientForTesting } from "@/lib/ai/gemini-client";
-import { route } from "@/lib/assistant/router";
+import { _setGeminiClientForTesting, generateStructured } from "@/lib/ai/gemini-client";
+import { route, looksLikeBusinessCommand } from "@/lib/assistant/router";
 import type { RouterContext } from "@/lib/assistant/types";
 import type { AssistantReply, AssistantPlan } from "@/lib/assistant/types";
 
@@ -447,6 +447,82 @@ async function main() {
     }
 
     // ═══════════════════════════════════════════════════════════════════════
+    console.log("\n== 6b. Latency guard (slow provider must not hang) ==");
+    // ═══════════════════════════════════════════════════════════════════════
+
+    {
+      _resetMemoryUsage();
+      await prisma.aIUsageDaily.deleteMany({ where: { model: { in: chain } } });
+
+      // A provider that never answers.
+      _setGeminiClientForTesting({
+        models: {
+          generateContent: (args: { config?: { abortSignal?: AbortSignal } }) =>
+            new Promise((_resolve, reject) => {
+              const signal = args?.config?.abortSignal;
+              if (signal) {
+                signal.addEventListener("abort", () =>
+                  reject(Object.assign(new Error("aborted"), { name: "AbortError" })),
+                );
+              }
+              // Safety net: never let a regression hang the suite forever.
+              setTimeout(() => reject(new Error("fake-provider-still-waiting")), 3000);
+            }),
+        },
+      } as never);
+
+      const startedHang = Date.now();
+      let hangError: unknown = null;
+      try {
+        await generateStructured({
+          systemInstruction: "x",
+          contents: "hi",
+          responseSchema: { type: "object" },
+          parse: (v) => v,
+          timeoutMs: 200,
+          deadlineLimitMs: 600,
+        });
+      } catch (error) {
+        hangError = error;
+      }
+      const hangMs = Date.now() - startedHang;
+      check(
+        "a hanging provider is cut off, not waited on forever",
+        hangError !== null && hangMs < 3000,
+        `${hangMs}ms`,
+      );
+      check(
+        "a slow provider is reported as a timeout (not as 'out of quota')",
+        hangError instanceof AIExhaustedError && hangError.reason === "timeout",
+        hangError instanceof AIExhaustedError ? hangError.reason : String(hangError),
+      );
+    }
+
+    {
+      // The rotation itself must stop at its deadline.
+      _resetMemoryUsage();
+      await prisma.aIUsageDaily.deleteMany({ where: { model: { in: chain } } });
+      let calls = 0;
+      let reason = "";
+      try {
+        await runWithRotation({
+          deadlineAt: Date.now() + 150,
+          operation: async () => {
+            calls += 1;
+            await new Promise((r) => setTimeout(r, 100));
+            throw new Error(
+              JSON.stringify({ error: { code: 429, message: "quota exceeded, retry in 30s" } }),
+            );
+          },
+        });
+      } catch (error) {
+        reason = error instanceof AIExhaustedError ? error.reason : "other";
+      }
+      check("the rotation stops at its deadline", calls <= 2, String(calls));
+      check("the deadline is reported as a timeout", reason === "timeout", reason);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
     console.log("\n== 7. AI fallback (mocked provider, no real quota) ==");
     // ═══════════════════════════════════════════════════════════════════════
 
@@ -504,6 +580,15 @@ async function main() {
     record("(audio) which products are running low", audioReply, 0);
     check("audio fallback produced an answer", audioReply.kind === "answer", audioReply.kind);
 
+    // 7e. Urdu script reaches the AI (it is not rejected by the keyword gate).
+    fakeJson = JSON.stringify({ intent: "query", query: "RECEIVABLES", confidence: 0.8 });
+    reply = await say(userA.id, "مجھے بتائیں کہ کتنے پیسے وصول کرنے ہیں");
+    check(
+      "Urdu-script text reaches the AI instead of being rejected",
+      reply.kind === "answer" && reply.requestsUsed >= 1,
+      `${reply.kind}/${reply.requestsUsed}`,
+    );
+
     _setGeminiClientForTesting(null);
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -532,6 +617,17 @@ async function main() {
       ["add 50 kg rice stock at 900", "action:ADD_STOCK"],
       ["remind me to call Ali Raza tomorrow", "action:CREATE_REMINDER"],
       ["he paid another 5000", "action:RECORD_PAYMENT"],
+      // Roman Urdu
+      ["kitna udhaar hai", "query:RECEIVABLES"],
+      ["aaj ka kharch", "query:TODAY_EXPENSES"],
+      ["kam stock", "query:LOW_STOCK"],
+      ["sab se zyada bikne wale products", "query:TOP_PRODUCTS"],
+      ["500 kharch hua petrol pe", "action:CREATE_EXPENSE"],
+      ["naya customer Naeem", "action:CREATE_CUSTOMER"],
+      // Urdu script — fast path for the phrases the rules cover
+      ["مجھے کتنا ادھار لینا ہے", "query:RECEIVABLES"],
+      ["آج کا خرچ کتنا ہے", "query:TODAY_EXPENSES"],
+      ["اسٹاک کم ہے", "query:LOW_STOCK"],
     ];
 
     for (const [text, expected] of routerCases) {
@@ -548,6 +644,12 @@ async function main() {
     for (const text of nullCases) {
       check(`router: “${text}” is not forced into a business action`, route(text, ctx) !== null || true);
     }
+
+    check(
+      "Urdu-script text is treated as a business command (reaches the AI)",
+      looksLikeBusinessCommand("علی کا حساب کتنا ہے") &&
+        !looksLikeBusinessCommand("the weather is nice today"),
+    );
 
     // ═══════════════════════════════════════════════════════════════════════
     console.log("\n== Summary ==");

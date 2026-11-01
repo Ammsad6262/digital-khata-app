@@ -112,9 +112,9 @@ const QUERY_RULES: QueryRule[] = [
   { query: "HELP", test: (t) => /\b(help|commands|what can you do|kya kar sakte|kya kar sakti)\b/.test(t) },
   { query: "DASHBOARD", test: (t) => /\b(dashboard|business summary|summary of (my )?business|overview|how is (my )?business|kaam kaisa|business kaisa)\b/.test(t) },
   { query: "PROFIT", test: (t) => /\b(profit|munafa|net income|net profit|loss|nuksan)\b/.test(t) },
-  { query: "RECEIVABLES", test: (t) => /\b(who owes me|who owe me|how much do (customers|people|parties) owe|total receivable|receivables|udhaar|udhar|baqaya|kitna lena|owes me|outstanding customers)\b/.test(t) },
+  { query: "RECEIVABLES", test: (t) => /\b(who owes me|who owe me|how much do (customers|people|parties) owe|total receivable|receivables|udhaar|udhar|baqaya|kitna lena|owes me|outstanding customers)\b/.test(t) || /ادھار/.test(t) },
   { query: "PAYABLES", test: (t) => /\b(who do i owe|whom do i owe|what do i owe|total payable|payables|kitna dena|supplier.{0,20}(owe|payable)|i owe)\b/.test(t) },
-  { query: "LOW_STOCK", test: (t) => /\b(low stock|running low|out of stock|khatam|kam stock|reorder|restock|stock kam|inventory low)\b/.test(t) },
+  { query: "LOW_STOCK", test: (t) => /\b(low stock|running low|out of stock|khatam|kam stock|reorder|restock|stock kam|inventory low)\b/.test(t) || /اسٹاک کم|کم اسٹاک/.test(t) },
   { query: "TOP_PRODUCTS", test: (t) => /best.?sell|top.?sell|top product|most sold|sab se zyada|best product|highest selling/.test(t) },
   { query: "INACTIVE_CUSTOMERS", test: (t) => /\b(inactive|not purchased|not bought|haven.?t purchased|haven.?t bought|stopped buying|nahi kharida|purane customer|dormant)\b/.test(t) },
   { query: "OVERDUE_CUSTOMERS", test: (t) => /\b(overdue|late payment|past due|late hai|payment late|due date.{0,20}(passed|over|cross))\b/.test(t) },
@@ -128,7 +128,7 @@ const QUERY_RULES: QueryRule[] = [
   { query: "SUPPLIER_HISTORY", needsEntity: "supplier", test: (t) => /\b(purchases?|bought|kharid|history|ledger|statement|hisaab)\b/.test(t) },
   { query: "STOCK_LEVEL", needsEntity: "product", test: (t) => /\b(stock|inventory|kitna|how much|left|available|mojood)\b/.test(t) },
 
-  { query: "TODAY_EXPENSES", test: (t) => /\b(today'?s?|aaj).{0,25}(expense|spent|spend|kharch|kharcha)|(expense|kharch|spent).{0,25}(today'?s?|aaj)\b/.test(t) },
+  { query: "TODAY_EXPENSES", test: (t) => /\b(today'?s?|aaj).{0,25}(expense|spent|spend|kharch|kharcha)|(expense|kharch|spent).{0,25}(today'?s?|aaj)\b/.test(t) || /(آج.{0,10}خرچ|خرچ.{0,10}آج)/.test(t) },
   { query: "TODAY_SALES", test: (t) => /\b(today|aaj).{0,25}(sale|sold|sell|bikri|revenue)\b/.test(t) || /\b(sale|sold|bikri).{0,25}(today|aaj)\b/.test(t) },
   { query: "SALES_SUMMARY", test: (t) => /\b(this month|is mahine|month|monthly).{0,25}(sale|sold|sell|bikri|revenue)\b/.test(t) || /\b(sale|sales|bikri).{0,25}(month|mahine|monthly)\b/.test(t) },
   { query: "EXPENSES_SUMMARY", test: (t) => /\b(this month|is mahine|month|monthly).{0,25}(expense|spent|kharch)\b/.test(t) || /\b(expense|expenses|kharch).{0,25}(month|mahine|monthly)\b/.test(t) },
@@ -634,5 +634,9 @@ export function route(rawText: string, ctx: RouterContext): RouteMatch | null {
 /** True when the text plausibly refers to business data at all. */
 export function looksLikeBusinessCommand(rawText: string): boolean {
   const text = normalizeText(rawText);
+  // Any Urdu/Arabic script is treated as a business command so it reaches the
+  // AI, whose prompt supports Urdu. Without this, Urdu text would be rejected
+  // before the model ever saw it.
+  if (/[\u0600-\u06FF]/.test(text)) return true;
   return /\b(sale|sales|sell|sold|bikri|buy|bought|purchase|kharid|customer|supplier|party|product|item|stock|inventory|expense|kharch|payment|paid|pay|udhaar|udhar|baqaya|balance|owe|profit|munafa|report|reminder|task|khata|account|ledger|hisaab|dashboard|order|delivery|discount|rate|price|quantity|unit|kg|carton|box|bag|piece|dozen|payment)\b/.test(text);
 }

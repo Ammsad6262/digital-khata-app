@@ -72,20 +72,22 @@ Guarantees:
 ### Assistant suite — `npm run test:assistant`
 
 ```
-==== 97 passed, 0 failed ====
+==== 112 passed, 0 failed ====
 ```
 
 | Metric | Value |
 |--------|-------|
-| Realistic commands run | 24 |
+| Realistic commands run | 25 |
 | Answered with **0** AI requests | 20 |
-| Needed the AI | 4 |
-| Total AI requests consumed | 4 |
-| Median command time (rules path) | ~21 ms |
-| Slowest rule-path command | ~78 ms |
+| Needed the AI | 5 |
+| Total AI requests consumed | 5 |
+| Median command time (rules path) | ~24 ms |
+| Slowest rule-path command | ~103 ms |
 
-The 4 AI calls were the deliberate "unroutable free-form text" cases plus the
-audio-fallback case; every ordinary command cost nothing.
+The 5 AI calls were the deliberate "unroutable free-form text" cases (3), the
+audio-fallback case, and one Urdu-script sentence; every ordinary command cost
+nothing. The Urdu sentence reaches the AI rather than being rejected (see
+"Languages" below).
 
 ### Model rotation (same suite, isolated fake models)
 
@@ -94,6 +96,61 @@ audio-fallback case; every ordinary command cost nothing.
 - A deterministic (schema) failure stops the chain (≤ 1 extra model) instead of burning all three.
 - With a limit of 1 per model, the 4th request raises `AIExhaustedError` (no silent failure).
 - Only one model is ever called at a time.
+
+### Latency budget (the "slow assistant" fix)
+
+The AI fallback used to hang. The Gemini client had **no timeout**, each model
+could block 40–45 s, and the rotation tried up to three of them back to back —
+one command could freeze for a minute or more. Every AI request is now bounded:
+
+| Knob | Default | Env var | Purpose |
+|------|---------|---------|---------|
+| Per-attempt abort | 14 s | `GEMINI_TIMEOUT_MS` | Give up on a single model and try the next |
+| Whole-call deadline | 18 s | `GEMINI_DEADLINE_MS` | Stop the rotation entirely; never hang |
+| Transport timeout | 30 s | `GEMINI_HTTP_TIMEOUT_MS` | SDK-level cap (see the 10 s floor below) |
+| Output cap | 800 tokens | `GEMINI_MAX_OUTPUT_TOKENS` | Shorter generations answer sooner |
+| Thinking budget | 0 (off) | `GEMINI_THINKING_BUDGET` | Skip hidden reasoning tokens |
+
+- Each model call runs under an `AbortController`, so a stuck request is
+  cancelled (not merely ignored) and the next model starts immediately.
+- The rotation checks an absolute deadline before each model, so a slow provider
+  produces a fast, honest `AI_SLOW` reply ("The AI took too long…") instead of a
+  frozen screen. `AI_EXHAUSTED` (out of daily quota) is reported separately,
+  because the fix is different (retry now vs. wait until tomorrow).
+- `thinkingConfig` is sent only if supported: if the provider rejects it with a
+  400, the call is retried once without it, so disabling thinking can never break
+  the request.
+- Guarded by tests: a provider that never answers is cut off in well under the
+  old behaviour, and the rotation stops at its deadline (both in `test-assistant`).
+
+**A hard provider constraint was measured live:** a manually-set request
+deadline below 10 s is rejected with `INVALID_ARGUMENT — "Minimum allowed
+deadline is 10s"`. An earlier 8 s transport timeout therefore made *every* call
+fail. The transport timeout now stays safely above 10 s; the single 10 s figure
+is the smallest *deadline* the provider accepts, not a floor on response time
+(see the live measurements below).
+
+**Live measurements (from the running server):**
+
+- `POST /api/smart-entry/interpret` reached `gemini-3.5-flash` and returned in
+  **2.7 s** — server log: `[gemini:interpret] ok model=gemini-3.5-flash
+  attempts=1 ms=2703`. The same endpoint previously took ~45 s.
+- When the free quota was exhausted, `POST /api/growth/summary` tried all three
+  models and returned in **~2.0 s** total (three `429`s, then a graceful
+  fallback) instead of hanging.
+
+So the AI path is fast when the provider answers, and fast to give up when it
+does not. The rule-path numbers above remain the meaningful fast-path figures.
+
+### Languages
+
+Tested and covered by the router (0 AI requests): English, Roman Urdu
+(`kitna udhaar hai`, `aaj ka kharch`, `kam stock`, `sab se zyada bikne wale
+products`, `500 kharch hua petrol pe`, `naya customer Naeem`), and Urdu script
+for the phrases the rules cover (`مجھے کتنا ادھار لینا ہے`, `آج کا خرچ کتنا ہے`,
+`اسٹاک کم ہے`). Any other Urdu-script text is now recognised as a business
+command and handed to the AI (previously it was rejected before the model saw
+it). Urdu/Arabic digits and diacritics are normalised throughout.
 
 ### Idempotency and safety
 
@@ -107,15 +164,37 @@ audio-fallback case; every ordinary command cost nothing.
 
 | Check | Result |
 |-------|--------|
-| `npm run build` | pass |
 | `npx tsc --noEmit` | clean |
-| `test-acceptance-http` (Phase 2) | 152 passed, 0 failed, 1 skipped |
+| `test-assistant` | 112 passed, 0 failed |
+| `test-acceptance-http` (Phase 2) | 153 passed, 0 failed, 0 skipped |
 | `verify-assistant-writes` | 33 passed, 0 failed |
 | `verify-ai-query-types` | 28 passed, 0 failed |
+| `npm run build` | **fails on `/_global-error` (pre-existing, not caused by this work — see below)** |
 
 The live-Gemini suites (`verify-ai`, `verify-ai-queries`) were intentionally left
 out of the fast regression pass: they make real provider calls that can take
 minutes each (one observed call took ~137 s). They are not broken.
+
+**About `npm run build`.** The production build stops while prerendering the
+special `/_global-error` route with
+`TypeError: Cannot read properties of null (reading 'useContext')`. This is a
+Next.js 16 framework bug in this environment, **not** a regression from the AI
+work: it reproduces on a clean checkout with these changes stashed, and it
+persists after each of the following was tested and reverted —
+
+- removing `src/app/global-error.tsx` (Next 16 auto-generates `/_global-error`),
+- reducing `global-error.tsx` to the minimal documented shape,
+- removing its `export const dynamic`,
+- moving the root layout's anti-FOUC `<script>` out of `<head>` (and removing `<head>`),
+- `next@16.4.3` (up from 16.3.5),
+- `react`/`react-dom@19.2.9` (down from 19.3.0),
+- `--webpack` instead of Turbopack, and `reactStrictMode: false`.
+
+`--debug-prerender` completes all 19 pages, so the app code itself prerenders
+fine; only the production build's synthetic error page fails. The dev server and
+the runtime are unaffected, which is why the HTTP acceptance suite passes. The
+owner should track this as a Next 16 issue (e.g. pin/patch Next once fixed)
+before the next production deploy.
 
 ### Routes
 
@@ -152,8 +231,9 @@ All four return `401` without a session (verified against the running server).
   applied before relying on persistence in production.
 - **Assistant UI text is English** (plus a speech-language selector). A full
   translation pass was not done.
-- **Provider latency** for the AI fallback is outside our control and remains the
-  slowest path by design.
+- **Provider latency** for the AI fallback is now bounded. A live interpret call
+  returned in ~2.7 s and a fully-exhausted rotation gave up in ~2 s (see
+  "Latency budget" above); the rules path stays ~tens of milliseconds.
 - **Phase 2 open items unchanged**, e.g. voiding a sale also voids all linked
   payments (needs a product decision).
 - Nothing has been merged or pushed to `main`.

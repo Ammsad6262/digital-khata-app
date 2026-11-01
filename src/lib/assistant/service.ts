@@ -182,7 +182,7 @@ function planReply(
 }
 
 function errorReply(
-  code: "AI_UNAVAILABLE" | "AI_EXHAUSTED" | "NOT_UNDERSTOOD" | "INVALID_INPUT" | "SERVER",
+  code: "AI_UNAVAILABLE" | "AI_EXHAUSTED" | "AI_SLOW" | "NOT_UNDERSTOOD" | "INVALID_INPUT" | "SERVER",
   text: string,
   preservedText: string,
   timings: Timings,
@@ -804,9 +804,14 @@ export async function handleMessage(
     } catch (error) {
       const timings = { totalMs: Date.now() - started, ruleMs, aiMs };
       if (error instanceof AIExhaustedError) {
+        // "timeout" means the provider was slow, not out of budget — say so,
+        // because the fix is different (retry now vs. wait until tomorrow).
+        const slow = error.reason === "timeout";
         return errorReply(
-          "AI_EXHAUSTED",
-          "The AI models have reached today's free limit. Your command is saved — try again after the limit resets (or use the buttons below).",
+          slow ? "AI_SLOW" : "AI_EXHAUSTED",
+          slow
+            ? "The AI took too long to answer, so I stopped waiting. Your words are saved — tap retry, or use the form below."
+            : "The AI models have reached today's free limit. Your command is saved — try again after the limit resets (or use the buttons below).",
           text,
           timings,
           { retryAt: error.retryAt?.toISOString(), requestsUsed },

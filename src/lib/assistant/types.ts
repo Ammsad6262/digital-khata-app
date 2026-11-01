@@ -1,0 +1,273 @@
+/**
+ * Shared types for the application-wide assistant.
+ *
+ * The assistant is deliberately split into three stages:
+ *   1. UNDERSTAND  — rules first, Gemini only when the rules cannot decide.
+ *   2. PLAN        — resolve names → IDs and prepare a typed action.
+ *   3. EXECUTE     — the user confirms; the server calls the SAME services
+ *                    the normal UI calls, then verifies the result.
+ *
+ * The AI never gets a database handle. Its only output is a plan the server
+ * validates.
+ */
+
+export type QueryKind =
+  | "DASHBOARD"
+  | "RECEIVABLES"
+  | "PAYABLES"
+  | "CUSTOMER_BALANCE"
+  | "CUSTOMER_HISTORY"
+  | "STOCK_LEVEL"
+  | "LOW_STOCK"
+  | "TODAY_SALES"
+  | "TODAY_EXPENSES"
+  | "SALES_SUMMARY"
+  | "EXPENSES_SUMMARY"
+  | "PROFIT"
+  | "TOP_PRODUCTS"
+  | "RECENT_SALES"
+  | "RECENT_EXPENSES"
+  | "RECENT_PURCHASES"
+  | "SUPPLIER_BALANCE"
+  | "SUPPLIER_HISTORY"
+  | "REMINDERS_TODAY"
+  | "REMINDERS_ALL"
+  | "INACTIVE_CUSTOMERS"
+  | "OVERDUE_CUSTOMERS"
+  | "REORDER_CANDIDATES"
+  | "CUSTOMER_LIST"
+  | "PRODUCT_LIST"
+  | "SUPPLIER_LIST"
+  | "HELP";
+
+export type ActionKind =
+  | "CREATE_SALE"
+  | "RECORD_PAYMENT"
+  | "CREATE_EXPENSE"
+  | "CREATE_CUSTOMER"
+  | "CREATE_PRODUCT"
+  | "CREATE_SUPPLIER"
+  | "CREATE_PURCHASE"
+  | "SUPPLIER_PAYMENT"
+  | "CREATE_REMINDER"
+  | "ADD_STOCK"
+  | "COMPLETE_REMINDER"
+  | "VOID_SALE"
+  | "VOID_EXPENSE"
+  | "VOID_PAYMENT";
+
+export type DateRange = "today" | "yesterday" | "week" | "month" | "last_month" | "all";
+
+export type PaymentMethod = "cash" | "bank" | "cheque" | "jazzcash" | "easypaisa" | "other";
+
+export type Candidate = {
+  id: string;
+  name: string;
+  meta?: string;
+};
+
+export type PlanRequirement =
+  | "customer"
+  | "product"
+  | "supplier"
+  | "quantity"
+  | "unit"
+  | "unitPrice"
+  | "paidAmount"
+  | "amount"
+  | "name"
+  | "targetId";
+
+export type PlanPayload = {
+  action: ActionKind;
+  customerId?: string;
+  supplierId?: string;
+  productId?: string;
+  items?: Array<{ productId: string; quantity: number; unitPrice: number }>;
+  quantity?: number;
+  unit?: string;
+  unitPrice?: number;
+  unitCost?: number;
+  total?: number;
+  paidAmount?: number | null;
+  discountAmount?: number;
+  method?: PaymentMethod;
+  date?: string;
+  dueDate?: string;
+  name?: string;
+  phone?: string;
+  address?: string;
+  openingBalance?: number;
+  category?: string;
+  expenseName?: string;
+  amount?: number;
+  notes?: string;
+  reminderTitle?: string;
+  reminderDueAt?: string;
+  reminderType?: string;
+  reminderPriority?: string;
+  batchName?: string;
+  purchasePrice?: number;
+  sellingPrice?: number;
+  openingStock?: number;
+  sku?: string;
+  lowStockThreshold?: number;
+  targetId?: string;
+  text?: string;
+  /** Rendering data attached when the plan is stored. */
+  display?: {
+    summary: string;
+    fields: Array<{ label: string; value: string }>;
+    warnings: string[];
+    requires: PlanRequirement[];
+    candidates: { customers?: Candidate[]; products?: Candidate[]; suppliers?: Candidate[] };
+    usedContext: boolean;
+    /** Values the confirmation card can offer as one-tap choices. */
+    suggested?: {
+      total?: number;
+      paidAmount?: number;
+      quantity?: number;
+      unitPrice?: number;
+      amount?: number;
+    };
+  };
+};
+
+export type Timings = {
+  totalMs: number;
+  ruleMs?: number;
+  aiMs?: number;
+  executeMs?: number;
+};
+
+export type AnswerItem = {
+  label: string;
+  value?: string;
+  href?: string;
+  meta?: string;
+};
+
+export type AssistantAnswer = {
+  kind: "answer";
+  text: string;
+  items?: AnswerItem[];
+  data?: unknown;
+  source: "database" | "ai";
+  model?: string;
+  requestsUsed: number;
+  timings: Timings;
+};
+
+export type AssistantPlan = {
+  kind: "plan";
+  actionId: string;
+  action: ActionKind;
+  summary: string;
+  fields: Array<{ label: string; value: string }>;
+  warnings: string[];
+  requires: PlanRequirement[];
+  candidates: {
+    customers?: Candidate[];
+    products?: Candidate[];
+    suppliers?: Candidate[];
+  };
+  /** True when a pronoun was resolved from the previous turn. */
+  usedContext: boolean;
+  /** One-tap values for the confirmation card. */
+  suggested?: {
+    total?: number;
+    paidAmount?: number;
+    quantity?: number;
+    unitPrice?: number;
+    amount?: number;
+  };
+  source: "rules" | "ai";
+  model?: string;
+  requestsUsed: number;
+  timings: Timings;
+};
+
+export type AssistantClarify = {
+  kind: "clarify";
+  text: string;
+  options?: Candidate[];
+  /** What to ask for, so the UI can render the right input. */
+  field?: PlanRequirement | "entity" | "intent";
+  pending?: {
+    action?: ActionKind;
+    query?: QueryKind;
+    entity?: string;
+  };
+  source: "rules" | "ai";
+  model?: string;
+  requestsUsed: number;
+  timings: Timings;
+};
+
+export type AssistantError = {
+  kind: "error";
+  code:
+    | "AI_UNAVAILABLE"
+    | "AI_EXHAUSTED"
+    | "NOT_UNDERSTOOD"
+    | "INVALID_INPUT"
+    | "SERVER";
+  text: string;
+  /** The user's command, preserved so they can retry without repeating it. */
+  preservedText: string;
+  retryAt?: string;
+  requestsUsed: number;
+  timings: Timings;
+};
+
+export type AssistantReply =
+  | AssistantAnswer
+  | AssistantPlan
+  | AssistantClarify
+  | AssistantError;
+
+export type RouteQuery = {
+  type: "query";
+  query: QueryKind;
+  entity?: string;
+  range?: DateRange;
+  confidence: number;
+  matched: string;
+};
+
+export type RouteAction = {
+  type: "action";
+  action: ActionKind;
+  fields: Partial<PlanPayload> & {
+    customerName?: string;
+    supplierName?: string;
+    productName?: string;
+    expenseName?: string;
+  };
+  confidence: number;
+  missing: PlanRequirement[];
+  matched: string;
+};
+
+export type RouteMatch = RouteQuery | RouteAction;
+
+/** Compact entity index the rule engine matches names against. */
+export type RouterContext = {
+  customers: Array<{ id: string; name: string }>;
+  products: Array<{ id: string; name: string; unit: string; sellingPrice: string }>;
+  suppliers: Array<{ id: string; name: string }>;
+  thread: ThreadContext;
+};
+
+export type ThreadContext = {
+  lastCustomerId?: string;
+  lastCustomerName?: string;
+  lastProductId?: string;
+  lastProductName?: string;
+  lastSupplierId?: string;
+  lastSupplierName?: string;
+  lastActionId?: string;
+  lastSaleId?: string;
+  lastQuery?: QueryKind;
+  updatedAt?: string;
+};

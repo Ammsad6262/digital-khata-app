@@ -52,53 +52,100 @@ export type Intent = z.infer<typeof intentSchema>;
  * Fields are shared across intents. The AI fills whichever fields are
  * relevant to the detected intent. Irrelevant fields are null.
  */
+/**
+ * Tolerant field helpers.
+ *
+ * ROOT-CAUSE FIX (Phase 3): the previous schema declared most fields as
+ * `.nullable()` but NOT `.optional()`. Gemini's structured-output mode only
+ * guarantees `intent` and `needsClarification`; it OMITS every field it has
+ * nothing to say about. Zod then reported "Required" for `batchName`,
+ * `explicitUnitPrice`, … and EVERY response failed validation. The provider
+ * interpreted that as a model problem, tried all three models, and the user
+ * saw "AI is busy" while three daily requests were consumed.
+ *
+ * Every non-essential field is now nullish, numbers accept numeric strings,
+ * and enum mismatches fall back instead of rejecting the whole object.
+ */
+const textField = (max: number) =>
+  z.preprocess(
+    (v) => (typeof v === "number" ? String(v) : v),
+    z.string().trim().max(max).nullish(),
+  );
+
+const numberField = (opts: { positive?: boolean } = {}) =>
+  z.preprocess(
+    (v) => {
+      if (typeof v === "string") {
+        const cleaned = v.replace(/,/g, "").trim();
+        return cleaned === "" ? undefined : Number(cleaned);
+      }
+      return v;
+    },
+    z
+      .number()
+      .finite()
+      .refine((v) => (opts.positive ? v > 0 : true), "must be positive")
+      .nullish(),
+  );
+
 export const aiInterpretationSchema = z.object({
-  intent: intentSchema,
+  // Unknown / aliased intents degrade to UNKNOWN instead of failing.
+  intent: intentSchema.catch("UNKNOWN"),
+
   // Sale fields
-  customerName: z.string().min(1).max(200).nullable(),
-  productName: z.string().min(1).max(200).nullable(),
-  quantity: z.number().finite().positive().nullable(),
-  unit: z.string().min(1).max(50).nullable(),
-  batchName: z.string().min(1).max(100).nullable(),
-  explicitUnitPrice: z.number().finite().positive().nullable(),
-  explicitTotal: z.number().finite().positive().nullable(),
-  explicitPaidAmount: z.number().finite().positive().nullable(),
+  customerName: textField(200),
+  productName: textField(200),
+  quantity: numberField({ positive: true }),
+  unit: textField(50),
+  batchName: textField(100),
+  explicitUnitPrice: numberField({ positive: true }),
+  explicitTotal: numberField({ positive: true }),
+  // 0 is meaningful here ("explicitly on credit"), so not strictly positive.
+  explicitPaidAmount: numberField(),
 
   // Expense fields (V10)
-  expenseName: z.string().min(1).max(200).nullable(),
-  expenseCategory: z.enum([
-    "transport", "shop", "electricity", "packaging",
-    "salary", "rent", "other",
-  ]).nullable().optional(),
+  expenseName: textField(200),
+  expenseCategory: z
+    .enum(["transport", "shop", "electricity", "packaging", "salary", "rent", "other"])
+    .nullish()
+    .catch(undefined),
 
   // Supplier payment fields
-  supplierName: z.string().min(1).max(200).nullable().optional(),
+  supplierName: textField(200),
 
   // Reminder fields
-  reminderTitle: z.string().min(1).max(150).nullable().optional(),
-  reminderInDays: z.number().int().min(0).max(3650).nullable().optional(),
-  reminderPriority: z.enum(["low", "normal", "high"]).nullable().optional(),
-  reminderType: z.enum([
-    "payment_collection", "supplier_payment", "customer_followup",
-    "stock_reorder", "custom",
-  ]).nullable().optional(),
+  reminderTitle: textField(150),
+  reminderInDays: z
+    .preprocess(
+      (v) => (typeof v === "string" ? Number(v) : v),
+      z.number().int().min(0).max(3650).nullish(),
+    )
+    .catch(undefined),
+  reminderPriority: z.enum(["low", "normal", "high"]).nullish().catch(undefined),
+  reminderType: z
+    .enum(["payment_collection", "supplier_payment", "customer_followup", "stock_reorder", "custom"])
+    .nullish()
+    .catch(undefined),
 
   // Query fields (V10)
-  queryType: z.enum([
-    "TODAYS_EXPENSES", "TODAYS_SALES", "CUSTOMER_BALANCES",
-    "STOCK_LEVEL", "EXPENSES_SUMMARY", "SALES_SUMMARY",
-    "CUSTOMER_PAYMENT_HISTORY", "SUPPLIER_PAYABLES", "TODAYS_REMINDERS",
-    "LOW_STOCK", "INACTIVE_CUSTOMERS", "OVERDUE_CUSTOMERS", "REORDER_CANDIDATES", "SUPPLIER_PURCHASES",
-    "OTHER",
-  ]).nullable().optional(),
-  queryEntity: z.string().max(200).nullable().optional(),
-  queryDateRange: z.enum(["today", "yesterday", "week", "month", "all"]).nullable().optional(),
+  queryType: z
+    .enum([
+      "TODAYS_EXPENSES", "TODAYS_SALES", "CUSTOMER_BALANCES",
+      "STOCK_LEVEL", "EXPENSES_SUMMARY", "SALES_SUMMARY",
+      "CUSTOMER_PAYMENT_HISTORY", "SUPPLIER_PAYABLES", "TODAYS_REMINDERS",
+      "LOW_STOCK", "INACTIVE_CUSTOMERS", "OVERDUE_CUSTOMERS", "REORDER_CANDIDATES", "SUPPLIER_PURCHASES",
+      "OTHER",
+    ])
+    .nullish()
+    .catch(undefined),
+  queryEntity: textField(200),
+  queryDateRange: z.enum(["today", "yesterday", "week", "month", "all"]).nullish().catch(undefined),
 
   // Self-reported confidence 0..1
-  confidence: z.number().min(0).max(1).optional(),
-  needsClarification: z.boolean().default(false),
-  clarificationQuestion: z.string().max(500).nullable().optional(),
-  transcript: z.string().max(2000).nullable().optional(),
+  confidence: z.number().min(0).max(1).catch(0.5).default(0.5),
+  needsClarification: z.boolean().catch(false).default(false),
+  clarificationQuestion: textField(500),
+  transcript: textField(2000),
 });
 
 export type AiInterpretation = z.infer<typeof aiInterpretationSchema>;

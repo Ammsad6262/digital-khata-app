@@ -37,6 +37,7 @@ function ai(partial: Partial<AiInterpretation>): AiInterpretation {
     explicitTotal: null,
     explicitPaidAmount: null,
     expenseName: null,
+    confidence: 0.5,
     needsClarification: false,
     ...partial,
   };

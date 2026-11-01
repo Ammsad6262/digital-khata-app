@@ -80,6 +80,75 @@ model User {
   followUps       FollowUp[]
   auditLogs       AuditLog[]
   passwordResetCodes PasswordResetCode[]
+  assistantActions AssistantAction[]
+  assistantThread  AssistantThread?
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// AI USAGE — one row per (day, model) for the free-tier Gemini rotation.
+//
+// The free tier gives each model a small daily request budget. We persist the
+// counters so every serverless instance shares the same view of how much of
+// each model's budget is already spent, and so an exhausted model is skipped
+// instead of being called again and again.
+// ────────────────────────────────────────────────────────────────────────────
+
+model AIUsageDaily {
+  id            String    @id @default(cuid())
+  day           String    // YYYY-MM-DD in the business timezone
+  model         String
+  attempts      Int       @default(0) // requests actually dispatched
+  successes     Int       @default(0)
+  rateLimited   Int       @default(0) // 429 / quota exhausted
+  failures      Int       @default(0) // transient/other errors
+  cooldownUntil DateTime? // do not call this model before this time
+  lastError     String?
+  updatedAt     DateTime  @updatedAt
+
+  @@unique([day, model])
+  @@index([day])
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// ASSISTANT ACTION — a prepared write operation awaiting confirmation.
+//
+// The AI never writes directly. It proposes an action; the server stores it
+// here with an idempotency key; the user confirms; the server executes it
+// through the SAME service layer the normal UI uses, then records the result.
+// Re-sending the same command returns the stored result (no duplicate money).
+// ────────────────────────────────────────────────────────────────────────────
+
+model AssistantAction {
+  id             String    @id @default(cuid())
+  userId         String
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  idempotencyKey String
+  kind           String    // CREATE_SALE | RECORD_PAYMENT | ...
+  status         String    @default("PENDING") // PENDING | EXECUTING | DONE | FAILED | CANCELLED
+  payload        Json
+  result         Json?
+  error          String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  executedAt     DateTime?
+
+  @@unique([userId, idempotencyKey])
+  @@index([userId, createdAt])
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// ASSISTANT THREAD — the conversation context (last customer/product/sale).
+//
+// Lets "he paid another 5,000 today" resolve to the customer from the
+// previous turn without asking the user to repeat the name.
+// ────────────────────────────────────────────────────────────────────────────
+
+model AssistantThread {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  context   Json
+  updatedAt DateTime @updatedAt
 }
 
 // ────────────────────────────────────────────────────────────────────────────

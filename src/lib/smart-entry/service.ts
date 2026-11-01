@@ -729,8 +729,8 @@ export async function interpretInput(
       transcript,
       rawAiResponse: aiToPrismaJson(ai),
       intent: ai.intent,
-      customerNameRaw: ai.customerName,
-      productNameRaw: ai.productName,
+      customerNameRaw: ai.customerName ?? null,
+      productNameRaw: ai.productName ?? null,
       quantityRaw: ai.quantity ?? null,
       unitRaw: ai.unit ?? null,
       // Note: batchName is NOT stored on SmartEntrySession — it's only in the
@@ -751,8 +751,8 @@ export async function interpretInput(
     transcript,
     intent: ai.intent,
     form: {
-      customerNameRaw: ai.customerName,
-      productNameRaw: ai.productName,
+      customerNameRaw: ai.customerName ?? null,
+      productNameRaw: ai.productName ?? null,
       quantityRaw: ai.quantity ?? null,
       unitRaw: ai.unit ?? null,
       batchNameRaw: ai.batchName ?? null,
@@ -883,7 +883,7 @@ async function buildPaymentForm(
       transcript,
       rawAiResponse: aiToPrismaJson(ai),
       intent: ai.intent,
-      customerNameRaw: ai.customerName,
+      customerNameRaw: ai.customerName ?? null,
       resolvedCustomerId,
       expiresAt: new Date(Date.now() + SESSION_TTL_MS),
     },
@@ -895,7 +895,7 @@ async function buildPaymentForm(
     transcript,
     intent: ai.intent,
     paymentForm: {
-      customerNameRaw: ai.customerName,
+      customerNameRaw: ai.customerName ?? null,
       resolvedCustomerId,
       amount: ai.explicitPaidAmount ?? null,
       method: "cash",
@@ -1502,7 +1502,7 @@ async function buildStockIntakeForm(
       transcript,
       rawAiResponse: aiToPrismaJson(ai),
       intent: ai.intent,
-      productNameRaw: ai.productName,
+      productNameRaw: ai.productName ?? null,
       resolvedProductId,
       quantityRaw: ai.quantity ?? null,
       unitRaw: ai.unit ?? null,
@@ -1516,7 +1516,7 @@ async function buildStockIntakeForm(
     transcript,
     intent: ai.intent,
     stockIntakeForm: {
-      productNameRaw: ai.productName,
+      productNameRaw: ai.productName ?? null,
       resolvedProductId,
       quantity: ai.quantity ?? null,
       unit: ai.unit ?? null,
@@ -1544,7 +1544,7 @@ async function buildProductCreationForm(
     data: {
       userId, status: "AWAITING_CONFIRMATION", inputType: inputType as "text" | "voice",
       transcript, rawAiResponse: aiToPrismaJson(ai), intent: ai.intent,
-      productNameRaw: ai.productName, quantityRaw: ai.quantity ?? null, unitRaw: ai.unit ?? null,
+      productNameRaw: ai.productName ?? null, quantityRaw: ai.quantity ?? null, unitRaw: ai.unit ?? null,
       expiresAt: new Date(Date.now() + SESSION_TTL_MS),
     },
   });
@@ -1553,7 +1553,7 @@ async function buildProductCreationForm(
     productCreationForm: {
       name: ai.productName ?? null, unit: ai.unit ?? null, category: null, sku: null,
       purchasePrice: aiPrice, sellingPrice: aiPrice,
-      openingStock: mentionedStock ? ai.quantity : null, lowStockThreshold: 5,
+      openingStock: mentionedStock ? ai.quantity ?? null : null, lowStockThreshold: 5,
       hint: !ai.productName ? "Enter the product name." : !ai.unit ? "Enter the unit." : aiPrice == null ? "Enter purchase and selling prices." : null,
       mentionedStock,
     },
@@ -1574,7 +1574,7 @@ async function buildCustomerCreationForm(
     data: {
       userId, status: "AWAITING_CONFIRMATION", inputType: inputType as "text" | "voice",
       transcript, rawAiResponse: aiToPrismaJson(ai), intent: ai.intent,
-      customerNameRaw: ai.customerName, expiresAt: new Date(Date.now() + SESSION_TTL_MS),
+      customerNameRaw: ai.customerName ?? null, expiresAt: new Date(Date.now() + SESSION_TTL_MS),
     },
   });
   return {

@@ -37,6 +37,12 @@ try {
           (value.startsWith("'") && value.endsWith("'"))) {
         value = value.substring(1, value.length - 1);
       }
+      // NEVER let .env override NODE_ENV. Next.js sets it per command
+      // (development for `next dev`, production for `next build`). A
+      // NODE_ENV=development line in .env used to leak into `next build`,
+      // which made the production prerender fail on /_global-error with
+      // "Cannot read properties of null (reading 'useContext')".
+      if (key === "NODE_ENV") continue;
       process.env[key] = value;
     }
   }

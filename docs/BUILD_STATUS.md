@@ -10,7 +10,7 @@ Last updated: production build fixed; migration history rebuilt on Postgres; ass
 | Branch | `feat/platform-expansion` |
 | Local database | Docker Postgres `khata-pg` on `localhost:5433` (seeded sample data) |
 | Safe backup | OneDrive `_backups\digital-khata-app-<timestamp>.zip` |
-| Live database | **Untouched** (161 users, real data) |
+| Live database | Real data (161 users) — **additive DDL applied** 2026-11-02 (2 idempotent deltas); no rows deleted or rewritten |
 
 ## ✅ Completed in Stage 1
 
@@ -228,6 +228,14 @@ from `schema.prisma` and reconcile it against the live DB. Do not run
 > apply the pending additive deltas (see `prisma/production/README.md`), then
 > `prisma migrate resolve --applied 20260101000000_baseline` and
 > `prisma migrate deploy`.
+>
+> **Update (2026-11-02, deploy `d614358`).** The two deltas the current release
+> needs (`20261102_ai_assistant_tables.sql`, `20261102_transaction_voided_at.sql`)
+> now apply **automatically during the Vercel build**
+> (`scripts/apply-production-ddl.mjs`, pinned by `vercel.json`) and *have* been
+> applied to the live DB. They are additive and idempotent; if the SQL ever
+> fails the build fails, so a schema mismatch can never reach production. The
+> remaining older deltas are still applied deliberately, one file at a time.
 
 ### ✅ Production delta is ready (prepared, not yet applied)
 

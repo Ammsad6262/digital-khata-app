@@ -1,6 +1,6 @@
 # Build Status — Platform Expansion
 
-Last updated: Stage 3 + Insights + AI gating + assistant queries + reports complete (2026-10-23).
+Last updated: production build fixed; AI assistant tables migrated; ledger void is now a soft-void (2026-11-02).
 
 ## Environment
 
@@ -894,6 +894,73 @@ and erased due dates and follow-up dates.
 
 ---
 
+## Completed — production build fixed + AI tables migrated + soft-void ledger (2026-11-02)
+
+### 1. `next build` was failing on `/_global-error` — root cause found and fixed
+The production prerender died with
+`TypeError: Cannot read properties of null (reading 'useContext')` on
+`/_global-error`. It reproduced on `main` too, so it was not caused by the
+assistant work.
+
+**Root cause:** `next.config.mjs` force-copies `.env` into `process.env` at
+build time, and `.env` contained `NODE_ENV=development`. That overrode the
+`NODE_ENV=production` that `next build` sets, so the build ran half in
+development mode and React's dispatcher was `null` during the error-page
+prerender.
+
+**Fix:** `next.config.mjs` now skips `NODE_ENV` when loading `.env` (Next.js
+sets it per command: development for `next dev`, production for `next build`).
+Nothing else about the build changed — every page still ships, and `next dev`
+is unaffected.
+
+Verified:
+- `npx next build` (strict, prerenders all pages) → **exit 0, 19/19 pages**
+- `npm run build` (project script, compile mode) → **exit 0**
+
+### 2. AI assistant persistence tables — migrations added
+`AIUsageDaily`, `AssistantAction` and `AssistantThread` existed only in the
+local DB (created with `prisma db push`), so the runtime fell back to an
+in-memory copy. Added:
+- `prisma/migrations/20261102000000_add_ai_assistant_tables/migration.sql`
+- `prisma/production/20261102_ai_assistant_tables.sql` (the additive, idempotent
+  delta the project actually deploys with)
+
+Both are safe on a database that already has the tables (`IF NOT EXISTS` +
+guarded foreign keys). Verified: applied twice with zero errors; and after
+applying, `prisma migrate diff` between the live schema and `schema.prisma`
+returns **"this is an empty migration"** (exact match).
+`scripts/verify-ai-persistence.ts` writes through the real modules and reads the
+rows back through a **fresh** Prisma client — **5/5** (proving it is really in
+Postgres, not module memory).
+
+### 3. Voiding is now a soft-void — financial history is preserved
+Voiding a sale (or payment / expense / stock move / supplier payment) used to
+**hard-delete** its `Transaction` ledger rows. The new rule: `Transaction` gains
+a `voidedAt` column, and voids **mark** the rows instead of deleting them.
+Voiding a sale still voids every payment linked to it. Active-ledger reads
+(`GET /api/transactions`, the transaction summary, the dashboard recent list)
+now filter `voidedAt IS NULL`; backups still export every row, voided or not.
+
+Added:
+- `Transaction.voidedAt` + index in `prisma/schema.prisma`
+- `prisma/migrations/20261102000100_add_transaction_voided_at/migration.sql`
+- `prisma/production/20261102_transaction_voided_at.sql` (idempotent)
+
+Verified: `scripts/audit-data-integrity.ts` now asserts the voided sale has
+**no active ledger row but keeps its row for auditing** — **18/18**.
+
+### Test run after this round
+- `npx tsc --noEmit` → clean
+- `scripts/audit-data-integrity.ts` → **18/18**
+- `scripts/test-assistant.ts` → **112/112**
+- `scripts/test-foundation.ts` → **17/17**
+- `scripts/verify-ai-persistence.ts` → **5/5**
+- `scripts/test-acceptance-http.ts` (real HTTP, real DB) → **153 passed,
+  0 failed, 0 skipped**
+- `npx next build` → exit 0 (19/19) and `npm run build` → exit 0
+
+---
+
 ## 🔑 Blockers / required from owner
 
 1. **`GEMINI_API_KEY`** — required for Smart Entry, the expanded voice assistant,
@@ -906,8 +973,9 @@ and erased due dates and follow-up dates.
 6. **Production DDL is still pending**: `20261020_stage2_3_delta.sql`,
    `20261023_follow_ups.sql`, `20261023_sale_due_date.sql`,
    `20261023_sale_discount.sql`, `20261024_audit_log.sql`,
-   `20261024_customer_company.sql`, `20261025_purchase_due_date.sql` and
-   `20261025_password_reset_codes.sql`. Apply only with explicit approval.
+   `20261024_customer_company.sql`, `20261025_purchase_due_date.sql`,
+   `20261025_password_reset_codes.sql`, `20261102_ai_assistant_tables.sql` and
+   `20261102_transaction_voided_at.sql`. Apply only with explicit approval.
 7. **Production must set `ADMIN_SECRET`** (16+ characters) in Vercel. Without
    it, `/admin/codes` and password-reset issuance return 401. The secret is set
    in the local `.env`; it is not committed.

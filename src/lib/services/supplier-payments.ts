@@ -245,8 +245,9 @@ export async function voidSupplierPayment(
 
     const now = new Date();
     await tx.supplierPayment.update({ where: { id }, data: { voidedAt: now } });
-    await tx.transaction.deleteMany({
-      where: { refType: "SupplierPayment", refId: id },
+    await tx.transaction.updateMany({
+      where: { refType: "SupplierPayment", refId: id, voidedAt: null },
+      data: { voidedAt: now },
     });
     return { id, voidedAt: now };
   });

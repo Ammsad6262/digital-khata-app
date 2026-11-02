@@ -205,7 +205,7 @@ async function main() {
   assertEqual(stock.toString(), "30", "Stock = 100 - 120 + 50 = 30");
 
   // ═══════════════════════════════════════════════════════════════════════
-  console.log(`\n${c.cyan}━━━ TEST 4: Void Sale cleans up Transaction mirror ━━━${c.reset}`);
+  console.log(`\n${c.cyan}━━━ TEST 4: Void Sale soft-voids the Transaction mirror ━━━${c.reset}`);
 
   const sale1 = await prisma.sale.findFirstOrThrow({ where: { customerId: customer.id, totalAmount: 100000 } });
 
@@ -213,23 +213,30 @@ async function main() {
   await prisma.$transaction(async (tx) => {
     await tx.sale.update({ where: { id: sale1.id }, data: { voidedAt: new Date() } });
     await tx.payment.updateMany({ where: { saleId: sale1.id, voidedAt: null }, data: { voidedAt: new Date() } });
-    // The fix: delete the Transaction mirror rows
+    // The fix: SOFT-VOID the Transaction mirror rows so the audit history survives
     const linkedPayments = await tx.payment.findMany({ where: { saleId: sale1.id }, select: { id: true } });
     const paymentIds = linkedPayments.map((p) => p.id);
-    await tx.transaction.deleteMany({
+    await tx.transaction.updateMany({
       where: {
+        voidedAt: null,
         OR: [
           { refType: "Sale", refId: sale1.id },
           ...(paymentIds.length > 0 ? [{ refType: "Payment", refId: { in: paymentIds } }] : []),
         ],
       },
+      data: { voidedAt: new Date() },
     });
   });
 
   const activeTxForVoidedSale = await prisma.transaction.count({
-    where: { refType: "Sale", refId: sale1.id },
+    where: { refType: "Sale", refId: sale1.id, voidedAt: null },
   });
-  assertEqual(activeTxForVoidedSale, 0, "Transaction mirror rows deleted for voided sale");
+  assertEqual(activeTxForVoidedSale, 0, "voided sale has no active ledger row");
+
+  const keptTxForVoidedSale = await prisma.transaction.count({
+    where: { refType: "Sale", refId: sale1.id, voidedAt: { not: null } },
+  });
+  assert(keptTxForVoidedSale >= 1, "voided sale keeps its ledger row for auditing");
 
   // ═══════════════════════════════════════════════════════════════════════
   console.log(`\n${c.cyan}━━━ TEST 5: recordPayment updates Sale.paidAmount ━━━${c.reset}`);

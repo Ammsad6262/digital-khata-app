@@ -245,9 +245,10 @@ export async function voidExpense(id: string, userId?: string | null): Promise<{
       data: { voidedAt: now },
     });
 
-    // Delete the Transaction ledger row for this expense.
-    await tx.transaction.deleteMany({
-      where: { refType: "Expense", refId: id },
+    // Soft-void the Transaction ledger row for this expense (kept for audit).
+    await tx.transaction.updateMany({
+      where: { refType: "Expense", refId: id, voidedAt: null },
+      data: { voidedAt: now },
     });
 
     return { id, voidedAt: now };

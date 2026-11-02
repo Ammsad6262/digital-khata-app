@@ -685,12 +685,13 @@ export async function voidSale(id: string, userId?: string | null): Promise<{ id
       );
     }
 
-    // Delete the Transaction ledger rows for the voided sale + its linked payments.
-    // The Transaction table is a denormalized mirror — voiding the source must
-    // remove its mirror rows, otherwise the dashboard + transaction history
-    // would still show the voided sale as an active money movement.
-    await tx.transaction.deleteMany({
+    // Soft-void the Transaction ledger rows for the voided sale + its linked
+    // payments. The Transaction table is a denormalized mirror, but it is also
+    // the financial history, so we keep the rows and mark them voided instead
+    // of deleting them. Active-ledger reads filter `voidedAt: null`.
+    await tx.transaction.updateMany({
       where: {
+        voidedAt: null,
         OR: [
           { refType: "Sale", refId: id },
           ...(paymentIds.length > 0
@@ -698,6 +699,7 @@ export async function voidSale(id: string, userId?: string | null): Promise<{ id
             : []),
         ],
       },
+      data: { voidedAt: now },
     });
 
     return { id, voidedAt: now };

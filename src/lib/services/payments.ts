@@ -345,9 +345,11 @@ export async function voidPayment(id: string, userId?: string | null): Promise<{
       }
     }
 
-    // Delete the Transaction ledger row for this payment.
-    await tx.transaction.deleteMany({
-      where: { refType: "Payment", refId: id },
+    // Soft-void the Transaction ledger row for this payment (history is kept
+    // for auditing; active-ledger reads filter `voidedAt: null`).
+    await tx.transaction.updateMany({
+      where: { refType: "Payment", refId: id, voidedAt: null },
+      data: { voidedAt: now },
     });
 
     return { id, voidedAt: now };

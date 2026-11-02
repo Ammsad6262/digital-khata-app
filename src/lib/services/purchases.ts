@@ -438,8 +438,9 @@ export async function voidPurchase(
         where: { id: { in: moveIds }, voidedAt: null },
         data: { voidedAt: now },
       });
-      await tx.transaction.deleteMany({
-        where: { refType: "StockMove", refId: { in: moveIds } },
+      await tx.transaction.updateMany({
+        where: { refType: "StockMove", refId: { in: moveIds }, voidedAt: null },
+        data: { voidedAt: now },
       });
     }
 

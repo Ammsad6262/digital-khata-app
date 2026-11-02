@@ -175,9 +175,10 @@ export async function voidStockMove(id: string, userId?: string | null): Promise
       data: { voidedAt: now },
     });
 
-    // Delete the Transaction ledger row for this stock move.
-    await tx.transaction.deleteMany({
-      where: { refType: "StockMove", refId: id },
+    // Soft-void the Transaction ledger row for this stock move (kept for audit).
+    await tx.transaction.updateMany({
+      where: { refType: "StockMove", refId: id, voidedAt: null },
+      data: { voidedAt: now },
     });
 
     return { id, voidedAt: now };

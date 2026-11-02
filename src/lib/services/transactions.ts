@@ -134,6 +134,7 @@ export async function listTransactions(
 
   const transactions = await prisma.transaction.findMany({
     where: {
+      voidedAt: null,
       ...(userId && { userId }),
       ...(startDate && { date: { gte: startDate } }),
       ...(endDate && { date: { lte: endDate } }),
@@ -219,6 +220,7 @@ export async function listTransactionsEnriched(
 /** Recent transactions for the dashboard (mixed types, last 10). */
 export async function getRecentTransactions(limit = 10): Promise<TransactionView[]> {
   const transactions = await prisma.transaction.findMany({
+    where: { voidedAt: null },
     orderBy: { date: "desc" },
     take: limit,
   });
@@ -320,6 +322,7 @@ export async function getTransactionSummary(
     _sum: { amount: true },
     _count: { id: true },
     where: {
+      voidedAt: null,
       ...(userId && { userId }),
       ...(startDate && { date: { gte: startDate } }),
       ...(endDate && { date: { lte: endDate } }),

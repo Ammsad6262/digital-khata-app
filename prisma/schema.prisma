@@ -580,6 +580,12 @@ model Transaction {
   date       DateTime @default(now())
   notes      String?
   createdAt  DateTime @default(now())
+  // Soft-void marker. Voiding a source record (sale, payment, expense, stock
+  // move, supplier payment) marks its ledger rows here instead of deleting
+  // them, so the financial history stays available for auditing. Every read
+  // of this table filters `voidedAt: null` for the active ledger; backups
+  // export every row, voided or not.
+  voidedAt   DateTime?
 
   @@index([type])
   @@index([customerId])
@@ -587,6 +593,7 @@ model Transaction {
   @@index([supplierId])
   @@index([date])
   @@index([refType, refId])
+  @@index([voidedAt])
 }
 
 // ────────────────────────────────────────────────────────────────────────────

@@ -117,7 +117,7 @@ async function computeDashboardStats(
 
     // 2. Recent transactions — scoped by userId
     prisma.transaction.findMany({
-      where: { userId },
+      where: { userId, voidedAt: null },
       orderBy: { date: "desc" },
       take: 10,
       select: {

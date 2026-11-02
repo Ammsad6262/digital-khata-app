@@ -10,6 +10,22 @@ foreign keys). None of them delete or rewrite rows.
 
 ---
 
+## Automated application (Vercel)
+
+The two deltas the current release requires are applied **automatically by the
+Vercel build** — `scripts/apply-production-ddl.mjs`, invoked from the `build`
+script (pinned by `vercel.json`):
+
+- `20261102_ai_assistant_tables.sql`
+- `20261102_transaction_voided_at.sql`
+
+If the SQL fails, the build fails and Vercel keeps the previous deployment
+live, so production is never left running code against a schema it does not
+have. The script is a no-op off Vercel (`npm run build` locally never touches a
+database). The remaining deltas below still need a **deliberate** apply.
+
+---
+
 ## ⚠️ Read this first
 
 The current code reads and writes `"Transaction"."voidedAt"`. If the app is

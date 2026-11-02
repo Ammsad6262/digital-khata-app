@@ -1,6 +1,6 @@
 # Build Status — Platform Expansion
 
-Last updated: production build fixed; AI assistant tables migrated; ledger void is now a soft-void (2026-11-02).
+Last updated: production build fixed; migration history rebuilt on Postgres; assistant tables migrated; ledger void is a soft-void (2026-11-02).
 
 ## Environment
 
@@ -211,6 +211,23 @@ drifted:
 **Before any production deploy**, we must regenerate a clean Postgres baseline
 from `schema.prisma` and reconcile it against the live DB. Do not run
 `prisma migrate deploy` against production until this is done.
+
+> **✅ RESOLVED (2026-11-02).** The SQLite history was deleted and replaced by a
+> real Postgres baseline: `prisma/migrations/20260101000000_baseline` (23
+> tables, generated from `schema.prisma` with `prisma migrate diff`), followed by
+> the two additive migrations `20261102000000_add_ai_assistant_tables` and
+> `20261102000100_add_transaction_voided_at`.
+>
+> Verified from an empty database: `prisma migrate reset` applies all three
+> cleanly, `prisma migrate status` reports *"Database schema is up to date!"*,
+> and `prisma migrate diff --from-migrations … --to-schema-datamodel …` returns
+> *"this is an empty migration"* — i.e. the history reproduces the schema
+> **exactly**. `db push` is no longer needed.
+>
+> The live DB has **not** been touched. To bring it under migration control:
+> apply the pending additive deltas (see `prisma/production/README.md`), then
+> `prisma migrate resolve --applied 20260101000000_baseline` and
+> `prisma migrate deploy`.
 
 ### ✅ Production delta is ready (prepared, not yet applied)
 

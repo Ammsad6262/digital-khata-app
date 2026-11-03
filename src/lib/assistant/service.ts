@@ -25,6 +25,7 @@ import { runQuery, NeedsEntityError, type ResolvedEntity } from "./queries";
 import { performAction, buildIdempotencyKey, type ActionResult } from "./actions";
 import { loadThread, saveThread } from "./context";
 import { getRotationStatus } from "@/lib/ai/model-registry";
+import type { SpeechLanguage } from "./language";
 import type {
   ActionKind,
   AssistantReply,
@@ -745,6 +746,8 @@ async function storePlan(
 export type AssistantInput = {
   text?: string;
   audio?: { base64: string; mimeType: string };
+  /** Spoken-language hint from the client, used only to shape the reply language. */
+  language?: SpeechLanguage;
 };
 
 export async function handleMessage(
@@ -782,7 +785,9 @@ export async function handleMessage(
     try {
       const ai = await aiUnderstand(
         ctx,
-        input.audio ? { audio: input.audio } : { text },
+        input.audio
+          ? { audio: input.audio, language: input.language }
+          : { text, language: input.language },
       );
       requestsUsed += ai.requestsUsed;
       model = ai.model;
@@ -1097,9 +1102,44 @@ export async function cancelAction(userId: string, actionId: string): Promise<bo
   return result.count > 0;
 }
 
-export async function getAssistantStatus(userId: string) {
-  const [rotation, thread] = await Promise.all([getRotationStatus(), loadThread(userId)]);
-  return { rotation, thread };
+export type AssistantStatus = {
+  /** True when at least one free model can still answer today. */
+  ready: boolean;
+  /** When the next model frees up, if every model is currently cooling down. */
+  retryAt?: string;
+};
+
+/**
+ * User-facing assistant health.
+ *
+ * Deliberately carries NO model names, per-model counters, or provider details.
+ * Those are developer diagnostics and live behind the secret-gated
+ * `/api/admin/diagnostics` endpoint, not the normal assistant API.
+ */
+export async function getAssistantStatus(): Promise<AssistantStatus> {
+  const rotation = await getRotationStatus();
+  if (rotation.models.some((m) => m.healthy)) return { ready: true };
+
+  const now = Date.now();
+  const cooldowns = rotation.models
+    .map((m) => (m.cooldownUntil ? new Date(m.cooldownUntil).getTime() : 0))
+    .filter((t) => t > now);
+  const retryAt = cooldowns.length
+    ? new Date(Math.min(...cooldowns)).toISOString()
+    : undefined;
+  return { ready: false, retryAt };
+}
+
+/**
+ * Strip developer diagnostics from a reply before it crosses the public API.
+ * The model id and per-request counts stay on the server; a business user only
+ * ever receives the answer, the plan, or a plain error.
+ */
+export function toPublicReply(reply: AssistantReply): AssistantReply {
+  const clone = { ...(reply as unknown as Record<string, unknown>) };
+  delete clone.model;
+  delete clone.requestsUsed;
+  return clone as unknown as AssistantReply;
 }
 
 /** Exposed for tests. */

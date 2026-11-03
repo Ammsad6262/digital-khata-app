@@ -10,6 +10,7 @@
 
 import { useCallback, useRef, useState } from "react";
 import type { AssistantReply, PlanPayload } from "@/lib/assistant/types";
+import type { SpeechLanguage } from "@/lib/assistant/language";
 
 export type AssistantState =
   | "idle"
@@ -22,10 +23,10 @@ export type AssistantTurn =
   | { id: string; role: "user"; text: string }
   | { id: string; role: "assistant"; reply: AssistantReply };
 
-export type RotationStatus = {
-  day: string;
-  models: Array<{ id: string; used: number; limit: number; remaining: number; cooldownUntil: string | null; healthy: boolean }>;
-  total: { used: number; limit: number; remaining: number };
+/** User-facing assistant health — no model names or counters. */
+export type AssistantStatus = {
+  ready: boolean;
+  retryAt?: string;
 };
 
 let counter = 0;
@@ -50,15 +51,15 @@ export function useAssistant() {
   const [busy, setBusy] = useState(false);
   const [state, setState] = useState<AssistantState>("idle");
   const [lastError, setLastError] = useState<string | null>(null);
-  const [rotation, setRotation] = useState<RotationStatus | null>(null);
+  const [status, setStatus] = useState<AssistantStatus | null>(null);
   const inFlight = useRef(false);
 
   const refreshStatus = useCallback(async () => {
     try {
       const res = await fetch("/api/assistant/status", { cache: "no-store" });
       if (!res.ok) return;
-      const json = (await res.json()) as { data?: { rotation?: RotationStatus } };
-      if (json.data?.rotation) setRotation(json.data.rotation);
+      const json = (await res.json()) as { data?: AssistantStatus };
+      if (json.data) setStatus(json.data);
     } catch {
       /* status is cosmetic */
     }
@@ -69,7 +70,12 @@ export function useAssistant() {
   }, []);
 
   const send = useCallback(
-    async (input: { text?: string; audioBlob?: Blob; audioMimeType?: string }) => {
+    async (input: {
+      text?: string;
+      audioBlob?: Blob;
+      audioMimeType?: string;
+      language?: SpeechLanguage;
+    }) => {
       if (inFlight.current) return;
       inFlight.current = true;
       setLastError(null);
@@ -85,6 +91,7 @@ export function useAssistant() {
 
         const payload: Record<string, unknown> = {};
         if (input.text) payload.text = input.text;
+        if (input.language) payload.language = input.language;
         if (input.audioBlob) {
           payload.audio = {
             base64: await blobToBase64(input.audioBlob),
@@ -209,7 +216,7 @@ export function useAssistant() {
     state,
     setState,
     lastError,
-    rotation,
+    status,
     refreshStatus,
     send,
     confirm,

@@ -27,6 +27,7 @@ const PUBLIC_ROUTES = [
   "/api/health",
   "/api/admin/codes",
   "/api/admin/password-reset",
+  "/api/admin/diagnostics",
 ];
 
 export const config = {

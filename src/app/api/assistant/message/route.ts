@@ -23,8 +23,9 @@ import { NextRequest } from "next/server";
 import { requireActiveAccess } from "@/lib/auth/get-current-user";
 import { ok, fail, parseJsonBody } from "@/lib/utils/api";
 import { BadRequestError } from "@/lib/errors";
-import { handleMessage } from "@/lib/assistant/service";
+import { handleMessage, toPublicReply } from "@/lib/assistant/service";
 import { checkExecuteLimit } from "@/lib/smart-entry/rate-limit";
+import type { SpeechLanguage } from "@/lib/assistant/language";
 
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
@@ -32,9 +33,12 @@ export const fetchCache = "force-no-store";
 const MAX_AUDIO_BYTES = 5 * 1024 * 1024;
 const MAX_TEXT_CHARS = 500;
 
+const SPEECH_LANGUAGES: SpeechLanguage[] = ["en", "ur", "roman-ur", "mixed"];
+
 type Body = {
   text?: unknown;
   audio?: { base64?: unknown; mimeType?: unknown };
+  language?: unknown;
 };
 
 export async function POST(req: NextRequest) {
@@ -73,8 +77,14 @@ export async function POST(req: NextRequest) {
       throw new BadRequestError("Say or type a command.");
     }
 
-    const reply = await handleMessage(userId, { text, audio });
-    return ok(reply);
+    const language =
+      typeof body.language === "string" &&
+      SPEECH_LANGUAGES.includes(body.language as SpeechLanguage)
+        ? (body.language as SpeechLanguage)
+        : undefined;
+
+    const reply = await handleMessage(userId, { text, audio, language });
+    return ok(toPublicReply(reply));
   } catch (error) {
     return fail(error);
   }

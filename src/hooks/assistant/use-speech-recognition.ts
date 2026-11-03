@@ -14,6 +14,12 @@
  *   (`supported === false`, e.g. Firefox desktop), the caller falls back to
  *   uploading audio.
  *
+ * Accuracy:
+ *   - every result can carry several alternatives; we now take the
+ *     highest-confidence one instead of blindly trusting alternative 0,
+ *   - the caller receives `confidence` / `lowConfidence` so it can ask the
+ *     owner to check the words before a financial action runs.
+ *
  * It also exposes timing so we can measure recognition speed honestly:
  *   - `startedAt`     : when listening began
  *   - `firstPartialMs`: time to the first interim word
@@ -22,10 +28,12 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
+type SpeechAlternativeLike = { transcript: string; confidence: number };
+
 type SpeechRecognitionResultLike = {
   isFinal: boolean;
-  0: { transcript: string; confidence: number };
   length: number;
+  [index: number]: SpeechAlternativeLike;
 };
 
 type SpeechRecognitionEventLike = {
@@ -68,6 +76,17 @@ function getCtor(): SpeechRecognitionCtor | null {
   return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null;
 }
 
+/** Pick the most confident alternative in a result (falls back to index 0). */
+function bestAlternative(result: SpeechRecognitionResultLike): SpeechAlternativeLike {
+  let best = result[0];
+  if (!best) return { transcript: "", confidence: 0 };
+  for (let i = 1; i < result.length; i++) {
+    const candidate = result[i];
+    if (candidate && candidate.confidence > best.confidence) best = candidate;
+  }
+  return best;
+}
+
 export type SpeechLanguage = "en-PK" | "ur-PK" | "en-IN" | "en-US";
 
 export type SpeechState = "idle" | "listening" | "processing" | "denied" | "error";
@@ -91,12 +110,15 @@ export function useSpeechRecognition(options: Options = {}) {
   const [transcript, setTranscript] = useState("");
   const [interim, setInterim] = useState("");
   const [error, setError] = useState<SpeechError | null>(null);
+  const [confidence, setConfidence] = useState<number | null>(null);
   const [language, setLanguage] = useState<SpeechLanguage>(options.language ?? "en-PK");
 
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const finalRef = useRef("");
+  const confidenceRef = useRef<number | null>(null);
   const startedAtRef = useRef<number | null>(null);
   const speechEndedAtRef = useRef<number | null>(null);
+  const firstPartialRef = useRef<number | null>(null);
   const [firstPartialMs, setFirstPartialMs] = useState<number | null>(null);
   const [finalMs, setFinalMs] = useState<number | null>(null);
 
@@ -129,11 +151,14 @@ export function useSpeechRecognition(options: Options = {}) {
     setTranscript("");
     setInterim("");
     setError(null);
+    setConfidence(null);
     setFirstPartialMs(null);
     setFinalMs(null);
     finalRef.current = "";
+    confidenceRef.current = null;
     startedAtRef.current = null;
     speechEndedAtRef.current = null;
+    firstPartialRef.current = null;
   }, []);
 
   const start = useCallback(() => {
@@ -154,13 +179,16 @@ export function useSpeechRecognition(options: Options = {}) {
     rec.maxAlternatives = 3;
 
     finalRef.current = "";
+    confidenceRef.current = null;
     setTranscript("");
     setInterim("");
     setError(null);
+    setConfidence(null);
     setFirstPartialMs(null);
     setFinalMs(null);
     startedAtRef.current = Date.now();
     speechEndedAtRef.current = null;
+    firstPartialRef.current = null;
     setState("listening");
 
     rec.onstart = () => {
@@ -174,16 +202,24 @@ export function useSpeechRecognition(options: Options = {}) {
     rec.onresult = (event) => {
       let interimText = "";
       let finalText = "";
+      let finalConfidence: number | null = null;
+
       for (let i = event.resultIndex; i < event.results.length; i++) {
-        const result = event.results[i]!;
-        const best = result[0]?.transcript ?? "";
-        if (result.isFinal) finalText += best;
-        else interimText += best;
+        const result = event.results[i];
+        if (!result) continue;
+        const best = bestAlternative(result);
+        if (result.isFinal) {
+          finalText += best.transcript;
+          if (best.confidence > (finalConfidence ?? 0)) finalConfidence = best.confidence;
+        } else {
+          interimText += best.transcript;
+        }
       }
 
       if (interimText) {
-        if (firstPartialMs === null && startedAtRef.current !== null) {
-          setFirstPartialMs(Date.now() - startedAtRef.current);
+        if (firstPartialRef.current === null && startedAtRef.current !== null) {
+          firstPartialRef.current = Date.now() - startedAtRef.current;
+          setFirstPartialMs(firstPartialRef.current);
         }
         setInterim(interimText);
         onInterimRef.current?.(interimText);
@@ -193,6 +229,10 @@ export function useSpeechRecognition(options: Options = {}) {
         finalRef.current = (finalRef.current + " " + finalText).trim();
         setTranscript(finalRef.current);
         setInterim("");
+        if (finalConfidence !== null) {
+          confidenceRef.current = finalConfidence;
+          setConfidence(finalConfidence);
+        }
         if (speechEndedAtRef.current) {
           setFinalMs(Date.now() - speechEndedAtRef.current);
         }
@@ -220,6 +260,7 @@ export function useSpeechRecognition(options: Options = {}) {
       const text = finalRef.current.trim();
       if (text) {
         setState("processing");
+        setConfidence(confidenceRef.current);
         onFinalRef.current?.(text);
       } else {
         setState((prev) => (prev === "denied" || prev === "error" ? prev : "idle"));
@@ -236,7 +277,7 @@ export function useSpeechRecognition(options: Options = {}) {
       setError({ code: "start-failed", message: err instanceof Error ? err.message : "Could not start." });
       return false;
     }
-  }, [language, firstPartialMs]);
+  }, [language]);
 
   // Clean up on unmount.
   useEffect(() => {
@@ -261,6 +302,13 @@ export function useSpeechRecognition(options: Options = {}) {
     transcript,
     interim,
     error,
+    confidence,
+    /**
+     * Browser confidence is often 0 even for a correct transcript, so only flag
+     * a genuinely low non-zero score. The UI always lets the owner review the
+     * words anyway; this is an extra nudge.
+     */
+    lowConfidence: confidence !== null && confidence > 0 && confidence < 0.55,
     language,
     setLanguage,
     firstPartialMs,

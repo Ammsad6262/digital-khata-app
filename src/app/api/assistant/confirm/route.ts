@@ -22,7 +22,7 @@ import { NextRequest } from "next/server";
 import { requireActiveAccess } from "@/lib/auth/get-current-user";
 import { ok, fail, parseJsonBody } from "@/lib/utils/api";
 import { BadRequestError } from "@/lib/errors";
-import { confirmAction } from "@/lib/assistant/service";
+import { confirmAction, toPublicReply } from "@/lib/assistant/service";
 import type { PlanPayload } from "@/lib/assistant/types";
 
 export const dynamic = "force-dynamic";
@@ -88,7 +88,7 @@ export async function POST(req: NextRequest) {
     }
 
     const reply = await confirmAction(userId, actionId, patch);
-    return ok(reply);
+    return ok(toPublicReply(reply));
   } catch (error) {
     return fail(error);
   }

@@ -9,6 +9,31 @@ actually produced.
 
 ---
 
+## 0. Product split (this change)
+
+The assistant is now **two separate products** that share one backend engine:
+
+| Product | Launcher | Interaction | Purpose |
+|---------|----------|-------------|---------|
+| **Universal Voice Assistant** | microphone (bottom-right) | tap → speak → review the transcript → confirm | the original, app-wide voice-first experience |
+| **Khata Assistant** | chat bubble (beside it) | type or tap a prepared command | typed Q&A and quick commands |
+
+What this change fixed:
+
+- Voice is no longer a form, a prepared-question chat, or a new-sale-only
+  screen. It is mic-first on every signed-in page.
+- The **language dropdown is gone**. The microphone locale follows the app
+  language, the spoken language is detected from the transcript, and AI replies
+  follow the language the owner used.
+- Model names, per-model counters, quota, and provider details are **no longer
+  returned by the normal assistant API or rendered in either UI**. They live in a
+  secret-gated developer area: `/admin/diagnostics` and
+  `GET /api/admin/diagnostics`.
+- Comma-grouped money is parsed correctly (`15,000` used to be read as `15`), and
+  “add 10 boxes of this product” now resolves the product from the conversation.
+
+---
+
 ## 1. Objective
 
 Turn the existing voice/text smart-entry tool into a fast, accurate,
@@ -63,7 +88,9 @@ Guarantees:
 - Server-side validation re-checks everything (schemas, ownership, balances).
 - Sensitive actions (voids, payments, purchases) require explicit confirmation.
 - Results are verified after writing; a failure returns an error, never a false success.
-- Every request is accounted for (`requestsUsed`, `source`, timings are returned to the client).
+- Every request is accounted for on the server (`source`, attempts, timings).
+  The public API returns only the answer/plan; model ids and per-request
+  counters stay internal and are visible only at `/admin/diagnostics`.
 
 ---
 
@@ -88,6 +115,27 @@ The 5 AI calls were the deliberate "unroutable free-form text" cases (3), the
 audio-fallback case, and one Urdu-script sentence; every ordinary command cost
 nothing. The Urdu sentence reaches the AI rather than being rejected (see
 "Languages" below).
+
+### Universal Voice Assistant suite — `npm run test:voice`
+
+```
+==== 53 passed, 0 failed ====
+```
+
+| Metric | Value |
+|--------|-------|
+| Language-identification cases | 8 (English, Roman Urdu, Urdu, mixed) |
+| Developer-detail checks | 7 |
+| Spoken examples from the specification | 10 |
+| Example commands executed against the real database | 6 writes + 4 reads |
+| Verified database effects | sale total/outstanding, payment, expense, reminder, customer, stock |
+| Median command time (rules path) | 23 ms |
+| Slowest command | 40 ms |
+| AI requests consumed | 0 |
+
+The suite runs against a throwaway tenant and deletes it afterwards. It also
+proves that the normal status/reply payloads contain no model id and no request
+counter, and that the specification's `15,000` is stored as 15,000 (not 15).
 
 ### Model rotation (same suite, isolated fake models)
 
@@ -142,15 +190,31 @@ is the smallest *deadline* the provider accepts, not a floor on response time
 So the AI path is fast when the provider answers, and fast to give up when it
 does not. The rule-path numbers above remain the meaningful fast-path figures.
 
-### Languages
+### Languages (automatic, no selector)
 
-Tested and covered by the router (0 AI requests): English, Roman Urdu
-(`kitna udhaar hai`, `aaj ka kharch`, `kam stock`, `sab se zyada bikne wale
-products`, `500 kharch hua petrol pe`, `naya customer Naeem`), and Urdu script
-for the phrases the rules cover (`مجھے کتنا ادھار لینا ہے`, `آج کا خرچ کتنا ہے`,
-`اسٹاک کم ہے`). Any other Urdu-script text is now recognised as a business
-command and handed to the AI (previously it was rejected before the model saw
-it). Urdu/Arabic digits and diacritics are normalised throughout.
+The voice product has **no language dropdown**. Two things happen automatically:
+
+1. **Microphone locale** follows the app's UI language (`ur-PK` for an Urdu
+   interface, `en-PK` otherwise). It is only the starting point for the browser's
+   on-device recogniser.
+2. **Spoken-language identification** — `src/lib/assistant/language.ts` classifies
+   the actual transcript as English, Urdu (Arabic script), Roman Urdu, or mixed.
+   The result is shown beside the transcript so the owner can see what was
+   understood. A wrong guess changes the *reply* language, never the command
+   handling: the router and the AI fallback understand all four inputs anyway.
+
+Tested (deterministic, 0 AI requests): English, Roman Urdu (`kitna udhaar hai`,
+`aaj ka kharch`, `kam stock`, `sab se zyada bikne wale products`,
+`500 kharch hua petrol pe`, `naya customer Naeem`), and Urdu script for the
+phrases the rules cover (`مجھے کتنا ادھار لینا ہے`, `آج کا خرچ کتنا ہے`,
+`اسٹاک کم ہے`). Any other Urdu-script text is recognised as a business command
+and handed to the AI, whose prompt now requires the reply to use the user's own
+language and script. Urdu/Arabic digits and diacritics are normalised.
+
+Honest limit: fixed, data-derived answers (e.g. “Ali Raza owes you Rs. 5,000”)
+are still English sentences. Only AI-generated clarifications and answers follow
+the spoken language. A full Urdu localisation of every deterministic answer was
+not done.
 
 ### Idempotency and safety
 
@@ -169,32 +233,17 @@ it). Urdu/Arabic digits and diacritics are normalised throughout.
 | `test-acceptance-http` (Phase 2) | 153 passed, 0 failed, 0 skipped |
 | `verify-assistant-writes` | 33 passed, 0 failed |
 | `verify-ai-query-types` | 28 passed, 0 failed |
-| `npm run build` | **fails on `/_global-error` (pre-existing, not caused by this work — see below)** |
+| `npm run build` | **passes** |
 
 The live-Gemini suites (`verify-ai`, `verify-ai-queries`) were intentionally left
 out of the fast regression pass: they make real provider calls that can take
 minutes each (one observed call took ~137 s). They are not broken.
 
-**About `npm run build`.** The production build stops while prerendering the
-special `/_global-error` route with
-`TypeError: Cannot read properties of null (reading 'useContext')`. This is a
-Next.js 16 framework bug in this environment, **not** a regression from the AI
-work: it reproduces on a clean checkout with these changes stashed, and it
-persists after each of the following was tested and reverted —
-
-- removing `src/app/global-error.tsx` (Next 16 auto-generates `/_global-error`),
-- reducing `global-error.tsx` to the minimal documented shape,
-- removing its `export const dynamic`,
-- moving the root layout's anti-FOUC `<script>` out of `<head>` (and removing `<head>`),
-- `next@16.4.3` (up from 16.3.5),
-- `react`/`react-dom@19.2.9` (down from 19.3.0),
-- `--webpack` instead of Turbopack, and `reactStrictMode: false`.
-
-`--debug-prerender` completes all 19 pages, so the app code itself prerenders
-fine; only the production build's synthetic error page fails. The dev server and
-the runtime are unaffected, which is why the HTTP acceptance suite passes. The
-owner should track this as a Next 16 issue (e.g. pin/patch Next once fixed)
-before the next production deploy.
+**About `npm run build`.** The `/_global-error` prerender failure described in an
+earlier revision of this document no longer reproduces in this environment: the
+full production build completes (`BUILD_EXIT=0`) and the route manifest includes
+both new routes (`/admin/diagnostics`, `/api/admin/diagnostics`). The dev server
+and the HTTP acceptance suite are unaffected.
 
 ### Routes
 
@@ -229,8 +278,21 @@ All four return `401` without a session (verified against the running server).
   `AssistantAction`, `AssistantThread`) exist in the local database only. The code
   tolerates missing tables with an in-memory fallback, but a migration must be
   applied before relying on persistence in production.
-- **Assistant UI text is English** (plus a speech-language selector). A full
-  translation pass was not done.
+- **Assistant UI text is English.** The language dropdown was removed; the app's
+  bilingual `t()` system was not extended to the assistant chrome, and fixed
+  data answers are English sentences (see Languages).
+- **Speech accuracy is the browser's, and was not benchmarked with a microphone.**
+  There is no audio device in this environment, so the automated suite tests the
+  deterministic handling of realistic transcripts (including ambiguous ones), not
+  acoustic accuracy. Chrome/Edge/Android give the best results; Firefox desktop
+  uses the recorded-audio fallback.
+- **Voice edits of existing records are not supported.** Creating, reading,
+  paying, stock intake, reminders, voiding, and the module reports are; there is
+  no `EDIT_CUSTOMER` / `EDIT_PRODUCT` / `EDIT_EXPENSE` action yet, and one
+  sentence with several sale lines is not parsed reliably. These need a
+  follow-up.
+- **A wrong language guess only affects the reply language**, never command
+  handling, and the transcript is always shown for correction before a write.
 - **Provider latency** for the AI fallback is now bounded. A live interpret call
   returned in ~2.7 s and a fully-exhausted rotation gave up in ~2 s (see
   "Latency budget" above); the rules path stays ~tens of milliseconds.
@@ -245,18 +307,23 @@ All four return `401` without a session (verified against the running server).
 New:
 
 - `src/lib/ai/model-registry.ts`, `src/lib/ai/gemini-client.ts`
-- `src/lib/assistant/{types,nlg,router,context,queries,actions,ai,service}.ts`
+- `src/lib/assistant/{types,nlg,router,context,queries,actions,ai,service,language}.ts`
 - `src/app/api/assistant/{message,confirm,cancel,status}/route.ts`
+- `src/app/api/admin/diagnostics/route.ts`, `src/app/admin/diagnostics/page.tsx`
 - `src/hooks/assistant/{use-speech-recognition,use-assistant}.ts`
-- `src/components/assistant/AssistantWidget.tsx`
-- `scripts/test-assistant.ts`
+- `src/hooks/voice-assistant/use-voice-assistant.ts`
+- `src/components/assistant/{AssistantWidget,PlanCard}.tsx`
+- `src/components/voice-assistant/VoiceAssistant.tsx`
+- `scripts/test-assistant.ts`, `scripts/test-voice-assistant.ts`
 
 Changed:
 
 - `prisma/schema.prisma` (new tables + relations)
 - `src/lib/smart-entry/{schema,service,gemini-provider}.ts`
-- `src/app/providers.tsx` (mount the app-wide assistant)
-- `package.json` (`test:assistant`)
+- `src/app/providers.tsx` (mount the two separate assistants)
+- `src/middleware.ts` (let the diagnostics API reach its secret check)
+- `src/lib/ai/gemini-narrate.ts` (narration now uses the tracked rotation)
+- `package.json` (`test:assistant`, `test:voice`)
 
 ---
 
@@ -267,8 +334,9 @@ Changed:
 docker run -d --name khata-pg -p 5433:5432 -e POSTGRES_PASSWORD=postgres postgres:16-alpine
 npx prisma db push
 
-# assistant test environment
+# assistant test environments
 npm run test:assistant
+npm run test:voice
 
 # regressions
 npm run build

@@ -3,9 +3,14 @@
 /**
  * Providers — wraps all client-side context providers.
  *
- * The application-wide Khata Assistant is mounted here for every signed-in
- * page (except printable receipts). It replaced the dashboard-only
- * hold-to-talk button: one conversation, able to work across all modules.
+ * Two SEPARATE assistant products are mounted for every signed-in page
+ * (except printable receipts):
+ *
+ *   - VoiceAssistant  — the universal, mic-first assistant (speak naturally).
+ *   - AssistantWidget — the typed Khata Assistant (prepared commands + chat).
+ *
+ * They share the same backend engine but are distinct experiences. Neither
+ * exposes developer details; those live at /admin/diagnostics.
  */
 
 import { type ReactNode } from "react";
@@ -19,6 +24,7 @@ import { Screen } from "@/components/layout/Screen";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { QuickAddMenu } from "@/components/layout/QuickAddMenu";
 import { AssistantWidget } from "@/components/assistant/AssistantWidget";
+import { VoiceAssistant } from "@/components/voice-assistant/VoiceAssistant";
 
 const PUBLIC_PAGES = ["/login", "/register", "/reset-password", "/admin"];
 const DASHBOARD_PATH = "/dashboard";
@@ -50,7 +56,8 @@ export function Providers({ children }: { children: ReactNode }) {
                     {children}
                     <BottomNav />
                     {showQuickAdd ? <QuickAddMenu /> : null}
-                    {/* One assistant for the whole app, on every screen. */}
+                    {/* Two separate products: universal voice + typed chat. */}
+                    <VoiceAssistant />
                     <AssistantWidget />
                   </Screen>
                 )}

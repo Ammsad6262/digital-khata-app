@@ -241,3 +241,75 @@ export async function generateStructured<T>(
   );
   return { ...result, ms, model: result.model || selectedModel };
 }
+
+export type GenerateTextOptions = {
+  systemInstruction: string;
+  prompt: string;
+  temperature?: number;
+  maxOutputTokens?: number;
+  requestTag?: string;
+};
+
+/**
+ * Plain-text generation (no JSON schema) through the SAME three-model rotation.
+ *
+ * Narration used to carry its own private model list, so its requests were
+ * invisible to the daily counters and it never honoured a model's cooldown.
+ * Routing it through `runWithRotation` fixes both: every attempt is counted and
+ * an exhausted/cooling model is skipped like everywhere else.
+ */
+export async function generateText(
+  options: GenerateTextOptions,
+): Promise<{ text: string; model: string; attempts: number; ms: number }> {
+  const genai = getGeminiClient();
+  const started = Date.now();
+  const tag = options.requestTag ?? "ai:text";
+  const perAttempt = attemptTimeoutMs();
+  const deadlineAt = started + deadlineMs();
+  const maxOutputTokens = options.maxOutputTokens ?? 2048;
+
+  const result = await runWithRotation({
+    deadlineAt,
+    operation: async (model) => {
+      const remaining = deadlineAt - Date.now();
+      if (remaining <= 250) {
+        throw new AITimeoutError(`No time left in the AI budget to call ${model}.`);
+      }
+      const budget = Math.max(500, Math.min(perAttempt, remaining));
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), budget);
+
+      try {
+        const response = await genai.models.generateContent({
+          model,
+          contents: options.prompt,
+          config: {
+            systemInstruction: options.systemInstruction,
+            temperature: options.temperature ?? 0.2,
+            topP: 0.2,
+            maxOutputTokens,
+            // Thinking tokens silently truncated narration; this text is a
+            // re-wording of facts the app already computed, not reasoning.
+            thinkingConfig: { thinkingBudget: 0 },
+            abortSignal: controller.signal,
+          },
+        } as never);
+
+        const text = response.text?.trim();
+        if (!text) throw new Error("Gemini returned an empty response.");
+        return text;
+      } catch (error) {
+        if (controller.signal.aborted) {
+          throw new AITimeoutError(`Model ${model} did not answer within ${budget}ms.`);
+        }
+        throw error;
+      } finally {
+        clearTimeout(timer);
+      }
+    },
+  });
+
+  const ms = Date.now() - started;
+  console.log(`[${tag}] ok model=${result.model} attempts=${result.attempts} ms=${ms}`);
+  return { text: result.value, model: result.model, attempts: result.attempts, ms };
+}

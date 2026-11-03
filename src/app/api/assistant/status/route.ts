@@ -1,9 +1,9 @@
 /**
  * GET /api/assistant/status
  *
- * Reports how much of today's free AI budget is left and what the assistant
- * remembers. Used by the UI to show "AI requests left today" and to explain an
- * exhausted state honestly instead of saying the assistant is broken.
+ * Reports one user-facing fact: whether the free AI can still answer today, and
+ * if not, roughly when it will. No model names, no counters, no provider detail.
+ * Developer diagnostics live at `/api/admin/diagnostics`.
  */
 
 import { NextRequest } from "next/server";
@@ -16,8 +16,8 @@ export const fetchCache = "force-no-store";
 
 export async function GET(req: NextRequest) {
   try {
-    const userId = await requireActiveAccess(req);
-    const status = await getAssistantStatus(userId);
+    await requireActiveAccess(req);
+    const status = await getAssistantStatus();
     return ok(status);
   } catch (error) {
     return fail(error);

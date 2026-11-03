@@ -491,20 +491,38 @@ function detectAction(text: string, entities: Entities, ctx: RouterContext): Rou
   }
 
   // ── Stock intake (no supplier) ──────────────────────────────────────────
-  if (/\b(stock|inventory|godown)\b/.test(text) && (buying || /\b(add|increase|update)\b/.test(text))) {
-    const product = entities.products[0]?.entity;
+  // Accepts either an explicit stock phrase ("add 10 kg rice to stock") or a
+  // plain top-up of the product just discussed ("add 10 boxes of this
+  // product"), which resolves against the conversation context.
+  const addWord = /\b(add|increase|update|dal|daal|shamil)\b/.test(text);
+  const pronounProduct = /\b(this|that|same|iss|isi|usi|ye|yeh|wo|wahi)\b/.test(text);
+  const stockIntake =
+    (/\b(stock|inventory|godown)\b/.test(text) && (buying || addWord)) ||
+    (addWord && Boolean(qty) && !mentionsCustomer && !mentionsSupplier);
+
+  if (stockIntake) {
+    const explicitProduct = entities.products[0]?.entity;
+    const productId =
+      explicitProduct?.id ??
+      (pronounProduct ? ctx.thread.lastProductId : undefined);
+    const productName =
+      explicitProduct?.name ??
+      (pronounProduct ? ctx.thread.lastProductName : undefined) ??
+      guessProductName(text, entities) ??
+      undefined;
+
     return action(
       "ADD_STOCK",
       {
-        productId: product?.id,
-        productName: product?.name ?? guessProductName(text, entities) ?? undefined,
+        productId,
+        productName,
         quantity: qty?.value,
         unit: qty?.unit,
         unitCost: unitPrice?.value ?? total?.value,
         date: dateForText(text),
       },
       [
-        ...(product ? [] : ["product" as const]),
+        ...(productId || productName ? [] : ["product" as const]),
         ...(qty ? [] : ["quantity" as const]),
       ],
       "stock intake",

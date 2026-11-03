@@ -1,6 +1,6 @@
 # Build Status — Platform Expansion
 
-Last updated: production build fixed; migration history rebuilt on Postgres; assistant tables migrated; ledger void is a soft-void (2026-11-02).
+Last updated: Universal Voice Assistant restored as its own product, Khata Assistant separated, and developer AI details moved behind `/admin/diagnostics` (2026-11-03).
 
 ## Environment
 
@@ -11,6 +11,44 @@ Last updated: production build fixed; migration history rebuilt on Postgres; ass
 | Local database | Docker Postgres `khata-pg` on `localhost:5433` (seeded sample data) |
 | Safe backup | OneDrive `_backups\digital-khata-app-<timestamp>.zip` |
 | Live database | Real data (161 users) — **additive DDL applied** 2026-11-02 (2 idempotent deltas); no rows deleted or rewritten |
+
+## ✅ Completed (2026-11-03) — Universal Voice Assistant separated from Khata Assistant
+
+- **Two products, one engine.** The mic-first **Universal Voice Assistant**
+  (`src/components/voice-assistant/VoiceAssistant.tsx`) is mounted app-wide
+  beside the typed **Khata Assistant** (`src/components/assistant/AssistantWidget.tsx`).
+- **Original speech UX restored:** tap → speak → see the transcript → correct it →
+  send → confirm writes. Typed fallback included.
+- **No language dropdown.** The mic locale follows the app language; the spoken
+  language (English / Urdu / Roman Urdu / mixed) is detected from the transcript
+  and shown. AI clarifications reply in the user's language.
+- **Developer details removed** from both UIs and from `/api/assistant/status`
+  and `/api/assistant/message` replies. Model ids, per-model counters, cooldowns,
+  and timeouts are now only at `/admin/diagnostics` (`ADMIN_SECRET`-gated);
+  `/api/admin/diagnostics` is in the middleware allow-list but still checks the
+  secret.
+- **Two real parsing bugs fixed:** `15,000` was normalised to `15` and `5,000` to
+  `5`; and “add 10 boxes of this product” fell through to a product-list query
+  instead of a stock intake using the last product.
+- **Narration** now uses the same tracked 3-model rotation instead of a private
+  untracked chain.
+
+Verification:
+
+| Check | Result |
+|---|---|
+| `npx tsc --noEmit` | clean |
+| `npm run build` | clean (exit 0) |
+| `npm run test:assistant` | 112 passed, 0 failed |
+| `npm run test:voice` | 53 passed, 0 failed |
+| Browser: two launchers, voice typed fallback, plan card | verified |
+| `/api/assistant/status` | `{ ready: true }` only |
+| `/api/assistant/message` reply keys | no `model`, no `requestsUsed` |
+| `/api/admin/diagnostics` | 401 without/with wrong secret; 200 + 3 models with the secret |
+
+Honest gaps: no microphone/audio device in this environment, so acoustic
+accuracy was not benchmarked; voice **edits** of existing customer/product/
+expense records are not implemented yet; fixed data answers are English.
 
 ## ✅ Completed in Stage 1
 

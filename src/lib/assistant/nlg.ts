@@ -13,6 +13,9 @@ export function normalizeText(input: string): string {
     // Urdu / Arabic-Indic digits → ASCII
     .replace(/[\u0660-\u0669]/g, (d) => String(d.charCodeAt(0) - 0x0660))
     .replace(/[\u06F0-\u06F9]/g, (d) => String(d.charCodeAt(0) - 0x06f0))
+    // Keep thousands separators attached to the number they belong to.
+    // Without this, "paid 15,000" became "paid 15 000" and was read as 15.
+    .replace(/(?<=\d),(?=\d)/g, "")
     .toLowerCase()
     // strip Arabic diacritics
     .replace(/[\u064B-\u065F\u0670]/g, "")

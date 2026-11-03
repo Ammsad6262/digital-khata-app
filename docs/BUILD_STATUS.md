@@ -1,6 +1,6 @@
 # Build Status — Platform Expansion
 
-Last updated: Universal Voice Assistant restored as its own product, Khata Assistant separated, and developer AI details moved behind `/admin/diagnostics` (2026-11-03).
+Last updated: Khata Assistant rebuilt as an independent business-intelligence feature with 20 prepared questions (2026-11-03).
 
 ## Environment
 
@@ -16,7 +16,8 @@ Last updated: Universal Voice Assistant restored as its own product, Khata Assis
 
 - **Two products, one engine.** The mic-first **Universal Voice Assistant**
   (`src/components/voice-assistant/VoiceAssistant.tsx`) is mounted app-wide
-  beside the typed **Khata Assistant** (`src/components/assistant/AssistantWidget.tsx`).
+  beside the **Khata Assistant**, now a separate business-intelligence feature
+(`src/components/khata-assistant/KhataAssistant.tsx`).
 - **Original speech UX restored:** tap → speak → see the transcript → correct it →
   send → confirm writes. Typed fallback included.
 - **No language dropdown.** The mic locale follows the app language; the spoken
@@ -49,6 +50,55 @@ Verification:
 Honest gaps: no microphone/audio device in this environment, so acoustic
 accuracy was not benchmarked; voice **edits** of existing customer/product/
 expense records are not implemented yet; fixed data answers are English.
+
+## ✅ Completed (2026-11-03) — Khata Assistant rebuilt as business intelligence
+
+The Khata Assistant is now a **separate BI product**, not a command chat. It has
+its own launcher, panel, endpoint and engine (`src/lib/khata-assistant/*`), and it
+**cannot write**. The Universal Voice Assistant is unchanged and remains the only
+place where records are created or changed.
+
+- **Exactly 20 prepared questions** in 5 categories (sales, customers, stock,
+  profit, performance). Every question is tappable and answers immediately.
+- **Real data only.** Each handler reads the services the screens use
+  (`getReportForPreset`, `getBusinessInsights`, `listOutstandingCustomers`,
+  `getRecoveryData`, `listProductsWithStock`, `getProfitLossStats`). No figure is
+  produced by an LLM.
+- **Custom questions** are routed by a weighted English/Urdu/Roman-Urdu matcher;
+  the AI is only asked to classify a question the matcher cannot place, and it
+  returns an intent — never a number.
+- **No language dropdown.** Prepared labels follow the app language; typed
+  questions are language-detected on the server.
+- **Financial distinctions are explicit:** revenue, COGS, gross profit, recorded
+  expenses, estimated net profit, cash received, receivables and payables are
+  never conflated. Missing cost data is explained.
+- **Empty data is honest:** all 20 answers are marked `empty` with zero rows when
+  the tenant has no records.
+- **Developer details stay hidden.** No model names, quotas or counters appear in
+  the API or UI.
+- **Old command chat removed.** `src/components/assistant/AssistantWidget.tsx`
+  was deleted; its action role belongs to the Voice Assistant.
+
+Verification:
+
+| Check | Result |
+|---|---|
+| `npx tsc --noEmit` | clean |
+| `npm run build` | clean (exit 0) |
+| `npm run test:khata` | **223 passed, 0 failed** (median 32 ms, 0 AI requests) |
+| `npm run test:assistant` | 112 passed, 0 failed |
+| `npm run test:voice` | 53 passed, 0 failed |
+| All 20 questions | answered from seeded records; key totals verified |
+| Empty tenant | all 20 `empty`, zero rows |
+| Tenant isolation | second tenant sees no customers/balances |
+| Read-only | “add customer” creates nothing |
+| Language | Urdu + Roman Urdu detected; Urdu answer in Arabic script |
+
+Honest gaps: answers depend on recorded data; COGS can be understated when
+purchase prices are missing (the answer says so); “not selling” is a 30-day
+heuristic; prepared answers are template-localised, so a few long notes stay in
+English in Urdu mode; AI classification/re-wording is best-effort under the free
+tier. See `docs/KHATA_ASSISTANT.md`.
 
 ## ✅ Completed in Stage 1
 

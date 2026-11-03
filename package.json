@@ -19,7 +19,8 @@
     "test:e2e": "tsx scripts/test-e2e.ts",
     "test:acceptance": "tsx scripts/test-acceptance-http.ts",
     "test:assistant": "tsx scripts/test-assistant.ts",
-    "test:voice": "tsx scripts/test-voice-assistant.ts"
+    "test:voice": "tsx scripts/test-voice-assistant.ts",
+    "test:khata": "tsx scripts/test-khata-assistant.ts"
   },
   "dependencies": {
     "@google/genai": "^2.28.0",

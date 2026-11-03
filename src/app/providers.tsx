@@ -6,11 +6,12 @@
  * Two SEPARATE assistant products are mounted for every signed-in page
  * (except printable receipts):
  *
- *   - VoiceAssistant  — the universal, mic-first assistant (speak naturally).
- *   - AssistantWidget — the typed Khata Assistant (prepared commands + chat).
+ *   - VoiceAssistant  — the universal, mic-first assistant (speak → confirm).
+ *   - KhataAssistant  — business intelligence: 20 prepared questions + custom
+ *                       questions, answered from the owner's own records.
  *
- * They share the same backend engine but are distinct experiences. Neither
- * exposes developer details; those live at /admin/diagnostics.
+ * They have separate launchers, panels and responsibilities. Neither exposes
+ * developer details; those live at /admin/diagnostics.
  */
 
 import { type ReactNode } from "react";
@@ -23,8 +24,8 @@ import { AuthGate } from "@/providers/auth-gate";
 import { Screen } from "@/components/layout/Screen";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { QuickAddMenu } from "@/components/layout/QuickAddMenu";
-import { AssistantWidget } from "@/components/assistant/AssistantWidget";
 import { VoiceAssistant } from "@/components/voice-assistant/VoiceAssistant";
+import { KhataAssistant } from "@/components/khata-assistant/KhataAssistant";
 
 const PUBLIC_PAGES = ["/login", "/register", "/reset-password", "/admin"];
 const DASHBOARD_PATH = "/dashboard";
@@ -56,9 +57,9 @@ export function Providers({ children }: { children: ReactNode }) {
                     {children}
                     <BottomNav />
                     {showQuickAdd ? <QuickAddMenu /> : null}
-                    {/* Two separate products: universal voice + typed chat. */}
+                    {/* Two separate products: voice actions + business intelligence. */}
                     <VoiceAssistant />
-                    <AssistantWidget />
+                    <KhataAssistant />
                   </Screen>
                 )}
               </AuthGate>

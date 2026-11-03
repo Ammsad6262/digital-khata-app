@@ -11,12 +11,16 @@ actually produced.
 
 ## 0. Product split (this change)
 
-The assistant is now **two separate products** that share one backend engine:
+The app now has **two separate assistant products** with separate engines:
 
 | Product | Launcher | Interaction | Purpose |
 |---------|----------|-------------|---------|
-| **Universal Voice Assistant** | microphone (bottom-right) | tap → speak → review the transcript → confirm | the original, app-wide voice-first experience |
-| **Khata Assistant** | chat bubble (beside it) | type or tap a prepared command | typed Q&A and quick commands |
+| **Universal Voice Assistant** | microphone (bottom-right) | tap → speak → review the transcript → confirm | the original, app-wide voice-first experience; **acts** on the business |
+| **Khata Assistant** | chart bubble (beside it) | tap one of 20 prepared questions, or type a question | business intelligence — explains real figures and **never writes** |
+
+The Khata Assistant was rebuilt as its own business-intelligence feature
+(`src/lib/khata-assistant/*`, see `docs/KHATA_ASSISTANT.md`). It no longer
+shares the voice command engine or its conversation history.
 
 What this change fixed:
 
@@ -312,9 +316,13 @@ New:
 - `src/app/api/admin/diagnostics/route.ts`, `src/app/admin/diagnostics/page.tsx`
 - `src/hooks/assistant/{use-speech-recognition,use-assistant}.ts`
 - `src/hooks/voice-assistant/use-voice-assistant.ts`
-- `src/components/assistant/{AssistantWidget,PlanCard}.tsx`
+- `src/components/assistant/PlanCard.tsx`
 - `src/components/voice-assistant/VoiceAssistant.tsx`
-- `scripts/test-assistant.ts`, `scripts/test-voice-assistant.ts`
+- `src/lib/khata-assistant/{types,questions,phrases,facts,match,ai,engine,service}.ts`
+- `src/app/api/khata-assistant/{ask,questions}/route.ts`
+- `src/hooks/khata-assistant/use-khata-assistant.ts`
+- `src/components/khata-assistant/KhataAssistant.tsx`
+- `scripts/test-assistant.ts`, `scripts/test-voice-assistant.ts`, `scripts/test-khata-assistant.ts`
 
 Changed:
 
@@ -323,7 +331,7 @@ Changed:
 - `src/app/providers.tsx` (mount the two separate assistants)
 - `src/middleware.ts` (let the diagnostics API reach its secret check)
 - `src/lib/ai/gemini-narrate.ts` (narration now uses the tracked rotation)
-- `package.json` (`test:assistant`, `test:voice`)
+- `package.json` (`test:assistant`, `test:voice`, `test:khata`)
 
 ---
 
@@ -337,6 +345,7 @@ npx prisma db push
 # assistant test environments
 npm run test:assistant
 npm run test:voice
+npm run test:khata
 
 # regressions
 npm run build

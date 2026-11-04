@@ -82,7 +82,7 @@ export function KhataAssistant() {
         onClick={() => setOpen((v) => !v)}
         aria-label={t("khataAssistant.open")}
         className={cn(
-          "fixed bottom-24 right-20 z-40 flex h-14 w-14 items-center justify-center rounded-full",
+          "relative pointer-events-auto flex h-14 w-14 items-center justify-center rounded-full",
           "bg-neutral-900 text-white shadow-lg dark:bg-white dark:text-neutral-900",
           "transition-transform hover:scale-105 active:scale-95",
         )}
@@ -95,7 +95,7 @@ export function KhataAssistant() {
           role="dialog"
           aria-label={t("khataAssistant.title")}
           className={cn(
-            "fixed inset-x-0 bottom-0 z-50 flex max-h-[88vh] flex-col overflow-hidden rounded-t-3xl border border-neutral-200 bg-white shadow-2xl",
+            "pointer-events-auto fixed inset-x-0 bottom-0 z-50 flex max-h-[88vh] flex-col overflow-hidden rounded-t-3xl border border-neutral-200 bg-white shadow-2xl",
             "sm:inset-x-auto sm:bottom-4 sm:right-4 sm:w-[440px] sm:rounded-3xl",
             "dark:border-neutral-800 dark:bg-neutral-900",
           )}
@@ -298,7 +298,7 @@ function AnswerView({
         onClick={onAskAnother}
         className="flex items-center gap-1 text-xs font-medium text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200"
       >
-        <ArrowLeft className="h-3.5 w-3.5 rtl:rotate-180" />
+        <ArrowLeft className="h-3.5 w-3.5" />
         {t("khataAssistant.askAnother")}
       </button>
 

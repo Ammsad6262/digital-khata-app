@@ -50,17 +50,15 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     } catch {}
   }, []);
 
-  // Apply dir + lang + Urdu font class to <html> when language changes
+  // Apply dir + lang to <html> when language changes
   useEffect(() => {
     const root = document.documentElement;
     if (lang === "ur") {
       root.setAttribute("dir", "rtl");
       root.setAttribute("lang", "ur");
-      root.classList.add("font-urdu");
     } else {
       root.setAttribute("dir", "ltr");
       root.setAttribute("lang", "en");
-      root.classList.remove("font-urdu");
     }
   }, [lang]);
 

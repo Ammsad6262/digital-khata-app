@@ -191,7 +191,7 @@ export function BackupPage() {
                 type="file"
                 accept=".json,application/json"
                 onChange={handleFileSelect}
-                className="block w-full text-xs text-slate-500 file:me-3 file:rounded-lg file:border-0 file:bg-brand-600 file:px-3 file:py-2 file:text-xs file:font-medium file:text-white hover:file:bg-brand-700"
+                className="block w-full text-xs text-slate-500 file:mr-3 file:rounded-lg file:border-0 file:bg-brand-600 file:px-3 file:py-2 file:text-xs file:font-medium file:text-white hover:file:bg-brand-700"
               />
             </div>
 

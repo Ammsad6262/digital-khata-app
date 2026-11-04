@@ -73,31 +73,23 @@
     overscroll-behavior-y: none;
   }
 
-  /* Urdu language: switch to Noto Nastaliq Urdu font.
-     Applied when <html lang="ur"> is set by LanguageProvider.
-
-     Font-family is set on <html> and cascades to everything, so we do NOT
-     target bare div/span (that previously inflated every wrapper's line box).
-     Form controls are listed explicitly because they don't inherit it.
-
-     Line-height is set through :where() so it has ZERO specificity: any
-     Tailwind line-height utility (leading-none/tight/…) and any fixed-height
-     layout (h-14 header, h-16 bottom nav) keeps working. Nastaliq has tall
-     vertical metrics, so 1.9 gives readable text without overflowing bars. */
-  html[lang="ur"] {
-    font-family: var(--font-urdu), "Noto Nastaliq Urdu", serif;
-  }
+  /* Urdu language: switch to Noto Nastaliq Urdu font
+     Applied when <html lang="ur"> is set by LanguageProvider */
+  html[lang="ur"] body,
   html[lang="ur"] input,
   html[lang="ur"] select,
   html[lang="ur"] textarea,
-  html[lang="ur"] button {
+  html[lang="ur"] button,
+  html[lang="ur"] a,
+  html[lang="ur"] p,
+  html[lang="ur"] span,
+  html[lang="ur"] h1,
+  html[lang="ur"] h2,
+  html[lang="ur"] h3,
+  html[lang="ur"] label,
+  html[lang="ur"] div {
     font-family: var(--font-urdu), "Noto Nastaliq Urdu", serif;
-  }
-  :where(html[lang="ur"]) :where(
-      p, span, a, li, label, td, th, dt, dd, blockquote, figcaption,
-      h1, h2, h3, h4, h5, h6, div, button, input, select, textarea
-    ) {
-    line-height: 1.9;
+    line-height: 2.2; /* Nastaliq needs more vertical space */
   }
 
   /* RTL: flip text alignment and spacing */
@@ -107,286 +99,57 @@
   html[dir="rtl"] .float-right { float: left; }
 
   /* RTL: flip margin/padding direction */
-  /* RTL: mirror physical utilities. The spacing scale below covers every
-     ml-/mr-/pl-/pr-/left-/right-/-left-/-right- value the app uses, plus
-     rounded-l/r, border-l/r and space-x-*. Applied only when dir="rtl". */
-﻿    html[dir="rtl"] .ml-0 { margin-right: 0; margin-left: 0; }
-  html[dir="rtl"] .ml-0\.5 { margin-right: 0.125rem; margin-left: 0; }
   html[dir="rtl"] .ml-1 { margin-right: 0.25rem; margin-left: 0; }
-  html[dir="rtl"] .ml-1\.5 { margin-right: 0.375rem; margin-left: 0; }
   html[dir="rtl"] .ml-2 { margin-right: 0.5rem; margin-left: 0; }
-  html[dir="rtl"] .ml-2\.5 { margin-right: 0.625rem; margin-left: 0; }
   html[dir="rtl"] .ml-3 { margin-right: 0.75rem; margin-left: 0; }
-  html[dir="rtl"] .ml-3\.5 { margin-right: 0.875rem; margin-left: 0; }
   html[dir="rtl"] .ml-4 { margin-right: 1rem; margin-left: 0; }
-  html[dir="rtl"] .ml-5 { margin-right: 1.25rem; margin-left: 0; }
-  html[dir="rtl"] .ml-6 { margin-right: 1.5rem; margin-left: 0; }
-  html[dir="rtl"] .ml-7 { margin-right: 1.75rem; margin-left: 0; }
-  html[dir="rtl"] .ml-8 { margin-right: 2rem; margin-left: 0; }
-  html[dir="rtl"] .ml-9 { margin-right: 2.25rem; margin-left: 0; }
-  html[dir="rtl"] .ml-10 { margin-right: 2.5rem; margin-left: 0; }
-  html[dir="rtl"] .ml-11 { margin-right: 2.75rem; margin-left: 0; }
-  html[dir="rtl"] .ml-12 { margin-right: 3rem; margin-left: 0; }
-  html[dir="rtl"] .ml-14 { margin-right: 3.5rem; margin-left: 0; }
-  html[dir="rtl"] .ml-16 { margin-right: 4rem; margin-left: 0; }
-  html[dir="rtl"] .ml-20 { margin-right: 5rem; margin-left: 0; }
-  html[dir="rtl"] .ml-24 { margin-right: 6rem; margin-left: 0; }
-  html[dir="rtl"] .ml-32 { margin-right: 8rem; margin-left: 0; }
-  html[dir="rtl"] .ml-40 { margin-right: 10rem; margin-left: 0; }
-  html[dir="rtl"] .ml-48 { margin-right: 12rem; margin-left: 0; }
-  html[dir="rtl"] .ml-56 { margin-right: 14rem; margin-left: 0; }
-  html[dir="rtl"] .ml-64 { margin-right: 16rem; margin-left: 0; }
-  html[dir="rtl"] .ml-72 { margin-right: 18rem; margin-left: 0; }
-  html[dir="rtl"] .ml-80 { margin-right: 20rem; margin-left: 0; }
-  html[dir="rtl"] .ml-96 { margin-right: 24rem; margin-left: 0; }
   html[dir="rtl"] .ml-auto { margin-right: auto; margin-left: 0; }
-  html[dir="rtl"] .mr-0 { margin-left: 0; margin-right: 0; }
-  html[dir="rtl"] .mr-0\.5 { margin-left: 0.125rem; margin-right: 0; }
   html[dir="rtl"] .mr-1 { margin-left: 0.25rem; margin-right: 0; }
-  html[dir="rtl"] .mr-1\.5 { margin-left: 0.375rem; margin-right: 0; }
   html[dir="rtl"] .mr-2 { margin-left: 0.5rem; margin-right: 0; }
-  html[dir="rtl"] .mr-2\.5 { margin-left: 0.625rem; margin-right: 0; }
   html[dir="rtl"] .mr-3 { margin-left: 0.75rem; margin-right: 0; }
-  html[dir="rtl"] .mr-3\.5 { margin-left: 0.875rem; margin-right: 0; }
   html[dir="rtl"] .mr-4 { margin-left: 1rem; margin-right: 0; }
-  html[dir="rtl"] .mr-5 { margin-left: 1.25rem; margin-right: 0; }
-  html[dir="rtl"] .mr-6 { margin-left: 1.5rem; margin-right: 0; }
-  html[dir="rtl"] .mr-7 { margin-left: 1.75rem; margin-right: 0; }
-  html[dir="rtl"] .mr-8 { margin-left: 2rem; margin-right: 0; }
-  html[dir="rtl"] .mr-9 { margin-left: 2.25rem; margin-right: 0; }
-  html[dir="rtl"] .mr-10 { margin-left: 2.5rem; margin-right: 0; }
-  html[dir="rtl"] .mr-11 { margin-left: 2.75rem; margin-right: 0; }
-  html[dir="rtl"] .mr-12 { margin-left: 3rem; margin-right: 0; }
-  html[dir="rtl"] .mr-14 { margin-left: 3.5rem; margin-right: 0; }
-  html[dir="rtl"] .mr-16 { margin-left: 4rem; margin-right: 0; }
-  html[dir="rtl"] .mr-20 { margin-left: 5rem; margin-right: 0; }
-  html[dir="rtl"] .mr-24 { margin-left: 6rem; margin-right: 0; }
-  html[dir="rtl"] .mr-32 { margin-left: 8rem; margin-right: 0; }
-  html[dir="rtl"] .mr-40 { margin-left: 10rem; margin-right: 0; }
-  html[dir="rtl"] .mr-48 { margin-left: 12rem; margin-right: 0; }
-  html[dir="rtl"] .mr-56 { margin-left: 14rem; margin-right: 0; }
-  html[dir="rtl"] .mr-64 { margin-left: 16rem; margin-right: 0; }
-  html[dir="rtl"] .mr-72 { margin-left: 18rem; margin-right: 0; }
-  html[dir="rtl"] .mr-80 { margin-left: 20rem; margin-right: 0; }
-  html[dir="rtl"] .mr-96 { margin-left: 24rem; margin-right: 0; }
-  html[dir="rtl"] .pl-0 { padding-right: 0; padding-left: 0; }
-  html[dir="rtl"] .pl-0\.5 { padding-right: 0.125rem; padding-left: 0; }
   html[dir="rtl"] .pl-1 { padding-right: 0.25rem; padding-left: 0; }
-  html[dir="rtl"] .pl-1\.5 { padding-right: 0.375rem; padding-left: 0; }
   html[dir="rtl"] .pl-2 { padding-right: 0.5rem; padding-left: 0; }
-  html[dir="rtl"] .pl-2\.5 { padding-right: 0.625rem; padding-left: 0; }
   html[dir="rtl"] .pl-3 { padding-right: 0.75rem; padding-left: 0; }
-  html[dir="rtl"] .pl-3\.5 { padding-right: 0.875rem; padding-left: 0; }
   html[dir="rtl"] .pl-4 { padding-right: 1rem; padding-left: 0; }
-  html[dir="rtl"] .pl-5 { padding-right: 1.25rem; padding-left: 0; }
-  html[dir="rtl"] .pl-6 { padding-right: 1.5rem; padding-left: 0; }
-  html[dir="rtl"] .pl-7 { padding-right: 1.75rem; padding-left: 0; }
-  html[dir="rtl"] .pl-8 { padding-right: 2rem; padding-left: 0; }
   html[dir="rtl"] .pl-9 { padding-right: 2.25rem; padding-left: 0; }
   html[dir="rtl"] .pl-10 { padding-right: 2.5rem; padding-left: 0; }
-  html[dir="rtl"] .pl-11 { padding-right: 2.75rem; padding-left: 0; }
-  html[dir="rtl"] .pl-12 { padding-right: 3rem; padding-left: 0; }
-  html[dir="rtl"] .pl-14 { padding-right: 3.5rem; padding-left: 0; }
-  html[dir="rtl"] .pl-16 { padding-right: 4rem; padding-left: 0; }
-  html[dir="rtl"] .pl-20 { padding-right: 5rem; padding-left: 0; }
-  html[dir="rtl"] .pl-24 { padding-right: 6rem; padding-left: 0; }
-  html[dir="rtl"] .pl-32 { padding-right: 8rem; padding-left: 0; }
-  html[dir="rtl"] .pl-40 { padding-right: 10rem; padding-left: 0; }
-  html[dir="rtl"] .pl-48 { padding-right: 12rem; padding-left: 0; }
-  html[dir="rtl"] .pl-56 { padding-right: 14rem; padding-left: 0; }
-  html[dir="rtl"] .pl-64 { padding-right: 16rem; padding-left: 0; }
-  html[dir="rtl"] .pl-72 { padding-right: 18rem; padding-left: 0; }
-  html[dir="rtl"] .pl-80 { padding-right: 20rem; padding-left: 0; }
-  html[dir="rtl"] .pl-96 { padding-right: 24rem; padding-left: 0; }
-  html[dir="rtl"] .pr-0 { padding-left: 0; padding-right: 0; }
-  html[dir="rtl"] .pr-0\.5 { padding-left: 0.125rem; padding-right: 0; }
   html[dir="rtl"] .pr-1 { padding-left: 0.25rem; padding-right: 0; }
-  html[dir="rtl"] .pr-1\.5 { padding-left: 0.375rem; padding-right: 0; }
   html[dir="rtl"] .pr-2 { padding-left: 0.5rem; padding-right: 0; }
-  html[dir="rtl"] .pr-2\.5 { padding-left: 0.625rem; padding-right: 0; }
   html[dir="rtl"] .pr-3 { padding-left: 0.75rem; padding-right: 0; }
-  html[dir="rtl"] .pr-3\.5 { padding-left: 0.875rem; padding-right: 0; }
-  html[dir="rtl"] .pr-4 { padding-left: 1rem; padding-right: 0; }
-  html[dir="rtl"] .pr-5 { padding-left: 1.25rem; padding-right: 0; }
-  html[dir="rtl"] .pr-6 { padding-left: 1.5rem; padding-right: 0; }
-  html[dir="rtl"] .pr-7 { padding-left: 1.75rem; padding-right: 0; }
-  html[dir="rtl"] .pr-8 { padding-left: 2rem; padding-right: 0; }
   html[dir="rtl"] .pr-9 { padding-left: 2.25rem; padding-right: 0; }
-  html[dir="rtl"] .pr-10 { padding-left: 2.5rem; padding-right: 0; }
-  html[dir="rtl"] .pr-11 { padding-left: 2.75rem; padding-right: 0; }
-  html[dir="rtl"] .pr-12 { padding-left: 3rem; padding-right: 0; }
-  html[dir="rtl"] .pr-14 { padding-left: 3.5rem; padding-right: 0; }
-  html[dir="rtl"] .pr-16 { padding-left: 4rem; padding-right: 0; }
-  html[dir="rtl"] .pr-20 { padding-left: 5rem; padding-right: 0; }
-  html[dir="rtl"] .pr-24 { padding-left: 6rem; padding-right: 0; }
-  html[dir="rtl"] .pr-32 { padding-left: 8rem; padding-right: 0; }
-  html[dir="rtl"] .pr-40 { padding-left: 10rem; padding-right: 0; }
-  html[dir="rtl"] .pr-48 { padding-left: 12rem; padding-right: 0; }
-  html[dir="rtl"] .pr-56 { padding-left: 14rem; padding-right: 0; }
-  html[dir="rtl"] .pr-64 { padding-left: 16rem; padding-right: 0; }
-  html[dir="rtl"] .pr-72 { padding-left: 18rem; padding-right: 0; }
-  html[dir="rtl"] .pr-80 { padding-left: 20rem; padding-right: 0; }
-  html[dir="rtl"] .pr-96 { padding-left: 24rem; padding-right: 0; }
+
+  /* RTL: flip absolute positioning */
   html[dir="rtl"] .left-0 { right: 0; left: auto; }
-  html[dir="rtl"] .left-0\.5 { right: 0.125rem; left: auto; }
-  html[dir="rtl"] .left-1 { right: 0.25rem; left: auto; }
-  html[dir="rtl"] .left-1\.5 { right: 0.375rem; left: auto; }
-  html[dir="rtl"] .left-2 { right: 0.5rem; left: auto; }
-  html[dir="rtl"] .left-2\.5 { right: 0.625rem; left: auto; }
   html[dir="rtl"] .left-3 { right: 0.75rem; left: auto; }
-  html[dir="rtl"] .left-3\.5 { right: 0.875rem; left: auto; }
   html[dir="rtl"] .left-4 { right: 1rem; left: auto; }
-  html[dir="rtl"] .left-5 { right: 1.25rem; left: auto; }
-  html[dir="rtl"] .left-6 { right: 1.5rem; left: auto; }
-  html[dir="rtl"] .left-7 { right: 1.75rem; left: auto; }
-  html[dir="rtl"] .left-8 { right: 2rem; left: auto; }
-  html[dir="rtl"] .left-9 { right: 2.25rem; left: auto; }
-  html[dir="rtl"] .left-10 { right: 2.5rem; left: auto; }
-  html[dir="rtl"] .left-11 { right: 2.75rem; left: auto; }
-  html[dir="rtl"] .left-12 { right: 3rem; left: auto; }
-  html[dir="rtl"] .left-14 { right: 3.5rem; left: auto; }
-  html[dir="rtl"] .left-16 { right: 4rem; left: auto; }
-  html[dir="rtl"] .left-20 { right: 5rem; left: auto; }
-  html[dir="rtl"] .left-24 { right: 6rem; left: auto; }
-  html[dir="rtl"] .left-32 { right: 8rem; left: auto; }
-  html[dir="rtl"] .left-40 { right: 10rem; left: auto; }
-  html[dir="rtl"] .left-48 { right: 12rem; left: auto; }
-  html[dir="rtl"] .left-56 { right: 14rem; left: auto; }
-  html[dir="rtl"] .left-64 { right: 16rem; left: auto; }
-  html[dir="rtl"] .left-72 { right: 18rem; left: auto; }
-  html[dir="rtl"] .left-80 { right: 20rem; left: auto; }
-  html[dir="rtl"] .left-96 { right: 24rem; left: auto; }
-  html[dir="rtl"] .left-auto { right: auto; left: auto; }
   html[dir="rtl"] .right-0 { left: 0; right: auto; }
-  html[dir="rtl"] .right-0\.5 { left: 0.125rem; right: auto; }
-  html[dir="rtl"] .right-1 { left: 0.25rem; right: auto; }
-  html[dir="rtl"] .right-1\.5 { left: 0.375rem; right: auto; }
   html[dir="rtl"] .right-2 { left: 0.5rem; right: auto; }
-  html[dir="rtl"] .right-2\.5 { left: 0.625rem; right: auto; }
   html[dir="rtl"] .right-3 { left: 0.75rem; right: auto; }
-  html[dir="rtl"] .right-3\.5 { left: 0.875rem; right: auto; }
   html[dir="rtl"] .right-4 { left: 1rem; right: auto; }
-  html[dir="rtl"] .right-5 { left: 1.25rem; right: auto; }
-  html[dir="rtl"] .right-6 { left: 1.5rem; right: auto; }
-  html[dir="rtl"] .right-7 { left: 1.75rem; right: auto; }
-  html[dir="rtl"] .right-8 { left: 2rem; right: auto; }
-  html[dir="rtl"] .right-9 { left: 2.25rem; right: auto; }
-  html[dir="rtl"] .right-10 { left: 2.5rem; right: auto; }
-  html[dir="rtl"] .right-11 { left: 2.75rem; right: auto; }
-  html[dir="rtl"] .right-12 { left: 3rem; right: auto; }
-  html[dir="rtl"] .right-14 { left: 3.5rem; right: auto; }
-  html[dir="rtl"] .right-16 { left: 4rem; right: auto; }
-  html[dir="rtl"] .right-20 { left: 5rem; right: auto; }
-  html[dir="rtl"] .right-24 { left: 6rem; right: auto; }
-  html[dir="rtl"] .right-32 { left: 8rem; right: auto; }
-  html[dir="rtl"] .right-40 { left: 10rem; right: auto; }
-  html[dir="rtl"] .right-48 { left: 12rem; right: auto; }
-  html[dir="rtl"] .right-56 { left: 14rem; right: auto; }
-  html[dir="rtl"] .right-64 { left: 16rem; right: auto; }
-  html[dir="rtl"] .right-72 { left: 18rem; right: auto; }
-  html[dir="rtl"] .right-80 { left: 20rem; right: auto; }
-  html[dir="rtl"] .right-96 { left: 24rem; right: auto; }
-  html[dir="rtl"] .-left-0 { right: -0; left: auto; }
-  html[dir="rtl"] .-left-0\.5 { right: -0.125rem; left: auto; }
-  html[dir="rtl"] .-left-1 { right: -0.25rem; left: auto; }
-  html[dir="rtl"] .-left-1\.5 { right: -0.375rem; left: auto; }
-  html[dir="rtl"] .-left-2 { right: -0.5rem; left: auto; }
-  html[dir="rtl"] .-left-2\.5 { right: -0.625rem; left: auto; }
-  html[dir="rtl"] .-left-3 { right: -0.75rem; left: auto; }
-  html[dir="rtl"] .-left-3\.5 { right: -0.875rem; left: auto; }
-  html[dir="rtl"] .-left-4 { right: -1rem; left: auto; }
-  html[dir="rtl"] .-left-5 { right: -1.25rem; left: auto; }
-  html[dir="rtl"] .-left-6 { right: -1.5rem; left: auto; }
-  html[dir="rtl"] .-left-7 { right: -1.75rem; left: auto; }
-  html[dir="rtl"] .-left-8 { right: -2rem; left: auto; }
-  html[dir="rtl"] .-left-9 { right: -2.25rem; left: auto; }
-  html[dir="rtl"] .-left-10 { right: -2.5rem; left: auto; }
-  html[dir="rtl"] .-left-11 { right: -2.75rem; left: auto; }
-  html[dir="rtl"] .-left-12 { right: -3rem; left: auto; }
-  html[dir="rtl"] .-left-14 { right: -3.5rem; left: auto; }
-  html[dir="rtl"] .-left-16 { right: -4rem; left: auto; }
-  html[dir="rtl"] .-left-20 { right: -5rem; left: auto; }
-  html[dir="rtl"] .-left-24 { right: -6rem; left: auto; }
-  html[dir="rtl"] .-left-32 { right: -8rem; left: auto; }
-  html[dir="rtl"] .-left-40 { right: -10rem; left: auto; }
-  html[dir="rtl"] .-left-48 { right: -12rem; left: auto; }
-  html[dir="rtl"] .-left-56 { right: -14rem; left: auto; }
-  html[dir="rtl"] .-left-64 { right: -16rem; left: auto; }
-  html[dir="rtl"] .-left-72 { right: -18rem; left: auto; }
-  html[dir="rtl"] .-left-80 { right: -20rem; left: auto; }
-  html[dir="rtl"] .-left-96 { right: -24rem; left: auto; }
-  html[dir="rtl"] .-right-0 { left: -0; right: auto; }
-  html[dir="rtl"] .-right-0\.5 { left: -0.125rem; right: auto; }
-  html[dir="rtl"] .-right-1 { left: -0.25rem; right: auto; }
-  html[dir="rtl"] .-right-1\.5 { left: -0.375rem; right: auto; }
-  html[dir="rtl"] .-right-2 { left: -0.5rem; right: auto; }
-  html[dir="rtl"] .-right-2\.5 { left: -0.625rem; right: auto; }
-  html[dir="rtl"] .-right-3 { left: -0.75rem; right: auto; }
-  html[dir="rtl"] .-right-3\.5 { left: -0.875rem; right: auto; }
-  html[dir="rtl"] .-right-4 { left: -1rem; right: auto; }
-  html[dir="rtl"] .-right-5 { left: -1.25rem; right: auto; }
-  html[dir="rtl"] .-right-6 { left: -1.5rem; right: auto; }
-  html[dir="rtl"] .-right-7 { left: -1.75rem; right: auto; }
-  html[dir="rtl"] .-right-8 { left: -2rem; right: auto; }
-  html[dir="rtl"] .-right-9 { left: -2.25rem; right: auto; }
-  html[dir="rtl"] .-right-10 { left: -2.5rem; right: auto; }
-  html[dir="rtl"] .-right-11 { left: -2.75rem; right: auto; }
-  html[dir="rtl"] .-right-12 { left: -3rem; right: auto; }
-  html[dir="rtl"] .-right-14 { left: -3.5rem; right: auto; }
-  html[dir="rtl"] .-right-16 { left: -4rem; right: auto; }
-  html[dir="rtl"] .-right-20 { left: -5rem; right: auto; }
-  html[dir="rtl"] .-right-24 { left: -6rem; right: auto; }
-  html[dir="rtl"] .-right-32 { left: -8rem; right: auto; }
-  html[dir="rtl"] .-right-40 { left: -10rem; right: auto; }
-  html[dir="rtl"] .-right-48 { left: -12rem; right: auto; }
-  html[dir="rtl"] .-right-56 { left: -14rem; right: auto; }
-  html[dir="rtl"] .-right-64 { left: -16rem; right: auto; }
-  html[dir="rtl"] .-right-72 { left: -18rem; right: auto; }
-  html[dir="rtl"] .-right-80 { left: -20rem; right: auto; }
-  html[dir="rtl"] .-right-96 { left: -24rem; right: auto; }
-  html[dir="rtl"] .rounded-l-sm { border-radius: 0 0.125rem 0.125rem 0; }
-  html[dir="rtl"] .rounded-r-sm { border-radius: 0.125rem 0 0 0.125rem; }
+
+  /* RTL: flip border radius (rounded-l → rounded-r) */
+  html[dir="rtl"] .rounded-l-lg { border-radius: 0 0.5rem 0.5rem 0; }
+  html[dir="rtl"] .rounded-r-lg { border-radius: 0.5rem 0 0 0.5rem; }
   html[dir="rtl"] .rounded-l-md { border-radius: 0 0.375rem 0.375rem 0; }
   html[dir="rtl"] .rounded-r-md { border-radius: 0.375rem 0 0 0.375rem; }
   html[dir="rtl"] .rounded-l { border-radius: 0 0.25rem 0.25rem 0; }
   html[dir="rtl"] .rounded-r { border-radius: 0.25rem 0 0 0.25rem; }
-  html[dir="rtl"] .rounded-l-lg { border-radius: 0 0.5rem 0.5rem 0; }
-  html[dir="rtl"] .rounded-r-lg { border-radius: 0.5rem 0 0 0.5rem; }
   html[dir="rtl"] .rounded-l-xl { border-radius: 0 0.75rem 0.75rem 0; }
   html[dir="rtl"] .rounded-r-xl { border-radius: 0.75rem 0 0 0.75rem; }
-  html[dir="rtl"] .rounded-l-2xl { border-radius: 0 1rem 1rem 0; }
-  html[dir="rtl"] .rounded-r-2xl { border-radius: 1rem 0 0 1rem; }
-  html[dir="rtl"] .rounded-l-3xl { border-radius: 0 1.5rem 1.5rem 0; }
-  html[dir="rtl"] .rounded-r-3xl { border-radius: 1.5rem 0 0 1.5rem; }
-  html[dir="rtl"] .rounded-l-full { border-radius: 0 9999px 9999px 0; }
-  html[dir="rtl"] .rounded-r-full { border-radius: 9999px 0 0 9999px; }
-  html[dir="rtl"] .border-l-0 { border-right-width: 0; border-left-width: 0; }
-  html[dir="rtl"] .border-r-0 { border-left-width: 0; border-right-width: 0; }
-  html[dir="rtl"] .border-l-2 { border-right-width: 2px; border-left-width: 0; }
-  html[dir="rtl"] .border-r-2 { border-left-width: 2px; border-right-width: 0; }
-  html[dir="rtl"] .border-l-4 { border-right-width: 4px; border-left-width: 0; }
-  html[dir="rtl"] .border-r-4 { border-left-width: 4px; border-right-width: 0; }
+
+  /* RTL: flip border sides (border-l → border-r and vice versa) */
   html[dir="rtl"] .border-l { border-right-width: 1px; border-left-width: 0; }
+  html[dir="rtl"] .border-l-2 { border-right-width: 2px; border-left-width: 0; }
   html[dir="rtl"] .border-r { border-left-width: 1px; border-right-width: 0; }
-  html[dir="rtl"] .space-x-0\.5 > :not([hidden]) ~ :not([hidden]) { margin-right: 0.125rem; margin-left: 0; }
+  html[dir="rtl"] .border-r-2 { border-left-width: 2px; border-right-width: 0; }
+
+  /* RTL: flip space-x — gap between horizontally-arranged children.
+     Tailwind's space-x-* adds margin-left to children. In RTL we want margin-right. */
   html[dir="rtl"] .space-x-1 > :not([hidden]) ~ :not([hidden]) { margin-right: 0.25rem; margin-left: 0; }
-  html[dir="rtl"] .space-x-1\.5 > :not([hidden]) ~ :not([hidden]) { margin-right: 0.375rem; margin-left: 0; }
   html[dir="rtl"] .space-x-2 > :not([hidden]) ~ :not([hidden]) { margin-right: 0.5rem; margin-left: 0; }
-  html[dir="rtl"] .space-x-2\.5 > :not([hidden]) ~ :not([hidden]) { margin-right: 0.625rem; margin-left: 0; }
   html[dir="rtl"] .space-x-3 > :not([hidden]) ~ :not([hidden]) { margin-right: 0.75rem; margin-left: 0; }
   html[dir="rtl"] .space-x-4 > :not([hidden]) ~ :not([hidden]) { margin-right: 1rem; margin-left: 0; }
-  html[dir="rtl"] .space-x-5 > :not([hidden]) ~ :not([hidden]) { margin-right: 1.25rem; margin-left: 0; }
-  html[dir="rtl"] .space-x-6 > :not([hidden]) ~ :not([hidden]) { margin-right: 1.5rem; margin-left: 0; }
-  html[dir="rtl"] .space-x-7 > :not([hidden]) ~ :not([hidden]) { margin-right: 1.75rem; margin-left: 0; }
-  html[dir="rtl"] .space-x-8 > :not([hidden]) ~ :not([hidden]) { margin-right: 2rem; margin-left: 0; }
-
-  /* RTL: responsive variant insets (Tailwind emits .sm\:right-4, which the
-     bare .right-4 rule above does not match). Keep assistant panels on the
-     same (end) edge as their launchers in RTL. */
-  @media (min-width: 640px) {
-    html[dir="rtl"] .sm\:right-4 { left: 1rem; right: auto; }
-    html[dir="rtl"] .sm\:left-4 { right: 1rem; left: auto; }
-  }
 
   /* RTL: slide-in drawers should slide from the LEFT in RTL */
   html[dir="rtl"] .translate-x-full { transform: translateX(-100%); }
@@ -502,4 +265,32 @@
 @keyframes shimmer {
   0% { background-position: 200% 0; }
   100% { background-position: -200% 0; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ASSISTANT LAUNCHER DOCK
+   The Voice Assistant (mic) and Khata Assistant (chart) are two separate
+   products with separate launchers. They share ONE fixed dock so the two
+   buttons always sit side by side with a constant gap, in every language and
+   in both writing directions — RTL must never push one to the left edge and
+   the other to the right edge.
+   ═══════════════════════════════════════════════════════════════════════════ */
+.assistant-dock {
+  position: fixed;
+  /* Anchored to the physical right edge (same as English) so switching to
+     Urdu never moves the pair. */
+  right: 1rem;
+  bottom: 6rem; /* 24 × 0.25rem — the offset the launchers used before */
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  /* Only the buttons are interactive; the gap lets clicks pass through. */
+  pointer-events: none;
+}
+
+/* Keep the exact left→right order (Khata, then Voice) in both directions.
+   DOM order is [Khata, Voice]: LTR uses `row`, RTL reverses it back. */
+html[dir="rtl"] .assistant-dock {
+  flex-direction: row-reverse;
 }

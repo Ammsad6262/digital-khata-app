@@ -57,9 +57,13 @@ export function Providers({ children }: { children: ReactNode }) {
                     {children}
                     <BottomNav />
                     {showQuickAdd ? <QuickAddMenu /> : null}
-                    {/* Two separate products: voice actions + business intelligence. */}
-                    <VoiceAssistant />
-                    <KhataAssistant />
+                    {/* Two separate products (voice actions + business intelligence)
+                        share ONE fixed dock, so their launchers always sit side by
+                        side with a constant gap — in every language and direction. */}
+                    <div className="assistant-dock">
+                      <KhataAssistant />
+                      <VoiceAssistant />
+                    </div>
                   </Screen>
                 )}
               </AuthGate>

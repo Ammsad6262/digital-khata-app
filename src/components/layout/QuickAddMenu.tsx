@@ -123,10 +123,9 @@ export function QuickAddMenu() {
         onClick={() => setIsOpen(true)}
         className="fixed bottom-20 z-30 flex h-12 w-12 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-md shadow-slate-900/5 transition-transform hover:scale-105 active:scale-95"
         style={{
-          // On mobile, 1rem from the start edge (left in LTR, right in RTL).
-          // On desktop, aligned to the start edge of the centered 1024px shell.
-          // Uses a logical property so RTL mirrors automatically.
-          insetInlineStart: "max(1rem, calc((100vw - 1024px) / 2 + 1rem))",
+          // On mobile, 1rem from the left edge. On desktop, aligned to
+          // the left edge of the centered 1024px app shell.
+          left: "max(1rem, calc((100vw - 1024px) / 2 + 1rem))",
         }}
         aria-label={t("quickadd.ariaLabel")}
       >

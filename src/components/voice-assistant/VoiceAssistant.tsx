@@ -124,7 +124,7 @@ export function VoiceAssistant() {
         onClick={() => setOpen((v) => !v)}
         aria-label={vt("openAssistant")}
         className={cn(
-          "fixed bottom-24 right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full",
+          "relative pointer-events-auto flex h-14 w-14 items-center justify-center rounded-full",
           "bg-gradient-to-br from-brand-500 to-brand-700 text-white shadow-lg",
           "transition-transform hover:scale-105 active:scale-95",
         )}
@@ -143,7 +143,7 @@ export function VoiceAssistant() {
           role="dialog"
           aria-label={vt("voiceAssistant")}
           className={cn(
-            "fixed inset-x-0 bottom-0 z-50 flex max-h-[92vh] flex-col overflow-hidden rounded-t-3xl border border-neutral-200 bg-white shadow-2xl",
+            "pointer-events-auto fixed inset-x-0 bottom-0 z-50 flex max-h-[92vh] flex-col overflow-hidden rounded-t-3xl border border-neutral-200 bg-white shadow-2xl",
             "sm:inset-x-auto sm:right-4 sm:bottom-4 sm:w-[440px] sm:rounded-3xl",
             "dark:border-neutral-800 dark:bg-neutral-900",
           )}

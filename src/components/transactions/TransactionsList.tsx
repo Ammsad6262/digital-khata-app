@@ -137,7 +137,7 @@ export function TransactionsList() {
   const [typeFilter, setTypeFilter] = useState<TransactionType | "all">("all");
   const [from, setFrom] = useState<string>(daysAgoIsoLocal(7));
   const [to, setTo] = useState<string>(todayIsoLocal());
-  const { t } = useLanguage();
+  const { t, tParams, lang } = useLanguage();
 
   // Only enable custom range inputs when filter='custom'
   const showCustomRange = filter === "custom";
@@ -275,8 +275,11 @@ export function TransactionsList() {
           title={t("transactions.noTransactions")}
           description={
             filter === "custom"
-              ? `No transactions between ${formatDate(new Date(from))} and ${formatDate(new Date(to))}.`
-              : "Try a different time range or type filter."
+              ? tParams("transactions.emptyRange", {
+                  from: formatDate(new Date(from), "Asia/Karachi", lang),
+                  to: formatDate(new Date(to), "Asia/Karachi", lang),
+                })
+              : t("transactions.emptyFilterHint")
           }
           icon={<Receipt className="h-6 w-6" />}
         />
@@ -298,7 +301,7 @@ function TransactionRow({
   tx: TransactionListItem;
   isFirst: boolean;
 }) {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const fallbackInfo: TxTypeInfo = {
     labelKey: "transactions.adjustments",
     icon: Scale,
@@ -363,7 +366,7 @@ function TransactionRow({
             {tx.productName ? <span> · {tx.productName}</span> : null}
           </p>
           <p className="shrink-0 text-[11px] text-slate-400">
-            {formatRelative(new Date(tx.date))}
+            {formatRelative(new Date(tx.date), "Asia/Karachi", lang)}
           </p>
         </div>
       </div>

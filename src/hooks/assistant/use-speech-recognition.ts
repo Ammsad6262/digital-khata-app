@@ -27,6 +27,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useAssistantText } from "@/hooks/assistant/use-assistant-text";
 
 type SpeechAlternativeLike = { transcript: string; confidence: number };
 
@@ -105,6 +106,7 @@ type Options = {
 };
 
 export function useSpeechRecognition(options: Options = {}) {
+  const { lang, vt } = useAssistantText();
   const [supported, setSupported] = useState(false);
   const [state, setState] = useState<SpeechState>("idle");
   const [transcript, setTranscript] = useState("");
@@ -166,7 +168,7 @@ export function useSpeechRecognition(options: Options = {}) {
     if (!Ctor) {
       setSupported(false);
       setState("error");
-      setError({ code: "unsupported", message: "This browser has no speech recognition." });
+      setError({ code: "unsupported", message: vt("speechUnsupported") });
       return false;
     }
 
@@ -243,15 +245,21 @@ export function useSpeechRecognition(options: Options = {}) {
       const code = event.error || "error";
       if (code === "not-allowed" || code === "service-not-allowed") {
         setState("denied");
-        setError({ code, message: "Microphone permission was denied." });
+        setError({ code, message: vt("microphoneDenied") });
       } else if (code === "no-speech") {
         setState("idle");
-        setError({ code, message: "I didn't hear anything." });
+        setError({ code, message: vt("heardNothing") });
       } else if (code === "aborted") {
         setState("idle");
       } else {
         setState("error");
-        setError({ code, message: event.message || "Speech recognition failed." });
+        setError({
+          code,
+          message:
+            event.message && (lang === "en" || /[\u0600-\u06FF]/.test(event.message))
+              ? event.message
+              : vt("speechFailed"),
+        });
       }
     };
 
@@ -274,10 +282,16 @@ export function useSpeechRecognition(options: Options = {}) {
     } catch (err) {
       recognitionRef.current = null;
       setState("error");
-      setError({ code: "start-failed", message: err instanceof Error ? err.message : "Could not start." });
+      setError({
+        code: "start-failed",
+        message:
+          err instanceof Error && (lang === "en" || /[\u0600-\u06FF]/.test(err.message))
+            ? err.message
+            : vt("couldNotStart"),
+      });
       return false;
     }
-  }, [language]);
+  }, [lang, language, vt]);
 
   // Clean up on unmount.
   useEffect(() => {

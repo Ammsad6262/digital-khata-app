@@ -11,6 +11,8 @@
 import { useState } from "react";
 import { Check } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
+import { useAssistantText } from "@/hooks/assistant/use-assistant-text";
+import type { VoicePhraseKey } from "@/lib/assistant/phrases";
 import type { AssistantPlan, Candidate, PlanPayload } from "@/lib/assistant/types";
 
 function money(value: number | undefined, symbol = "Rs.") {
@@ -24,24 +26,20 @@ const CANDIDATE_KEY: Record<"customers" | "products" | "suppliers", keyof PlanPa
   suppliers: "supplierId",
 };
 
-function labelFor(key: string): string {
-  switch (key) {
-    case "amount":
-      return "Amount";
-    case "quantity":
-      return "Quantity";
-    case "unitPrice":
-      return "Price";
-    case "name":
-      return "Name";
-    case "unit":
-      return "Unit";
-    case "targetId":
-      return "Record ID";
-    default:
-      return key;
-  }
-}
+const FIELD_KEYS: Record<string, VoicePhraseKey> = {
+  amount: "fieldAmount",
+  quantity: "fieldQuantity",
+  unitPrice: "fieldPrice",
+  name: "fieldName",
+  unit: "fieldUnit",
+  targetId: "fieldRecordId",
+};
+
+const GROUP_KEYS: Record<"customers" | "products" | "suppliers", VoicePhraseKey> = {
+  customers: "groupCustomer",
+  products: "groupProduct",
+  suppliers: "groupSupplier",
+};
 
 export function PlanCard({
   plan,
@@ -54,6 +52,7 @@ export function PlanCard({
   onConfirm: (actionId: string, patch: Partial<PlanPayload>) => void;
   onCancel: (actionId: string) => void;
 }) {
+  const { vt } = useAssistantText();
   const [patch, setPatch] = useState<Partial<PlanPayload>>({});
   const [customAmount, setCustomAmount] = useState("");
 
@@ -76,7 +75,7 @@ export function PlanCard({
     <div className="rounded-2xl rounded-bl-sm border border-neutral-200 bg-white px-3 py-3 text-sm shadow-sm dark:border-neutral-700 dark:bg-neutral-800">
       <p className="font-semibold text-neutral-900 dark:text-neutral-100">{plan.summary}</p>
       {plan.usedContext ? (
-        <p className="mt-0.5 text-xs text-neutral-500">Using your last customer</p>
+        <p className="mt-0.5 text-xs text-neutral-500">{vt("usingLastCustomer")}</p>
       ) : null}
 
       <dl className="mt-2 space-y-1">
@@ -103,7 +102,9 @@ export function PlanCard({
         const selectedId = patch[key] as string | undefined;
         return (
           <div key={group} className="mt-2">
-            <p className="text-xs font-medium text-neutral-500">Pick {group.slice(0, -1)}</p>
+            <p className="text-xs font-medium text-neutral-500">
+              {vt("pickGroup", { group: vt(GROUP_KEYS[group]) })}
+            </p>
             <div className="mt-1 flex flex-wrap gap-1.5">
               {list.map((candidate) => (
                 <button
@@ -127,7 +128,7 @@ export function PlanCard({
 
       {needs.has("paidAmount") ? (
         <div className="mt-2">
-          <p className="text-xs font-medium text-neutral-500">How much did they pay?</p>
+          <p className="text-xs font-medium text-neutral-500">{vt("howMuchDidTheyPay")}</p>
           <div className="mt-1 flex flex-wrap gap-1.5">
             {plan.suggested?.paidAmount !== undefined ? (
               <button
@@ -135,7 +136,7 @@ export function PlanCard({
                 onClick={() => setPatch((p) => ({ ...p, paidAmount: plan.suggested!.paidAmount }))}
                 className="rounded-full border border-brand-600 bg-brand-600 px-2.5 py-1 text-xs font-medium text-white"
               >
-                Full payment ({money(plan.suggested.paidAmount)})
+                {vt("fullPayment", { amount: money(plan.suggested.paidAmount) })}
               </button>
             ) : null}
             <button
@@ -148,14 +149,14 @@ export function PlanCard({
                   : "border-neutral-300 bg-white dark:border-neutral-600 dark:bg-neutral-900",
               )}
             >
-              On credit
+              {vt("onCredit")}
             </button>
           </div>
           <input
             type="number"
             inputMode="decimal"
             value={customAmount}
-            placeholder="Or type an amount"
+            placeholder={vt("orTypeAmount")}
             onChange={(e) => {
               setCustomAmount(e.target.value);
               const value = Number(e.target.value);
@@ -170,7 +171,7 @@ export function PlanCard({
         .filter((key) => needs.has(key))
         .map((key) => (
           <div key={key} className="mt-2">
-            <p className="text-xs font-medium text-neutral-500">{labelFor(key)}</p>
+            <p className="text-xs font-medium text-neutral-500">{vt(FIELD_KEYS[key]!)}</p>
             <input
               type="number"
               inputMode="decimal"
@@ -187,7 +188,7 @@ export function PlanCard({
         .filter((key) => needs.has(key))
         .map((key) => (
           <div key={key} className="mt-2">
-            <p className="text-xs font-medium text-neutral-500">{labelFor(key)}</p>
+            <p className="text-xs font-medium text-neutral-500">{vt(FIELD_KEYS[key]!)}</p>
             <input
               type="text"
               onChange={(e) => setPatch((p) => ({ ...p, [key]: e.target.value }))}
@@ -207,7 +208,7 @@ export function PlanCard({
           )}
         >
           <Check className="h-4 w-4" />
-          Confirm
+          {vt("confirm")}
         </button>
         <button
           type="button"
@@ -215,7 +216,7 @@ export function PlanCard({
           onClick={() => onCancel(plan.actionId)}
           className="rounded-xl border border-neutral-300 px-3 py-2 text-sm font-medium dark:border-neutral-600"
         >
-          Cancel
+          {vt("cancel")}
         </button>
       </div>
     </div>

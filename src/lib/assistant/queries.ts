@@ -24,6 +24,7 @@ import { getReportForPreset } from "@/lib/services/reports";
 import { getBusinessInsights } from "@/lib/services/insights";
 import { getRecoveryData } from "@/lib/services/recovery";
 import { getSettings } from "@/lib/services/settings";
+import { categoryLabel, pickVoice, priorityLabel, type VoiceLang } from "./phrases";
 import type { AnswerItem, QueryKind, RouteQuery } from "./types";
 
 export type QueryResult = {
@@ -57,27 +58,30 @@ export async function runQuery(
   userId: string,
   query: RouteQuery,
   entity: ResolvedEntity | null,
+  lang: VoiceLang = "en",
 ): Promise<QueryResult> {
   const settings = await getSettings(userId);
   const symbol = settings.currencySymbol || "Rs.";
   const tz = settings.timezone || "Asia/Karachi";
   const money = (v: Parameters<typeof formatMoney>[0]) => formatMoney(v, symbol);
+  const v = (key: Parameters<typeof pickVoice>[1], params?: Record<string, string | number>) =>
+    pickVoice(lang, key, params);
 
   switch (query.query) {
     case "HELP":
       return {
         text: [
-          "I can run the whole khata for you. Try:",
-          "• “Ali bought 20 cartons of rice, paid 15,000”",
-          "• “received 5,000 from Ali”",
-          "• “paid the rice mill 10,000”",
-          "• “spent 500 on electricity”",
-          "• “add customer Imran”",
-          "• “add 50 kg rice stock at 900”",
-          "• “who owes me money?”",
-          "• “how much stock of rice?”",
-          "• “what were my best-selling products this month?”",
-          "• “remind me to call Ali tomorrow”",
+          v("helpIntro"),
+          v("help1"),
+          v("help2"),
+          v("help3"),
+          v("help4"),
+          v("help5"),
+          v("help6"),
+          v("help7"),
+          v("help8"),
+          v("help9"),
+          v("help10"),
         ].join("\n"),
         data: { commands: true },
       };
@@ -86,19 +90,26 @@ export async function runQuery(
       const d = await getDashboardStats(userId, tz);
       return {
         text: [
-          `Today: sales ${money(d.todaysSales)}, payments ${money(d.todaysPayments)}, expenses ${money(d.todaysExpenses)}.`,
-          `Receivables ${money(d.totalReceivables)} from ${d.customersWithBalance} customer(s).`,
+          v("dashboardToday", {
+            sales: money(d.todaysSales),
+            payments: money(d.todaysPayments),
+            expenses: money(d.todaysExpenses),
+          }),
+          v("dashboardReceivables", {
+            amount: money(d.totalReceivables),
+            count: d.customersWithBalance,
+          }),
           d.lowStockProducts.length
-            ? `${d.lowStockProducts.length} product(s) are low on stock.`
-            : "No products are low on stock.",
+            ? v("lowStockCount", { count: d.lowStockProducts.length })
+            : v("noLowStock"),
         ].join(" "),
         data: d,
         items: [
-          { label: "Receivables", value: money(d.totalReceivables), href: "/khata" },
-          { label: "Today's sales", value: money(d.todaysSales), href: "/sales" },
-          { label: "Today's expenses", value: money(d.todaysExpenses), href: "/expenses" },
+          { label: v("labelReceivables"), value: money(d.totalReceivables), href: "/khata" },
+          { label: v("labelTodaysSales"), value: money(d.todaysSales), href: "/sales" },
+          { label: v("labelTodaysExpenses"), value: money(d.todaysExpenses), href: "/expenses" },
           ...d.lowStockProducts.slice(0, 5).map((p) => ({
-            label: `Low stock: ${p.name}`,
+            label: v("lowStockItem", { name: p.name }),
             value: formatQuantity(p.currentStock, p.unit),
             href: `/more/products/${p.id}`,
           })),
@@ -111,8 +122,8 @@ export async function runQuery(
       const total = rows.reduce((s, r) => s + n(r.balance), 0);
       return {
         text: rows.length
-          ? `Customers owe you ${money(total)} in total. ${rows.length} customer(s) have an outstanding balance.`
-          : "No customer owes you anything right now.",
+          ? v("customersOweTotal", { amount: money(total), count: rows.length })
+          : v("noCustomerOwes"),
         items: rows.slice(0, 12).map((r) => ({
           label: r.name,
           value: money(r.balance),
@@ -127,8 +138,8 @@ export async function runQuery(
       const total = rows.reduce((s, r) => s + n(r.balance), 0);
       return {
         text: rows.length
-          ? `You owe suppliers ${money(total)}. ${rows.length} supplier(s) have a payable balance.`
-          : "You do not owe any supplier right now.",
+          ? v("youOweSuppliers", { amount: money(total), count: rows.length })
+          : v("noSupplierOwed"),
         items: rows.slice(0, 12).map((r) => ({
           label: r.name,
           value: money(r.balance),
@@ -140,22 +151,22 @@ export async function runQuery(
 
     case "CUSTOMER_BALANCE": {
       if (!entity || entity.type !== "customer") {
-        throw new NeedsEntityError("customer", "Which customer?");
+        throw new NeedsEntityError("customer", v("whichCustomer"));
       }
       const c = await getCustomerWithBalance(entity.id, userId);
       const balance = n(c.balance);
       const text =
         balance > 0
-          ? `${c.name} owes you ${money(balance)}.`
+          ? v("customerOwes", { name: c.name, amount: money(balance) })
           : balance < 0
-            ? `${c.name} has an advance of ${money(Math.abs(balance))}.`
-            : `${c.name}'s account is settled.`;
+            ? v("customerAdvance", { name: c.name, amount: money(Math.abs(balance)) })
+            : v("customerSettled", { name: c.name });
       return {
         text,
         items: [
           { label: c.name, value: money(balance), href: `/khata/${c.id}` },
-          { label: "Total sales", value: money(c.totalPurchases) },
-          { label: "Total payments", value: money(c.totalPayments) },
+          { label: v("labelTotalSales"), value: money(c.totalPurchases) },
+          { label: v("labelTotalPayments"), value: money(c.totalPayments) },
         ],
         data: c,
       };
@@ -163,16 +174,26 @@ export async function runQuery(
 
     case "CUSTOMER_HISTORY": {
       if (!entity || entity.type !== "customer") {
-        throw new NeedsEntityError("customer", "Whose ledger?");
+        throw new NeedsEntityError("customer", v("whoseLedger"));
       }
       const h = await getCustomerHistory(entity.id, userId);
       const recent = h.transactions.slice(-8).reverse();
       return {
-        text: `${h.customer.name}: balance ${money(h.customer.balance)} across ${h.transactions.length} transaction(s).`,
+        text: v("customerHistory", {
+          name: h.customer.name,
+          balance: money(h.customer.balance),
+          count: h.transactions.length,
+        }),
         items: recent.map((t) => ({
-          label: `${t.type === "sale" ? "Sale" : t.type === "payment" ? "Payment" : "Adjustment"} · ${t.date.toISOString().slice(0, 10)}`,
+          label: `${
+            t.type === "sale"
+              ? v("txSale")
+              : t.type === "payment"
+                ? v("txPayment")
+                : v("txAdjustment")
+          } · ${t.date.toISOString().slice(0, 10)}`,
           value: money(t.amount),
-          meta: `balance after: ${money(t.runningBalance)}`,
+          meta: v("balanceAfter", { amount: money(t.runningBalance) }),
           href: `/khata/${h.customer.id}`,
         })),
         data: h,
@@ -181,15 +202,21 @@ export async function runQuery(
 
     case "STOCK_LEVEL": {
       if (!entity || entity.type !== "product") {
-        throw new NeedsEntityError("product", "Which product?");
+        throw new NeedsEntityError("product", v("whichProduct"));
       }
       const p = await getProductWithStock(entity.id, userId);
       return {
-        text: `${p.name}: ${formatQuantity(p.currentStock, p.unit)} in stock${p.isLowStock ? " (low)" : ""}. Selling price ${money(p.sellingPrice)} per ${p.unit}.`,
+        text: v("stockLevel", {
+          name: p.name,
+          quantity: formatQuantity(p.currentStock, p.unit),
+          low: p.isLowStock ? v("lowSuffix") : "",
+          price: money(p.sellingPrice),
+          unit: p.unit,
+        }),
         items: [
           { label: p.name, value: formatQuantity(p.currentStock, p.unit), href: `/more/products/${p.id}` },
-          { label: "Selling price", value: `${money(p.sellingPrice)} / ${p.unit}` },
-          { label: "Purchase price", value: `${money(p.purchasePrice)} / ${p.unit}` },
+          { label: v("labelSellingPriceShort"), value: `${money(p.sellingPrice)} / ${p.unit}` },
+          { label: v("labelPurchasePriceShort"), value: `${money(p.purchasePrice)} / ${p.unit}` },
         ],
         data: p,
       };
@@ -199,12 +226,12 @@ export async function runQuery(
       const products = (await listProductsWithStock(userId)).filter((p) => p.isLowStock);
       return {
         text: products.length
-          ? `${products.length} product(s) are low on stock.`
-          : "No products are below their low-stock threshold.",
+          ? v("lowStockProducts", { count: products.length })
+          : v("noBelowThreshold"),
         items: products.slice(0, 15).map((p) => ({
           label: p.name,
           value: formatQuantity(p.currentStock, p.unit),
-          meta: `threshold ${p.lowStockThreshold}`,
+          meta: v("thresholdMeta", { value: p.lowStockThreshold }),
           href: `/more/products/${p.id}`,
         })),
         data: products,
@@ -215,12 +242,12 @@ export async function runQuery(
       const insights = await getBusinessInsights(userId);
       return {
         text: insights.topProducts.length
-          ? `Best-selling products in the last ${insights.rangeDays} days:`
-          : "No sales in the last 30 days, so there is no best-seller yet.",
+          ? v("bestSelling", { days: insights.rangeDays })
+          : v("noBestSeller"),
         items: insights.topProducts.slice(0, 10).map((p) => ({
           label: p.name,
           value: money(p.revenue),
-          meta: `${formatQuantity(p.quantity, p.unit)} sold`,
+          meta: v("soldMeta", { quantity: formatQuantity(p.quantity, p.unit) }),
           href: `/more/products/${p.id}`,
         })),
         data: insights.topProducts,
@@ -232,11 +259,15 @@ export async function runQuery(
       const preset = query.range === "month" || query.query === "SALES_SUMMARY" ? "month" : "today";
       const r = await getReportForPreset(userId, preset, tz);
       return {
-        text: `${preset === "today" ? "Today" : "This month"}: billed ${money(r.sales.billed)} across ${r.sales.count} sale(s); cash received ${money(r.sales.cashReceived)}.`,
+        text: v(preset === "today" ? "salesToday" : "salesThisMonth", {
+          billed: money(r.sales.billed),
+          count: r.sales.count,
+          cash: money(r.sales.cashReceived),
+        }),
         items: [
-          { label: "Billed", value: money(r.sales.billed) },
-          { label: "Cash received", value: money(r.sales.cashReceived) },
-          { label: "Discounts", value: money(r.sales.discounts) },
+          { label: v("labelBilled"), value: money(r.sales.billed) },
+          { label: v("labelCashReceived"), value: money(r.sales.cashReceived) },
+          { label: v("labelDiscounts"), value: money(r.sales.discounts) },
           ...r.sales.byCustomer.slice(0, 5).map((c) => ({ label: c.name, value: money(c.billed) })),
         ],
         data: r.sales,
@@ -248,9 +279,12 @@ export async function runQuery(
       const preset = query.range === "month" || query.query === "EXPENSES_SUMMARY" ? "month" : "today";
       const r = await getReportForPreset(userId, preset, tz);
       return {
-        text: `${preset === "today" ? "Today" : "This month"}: expenses ${money(r.expenses.total)} across ${r.expenses.count} record(s).`,
+        text: v(preset === "today" ? "expensesToday" : "expensesThisMonth", {
+          total: money(r.expenses.total),
+          count: r.expenses.count,
+        }),
         items: r.expenses.byCategory.slice(0, 8).map((c) => ({
-          label: c.category,
+          label: categoryLabel(lang, c.category),
           value: money(c.amount),
         })),
         data: r.expenses,
@@ -261,14 +295,23 @@ export async function runQuery(
       const preset = query.range === "all" ? "all" : query.range === "today" ? "today" : "month";
       const r = await getReportForPreset(userId, preset, tz);
       const p = r.profit;
+      const profitKey =
+        preset === "today" ? "profitToday" : preset === "all" ? "profitAllTime" : "profitThisMonth";
       return {
-        text: `${preset === "today" ? "Today" : preset === "all" ? "All time" : "This month"}: revenue ${money(p.revenue)}, cost of goods ${money(p.cogs)}, gross profit ${money(p.grossProfit)}, expenses ${money(p.expenses)}, net profit ${money(p.netProfit)} (${p.profitMargin}% margin).`,
+        text: v(profitKey, {
+          revenue: money(p.revenue),
+          cogs: money(p.cogs),
+          gross: money(p.grossProfit),
+          expenses: money(p.expenses),
+          net: money(p.netProfit),
+          margin: p.profitMargin,
+        }),
         items: [
-          { label: "Revenue", value: money(p.revenue) },
-          { label: "Cost of goods sold", value: money(p.cogs) },
-          { label: "Gross profit", value: money(p.grossProfit) },
-          { label: "Expenses", value: money(p.expenses) },
-          { label: "Net profit", value: money(p.netProfit) },
+          { label: v("labelRevenue"), value: money(p.revenue) },
+          { label: v("labelCogs"), value: money(p.cogs) },
+          { label: v("labelGrossProfit"), value: money(p.grossProfit) },
+          { label: v("labelExpenses"), value: money(p.expenses) },
+          { label: v("labelNetProfit"), value: money(p.netProfit) },
         ],
         data: p,
       };
@@ -277,11 +320,13 @@ export async function runQuery(
     case "RECENT_SALES": {
       const rows = await listSales(10, userId);
       return {
-        text: rows.length ? "Most recent sales:" : "No sales recorded yet.",
+        text: rows.length ? v("recentSales") : v("noSales"),
         items: rows.map((s) => ({
           label: s.customerName,
           value: money(s.totalAmount),
-          meta: `${s.date.toISOString().slice(0, 10)} · ${n(s.outstanding) > 0 ? `due ${money(s.outstanding)}` : "paid"}`,
+          meta: `${s.date.toISOString().slice(0, 10)} · ${
+            n(s.outstanding) > 0 ? v("due", { amount: money(s.outstanding) }) : v("paid")
+          }`,
           href: `/sales/${s.id}`,
         })),
         data: rows,
@@ -291,11 +336,11 @@ export async function runQuery(
     case "RECENT_EXPENSES": {
       const rows = await listExpenses(10, userId);
       return {
-        text: rows.length ? "Most recent expenses:" : "No expenses recorded yet.",
+        text: rows.length ? v("recentExpenses") : v("noExpenses"),
         items: rows.map((e) => ({
           label: e.name,
           value: money(e.amount),
-          meta: `${e.date.toISOString().slice(0, 10)} · ${e.category}`,
+          meta: `${e.date.toISOString().slice(0, 10)} · ${categoryLabel(lang, e.category)}`,
           href: `/expenses/${e.id}`,
         })),
         data: rows,
@@ -310,11 +355,11 @@ export async function runQuery(
         take: 10,
       });
       return {
-        text: rows.length ? "Most recent purchases:" : "No purchases recorded yet.",
+        text: rows.length ? v("recentPurchases") : v("noPurchases"),
         items: rows.map((p) => ({
           label: p.supplier.name,
           value: money(p.totalAmount),
-          meta: `${p.date.toISOString().slice(0, 10)} · due ${money(p.outstanding)}`,
+          meta: `${p.date.toISOString().slice(0, 10)} · ${v("due", { amount: money(p.outstanding) })}`,
           href: `/suppliers/${p.supplierId}`,
         })),
         data: rows,
@@ -323,22 +368,22 @@ export async function runQuery(
 
     case "SUPPLIER_BALANCE": {
       if (!entity || entity.type !== "supplier") {
-        throw new NeedsEntityError("supplier", "Which supplier?");
+        throw new NeedsEntityError("supplier", v("whichSupplier"));
       }
       const row = (await listSuppliersWithBalance(userId)).find((s) => s.id === entity.id);
-      if (!row) throw new NeedsEntityError("supplier", "Which supplier?");
+      if (!row) throw new NeedsEntityError("supplier", v("whichSupplier"));
       const balance = n(row.balance);
       return {
         text:
           balance > 0
-            ? `You owe ${row.name} ${money(balance)}.`
+            ? v("youOweSupplier", { name: row.name, amount: money(balance) })
             : balance < 0
-              ? `${row.name} has an advance of ${money(Math.abs(balance))}.`
-              : `${row.name}'s account is settled.`,
+              ? v("supplierAdvance", { name: row.name, amount: money(Math.abs(balance)) })
+              : v("supplierSettled", { name: row.name }),
         items: [
           { label: row.name, value: money(balance), href: `/suppliers/${row.id}` },
-          { label: "Total purchases", value: money(row.totalPurchases) },
-          { label: "Total payments", value: money(row.totalPayments) },
+          { label: v("labelTotalPurchases"), value: money(row.totalPurchases) },
+          { label: v("labelTotalPayments"), value: money(row.totalPayments) },
         ],
         data: row,
       };
@@ -346,7 +391,7 @@ export async function runQuery(
 
     case "SUPPLIER_HISTORY": {
       if (!entity || entity.type !== "supplier") {
-        throw new NeedsEntityError("supplier", "Which supplier?");
+        throw new NeedsEntityError("supplier", v("whichSupplier"));
       }
       const rows = await prisma.purchase.findMany({
         where: { supplierId: entity.id, userId, voidedAt: null },
@@ -356,12 +401,12 @@ export async function runQuery(
       });
       return {
         text: rows.length
-          ? `Recent purchases from ${entity.name}:`
-          : `No purchases recorded from ${entity.name}.`,
+          ? v("recentPurchasesFrom", { name: entity.name })
+          : v("noPurchasesFrom", { name: entity.name }),
         items: rows.map((p) => ({
           label: p.date.toISOString().slice(0, 10),
           value: money(p.totalAmount),
-          meta: `due ${money(p.outstanding)}`,
+          meta: v("due", { amount: money(p.outstanding) }),
           href: `/suppliers/${entity.id}`,
         })),
         data: rows,
@@ -371,11 +416,13 @@ export async function runQuery(
     case "REMINDERS_TODAY": {
       const rows = await listReminders("today", userId, tz);
       return {
-        text: rows.length ? `${rows.length} reminder(s) due today.` : "Nothing is due today.",
+        text: rows.length
+          ? v("remindersDueToday", { count: rows.length })
+          : v("nothingDueToday"),
         items: rows.map((r) => ({
           label: r.title,
           value: r.dueAt.toISOString().slice(0, 10),
-          meta: r.priority,
+          meta: priorityLabel(lang, r.priority),
           href: "/reminders",
         })),
         data: rows,
@@ -385,11 +432,11 @@ export async function runQuery(
     case "REMINDERS_ALL": {
       const rows = await listReminders("all", userId, tz);
       return {
-        text: rows.length ? `${rows.length} open reminder(s).` : "No open reminders.",
+        text: rows.length ? v("openReminders", { count: rows.length }) : v("noOpenReminders"),
         items: rows.slice(0, 15).map((r) => ({
           label: r.title,
           value: r.dueAt.toISOString().slice(0, 10),
-          meta: r.priority,
+          meta: priorityLabel(lang, r.priority),
           href: "/reminders",
         })),
         data: rows,
@@ -400,12 +447,15 @@ export async function runQuery(
       const insights = await getBusinessInsights(userId);
       return {
         text: insights.inactiveCustomers.length
-          ? `${insights.inactiveCustomers.length} customer(s) have not purchased recently.`
-          : "Every customer has purchased recently.",
+          ? v("inactiveCustomers", { count: insights.inactiveCustomers.length })
+          : v("everyCustomerRecent"),
         items: insights.inactiveCustomers.slice(0, 12).map((c) => ({
           label: c.name,
           value: c.balance ? money(c.balance) : undefined,
-          meta: c.daysInactive == null ? "no purchases yet" : `${c.daysInactive} days inactive`,
+          meta:
+            c.daysInactive == null
+              ? v("noPurchasesYet")
+              : v("daysInactive", { count: c.daysInactive }),
           href: `/khata/${c.id}`,
         })),
         data: insights.inactiveCustomers,
@@ -416,12 +466,12 @@ export async function runQuery(
       const recovery = await getRecoveryData(userId, "all");
       return {
         text: recovery.candidates.length
-          ? `${recovery.candidates.length} customer(s) may be ready to order again.`
-          : "No reorder candidates right now.",
+          ? v("reorderCandidates", { count: recovery.candidates.length })
+          : v("noReorderCandidates"),
         items: recovery.candidates.slice(0, 12).map((c) => ({
           label: c.customerName,
           value: money(c.outstanding),
-          meta: c.oldestDueDate ? `oldest due ${c.oldestDueDate}` : undefined,
+          meta: c.oldestDueDate ? v("oldestDue", { date: c.oldestDueDate }) : undefined,
           href: `/khata/${c.customerId}`,
         })),
         data: recovery.candidates,
@@ -432,8 +482,12 @@ export async function runQuery(
       const summary = await getOverdueSummary(userId);
       return {
         text: n(summary.total) > 0
-          ? `${summary.customersCount} customer(s) are past their due date, owing ${money(summary.total)} across ${summary.salesCount} sale(s).`
-          : "No customer payment is overdue.",
+          ? v("overdueCustomers", {
+              customers: summary.customersCount,
+              amount: money(summary.total),
+              sales: summary.salesCount,
+            })
+          : v("noOverdue"),
         data: summary,
       };
     }
@@ -441,7 +495,7 @@ export async function runQuery(
     case "CUSTOMER_LIST": {
       const rows = await listAllCustomersWithBalance(userId);
       return {
-        text: `${rows.length} customer(s).`,
+        text: v("customerCount", { count: rows.length }),
         items: rows.slice(0, 20).map((c) => ({
           label: c.name,
           value: money(c.balance),
@@ -454,7 +508,7 @@ export async function runQuery(
     case "PRODUCT_LIST": {
       const rows = await listProductsWithStock(userId);
       return {
-        text: `${rows.length} product(s).`,
+        text: v("productCount", { count: rows.length }),
         items: rows.slice(0, 20).map((p) => ({
           label: p.name,
           value: formatQuantity(p.currentStock, p.unit),
@@ -468,7 +522,7 @@ export async function runQuery(
     case "SUPPLIER_LIST": {
       const rows = await listSuppliersWithBalance(userId);
       return {
-        text: `${rows.length} supplier(s).`,
+        text: v("supplierCount", { count: rows.length }),
         items: rows.slice(0, 20).map((s) => ({
           label: s.name,
           value: money(s.balance),
@@ -479,6 +533,6 @@ export async function runQuery(
     }
 
     default:
-      return { text: "I do not have an answer for that yet." };
+      return { text: v("noAnswer") };
   }
 }

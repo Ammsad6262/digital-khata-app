@@ -38,7 +38,7 @@ export function SupplierPaymentForm({
 }) {
   const router = useRouter();
   const toast = useToast();
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const symbol = useCurrencySymbol();
   const createMutation = useCreateSupplierPayment(supplierId);
   const { data: purchases } = usePurchasesBySupplier(supplierId);
@@ -140,7 +140,7 @@ export function SupplierPaymentForm({
           <option value="">{t("supplierPayment.general")}</option>
           {openInvoices.map((p) => (
             <option key={p.id} value={p.id}>
-              {new Date(p.date).toLocaleDateString()} — {t("supplier.remaining")}:{" "}
+              {new Date(p.date).toLocaleDateString(lang === "ur" ? "ur-PK-u-nu-latn" : "en-GB")} — {t("supplier.remaining")}:{" "}
               {p.remaining} ({formatPlain(Number(p.remaining), symbol)})
             </option>
           ))}

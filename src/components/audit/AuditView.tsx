@@ -103,7 +103,7 @@ function moneyFromMetadata(row: AuditLogView): string | null {
     : null;
 }
 
-function dayLabel(iso: string): string {
+function dayLabel(iso: string, lang: "en" | "ur" = "en"): string {
   const date = new Date(iso);
   const today = new Date();
   const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
@@ -111,9 +111,9 @@ function dayLabel(iso: string): string {
   const days = Math.round(
     (startOfToday.getTime() - startOfDate.getTime()) / 86_400_000,
   );
-  if (days === 0) return "Today";
-  if (days === 1) return "Yesterday";
-  return date.toLocaleDateString(undefined, {
+  if (days === 0) return lang === "ur" ? "آج" : "Today";
+  if (days === 1) return lang === "ur" ? "کل" : "Yesterday";
+  return date.toLocaleDateString(lang === "ur" ? "ur-PK-u-nu-latn" : "en-GB", {
     day: "numeric",
     month: "short",
     year: "numeric",
@@ -121,7 +121,7 @@ function dayLabel(iso: string): string {
 }
 
 export function AuditView() {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const symbol = useCurrencySymbol();
   const { data, isLoading, isError, refetch } = useAuditLog();
   const [filter, setFilter] = useState<AuditGroup>("all");
@@ -135,13 +135,13 @@ export function AuditView() {
   const grouped = useMemo(() => {
     const map = new Map<string, AuditLogView[]>();
     for (const row of rows) {
-      const label = dayLabel(row.createdAt);
+      const label = dayLabel(row.createdAt, lang);
       const list = map.get(label) ?? [];
       list.push(row);
       map.set(label, list);
     }
     return [...map.entries()];
-  }, [rows]);
+  }, [rows, lang]);
 
   if (isLoading) {
     return (

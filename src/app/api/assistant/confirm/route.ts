@@ -23,6 +23,7 @@ import { requireActiveAccess } from "@/lib/auth/get-current-user";
 import { ok, fail, parseJsonBody } from "@/lib/utils/api";
 import { BadRequestError } from "@/lib/errors";
 import { confirmAction, toPublicReply } from "@/lib/assistant/service";
+import { normalizeVoiceLang, pickVoice } from "@/lib/assistant/phrases";
 import type { PlanPayload } from "@/lib/assistant/types";
 
 export const dynamic = "force-dynamic";
@@ -66,16 +67,19 @@ const ALLOWED_PATCH_KEYS: Array<keyof PlanPayload> = [
 type Body = {
   actionId?: unknown;
   patch?: Record<string, unknown>;
+  lang?: unknown;
 };
 
 export async function POST(req: NextRequest) {
   try {
     const userId = await requireActiveAccess(req);
     const { data: body } = await parseJsonBody<Body>(req);
-    if (!body) throw new BadRequestError("A request body is required.");
+    const lang = normalizeVoiceLang(body?.lang);
+    const v = (key: Parameters<typeof pickVoice>[1]) => pickVoice(lang, key);
+    if (!body) throw new BadRequestError(v("errBodyRequired"));
 
     const actionId = typeof body.actionId === "string" ? body.actionId : "";
-    if (!actionId) throw new BadRequestError("actionId is required.");
+    if (!actionId) throw new BadRequestError(v("errActionIdRequired"));
 
     const patch: Partial<PlanPayload> = {};
     if (body.patch && typeof body.patch === "object") {
@@ -87,7 +91,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const reply = await confirmAction(userId, actionId, patch);
+    const reply = await confirmAction(userId, actionId, patch, lang);
     return ok(toPublicReply(reply));
   } catch (error) {
     return fail(error);

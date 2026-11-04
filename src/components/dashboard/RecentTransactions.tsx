@@ -136,7 +136,7 @@ export function RecentTransactions({
 }: {
   transactions: RecentTransaction[];
 }) {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   if (transactions.length === 0) return null;
 
   return (
@@ -189,7 +189,7 @@ export function RecentTransactions({
                     {context ?? "—"}
                   </p>
                   <p className="shrink-0 text-[11px] text-slate-400">
-                    {formatRelative(new Date(tx.date))}
+                    {formatRelative(new Date(tx.date), "Asia/Karachi", lang)}
                   </p>
                 </div>
               </div>

@@ -49,10 +49,10 @@ const PRESETS: Array<{ preset: string; labelKey: TranslationKey }> = [
   { preset: "last30", labelKey: "reports.preset.last30" },
 ];
 
-function prettyDate(value: string): string {
+function prettyDate(value: string, lang: "en" | "ur" = "en"): string {
   const date = new Date(`${value}T00:00:00`);
   if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleDateString(undefined, {
+  return date.toLocaleDateString(lang === "ur" ? "ur-PK-u-nu-latn" : "en-GB", {
     day: "numeric",
     month: "short",
     year: "numeric",
@@ -170,7 +170,7 @@ function LimitationRow({ limitation }: { limitation: ReportLimitation }) {
 }
 
 export function ReportsView() {
-  const { t, tParams } = useLanguage();
+  const { t, tParams, lang } = useLanguage();
   const symbol = useCurrencySymbol();
 
   const [query, setQuery] = useState<ReportQuery>({ kind: "preset", preset: "month" });
@@ -422,8 +422,8 @@ export function ReportsView() {
         {data ? (
           <p className="mt-3 text-[11px] text-slate-500">
             {tParams("reports.showing", {
-              from: prettyDate(data.from),
-              to: prettyDate(data.to),
+              from: prettyDate(data.from, lang),
+              to: prettyDate(data.to, lang),
             })}
             {isFetching ? ` · ${t("common.loading")}` : ""}
           </p>
@@ -520,8 +520,8 @@ export function ReportsView() {
           <Section
             title={t("reports.comparison")}
             hint={tParams("reports.comparisonHint", {
-              from: prettyDate(data.comparison.from),
-              to: prettyDate(data.comparison.to),
+              from: prettyDate(data.comparison.from, lang),
+              to: prettyDate(data.comparison.to, lang),
             })}
             icon={<TrendingUp className="h-4 w-4" />}
           >

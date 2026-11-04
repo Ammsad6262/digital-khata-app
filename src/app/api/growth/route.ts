@@ -15,7 +15,8 @@ export const dynamic = "force-dynamic";
 export async function GET(req: NextRequest) {
   try {
     const userId = await requireActiveAccess(req);
-    const data = await getGrowthPlan(userId);
+    const lang = req.nextUrl.searchParams.get("lang") === "ur" ? "ur" : "en";
+    const data = await getGrowthPlan(userId, lang);
     return ok(data);
   } catch (error) {
     return fail(error);

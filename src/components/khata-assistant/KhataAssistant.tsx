@@ -37,7 +37,7 @@ import type { KhataAnswer } from "@/lib/khata-assistant/types";
 type UiLanguage = "en" | "ur" | "roman-ur" | "mixed";
 
 export function KhataAssistant() {
-  const { lang } = useLanguage();
+  const { lang, t } = useLanguage();
   const assistant = useKhataAssistant();
   const [input, setInput] = useState("");
   const [detected, setDetected] = useState<UiLanguage>("en");
@@ -66,8 +66,8 @@ export function KhataAssistant() {
     const text = input.trim();
     if (!text || busy) return;
     setInput("");
-    void assistant.askText(text).then(() => undefined);
-  }, [assistant, busy, input]);
+    void assistant.askText(text, lang).then(() => undefined);
+  }, [assistant, busy, input, lang]);
 
   // Keep the language chip in sync with the answered question's language.
   useEffect(() => {
@@ -80,7 +80,7 @@ export function KhataAssistant() {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        aria-label="Open the Khata Assistant"
+        aria-label={t("khataAssistant.open")}
         className={cn(
           "fixed bottom-24 right-20 z-40 flex h-14 w-14 items-center justify-center rounded-full",
           "bg-neutral-900 text-white shadow-lg dark:bg-white dark:text-neutral-900",
@@ -93,7 +93,7 @@ export function KhataAssistant() {
       {open ? (
         <div
           role="dialog"
-          aria-label="Khata Assistant"
+          aria-label={t("khataAssistant.title")}
           className={cn(
             "fixed inset-x-0 bottom-0 z-50 flex max-h-[88vh] flex-col overflow-hidden rounded-t-3xl border border-neutral-200 bg-white shadow-2xl",
             "sm:inset-x-auto sm:bottom-4 sm:right-4 sm:w-[440px] sm:rounded-3xl",
@@ -107,16 +107,16 @@ export function KhataAssistant() {
             </div>
             <div className="flex-1">
               <p className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">
-                Khata Assistant
+                {t("khataAssistant.title")}
               </p>
               <p className="text-xs text-neutral-500">
-                Understand your business from your own records
+                {t("khataAssistant.subtitle")}
               </p>
             </div>
             <button
               type="button"
               onClick={() => setOpen(false)}
-              aria-label="Close"
+              aria-label={t("common.close")}
               className="rounded-lg p-1.5 text-neutral-500 hover:bg-neutral-100 dark:hover:bg-neutral-800"
             >
               <X className="h-4 w-4" />
@@ -147,14 +147,14 @@ export function KhataAssistant() {
                 }
               }}
               rows={1}
-              placeholder="Ask about your business…"
+              placeholder={t("khataAssistant.placeholder")}
               className="max-h-28 min-h-11 flex-1 resize-none rounded-2xl border border-neutral-300 bg-white px-3 py-2.5 text-sm outline-none focus:border-brand-500 dark:border-neutral-700 dark:bg-neutral-800"
             />
             <button
               type="button"
               onClick={handleSend}
               disabled={busy || input.trim().length === 0}
-              aria-label="Ask"
+              aria-label={t("khataAssistant.ask")}
               className={cn(
                 "flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-neutral-900 text-white dark:bg-white dark:text-neutral-900",
                 (busy || input.trim().length === 0) && "opacity-40",
@@ -188,11 +188,13 @@ function AssistantBody(
     onQuestion: (id: string) => void;
   },
 ) {
+  const { t } = useLanguage();
+
   if (busy && !answer) {
     return (
       <div className="flex flex-col items-center justify-center gap-3 py-16 text-sm text-neutral-500">
         <Loader2 className="h-6 w-6 animate-spin" />
-        <p>Checking your records…</p>
+        <p>{t("khataAssistant.loading")}</p>
       </div>
     );
   }
@@ -210,14 +212,14 @@ function AssistantBody(
             onClick={() => assistant.retry()}
             className="rounded-full bg-neutral-900 px-4 py-2 text-sm font-medium text-white dark:bg-white dark:text-neutral-900"
           >
-            Try again
+            {t("common.retry")}
           </button>
           <button
             type="button"
             onClick={() => assistant.reset()}
             className="rounded-full border border-neutral-300 px-4 py-2 text-sm font-medium dark:border-neutral-700"
           >
-            Back
+            {t("common.back")}
           </button>
         </div>
       </div>
@@ -243,11 +245,11 @@ function QuestionList({
   uiLanguage: UiLanguage;
   onQuestion: (id: string) => void;
 }) {
+  const { t } = useLanguage();
   return (
     <div className="space-y-4">
       <p className="text-sm text-neutral-600 dark:text-neutral-300">
-        Tap a question to see the answer from your business data. You can also
-        type your own question below.
+        {t("khataAssistant.intro")}
       </p>
 
       {CATEGORY_ORDER.map((categoryId) => {
@@ -288,6 +290,7 @@ function AnswerView({
   answer: KhataAnswer;
   onAskAnother: () => void;
 }) {
+  const { t } = useLanguage();
   return (
     <div className="space-y-4">
       <button
@@ -295,8 +298,8 @@ function AnswerView({
         onClick={onAskAnother}
         className="flex items-center gap-1 text-xs font-medium text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200"
       >
-        <ArrowLeft className="h-3.5 w-3.5" />
-        Ask another question
+        <ArrowLeft className="h-3.5 w-3.5 rtl:rotate-180" />
+        {t("khataAssistant.askAnother")}
       </button>
 
       {answer.question ? (
@@ -378,7 +381,7 @@ function AnswerView({
         onClick={onAskAnother}
         className="w-full rounded-full bg-neutral-900 px-4 py-2.5 text-sm font-medium text-white dark:bg-white dark:text-neutral-900"
       >
-        Ask another question
+        {t("khataAssistant.askAnother")}
       </button>
     </div>
   );

@@ -48,7 +48,7 @@ export function BackupPage() {
   const exportBackup = useExportBackup();
   const exportCsv = useExportCsv();
   const importBackup = useImportBackup();
-  const { t } = useLanguage();
+  const { t, tParams } = useLanguage();
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -61,15 +61,15 @@ export function BackupPage() {
     try {
       const parsed = JSON.parse(content) as BackupFile;
       if (typeof parsed.version !== "number") {
-        setUploadedFile({ name: file.name, content, preview: null, error: "Missing 'version' field — not a valid backup file." });
+        setUploadedFile({ name: file.name, content, preview: null, error: t("backup.error.missingVersion") });
         return;
       }
       if (parsed.version !== 1) {
-        setUploadedFile({ name: file.name, content, preview: null, error: `Backup version ${parsed.version} not supported (expected version 1).` });
+        setUploadedFile({ name: file.name, content, preview: null, error: tParams("backup.error.unsupportedVersion", { version: parsed.version }) });
         return;
       }
       if (!parsed.data || typeof parsed.data !== "object") {
-        setUploadedFile({ name: file.name, content, preview: null, error: "Missing 'data' object." });
+        setUploadedFile({ name: file.name, content, preview: null, error: t("backup.error.missingData") });
         return;
       }
       setUploadedFile({ name: file.name, content, preview: parsed, error: null });
@@ -155,8 +155,12 @@ export function BackupPage() {
                 >
                   <FileSpreadsheet className="h-3.5 w-3.5 shrink-0 text-blue-600" />
                   <div className="min-w-0">
-                    <p className="truncate font-medium text-slate-900">{tbl.label}</p>
-                    <p className="truncate text-[10px] text-slate-500">{tbl.description}</p>
+                    <p className="truncate font-medium text-slate-900">
+                      {t(`backup.tables.${tbl.value}.label` as never)}
+                    </p>
+                    <p className="truncate text-[10px] text-slate-500">
+                      {t(`backup.tables.${tbl.value}.description` as never)}
+                    </p>
                   </div>
                 </button>
               ))}
@@ -187,7 +191,7 @@ export function BackupPage() {
                 type="file"
                 accept=".json,application/json"
                 onChange={handleFileSelect}
-                className="block w-full text-xs text-slate-500 file:mr-3 file:rounded-lg file:border-0 file:bg-brand-600 file:px-3 file:py-2 file:text-xs file:font-medium file:text-white hover:file:bg-brand-700"
+                className="block w-full text-xs text-slate-500 file:me-3 file:rounded-lg file:border-0 file:bg-brand-600 file:px-3 file:py-2 file:text-xs file:font-medium file:text-white hover:file:bg-brand-700"
               />
             </div>
 
@@ -255,7 +259,7 @@ function FilePreview({
   isPending: boolean;
   onCancel: () => void;
 }) {
-  const { t } = useLanguage();
+  const { t, tParams, lang } = useLanguage();
   const c = file.preview.counts;
   const total = c.customers + c.products + c.sales + c.saleItems + c.payments + c.customerAdjustments + c.stockMoves + c.expenses + c.transactions;
 
@@ -267,23 +271,26 @@ function FilePreview({
           <p className="truncate text-sm font-medium text-slate-900">{file.name}</p>
         </div>
         <p className="mt-1 text-[11px] text-slate-500">
-          Exported: {new Date(file.preview.exportedAt).toLocaleString()}
+          {t("backup.preview.exported")}{" "}
+          {new Date(file.preview.exportedAt).toLocaleString(
+            lang === "ur" ? "ur-PK-u-nu-latn" : "en-GB",
+          )}
         </p>
         <p className="text-[11px] text-slate-500">
-          Total records: {total}
+          {tParams("backup.preview.totalRecords", { total })}
         </p>
 
         {/* Counts grid */}
         <div className="mt-2 grid grid-cols-3 gap-1.5 text-xs">
-          <CountCell label="Customers" value={c.customers} />
-          <CountCell label="Products" value={c.products} />
-          <CountCell label="Sales" value={c.sales} />
-          <CountCell label="Sale Items" value={c.saleItems} />
-          <CountCell label="Payments" value={c.payments} />
-          <CountCell label="Stock Moves" value={c.stockMoves} />
-          <CountCell label="Expenses" value={c.expenses} />
-          <CountCell label="Transactions" value={c.transactions} />
-          <CountCell label="Adjustments" value={c.customerAdjustments} />
+          <CountCell label={t("backup.table.customers")} value={c.customers} />
+          <CountCell label={t("backup.table.products")} value={c.products} />
+          <CountCell label={t("backup.table.sales")} value={c.sales} />
+          <CountCell label={t("backup.table.saleItems")} value={c.saleItems} />
+          <CountCell label={t("backup.table.payments")} value={c.payments} />
+          <CountCell label={t("backup.table.stockMoves")} value={c.stockMoves} />
+          <CountCell label={t("backup.table.expenses")} value={c.expenses} />
+          <CountCell label={t("backup.table.transactions")} value={c.transactions} />
+          <CountCell label={t("backup.table.adjustments")} value={c.customerAdjustments} />
         </div>
       </div>
 

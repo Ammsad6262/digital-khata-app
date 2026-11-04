@@ -27,12 +27,13 @@
 import { Loader2, Save, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils/cn";
+import { useLanguage } from "@/providers/language-provider";
 
 export function StickyFormActions({
   onCancel,
   onSave,
-  saveLabel = "Save",
-  cancelLabel = "Cancel",
+  saveLabel,
+  cancelLabel,
   saveDisabled = false,
   isPending = false,
   saveVariant = "primary",
@@ -48,6 +49,10 @@ export function StickyFormActions({
   saveVariant?: "primary" | "secondary" | "danger";
   className?: string;
 }) {
+  const { t } = useLanguage();
+  // Defaults follow the selected language when the caller does not pass a label.
+  const resolvedSaveLabel = saveLabel ?? t("common.save");
+  const resolvedCancelLabel = cancelLabel ?? t("common.cancel");
   return (
     <div
       className={cn(
@@ -67,7 +72,7 @@ export function StickyFormActions({
           disabled={isPending}
         >
           <X className="h-4 w-4" />
-          {cancelLabel}
+          {resolvedCancelLabel}
         </Button>
         <Button
           type="button"
@@ -80,12 +85,12 @@ export function StickyFormActions({
           {isPending ? (
             <>
               <Loader2 className="h-4 w-4 animate-spin" />
-              Saving...
+              {t("common.saving")}
             </>
           ) : (
             <>
               <Save className="h-4 w-4" />
-              {saveLabel}
+              {resolvedSaveLabel}
             </>
           )}
         </Button>

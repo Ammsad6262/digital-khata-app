@@ -10,9 +10,11 @@
 import Link from "next/link";
 import { Phone } from "lucide-react";
 import type { CustomerSearchResult } from "@/lib/services/customers";
+import { useLanguage } from "@/providers/language-provider";
 import { BalanceBadge } from "./BalanceBadge";
 
 export function CustomerRow({ customer }: { customer: CustomerSearchResult }) {
+  const { t } = useLanguage();
   const initial = customer.name.charAt(0).toUpperCase();
 
   return (
@@ -39,7 +41,7 @@ export function CustomerRow({ customer }: { customer: CustomerSearchResult }) {
             {customer.phone}
           </p>
         ) : (
-          <p className="text-xs text-slate-300">No phone</p>
+          <p className="text-xs text-slate-300">{t("customer.noPhone")}</p>
         )}
       </div>
 

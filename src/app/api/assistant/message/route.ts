@@ -25,6 +25,7 @@ import { ok, fail, parseJsonBody } from "@/lib/utils/api";
 import { BadRequestError } from "@/lib/errors";
 import { handleMessage, toPublicReply } from "@/lib/assistant/service";
 import { checkExecuteLimit } from "@/lib/smart-entry/rate-limit";
+import { normalizeVoiceLang, pickVoice } from "@/lib/assistant/phrases";
 import type { SpeechLanguage } from "@/lib/assistant/language";
 
 export const dynamic = "force-dynamic";
@@ -39,25 +40,30 @@ type Body = {
   text?: unknown;
   audio?: { base64?: unknown; mimeType?: unknown };
   language?: unknown;
+  lang?: unknown;
 };
 
 export async function POST(req: NextRequest) {
   try {
     const userId = await requireActiveAccess(req);
 
+    const { data: body } = await parseJsonBody<Body>(req);
+    const lang = normalizeVoiceLang(body?.lang);
+    const v = (key: Parameters<typeof pickVoice>[1], params?: Record<string, string | number>) =>
+      pickVoice(lang, key, params);
+
+    if (!body) throw new BadRequestError(v("errBodyRequired"));
+
     const limit = checkExecuteLimit(userId);
     if (!limit.allowed) {
       throw new BadRequestError(
-        `Too many assistant requests. Try again in ${limit.retryAfterSec}s.`,
+        v("errRateLimited", { seconds: limit.retryAfterSec }),
       );
     }
 
-    const { data: body } = await parseJsonBody<Body>(req);
-    if (!body) throw new BadRequestError("A request body is required.");
-
     const text = typeof body.text === "string" ? body.text.trim() : "";
     if (text.length > MAX_TEXT_CHARS) {
-      throw new BadRequestError(`Command is too long (max ${MAX_TEXT_CHARS} characters).`);
+      throw new BadRequestError(v("errCommandTooLong", { max: MAX_TEXT_CHARS }));
     }
 
     let audio: { base64: string; mimeType: string } | undefined;
@@ -68,13 +74,13 @@ export async function POST(req: NextRequest) {
           : "audio/webm";
       // base64 is ~4/3 of the byte size.
       if (body.audio.base64.length * 0.75 > MAX_AUDIO_BYTES) {
-        throw new BadRequestError("Recording is too large (max 5 MB).");
+        throw new BadRequestError(v("errRecordingTooLarge"));
       }
       audio = { base64: body.audio.base64, mimeType };
     }
 
     if (!text && !audio) {
-      throw new BadRequestError("Say or type a command.");
+      throw new BadRequestError(v("errSayOrType"));
     }
 
     const language =
@@ -83,7 +89,7 @@ export async function POST(req: NextRequest) {
         ? (body.language as SpeechLanguage)
         : undefined;
 
-    const reply = await handleMessage(userId, { text, audio, language });
+    const reply = await handleMessage(userId, { text, audio, language, lang });
     return ok(toPublicReply(reply));
   } catch (error) {
     return fail(error);

@@ -124,11 +124,11 @@ function RecommendationCard({ item }: { item: GrowthRecommendation }) {
 }
 
 export function GrowthView() {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const { data, isLoading, isError, refetch } = useGrowthPlan();
 
   const narration = useMutation<Narration>({
-    mutationFn: () => apiPost<Narration>("/api/growth/summary", {}),
+    mutationFn: () => apiPost<Narration>("/api/growth/summary", { lang }),
   });
 
   // Ask for the explanation as soon as the plan is on screen, so the page

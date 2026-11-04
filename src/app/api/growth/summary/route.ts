@@ -18,7 +18,10 @@ export const dynamic = "force-dynamic";
 export async function POST(req: NextRequest) {
   try {
     const userId = await requireActiveAccess(req);
-    const data = await narrateGrowthPlan(userId);
+    const body = (await req.json().catch(() => ({}))) as { lang?: unknown };
+    const lang =
+      body.lang === "ur" || req.nextUrl.searchParams.get("lang") === "ur" ? "ur" : "en";
+    const data = await narrateGrowthPlan(userId, lang);
     return ok(data);
   } catch (error) {
     return fail(error);

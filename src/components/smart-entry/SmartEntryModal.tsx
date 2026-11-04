@@ -964,7 +964,7 @@ function EditableFormView({
   onConfirm: (input: { customerId: string; productId: string; quantity: number; unitPrice?: number; paidAmount?: number; batchId?: string }) => void;
   onCancel: () => void;
 }) {
-  const { t, tParams } = useLanguage();
+  const { t, tParams, lang } = useLanguage();
   const symbol = useCurrencySymbol();
   // Local form state — initialized from the AI-resolved values, fully editable
   const [customerId, setCustomerId] = useState<string>(form.resolvedCustomerId ?? "");
@@ -1293,8 +1293,16 @@ function EditableFormView({
               </option>
               {allBatchCandidates.map((b) => (
                 <option key={b.id} value={b.id}>
-                  {b.batchName ?? `Batch ${new Date(b.date).toLocaleDateString()}`}
-                  {" — "}{symbol} {b.unitCost ?? "?"}/unit
+                  {b.batchName ??
+                    tParams("smartentry.batch.fallback", {
+                      date: new Date(b.date).toLocaleDateString(
+                        lang === "ur" ? "ur-PK-u-nu-latn" : "en-GB",
+                      ),
+                    })}
+                  {" — "}
+                  {tParams("smartentry.batch.perUnit", {
+                    amount: `${symbol} ${b.unitCost ?? "?"}`,
+                  })}
                   {" — "}{tParams("smartentry.batch.remaining", { qty: b.remainingQuantity })}
                 </option>
               ))}

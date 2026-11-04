@@ -35,7 +35,7 @@ export function BottomNav() {
         paddingBottom: "env(safe-area-inset-bottom)",
         maxWidth: "1024px",
       }}
-      aria-label="Main navigation"
+      aria-label={t("nav.mainNavigation")}
     >
       {TABS.map((tab) => {
         // /expenses should also be active when the user is on /expenses/new,
@@ -66,8 +66,10 @@ export function BottomNav() {
             )}
             aria-current={isActive ? "page" : undefined}
           >
-            <Icon className="h-5 w-5" />
-            <span>{t(tab.labelKey)}</span>
+            <Icon className="h-5 w-5 shrink-0" />
+            <span className="max-w-full truncate whitespace-nowrap leading-none">
+              {t(tab.labelKey)}
+            </span>
             {/* Active tab underline indicator */}
             {isActive ? (
               <span className="absolute bottom-1 h-0.5 w-8 rounded-full bg-brand-600" />

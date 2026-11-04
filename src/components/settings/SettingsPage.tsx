@@ -488,7 +488,9 @@ function CurrencySection({
             <span className="text-base font-bold w-6 text-center">{cur.symbol}</span>
             <div className="min-w-0">
               <p className="truncate text-xs font-medium">{cur.code}</p>
-              <p className="truncate text-[10px] text-slate-500">{cur.label}</p>
+              <p className="truncate text-[10px] text-slate-500">
+                {t(`settings.currency.${cur.code.toLowerCase()}` as never)}
+              </p>
             </div>
             {selectedCurrency === cur.code ? (
               <Check className="ml-auto h-3.5 w-3.5 shrink-0 text-brand-600" />

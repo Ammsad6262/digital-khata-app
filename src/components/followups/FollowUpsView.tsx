@@ -57,9 +57,9 @@ const OUTCOME_STYLE: Record<FollowUpOutcome, string> = {
   no_response: "border-slate-200 bg-slate-100 text-slate-500",
 };
 
-function shortDate(iso: string | null): string {
+function shortDate(iso: string | null, lang: "en" | "ur" = "en"): string {
   if (!iso) return "";
-  return new Intl.DateTimeFormat("en-GB", {
+  return new Intl.DateTimeFormat(lang === "ur" ? "ur-PK-u-nu-latn" : "en-GB", {
     day: "numeric",
     month: "short",
     timeZone: "Asia/Karachi",
@@ -311,7 +311,7 @@ function FollowUpCard({ followUp }: { followUp: FollowUpView }) {
 // ────────────────────────────────────────────────────────────────────────────
 
 function ResolvedRow({ followUp }: { followUp: FollowUpView }) {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const toast = useToast();
   const update = useUpdateFollowUp(followUp.id);
 
@@ -329,7 +329,7 @@ function ResolvedRow({ followUp }: { followUp: FollowUpView }) {
         </div>
         <p className="mt-0.5 truncate text-[11px] text-slate-500">
           {followUp.productName ? `${followUp.productName} · ` : ""}
-          {shortDate(followUp.resolvedAt ?? followUp.updatedAt)}
+          {shortDate(followUp.resolvedAt ?? followUp.updatedAt, lang)}
         </p>
       </div>
       <button

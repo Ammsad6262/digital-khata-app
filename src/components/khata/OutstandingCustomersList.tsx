@@ -127,9 +127,9 @@ export function OutstandingCustomersList() {
       <div className="space-y-2.5">
         {data.map((c, idx) => {
           const lastActivity = c.lastActivityAt
-            ? formatRelative(new Date(c.lastActivityAt))
+            ? formatRelative(new Date(c.lastActivityAt), "Asia/Karachi", lang)
             : "—";
-          const since = formatDate(new Date(c.createdAt));
+          const since = formatDate(new Date(c.createdAt), "Asia/Karachi", lang);
 
           return (
             <Link

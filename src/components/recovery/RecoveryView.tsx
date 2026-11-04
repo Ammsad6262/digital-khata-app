@@ -76,7 +76,7 @@ function FactorLine({ factor }: { factor: RecoveryFactor }) {
 }
 
 function CandidateCard({ candidate }: { candidate: RecoveryCandidate }) {
-  const { t, tParams } = useLanguage();
+  const { t, tParams, lang } = useLanguage();
   const { data: settings } = useSettings();
   const toast = useToast();
   const logContact = useLogRecoveryContact();
@@ -153,10 +153,13 @@ function CandidateCard({ candidate }: { candidate: RecoveryCandidate }) {
             <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
               <CalendarClock className="h-3 w-3" />
               {tParams("recovery.oldestDue", {
-                date: new Date(candidate.oldestDueDate).toLocaleDateString(undefined, {
-                  day: "numeric",
-                  month: "short",
-                }),
+                date: new Date(candidate.oldestDueDate).toLocaleDateString(
+                  lang === "ur" ? "ur-PK-u-nu-latn" : "en-GB",
+                  {
+                    day: "numeric",
+                    month: "short",
+                  },
+                ),
               })}
             </span>
           ) : (

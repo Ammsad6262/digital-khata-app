@@ -38,7 +38,7 @@ const METHOD_KEYS = {
 } as const;
 
 export function SupplierLedger({ supplierId }: { supplierId: string }) {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const symbol = useCurrencySymbol();
   const toast = useToast();
   const [tab, setTab] = useState<Tab>("purchases");
@@ -112,7 +112,7 @@ export function SupplierLedger({ supplierId }: { supplierId: string }) {
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-slate-900">
-                        {new Date(p.date).toLocaleDateString()}
+                        {new Date(p.date).toLocaleDateString(lang === "ur" ? "ur-PK-u-nu-latn" : "en-GB")}
                       </p>
                       <p className="truncate text-xs text-slate-500">
                         {p.items.map((i) => `${i.productName} × ${i.quantity}`).join(", ")}
@@ -204,7 +204,7 @@ export function SupplierLedger({ supplierId }: { supplierId: string }) {
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="text-sm font-medium text-slate-900">
-                      {new Date(p.date).toLocaleDateString()}
+                      {new Date(p.date).toLocaleDateString(lang === "ur" ? "ur-PK-u-nu-latn" : "en-GB")}
                     </p>
                     <p className="text-xs text-slate-500">
                       {t(METHOD_KEYS[p.method as keyof typeof METHOD_KEYS] ?? "method.other")}

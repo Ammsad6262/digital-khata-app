@@ -240,7 +240,7 @@ export function SaleDetail({ saleId }: { saleId: string }) {
                   </p>
                 </div>
                 <p className="mt-0.5 text-xs text-slate-500">
-                  {formatQuantity(item.quantity, item.productUnit)} × {formatMoney(item.unitPrice)} / {item.productUnit}
+                  {formatQuantity(item.quantity, item.productUnit)} × {formatMoney(item.unitPrice, symbol)} / {item.productUnit}
                 </p>
               </div>
             );
@@ -322,9 +322,9 @@ export function SaleDetail({ saleId }: { saleId: string }) {
             <p className="mt-1 text-xs text-red-700">
               {paid.gt(0) ? (
                 <>
-                  {t("sale.hadPaymentsPrefix")} {formatMoney(paid)}{" "}
+                  {t("sale.hadPaymentsPrefix")} {formatMoney(paid, symbol)}{" "}
                   {t("sale.hadPaymentsMiddle")}{" "}
-                  {formatMoney(paid.minus(total).abs())}{" "}
+                  {formatMoney(paid.minus(total).abs(), symbol)}{" "}
                   {t("sale.hadPaymentsSuffix")}
                 </>
               ) : (

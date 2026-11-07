@@ -34,7 +34,8 @@ import { Money } from "@/components/shared/Money";
 import { useCreateSale } from "@/hooks/use-sales";
 import { useCustomer } from "@/hooks/use-customers";
 import { useToast } from "@/providers/toast-provider";
-import { ApiError } from "@/lib/utils/api-client";
+import { userMessage } from "@/lib/i18n/message";
+import { useCurrencySymbol } from "@/hooks/use-currency-symbol";
 import { Decimal } from "@/lib/utils/decimal";
 import { formatQuantity, formatMoney } from "@/lib/utils/money";
 import type { ProductSearchResult } from "@/lib/services/products";
@@ -56,7 +57,8 @@ export function NewSaleForm() {
   const searchParams = useSearchParams();
   const toast = useToast();
   const createSale = useCreateSale();
-  const { t } = useLanguage();
+  const { t, tParams } = useLanguage();
+  const symbol = useCurrencySymbol();
 
   const [customer, setCustomer] = useState<SelectedCustomer | null>(null);
   const [items, setItems] = useState<LineItem[]>([]);
@@ -65,6 +67,9 @@ export function NewSaleForm() {
   const [dueDate, setDueDate] = useState<string>("");
   const [notes, setNotes] = useState<string>("");
   const [customerError, setCustomerError] = useState<string | null>(null);
+  // Validation messages stay hidden until the shopkeeper attempts to save, so
+  // an empty sale doesn't open covered in red warnings.
+  const [submitted, setSubmitted] = useState(false);
 
   // Pre-fill customer from ?customerId=... (e.g. when tapping "New Sale" from a customer's khata page)
   const customerIdParam = searchParams.get("customerId");
@@ -217,6 +222,7 @@ export function NewSaleForm() {
 
   // ── Submit ──────────────────────────────────────────────────────────
   const handleSubmit = () => {
+    setSubmitted(true);
     if (!customer) {
       setCustomerError(t("sale.selectCustomerFirst"));
       return;
@@ -245,17 +251,14 @@ export function NewSaleForm() {
       },
       {
         onSuccess: (sale) => {
-          toast.success(t("sale.saleRecorded"));
+          toast.success("sale.savedFor", {
+            name: customer?.name ?? "",
+            amount: formatMoney(totals.netTotal, symbol),
+          });
           router.push(`/sales/${sale.id}`);
         },
         onError: (error) => {
-          const message =
-            error instanceof ApiError
-              ? error.message
-              : error instanceof Error
-                ? error.message
-                : t("common.failed");
-          toast.error(message);
+          toast.error(userMessage(error, t, tParams));
         },
       },
     );
@@ -324,6 +327,7 @@ export function NewSaleForm() {
                     <div>
                       <label className="mb-0.5 block text-[11px] font-medium text-slate-600">
                         {t("sale.quantity")}
+                        <span className="text-red-500" aria-hidden> *</span>
                       </label>
                       <input
                         type="number"
@@ -333,18 +337,19 @@ export function NewSaleForm() {
                         value={item.quantity}
                         onChange={(e) => updateItem(idx, { quantity: e.target.value })}
                         className={`w-full rounded-md border bg-white px-2 py-1.5 text-sm tabular-nums focus:outline-none focus:ring-2 ${
-                          itemErr.quantity
+                          submitted && itemErr.quantity
                             ? "border-red-300 focus:border-red-500 focus:ring-red-500/30"
                             : "border-slate-300 focus:border-brand-500 focus:ring-brand-500/30"
                         }`}
                       />
-                      {itemErr.quantity ? (
+                      {submitted && itemErr.quantity ? (
                         <p className="mt-0.5 text-[10px] text-red-600">{itemErr.quantity}</p>
                       ) : null}
                     </div>
                     <div>
                       <label className="mb-0.5 block text-[11px] font-medium text-slate-600">
                         {t("sale.unitPrice")} ({item.productUnit})
+                        <span className="text-red-500" aria-hidden> *</span>
                       </label>
                       <input
                         type="number"
@@ -354,12 +359,12 @@ export function NewSaleForm() {
                         value={item.unitPrice}
                         onChange={(e) => updateItem(idx, { unitPrice: e.target.value })}
                         className={`w-full rounded-md border bg-white px-2 py-1.5 text-sm tabular-nums focus:outline-none focus:ring-2 ${
-                          itemErr.unitPrice
+                          submitted && itemErr.unitPrice
                             ? "border-red-300 focus:border-red-500 focus:ring-red-500/30"
                             : "border-slate-300 focus:border-brand-500 focus:ring-brand-500/30"
                         }`}
                       />
-                      {itemErr.unitPrice ? (
+                      {submitted && itemErr.unitPrice ? (
                         <p className="mt-0.5 text-[10px] text-red-600">{itemErr.unitPrice}</p>
                       ) : null}
                     </div>
@@ -404,7 +409,7 @@ export function NewSaleForm() {
           </div>
         )}
 
-        {validation.items ? (
+        {submitted && validation.items ? (
           <p className="px-1 text-xs text-red-600">{validation.items}</p>
         ) : null}
       </section>
@@ -438,12 +443,12 @@ export function NewSaleForm() {
                   onChange={(e) => setDiscountAmount(e.target.value)}
                   placeholder="0"
                   className={`w-full rounded-lg border bg-white px-3 py-2.5 text-sm tabular-nums focus:outline-none focus:ring-2 ${
-                    validation.discount
+                    submitted && validation.discount
                       ? "border-red-300 focus:border-red-500 focus:ring-red-500/30"
                       : "border-slate-300 focus:border-brand-500 focus:ring-brand-500/30"
                   }`}
                 />
-                {validation.discount ? (
+                {submitted && validation.discount ? (
                   <p className="mt-1 text-xs text-red-600">{validation.discount}</p>
                 ) : null}
               </div>
@@ -468,26 +473,26 @@ export function NewSaleForm() {
                   onChange={(e) => setPaidAmount(e.target.value)}
                   placeholder="0"
                   className={`w-full rounded-lg border bg-white px-3 py-2.5 text-sm tabular-nums focus:outline-none focus:ring-2 ${
-                    validation.paidAmount
+                    submitted && validation.paidAmount
                       ? "border-red-300 focus:border-red-500 focus:ring-red-500/30"
                       : "border-slate-300 focus:border-brand-500 focus:ring-brand-500/30"
                   }`}
                 />
-                {validation.paidAmount ? (
+                {submitted && validation.paidAmount ? (
                   <p className="mt-1 text-xs text-red-600">{validation.paidAmount}</p>
                 ) : null}
                 <div className="mt-1.5 flex gap-1.5">
                   <button
                     type="button"
                     onClick={() => setPaidAmount(totals.netTotal.toString())}
-                    className="rounded-md bg-brand-50 px-2 py-1 text-[11px] font-medium text-brand-700 hover:bg-brand-100"
+                    className="flex-1 rounded-lg bg-brand-50 px-3 py-2 text-xs font-medium text-brand-700 hover:bg-brand-100"
                   >
                     {t("sale.fullPayment")}
                   </button>
                   <button
                     type="button"
                     onClick={() => setPaidAmount("0")}
-                    className="rounded-md bg-slate-100 px-2 py-1 text-[11px] font-medium text-slate-700 hover:bg-slate-200"
+                    className="flex-1 rounded-lg bg-slate-100 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-200"
                   >
                     {t("sale.creditOnly")}
                   </button>
@@ -547,7 +552,6 @@ export function NewSaleForm() {
         onCancel={() => router.back()}
         onSave={handleSubmit}
         saveLabel={t("sale.saveSale")}
-        saveDisabled={hasBlockingErrors || items.length === 0}
         isPending={createSale.isPending}
       />
     </div>

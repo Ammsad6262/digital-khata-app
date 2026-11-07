@@ -24,6 +24,7 @@ import { formatDate, formatTime } from "@/lib/utils/date";
 import { formatMoney } from "@/lib/utils/money";
 import { cn } from "@/lib/utils/cn";
 import { useLanguage } from "@/providers/language-provider";
+import { useCurrencySymbol } from "@/hooks/use-currency-symbol";
 import type { TranslationKey } from "@/lib/i18n/translations";
 
 type PaymentFilterKey = "transactions.today" | "transactions.thisWeek" | "transactions.thisMonth" | "transactions.all";
@@ -254,6 +255,7 @@ function PaymentRow({
   isFirst: boolean;
 }) {
   const { t } = useLanguage();
+  const symbol = useCurrencySymbol();
   const fallbackBadge = { labelKey: "payment.other" as MethodLabelKey, bg: "bg-slate-100", text: "text-slate-700" };
   const methodBadge = METHOD_BADGES[payment.method] ?? METHOD_BADGES.other ?? fallbackBadge;
 
@@ -295,7 +297,7 @@ function PaymentRow({
 
       <div className="shrink-0 text-right">
         <p className="text-sm font-bold tabular-nums text-brand-700">
-          +{formatMoney(payment.amount)}
+          +{formatMoney(payment.amount, symbol)}
         </p>
       </div>
     </Link>

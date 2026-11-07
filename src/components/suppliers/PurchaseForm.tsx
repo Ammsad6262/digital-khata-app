@@ -16,6 +16,8 @@ import { TextField } from "@/components/ui/TextField";
 import { Money } from "@/components/shared/Money";
 import { useToast } from "@/providers/toast-provider";
 import { useLanguage } from "@/providers/language-provider";
+import { userMessage } from "@/lib/i18n/message";
+import { formatMoney } from "@/lib/utils/money";
 import { useCurrencySymbol } from "@/hooks/use-currency-symbol";
 import { useProducts } from "@/hooks/use-products";
 import { useCreatePurchase } from "@/hooks/use-purchases";
@@ -37,7 +39,7 @@ function newRow(): Row {
 export function PurchaseForm({ supplierId }: { supplierId: string }) {
   const router = useRouter();
   const toast = useToast();
-  const { t } = useLanguage();
+  const { t, tParams } = useLanguage();
   const symbol = useCurrencySymbol();
   const { data: products, isLoading: productsLoading } = useProducts();
   const createMutation = useCreatePurchase(supplierId);
@@ -65,6 +67,10 @@ export function PurchaseForm({ supplierId }: { supplierId: string }) {
     [rows],
   );
 
+  // Amount still to be paid to the supplier (total minus what is paid now).
+  const paidValue = Number.isFinite(Number(paidAmount)) ? Math.max(0, Number(paidAmount)) : 0;
+  const remaining = Math.max(0, total - paidValue);
+
   function updateRow(key: number, patch: Partial<Row>) {
     setRows((prev) => prev.map((r) => (r.key === key ? { ...r, ...patch } : r)));
   }
@@ -80,16 +86,28 @@ export function PurchaseForm({ supplierId }: { supplierId: string }) {
   function validate(): boolean {
     const next: Record<string, string> = {};
     const validRows = rows.filter((r) => r.productId);
-    if (validRows.length === 0) next.items = t("purchase.addItem");
-    for (const r of validRows) {
-      if (!(Number(r.quantity) > 0)) next.items = t("purchase.quantity");
-      if (Number(r.unitCost) < 0 || !Number.isFinite(Number(r.unitCost))) {
-        next.items = t("purchase.unitCost");
+    if (validRows.length === 0) {
+      next.items = t("purchase.errNoItems");
+    } else {
+      for (const r of validRows) {
+        if (!(Number(r.quantity) > 0)) {
+          next.items = t("purchase.errQuantity");
+          break;
+        }
+      }
+      for (const r of validRows) {
+        if (Number(r.unitCost) < 0 || !Number.isFinite(Number(r.unitCost))) {
+          next.items = t("purchase.errUnitCost");
+          break;
+        }
       }
     }
     const paid = Number(paidAmount);
-    if (!Number.isFinite(paid) || paid < 0) next.paidAmount = t("common.error");
-    if (Number.isFinite(paid) && paid > total + 0.001) next.paidAmount = t("common.error");
+    if (!Number.isFinite(paid) || paid < 0) {
+      next.paidAmount = t("purchase.errPaid");
+    } else if (paid > total + 0.001) {
+      next.paidAmount = t("purchase.errPaid");
+    }
     setErrors(next);
     return Object.keys(next).length === 0;
   }
@@ -113,11 +131,13 @@ export function PurchaseForm({ supplierId }: { supplierId: string }) {
         date,
         dueDate: dueDate || null,
       });
-      toast.success(t("purchase.recorded"));
+      toast.success("purchase.savedAmount", {
+        amount: formatMoney(total, symbol),
+      });
       router.push(`/more/suppliers/${supplierId}`);
       router.refresh();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : t("common.failed"));
+      toast.error(userMessage(err, t, tParams));
     }
   }
 
@@ -161,6 +181,7 @@ export function PurchaseForm({ supplierId }: { supplierId: string }) {
                   className="block text-sm font-medium text-slate-700"
                 >
                   {t("purchase.product")}
+                  <span className="text-red-500" aria-hidden> *</span>
                 </label>
                 <select
                   id={`product-${row.key}`}
@@ -185,6 +206,7 @@ export function PurchaseForm({ supplierId }: { supplierId: string }) {
                   inputMode="decimal"
                   step="0.001"
                   min="0"
+                  showRequired
                   value={row.quantity}
                   onChange={(e) => updateRow(row.key, { quantity: e.target.value })}
                 />
@@ -248,6 +270,30 @@ export function PurchaseForm({ supplierId }: { supplierId: string }) {
           error={errors.paidAmount}
           hint={t("purchase.paidNowHint")}
         />
+        {/* Quick-fill so the shopkeeper doesn't retype the total in cash purchases. */}
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => setPaidAmount(total > 0 ? String(total) : "0")}
+            className="flex-1 rounded-lg bg-brand-50 px-3 py-2 text-xs font-medium text-brand-700 hover:bg-brand-100"
+          >
+            {t("purchase.payFull")}
+          </button>
+          <button
+            type="button"
+            onClick={() => setPaidAmount("0")}
+            className="flex-1 rounded-lg bg-slate-100 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-200"
+          >
+            {t("purchase.payNone")}
+          </button>
+        </div>
+        {/* Clear summary of what will still be owed to the supplier. */}
+        <div className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2 text-sm">
+          <span className="text-slate-500">{t("purchase.remaining")}</span>
+          <span className={remaining > 0 ? "font-semibold text-red-600" : "font-semibold text-slate-900"}>
+            <Money value={remaining} symbol={symbol} />
+          </span>
+        </div>
         <TextField
           label={t("purchase.date")}
           name="date"

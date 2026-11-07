@@ -22,6 +22,7 @@ import { useCustomer, useUpdateCustomer } from "@/hooks/use-customers";
 import { useToast } from "@/providers/toast-provider";
 import { createCustomerSchema } from "@/lib/schemas/customer";
 import { ApiError } from "@/lib/utils/api-client";
+import { userMessage } from "@/lib/i18n/message";
 import type { z } from "zod";
 import { useLanguage } from "@/providers/language-provider";
 
@@ -30,7 +31,7 @@ type FormValues = z.infer<typeof createCustomerSchema>;
 export function EditCustomerForm({ customerId }: { customerId: string }) {
   const router = useRouter();
   const toast = useToast();
-  const { t } = useLanguage();
+  const { t, tParams } = useLanguage();
   const { data: customer, isLoading, isError, error, refetch } = useCustomer(customerId);
   const updateCustomer = useUpdateCustomer();
 
@@ -105,9 +106,7 @@ export function EditCustomerForm({ customerId }: { customerId: string }) {
               message: t("customer.phoneAlreadyExists"),
             });
           }
-          toast.error(
-            mutationError instanceof Error ? mutationError.message : t("common.failed"),
-          );
+          toast.error(userMessage(mutationError, t, tParams));
         },
       },
     );
@@ -123,6 +122,7 @@ export function EditCustomerForm({ customerId }: { customerId: string }) {
             label={t("customer.name")}
             placeholder={t("customer.namePlaceholder")}
             autoComplete="off"
+            showRequired
             {...form.register("name")}
             error={form.formState.errors.name?.message ?? null}
           />

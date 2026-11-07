@@ -25,6 +25,7 @@ import { formatDate, formatTime } from "@/lib/utils/date";
 import { formatMoney } from "@/lib/utils/money";
 import { cn } from "@/lib/utils/cn";
 import { useLanguage } from "@/providers/language-provider";
+import { useCurrencySymbol } from "@/hooks/use-currency-symbol";
 import type { TranslationKey } from "@/lib/i18n/translations";
 
 const FILTERS: Array<{
@@ -248,6 +249,7 @@ function SaleRow({
   isFirst: boolean;
 }) {
   const { t } = useLanguage();
+  const symbol = useCurrencySymbol();
   const outstanding = new Decimal(sale.outstanding);
   const hasOutstanding = outstanding.gt(0);
 
@@ -277,7 +279,7 @@ function SaleRow({
 
       <div className="shrink-0 text-right">
         <p className="text-sm font-bold tabular-nums text-slate-900">
-          {formatMoney(sale.totalAmount)}
+          {formatMoney(sale.totalAmount, symbol)}
         </p>
         {hasOutstanding ? (
           <p

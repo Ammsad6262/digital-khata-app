@@ -22,6 +22,7 @@ import { Money } from "@/components/shared/Money";
 import { Decimal } from "@/lib/utils/decimal";
 import { useToast } from "@/providers/toast-provider";
 import { ApiError } from "@/lib/utils/api-client";
+import { userMessage } from "@/lib/i18n/message";
 import type { CustomerSearchResult } from "@/lib/services/customers";
 import { useLanguage } from "@/providers/language-provider";
 
@@ -229,7 +230,7 @@ function QuickAddCustomer({
 }) {
   const toast = useToast();
   const createCustomer = useCreateCustomer();
-  const { t } = useLanguage();
+  const { t, tParams } = useLanguage();
   const [name, setName] = useState(initialName);
   const [phone, setPhone] = useState("");
 
@@ -262,7 +263,7 @@ function QuickAddCustomer({
           if (error instanceof ApiError && error.code === "CONFLICT") {
             toast.error(t("customer.phoneAlreadyExists"));
           } else {
-            toast.error(error instanceof Error ? error.message : t("common.failed"));
+            toast.error(userMessage(error, t, tParams));
           }
         },
       },

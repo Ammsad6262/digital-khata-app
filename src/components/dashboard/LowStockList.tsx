@@ -22,7 +22,7 @@ export function LowStockList({ products }: { products: LowStockProduct[] }) {
       <div className="flex items-center justify-between px-1">
         <div className="flex items-center gap-1.5">
           <AlertTriangle className="h-4 w-4 text-amber-600" />
-          <h2 className="text-sm font-semibold text-slate-700">
+          <h2 className="text-base font-bold text-slate-900">
             {t("dashboard.lowStock")} ({products.length})
           </h2>
         </div>
@@ -41,7 +41,7 @@ export function LowStockList({ products }: { products: LowStockProduct[] }) {
             href={`/more/products/${product.id}`}
             className={idx > 0 ? "border-t border-amber-200/70" : ""}
           >
-            <div className="flex items-center justify-between px-3 py-2.5">
+            <div className="flex items-center justify-between px-3 py-3">
               <div className="flex min-w-0 items-center gap-2.5">
                 <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-100">
                   <Package className="h-4 w-4 text-amber-700" />

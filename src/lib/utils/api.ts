@@ -34,6 +34,12 @@ export interface ApiError {
     translationKey?: boolean;
     /** Translation params for placeholder substitution. */
     params?: Record<string, string | number>;
+    /**
+     * The original translation key, when the message came from one. `message`
+     * is the English text (already interpolated for plain-English consumers);
+     * this lets the client re-translate parameterised messages to Urdu.
+     */
+    messageKey?: string;
     details?: unknown;
   };
 }
@@ -57,13 +63,21 @@ function resolveError(error: AppError): {
   message: string;
   translationKey: boolean;
   params?: Record<string, string | number>;
+  messageKey?: string;
 } {
   const message = error.message || "";
   const looksLikeKey = message.includes(".") && !/\s/.test(message);
   if (looksLikeKey) {
-    // Resolve to English (server-side). The frontend will re-translate to Urdu.
+    // Resolve to English (server-side) for any consumer that reads
+    // `message` directly, but also send the key so the client can
+    // re-translate parameterised messages correctly.
     const english = tServer(message as never, error.params, "en");
-    return { message: english, translationKey: true, params: error.params };
+    return {
+      message: english,
+      translationKey: true,
+      params: error.params,
+      messageKey: message,
+    };
   }
   // Plain English message (legacy or dynamic).
   return { message, translationKey: false };
@@ -73,7 +87,7 @@ function resolveError(error: AppError): {
 export function fail(error: unknown): NextResponse<ApiError> {
   // Known application error
   if (error instanceof AppError) {
-    const { message, translationKey, params } = resolveError(error);
+    const { message, translationKey, params, messageKey } = resolveError(error);
     return NextResponse.json(
       {
         ok: false,
@@ -82,6 +96,7 @@ export function fail(error: unknown): NextResponse<ApiError> {
           message,
           translationKey,
           params,
+          messageKey,
           details: error.details,
         },
       },
@@ -91,7 +106,7 @@ export function fail(error: unknown): NextResponse<ApiError> {
   // Zod validation error
   if (error instanceof ZodError) {
     const validationError = new ValidationError(error.issues);
-    const { message, translationKey, params } = resolveError(validationError);
+    const { message, translationKey, params, messageKey } = resolveError(validationError);
     return NextResponse.json(
       {
         ok: false,
@@ -100,6 +115,7 @@ export function fail(error: unknown): NextResponse<ApiError> {
           message,
           translationKey,
           params,
+          messageKey,
           details: validationError.details,
         },
       },
@@ -117,6 +133,7 @@ export function fail(error: unknown): NextResponse<ApiError> {
             code: ErrorCode.CONFLICT,
             message: tServer("api.errors.conflict"),
             translationKey: true,
+            messageKey: "api.errors.conflict",
           },
         },
         { status: 409 },
@@ -130,6 +147,7 @@ export function fail(error: unknown): NextResponse<ApiError> {
             code: ErrorCode.NOT_FOUND,
             message: tServer("api.errors.recordNotFound"),
             translationKey: true,
+            messageKey: "api.errors.recordNotFound",
           },
         },
         { status: 404 },
@@ -145,6 +163,7 @@ export function fail(error: unknown): NextResponse<ApiError> {
         code: ErrorCode.INTERNAL,
         message: tServer("api.errors.internal"),
         translationKey: true,
+        messageKey: "api.errors.internal",
       },
     },
     { status: 500 },

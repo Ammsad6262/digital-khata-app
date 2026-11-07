@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/Button";
 import { TextField } from "@/components/ui/TextField";
 import { useToast } from "@/providers/toast-provider";
 import { useLanguage } from "@/providers/language-provider";
+import { userMessage } from "@/lib/i18n/message";
 import {
   useCreateReminder,
   useDeleteReminder,
@@ -76,7 +77,7 @@ export function ReminderForm({
 }) {
   const router = useRouter();
   const toast = useToast();
-  const { t } = useLanguage();
+  const { t, tParams } = useLanguage();
 
   const { data: existing, isLoading } = useReminder(mode === "edit" ? reminderId : null);
   const createMutation = useCreateReminder();
@@ -169,7 +170,7 @@ export function ReminderForm({
       router.push("/more/reminders");
       router.refresh();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : t("common.failed"));
+      toast.error(userMessage(err, t, tParams));
     }
   }
 
@@ -181,7 +182,7 @@ export function ReminderForm({
       router.push("/more/reminders");
       router.refresh();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : t("common.failed"));
+      toast.error(userMessage(err, t, tParams));
       setConfirmingDelete(false);
     }
   }

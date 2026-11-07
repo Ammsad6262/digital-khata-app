@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/Button";
 import { TextField } from "@/components/ui/TextField";
 import { useToast } from "@/providers/toast-provider";
 import { useLanguage } from "@/providers/language-provider";
+import { userMessage } from "@/lib/i18n/message";
 import { useCreateSupplier, useSupplier, useUpdateSupplier } from "@/hooks/use-suppliers";
 
 export function SupplierForm({
@@ -24,7 +25,7 @@ export function SupplierForm({
 }) {
   const router = useRouter();
   const toast = useToast();
-  const { t } = useLanguage();
+  const { t, tParams } = useLanguage();
 
   const { data: existing, isLoading } = useSupplier(mode === "edit" ? supplierId : null);
   const createMutation = useCreateSupplier();
@@ -53,13 +54,13 @@ export function SupplierForm({
 
   function validate(): boolean {
     const next: Record<string, string> = {};
-    if (!name.trim()) next.name = t("common.required");
+    if (!name.trim()) next.name = t("supplier.nameRequired");
     if (mode === "create") {
       const n = Number(openingBalance);
-      if (!Number.isFinite(n)) next.openingBalance = t("common.error");
+      if (!Number.isFinite(n)) next.openingBalance = t("supplier.openingBalanceInvalid");
     }
     if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
-      next.email = t("common.error");
+      next.email = t("supplier.emailInvalid");
     }
     setErrors(next);
     return Object.keys(next).length === 0;
@@ -91,7 +92,7 @@ export function SupplierForm({
       router.push("/more/suppliers");
       router.refresh();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : t("common.failed"));
+      toast.error(userMessage(err, t, tParams));
     }
   }
 

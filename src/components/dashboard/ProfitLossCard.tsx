@@ -45,7 +45,10 @@ export function ProfitLossCard() {
   if (new Decimal(data.allTime.revenue).isZero()) {
     return (
       <section className="space-y-2">
-        <h2 className="px-1 text-sm font-semibold text-slate-700">{t("pnl.title")}</h2>
+        <div className="flex items-center gap-1.5 px-1">
+          <TrendingUp className="h-4 w-4 text-slate-500" aria-hidden />
+          <h2 className="text-base font-bold text-slate-900">{t("pnl.title")}</h2>
+        </div>
         <div className="rounded-xl border border-dashed border-slate-300 bg-white p-6 text-center">
           <TrendingUp className="mx-auto h-6 w-6 text-slate-300" />
           <p className="mt-2 text-sm font-medium text-slate-600">{t("pnl.noData")}</p>
@@ -62,7 +65,10 @@ export function ProfitLossCard() {
 
   return (
     <section className="space-y-2">
-      <h2 className="px-1 text-sm font-semibold text-slate-700">{t("pnl.title")}</h2>
+      <div className="flex items-center gap-1.5 px-1">
+        <TrendingUp className="h-4 w-4 text-slate-500" aria-hidden />
+        <h2 className="text-base font-bold text-slate-900">{t("pnl.title")}</h2>
+      </div>
 
       {/* Period tabs */}
       <div className="flex gap-1 rounded-lg bg-slate-100 p-1">
@@ -77,7 +83,7 @@ export function ProfitLossCard() {
             type="button"
             onClick={() => setPeriod(tab.key)}
             className={cn(
-              "flex-1 rounded-md py-1.5 text-xs font-medium transition-all",
+              "flex min-h-[44px] flex-1 items-center justify-center rounded-md text-[13px] font-medium transition-all",
               period === tab.key
                 ? "bg-white text-slate-900 shadow-sm"
                 : "text-slate-500 hover:text-slate-700",
@@ -99,7 +105,7 @@ export function ProfitLossCard() {
       >
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-xs font-medium uppercase tracking-wide opacity-80">
+            <p className="text-sm font-semibold opacity-90">
               {isProfit ? t("pnl.netProfit") : t("pnl.netLoss")}
             </p>
             <p className="mt-1 text-3xl font-bold tracking-tight">
@@ -108,7 +114,7 @@ export function ProfitLossCard() {
             </p>
           </div>
           <div className="text-right">
-            <p className="text-xs font-medium uppercase tracking-wide opacity-80">{t("pnl.margin")}</p>
+            <p className="text-sm font-semibold opacity-90">{t("pnl.margin")}</p>
             <p className="mt-1 text-xl font-bold">{margin.toString()}%</p>
           </div>
         </div>
@@ -185,12 +191,12 @@ function Row({
   }[tone];
 
   return (
-    <div className="flex items-center justify-between px-4 py-2.5">
+    <div className="flex items-center justify-between px-4 py-3">
       <div>
         <p className={cn("text-sm", bold ? "font-semibold text-slate-900" : "font-medium text-slate-600")}>
           {label}
         </p>
-        {sub ? <p className="text-[11px] text-slate-400">{sub}</p> : null}
+        {sub ? <p className="text-xs text-slate-500">{sub}</p> : null}
       </div>
       <p className={cn("tabular-nums", valueColor, bold ? "font-bold" : "font-semibold", large ? "text-lg" : "text-sm")}>
         <Money value={value.replace("−", "")} />

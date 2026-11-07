@@ -36,13 +36,13 @@ export function HeroCard({
     <>
       <div className="flex items-start justify-between">
         <div className="min-w-0">
-          <p className="text-xs font-medium uppercase tracking-wider text-brand-100">
+          <p className="text-sm font-semibold text-brand-50">
             {t("dashboard.totalReceivables")}
           </p>
           <p className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">
             <Money value={totalReceivables} />
           </p>
-          <p className="mt-3 text-xs text-brand-100">
+          <p className="mt-3 text-sm text-brand-50">
             <span className="font-semibold text-white">
               {customersWithBalance}
             </span>{" "}
@@ -63,9 +63,9 @@ export function HeroCard({
       </div>
       {/* Tap hint — only shown when there's something to drill into */}
       {hasDebtors ? (
-        <div className="mt-3 flex items-center gap-1 border-t border-white/15 pt-2 text-[11px] text-brand-100/90">
+        <div className="mt-3 flex items-center gap-1 border-t border-white/15 pt-2 text-xs font-medium text-brand-50/90">
           <span>{t("dashboard.tapToSeeDetails")}</span>
-          <ChevronRight className="h-3 w-3" />
+          <ChevronRight className="h-3.5 w-3.5" />
         </div>
       ) : null}
     </>

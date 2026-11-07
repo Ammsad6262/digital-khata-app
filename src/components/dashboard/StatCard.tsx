@@ -35,18 +35,18 @@ export function StatCard({
 }) {
   const tones = TONE_CLASSES[tone];
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
-      <div className="flex items-center justify-between">
-        <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">
+    <div className="rounded-xl border border-slate-200 bg-white p-3.5 shadow-sm">
+      <div className="flex items-start justify-between gap-2">
+        <p className="text-xs font-semibold leading-snug text-slate-600">
           {label}
         </p>
         {Icon ? (
-          <div className={cn("rounded-lg p-1.5", tones.iconBg)}>
-            <Icon className={cn("h-3.5 w-3.5", tones.iconText)} />
+          <div className={cn("shrink-0 rounded-lg p-2", tones.iconBg)}>
+            <Icon className={cn("h-4 w-4", tones.iconText)} />
           </div>
         ) : null}
       </div>
-      <p className={cn("mt-1.5 text-lg font-bold tracking-tight tabular-nums", tones.value)}>
+      <p className={cn("mt-2 text-lg font-bold tracking-tight tabular-nums sm:text-xl", tones.value)}>
         {value}
       </p>
     </div>

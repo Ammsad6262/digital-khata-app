@@ -45,6 +45,9 @@ export function MoreButton({
           type="button"
           onClick={handleOpen}
           aria-label={t("nav.more")}
+          title={t("nav.more")}
+          aria-haspopup="dialog"
+          aria-expanded={open}
           className={cn(
             "flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 active:scale-[0.98]",
             className,
@@ -66,8 +69,13 @@ export function MoreButton({
         type="button"
         onClick={handleOpen}
         aria-label={t("nav.more")}
+        // Tooltip + expanded state make the icon-only trigger easier to
+        // understand (a hamburger alone is ambiguous for many shopkeepers).
+        title={t("nav.moreDesc")}
+        aria-haspopup="dialog"
+        aria-expanded={open}
         className={cn(
-          "rounded-lg p-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500/40",
+          "flex h-10 w-10 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500/40",
           className,
         )}
       >

@@ -38,6 +38,7 @@ import { formatQuantity } from "@/lib/utils/money";
 import { formatDate, formatTime } from "@/lib/utils/date";
 import { cn } from "@/lib/utils/cn";
 import { useLanguage } from "@/providers/language-provider";
+import { userMessage } from "@/lib/i18n/message";
 import type { TranslationKey } from "@/lib/i18n/translations";
 
 export function ProductDetail({ productId }: { productId: string }) {
@@ -46,7 +47,7 @@ export function ProductDetail({ productId }: { productId: string }) {
   const deleteProduct = useDeleteProduct();
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const router = useRouter();
-  const { t } = useLanguage();
+  const { t, tParams } = useLanguage();
 
   if (isLoading) {
     return <ProductDetailSkeleton />;
@@ -219,7 +220,7 @@ export function ProductDetail({ productId }: { productId: string }) {
                 router.push("/stock");
               },
               onError: (err) => {
-                setDeleteError(err instanceof Error ? err.message : t("product.deleteFailed"));
+                setDeleteError(userMessage(err, t, tParams, "product.deleteFailed"));
               },
             });
           }}

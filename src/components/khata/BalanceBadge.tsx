@@ -14,6 +14,7 @@ import { Decimal } from "@/lib/utils/decimal";
 import { formatMoney } from "@/lib/utils/money";
 import { cn } from "@/lib/utils/cn";
 import { useLanguage } from "@/providers/language-provider";
+import { useCurrencySymbol } from "@/hooks/use-currency-symbol";
 
 export function BalanceBadge({
   balance,
@@ -25,6 +26,7 @@ export function BalanceBadge({
   size?: "sm" | "md" | "lg";
 }) {
   const { t } = useLanguage();
+  const symbol = useCurrencySymbol();
   const d = new Decimal(balance);
   const isPositive = d.gt(0);
   const isNegative = d.lt(0);
@@ -63,7 +65,7 @@ export function BalanceBadge({
       )}
       title={title}
     >
-      {formatMoney(d.abs())}
+      {formatMoney(d.abs(), symbol)}
       {size !== "lg" ? <span className="opacity-70">· {label}</span> : null}
     </span>
   );

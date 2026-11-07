@@ -8,6 +8,16 @@
  *   Dashboard | Khata | Sales | Stock | Expenses
  *
  * Highlights the active tab based on the current pathname.
+ *
+ * Usability (Improvement 2): the active section is marked with THREE
+ * reinforcing cues so it can be recognised without reading —
+ *   1. a tinted pill behind the icon,
+ *   2. a bold, brand-coloured label,
+ *   3. a bottom indicator bar.
+ * Each tab is also a full-height (64px), comfortably tappable target, and the
+ * icons are slightly larger and drawn with a heavier stroke when active.
+ *
+ * Structure is unchanged: same 5 tabs, same order, same destinations.
  */
 
 import Link from "next/link";
@@ -59,19 +69,33 @@ export function BottomNav() {
             key={tab.href}
             href={tab.href}
             className={cn(
-              "relative flex flex-1 flex-col items-center justify-center gap-0.5 text-[11px] font-medium",
+              "group relative flex flex-1 flex-col items-center justify-center gap-1 px-0.5 text-[11px] font-medium",
               isActive
-                ? "text-brand-600"
+                ? "text-brand-700"
                 : "text-slate-500 hover:text-slate-900",
             )}
             aria-current={isActive ? "page" : undefined}
           >
-            <Icon className="h-5 w-5" />
-            <span>{t(tab.labelKey)}</span>
-            {/* Active tab underline indicator */}
-            {isActive ? (
-              <span className="absolute bottom-1 h-0.5 w-8 rounded-full bg-brand-600" />
-            ) : null}
+            {/* Icon inside a tinted pill when active — a strong, non-text
+                "you are here" cue that pre-literate users can recognise. */}
+            <span
+              className={cn(
+                "flex h-7 w-12 items-center justify-center rounded-full transition-colors",
+                isActive
+                  ? "bg-brand-100 text-brand-700"
+                  : "text-slate-500 group-hover:bg-slate-100 group-hover:text-slate-900",
+              )}
+            >
+              <Icon className="h-[22px] w-[22px]" strokeWidth={isActive ? 2.4 : 2} />
+            </span>
+            <span className={cn(isActive && "font-semibold")}>{t(tab.labelKey)}</span>
+            {/* Bottom indicator bar — a third, persistent cue. */}
+            <span
+              className={cn(
+                "absolute bottom-0 h-[3px] w-10 rounded-full transition-opacity",
+                isActive ? "bg-brand-600 opacity-100" : "opacity-0",
+              )}
+            />
           </Link>
         );
       })}

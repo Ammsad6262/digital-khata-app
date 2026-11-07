@@ -8,13 +8,14 @@ import Link from "next/link";
 import { Search, Truck } from "lucide-react";
 import { useSupplierSearch } from "@/hooks/use-suppliers";
 import { useLanguage } from "@/providers/language-provider";
+import { userMessage } from "@/lib/i18n/message";
 import { useCurrencySymbol } from "@/hooks/use-currency-symbol";
 import { Money } from "@/components/shared/Money";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { Button } from "@/components/ui/Button";
 
 export function SuppliersList() {
-  const { t } = useLanguage();
+  const { t, tParams } = useLanguage();
   const symbol = useCurrencySymbol();
   const { query, setQuery, data, isLoading, isError, error } = useSupplierSearch();
 
@@ -35,7 +36,7 @@ export function SuppliersList() {
         <p className="py-8 text-center text-sm text-slate-500">{t("common.loading")}</p>
       ) : isError ? (
         <p className="py-8 text-center text-sm text-red-600">
-          {error instanceof Error ? error.message : t("common.couldntLoad")}
+          {userMessage(error, t, tParams, "common.couldntLoad")}
         </p>
       ) : !data || data.length === 0 ? (
         query.trim() !== "" ? (

@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/Button";
 import { Money } from "@/components/shared/Money";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { useLanguage } from "@/providers/language-provider";
+import { userMessage } from "@/lib/i18n/message";
 import { useCurrencySymbol } from "@/hooks/use-currency-symbol";
 import { useToast } from "@/providers/toast-provider";
 import { formatDate } from "@/lib/utils/date";
@@ -38,7 +39,7 @@ const METHOD_KEYS = {
 } as const;
 
 export function SupplierLedger({ supplierId }: { supplierId: string }) {
-  const { t, lang } = useLanguage();
+  const { t, tParams, lang } = useLanguage();
   const symbol = useCurrencySymbol();
   const toast = useToast();
   const [tab, setTab] = useState<Tab>("purchases");
@@ -55,7 +56,7 @@ export function SupplierLedger({ supplierId }: { supplierId: string }) {
       toast.success(t("purchase.void"));
       setConfirmId(null);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : t("common.failed"));
+      toast.error(userMessage(err, t, tParams));
       setConfirmId(null);
     }
   }
@@ -66,7 +67,7 @@ export function SupplierLedger({ supplierId }: { supplierId: string }) {
       toast.success(t("supplierPayment.void"));
       setConfirmId(null);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : t("common.failed"));
+      toast.error(userMessage(err, t, tParams));
       setConfirmId(null);
     }
   }

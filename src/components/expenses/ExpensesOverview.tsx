@@ -31,6 +31,7 @@ import { formatDate, formatTime } from "@/lib/utils/date";
 import { formatMoney } from "@/lib/utils/money";
 import { cn } from "@/lib/utils/cn";
 import { useLanguage } from "@/providers/language-provider";
+import { useCurrencySymbol } from "@/hooks/use-currency-symbol";
 
 type FilterLabelKey =
   | "transactions.today"
@@ -73,6 +74,7 @@ export function ExpensesOverview() {
   const summaryQuery = useExpensesSummary(filter);
   const listQuery = useExpensesList(filter);
   const { t } = useLanguage();
+  const symbol = useCurrencySymbol();
 
   const summary = summaryQuery.data;
   const recentList = listQuery.data?.slice(0, 5) ?? [];
@@ -163,7 +165,7 @@ export function ExpensesOverview() {
                       <span className="text-slate-400">· {cat.count}</span>
                     </div>
                     <div className="flex items-center gap-1.5">
-                      <span className="font-semibold tabular-nums text-slate-900">{formatMoney(cat.total)}</span>
+                      <span className="font-semibold tabular-nums text-slate-900">{formatMoney(cat.total, symbol)}</span>
                       <span className="text-[10px] text-slate-400">{cat.percentage}%</span>
                     </div>
                   </div>
@@ -263,6 +265,7 @@ function SummaryCard({
   className?: string;
 }) {
   const { t } = useLanguage();
+  const symbol = useCurrencySymbol();
   // Convert "0" / "0.00" strings to a Decimal for safe display
   const v = new Decimal(value);
   const isZero = v.isZero();
@@ -284,9 +287,9 @@ function SummaryCard({
       )}>
         {tone === "primary" ? (
           // For the primary card, show the value as a Money (no red color)
-          <span className="text-white">{formatMoney(value)}</span>
+          <span className="text-white">{formatMoney(value, symbol)}</span>
         ) : (
-          formatMoney(value)
+          formatMoney(value, symbol)
         )}
       </p>
       <p className={cn("mt-0.5 text-[11px]", tone === "primary" ? "text-slate-300" : "text-slate-400")}>
@@ -311,6 +314,7 @@ function RecentExpenseRow({
   isFirst: boolean;
 }) {
   const { t } = useLanguage();
+  const symbol = useCurrencySymbol();
   const meta = getCategoryMeta(expense.category);
 
   return (
@@ -335,7 +339,7 @@ function RecentExpenseRow({
         </div>
       </div>
       <div className="shrink-0 text-right">
-        <p className="text-sm font-bold tabular-nums text-red-600">-{formatMoney(expense.amount)}</p>
+        <p className="text-sm font-bold tabular-nums text-red-600">-{formatMoney(expense.amount, symbol)}</p>
       </div>
       <ChevronRight className="h-4 w-4 shrink-0 text-slate-300" />
     </Link>

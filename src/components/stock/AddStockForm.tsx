@@ -24,7 +24,7 @@ import { StickyFormActions } from "@/components/ui/StickyFormActions";
 import { Money } from "@/components/shared/Money";
 import { useAddStockMove } from "@/hooks/use-stock";
 import { useToast } from "@/providers/toast-provider";
-import { ApiError } from "@/lib/utils/api-client";
+import { userMessage } from "@/lib/i18n/message";
 import { Decimal } from "@/lib/utils/decimal";
 import { formatQuantity } from "@/lib/utils/money";
 import type { ProductSearchResult } from "@/lib/services/products";
@@ -51,6 +51,8 @@ export function AddStockForm({ initialProductId }: { initialProductId?: string }
   const [batchName, setBatchName] = useState<string>("");
   const [reason, setReason] = useState<string>("");
   const [date, setDate] = useState<string>(todayIsoLocal());
+  // Only show validation messages after the first save attempt.
+  const [submitted, setSubmitted] = useState(false);
 
   // If initialProductId is provided (e.g. /stock/add?productId=X), we could
   // fetch the product. For V1 simplicity, we let the user search/select.
@@ -91,6 +93,7 @@ export function AddStockForm({ initialProductId }: { initialProductId?: string }
   const hasErrors = !!validation.product || !!validation.quantity || !!validation.unitCost;
 
   const handleSubmit = () => {
+    setSubmitted(true);
     if (!selected) {
       toast.error(t("stock.selectProductFirst"));
       return;
@@ -114,17 +117,14 @@ export function AddStockForm({ initialProductId }: { initialProductId?: string }
       },
       {
         onSuccess: (move) => {
-          toast.success(t("stock.stockAdded"));
+          toast.success("stock.addedFor", {
+            qty: formatQuantity(quantity, selected.unit),
+            name: selected.name,
+          });
           router.push(`/more/products/${selected.id}`);
         },
         onError: (error) => {
-          const message =
-            error instanceof ApiError
-              ? error.message
-              : error instanceof Error
-                ? error.message
-                : t("common.failed");
-          toast.error(message);
+          toast.error(userMessage(error, t, tParams));
         },
       },
     );
@@ -205,6 +205,7 @@ export function AddStockForm({ initialProductId }: { initialProductId?: string }
             <div>
               <label className="mb-1 block text-xs font-medium text-slate-600">
                 {t("stock.quantityAdded")}
+                <span className="text-red-500" aria-hidden> *</span>
               </label>
               <input
                 type="number"
@@ -216,12 +217,12 @@ export function AddStockForm({ initialProductId }: { initialProductId?: string }
                 placeholder="0"
                 autoFocus
                 className={`w-full rounded-lg border bg-white px-3 py-2.5 text-lg font-bold tabular-nums text-slate-900 placeholder:text-slate-300 focus:outline-none focus:ring-2 ${
-                  validation.quantity
+                  submitted && validation.quantity
                     ? "border-red-300 focus:border-red-500 focus:ring-red-500/30"
                     : "border-slate-300 focus:border-brand-500 focus:ring-brand-500/30"
                 }`}
               />
-              {validation.quantity ? (
+              {submitted && validation.quantity ? (
                 <p className="mt-1 text-xs text-red-600">{validation.quantity}</p>
               ) : null}
             </div>
@@ -244,13 +245,13 @@ export function AddStockForm({ initialProductId }: { initialProductId?: string }
                   onChange={(e) => setUnitCost(e.target.value)}
                   placeholder="0"
                   className={`w-full rounded-lg border bg-white py-2.5 pl-10 pr-3 text-sm tabular-nums text-slate-900 placeholder:text-slate-300 focus:outline-none focus:ring-2 ${
-                    validation.unitCost
+                    submitted && validation.unitCost
                       ? "border-red-300 focus:border-red-500 focus:ring-red-500/30"
                       : "border-slate-300 focus:border-brand-500 focus:ring-brand-500/30"
                   }`}
                 />
               </div>
-              {validation.unitCost ? (
+              {submitted && validation.unitCost ? (
                 <p className="mt-1 text-xs text-red-600">{validation.unitCost}</p>
               ) : (
                 <p className="mt-1 text-[11px] text-slate-500">
@@ -329,7 +330,6 @@ export function AddStockForm({ initialProductId }: { initialProductId?: string }
         onCancel={() => router.back()}
         onSave={handleSubmit}
         saveLabel={t("stock.addStock")}
-        saveDisabled={hasErrors || !selected}
         isPending={addStockMove.isPending}
       />
     </div>

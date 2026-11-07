@@ -11,6 +11,7 @@ import { ContactActions } from "@/components/shared/ContactActions";
 import { useReminders, useSetReminderCompleted, useSnoozeReminder } from "@/hooks/use-reminders";
 import { useCurrencySymbol } from "@/hooks/use-currency-symbol";
 import { useLanguage } from "@/providers/language-provider";
+import { userMessage } from "@/lib/i18n/message";
 import { useToast } from "@/providers/toast-provider";
 import { formatMoney } from "@/lib/utils/money";
 import { EmptyState } from "@/components/shared/EmptyState";
@@ -66,7 +67,7 @@ export function RemindersList() {
         completed: !reminder.completedAt,
       });
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : t("common.failed"));
+      toast.error(userMessage(err, t, tParams));
     }
   }
 
@@ -82,7 +83,7 @@ export function RemindersList() {
         }),
       );
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : t("common.failed"));
+      toast.error(userMessage(err, t, tParams));
     }
   }
 
@@ -122,7 +123,7 @@ export function RemindersList() {
         <p className="py-8 text-center text-sm text-slate-500">{t("common.loading")}</p>
       ) : isError ? (
         <p className="py-8 text-center text-sm text-red-600">
-          {error instanceof Error ? error.message : t("common.couldntLoad")}
+          {userMessage(error, t, tParams, "common.couldntLoad")}
         </p>
       ) : !data || data.items.length === 0 ? (
         filter === "all" ? (

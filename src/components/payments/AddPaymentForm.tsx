@@ -43,7 +43,7 @@ import { useRecordPayment } from "@/hooks/use-payments";
 import { useSale } from "@/hooks/use-sales";
 import { useCustomerBalance } from "@/hooks/use-customer-balance";
 import { useToast } from "@/providers/toast-provider";
-import { ApiError } from "@/lib/utils/api-client";
+import { userMessage } from "@/lib/i18n/message";
 import { Decimal } from "@/lib/utils/decimal";
 import { formatMoney } from "@/lib/utils/money";
 import { formatDateTime } from "@/lib/utils/date";
@@ -75,7 +75,7 @@ export function AddPaymentForm() {
   const searchParams = useSearchParams();
   const toast = useToast();
   const recordPayment = useRecordPayment();
-  const { t } = useLanguage();
+  const { t, tParams } = useLanguage();
   const symbol = useCurrencySymbol();
 
   // ?saleId=X (from Sale Detail → "Record Payment") — if present, we lock
@@ -88,6 +88,8 @@ export function AddPaymentForm() {
   const [date, setDate] = useState<string>(todayIsoLocal());
   const [notes, setNotes] = useState<string>("");
   const [customerError, setCustomerError] = useState<string | null>(null);
+  // Validation messages stay hidden until the first save attempt.
+  const [submitted, setSubmitted] = useState(false);
 
   // Fetch the linked sale (if ?saleId=X). This gives us:
   //   - customer.id + name + phone (to pre-fill the customer picker)
@@ -132,7 +134,7 @@ export function AddPaymentForm() {
         const overpay = enteredAmount.minus(saleOutstanding);
         return {
           type: "warning" as const,
-          message: `${t("payment.overpayPrefix")} ${formatMoney(saleOutstanding)}. ${t("payment.overpayMiddle")} ${formatMoney(enteredAmount)} ${t("payment.overpayCreate")} ${formatMoney(overpay)} ${t("payment.overpaySuffix")}`,
+          message: `${t("payment.overpayPrefix")} ${formatMoney(saleOutstanding, symbol)}. ${t("payment.overpayMiddle")} ${formatMoney(enteredAmount, symbol)} ${t("payment.overpayCreate")} ${formatMoney(overpay, symbol)} ${t("payment.overpaySuffix")}`,
         };
       }
       return null;
@@ -145,7 +147,7 @@ export function AddPaymentForm() {
     if (currentBalance.lte(0)) {
       return {
         type: "info" as const,
-        message: `${t("payment.noBalancePrefix")} ${formatMoney(currentBalance)}${t("payment.noBalanceSuffix")}`,
+        message: `${t("payment.noBalancePrefix")} ${formatMoney(currentBalance, symbol)}${t("payment.noBalanceSuffix")}`,
       };
     }
 
@@ -153,7 +155,7 @@ export function AddPaymentForm() {
       const overpay = enteredAmount.minus(currentBalance);
       return {
         type: "warning" as const,
-        message: `${t("payment.overpayPrefix")} ${formatMoney(currentBalance)}. ${t("payment.overpayMiddle")} ${formatMoney(enteredAmount)} ${t("payment.overpayCreate")} ${formatMoney(overpay)} ${t("payment.overpaySuffix")}`,
+        message: `${t("payment.overpayPrefix")} ${formatMoney(currentBalance, symbol)}. ${t("payment.overpayMiddle")} ${formatMoney(enteredAmount, symbol)} ${t("payment.overpayCreate")} ${formatMoney(overpay, symbol)} ${t("payment.overpaySuffix")}`,
       };
     }
 
@@ -184,6 +186,7 @@ export function AddPaymentForm() {
 
   // ── Submit ───────────────────────────────────────────────────────────
   const handleSubmit = () => {
+    setSubmitted(true);
     if (!customer) {
       setCustomerError(t("sale.selectCustomerFirst"));
       return;
@@ -211,7 +214,10 @@ export function AddPaymentForm() {
       },
       {
         onSuccess: (payment) => {
-          toast.success(t("payment.paymentRecorded"));
+          toast.success("payment.receivedFrom", {
+            name: customer?.name ?? "",
+            amount: formatMoney(amount, symbol),
+          });
           // If the payment was for a specific sale, go back to that sale's
           // detail page (so the user sees the updated outstanding amount).
           // Otherwise, go to the payment's own detail page.
@@ -222,13 +228,7 @@ export function AddPaymentForm() {
           }
         },
         onError: (error) => {
-          const message =
-            error instanceof ApiError
-              ? error.message
-              : error instanceof Error
-                ? error.message
-                : t("common.failed");
-          toast.error(message);
+          toast.error(userMessage(error, t, tParams));
         },
       },
     );
@@ -277,6 +277,7 @@ export function AddPaymentForm() {
             <div>
               <label className="mb-1 block text-xs font-medium text-slate-600">
                 {t("payment.amountReceived")}
+                <span className="text-red-500" aria-hidden> *</span>
               </label>
               <div className="relative">
                 <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-medium text-slate-500">
@@ -292,14 +293,14 @@ export function AddPaymentForm() {
                   placeholder="0"
                   className={cn(
                     "w-full rounded-lg border bg-white py-2.5 pl-10 pr-3 text-lg font-bold tabular-nums text-slate-900 placeholder:text-slate-300 focus:outline-none focus:ring-2",
-                    validation.amount
+                    submitted && validation.amount
                       ? "border-red-300 focus:border-red-500 focus:ring-red-500/30"
                       : "border-slate-300 focus:border-brand-500 focus:ring-brand-500/30",
                   )}
                   autoFocus
                 />
               </div>
-              {validation.amount ? (
+              {submitted && validation.amount ? (
                 <p className="mt-1 text-xs text-red-600">{validation.amount}</p>
               ) : null}
 
@@ -309,9 +310,22 @@ export function AddPaymentForm() {
                 <button
                   type="button"
                   onClick={() => setAmount(linkedSale.outstanding)}
-                  className="mt-1.5 rounded-md bg-brand-50 px-2 py-1 text-[11px] font-medium text-brand-700 hover:bg-brand-100"
+                  className="mt-1.5 rounded-lg bg-brand-50 px-3 py-2 text-xs font-medium text-brand-700 hover:bg-brand-100"
                 >
                   {t("payment.fullAmount")}: <Money value={linkedSale.outstanding} />
+                </button>
+              ) : null}
+
+              {/* "Pay full balance" quick-fill — when NOT linked to a sale and
+                  the customer owes money, so the shopkeeper can settle the
+                  whole khata in one tap instead of retyping the figure. */}
+              {!linkedSale && balanceQuery.data && new Decimal(balanceQuery.data.balance).gt(0) ? (
+                <button
+                  type="button"
+                  onClick={() => setAmount(balanceQuery.data!.balance)}
+                  className="mt-1.5 rounded-lg bg-brand-50 px-3 py-2 text-xs font-medium text-brand-700 hover:bg-brand-100"
+                >
+                  {t("payment.payFullBalance")}: <Money value={balanceQuery.data.balance} />
                 </button>
               ) : null}
             </div>
@@ -353,12 +367,12 @@ export function AddPaymentForm() {
                 max={todayIsoLocal()}
                 className={cn(
                   "w-full rounded-lg border bg-white px-3 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2",
-                  validation.date
+                  submitted && validation.date
                     ? "border-red-300 focus:border-red-500 focus:ring-red-500/30"
                     : "border-slate-300 focus:border-brand-500 focus:ring-brand-500/30",
                 )}
               />
-              {validation.date ? (
+              {submitted && validation.date ? (
                 <p className="mt-1 text-xs text-red-600">{validation.date}</p>
               ) : null}
             </div>
@@ -411,7 +425,6 @@ export function AddPaymentForm() {
         onCancel={() => router.back()}
         onSave={handleSubmit}
         saveLabel={t("payment.savePayment")}
-        saveDisabled={hasErrors || !customer}
         isPending={recordPayment.isPending}
       />
     </div>

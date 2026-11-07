@@ -143,7 +143,7 @@ export default function MorePage() {
         <div className="space-y-5">
           {GROUPS.map((group) => (
             <section key={group.titleKey}>
-              <p className="mb-1.5 px-1 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+              <p className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
                 {t(group.titleKey as never)}
               </p>
               <div className="space-y-2">
@@ -162,11 +162,11 @@ export default function MorePage() {
                         <p className="text-sm font-medium text-slate-900">
                           {t(section.titleKey as never)}
                         </p>
-                        <p className="text-[11px] text-slate-500">
+                        <p className="text-xs text-slate-500">
                           {t(section.descKey as never)}
                         </p>
                       </div>
-                      <ChevronRight className="h-4 w-4 shrink-0 text-slate-300" />
+                      <ChevronRight className="rtl-flip h-4 w-4 shrink-0 text-slate-300" />
                     </Link>
                   );
                 })}

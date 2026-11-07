@@ -31,12 +31,30 @@ const PUBLIC_ROUTES = [
 ];
 
 export const config = {
-  // Run middleware on all API routes
-  matcher: "/api/:path*",
+  // Run middleware on all API routes, plus the sign-in pages so the
+  // development bypass below can redirect them to the app.
+  matcher: ["/api/:path*", "/login", "/register"],
 };
 
 export async function middleware(req: NextRequest) {
   const path = req.nextUrl.pathname;
+
+  // ── LOCAL DEVELOPMENT ONLY ────────────────────────────────────────────
+  // Skip auth entirely and send the sign-in / sign-up pages straight into the
+  // app, so local UI work needs no login. Next.js statically replaces
+  // process.env.NODE_ENV, so this branch is dead code in a production build.
+  // Set DEV_AUTH_BYPASS=0 to restore normal auth locally.
+  if (process.env.NODE_ENV !== "production" && process.env.DEV_AUTH_BYPASS !== "0") {
+    if (path === "/login" || path === "/register") {
+      return NextResponse.redirect(new URL("/dashboard", req.url));
+    }
+    return NextResponse.next();
+  }
+
+  // Only /api/* is auth-enforced below.
+  if (!path.startsWith("/api/")) {
+    return NextResponse.next();
+  }
 
   // Check if this is a public route
   if (PUBLIC_ROUTES.some((route) => path === route || path.startsWith(route + "/"))) {

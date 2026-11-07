@@ -33,12 +33,12 @@ export function DashboardSkeleton() {
         <div className="h-4 w-16 animate-pulse rounded bg-slate-200" />
       </div>
 
-      {/* 4 stat cards skeleton — matches StatCard (p-3 + content = h-20) */}
-      <div className="grid grid-cols-2 gap-3">
+      {/* 4 stat cards skeleton — matches StatCard (p-3.5 + content = h-24) */}
+      <div className="grid grid-cols-2 gap-2.5">
         {[0, 1, 2, 3].map((i) => (
           <div
             key={i}
-            className="h-20 animate-pulse rounded-xl bg-slate-200"
+            className="h-24 animate-pulse rounded-xl bg-slate-200"
           />
         ))}
       </div>

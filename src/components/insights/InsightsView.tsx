@@ -23,6 +23,7 @@ import { Money } from "@/components/shared/Money";
 import { useInsights } from "@/hooks/use-insights";
 import { useCurrencySymbol } from "@/hooks/use-currency-symbol";
 import { useLanguage } from "@/providers/language-provider";
+import { userMessage } from "@/lib/i18n/message";
 import type { SalesTrend } from "@/lib/services/insights";
 
 function ChangeBadge({
@@ -105,7 +106,7 @@ function TrendRow({
 }
 
 export function InsightsView() {
-  const { t } = useLanguage();
+  const { t, tParams } = useLanguage();
   const symbol = useCurrencySymbol();
   const { data, isLoading, isError, error } = useInsights();
 
@@ -115,7 +116,7 @@ export function InsightsView() {
   if (isError || !data) {
     return (
       <p className="py-8 text-center text-sm text-red-600">
-        {error instanceof Error ? error.message : t("common.couldntLoad")}
+        {userMessage(error, t, tParams, "common.couldntLoad")}
       </p>
     );
   }

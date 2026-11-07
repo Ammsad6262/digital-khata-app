@@ -7,6 +7,8 @@
 
 import { type ReactNode } from "react";
 import { cn } from "@/lib/utils/cn";
+import { useLanguage } from "@/providers/language-provider";
+import { localizeMessage } from "@/lib/i18n/message";
 
 export function EmptyState({
   title,
@@ -21,6 +23,15 @@ export function EmptyState({
   action?: ReactNode;
   className?: string;
 }) {
+  const { t, tParams } = useLanguage();
+  // Titles and descriptions arrive as `t(...)` strings, API error messages,
+  // or translation keys. Localise here so error text is translated on every
+  // list/detail screen without each caller having to remember to do it.
+  const shownTitle = localizeMessage(title, t, tParams);
+  const shownDescription = description
+    ? localizeMessage(description, t, tParams)
+    : undefined;
+
   return (
     <div
       className={cn(
@@ -33,9 +44,9 @@ export function EmptyState({
           {icon}
         </div>
       ) : null}
-      <h3 className="text-sm font-semibold text-slate-900">{title}</h3>
-      {description ? (
-        <p className="mt-1 max-w-xs text-xs text-slate-500">{description}</p>
+      <h3 className="text-sm font-semibold text-slate-900">{shownTitle}</h3>
+      {shownDescription ? (
+        <p className="mt-1 max-w-xs text-xs text-slate-500">{shownDescription}</p>
       ) : null}
       {action ? <div className="mt-4">{action}</div> : null}
     </div>

@@ -14,6 +14,8 @@ import { TextField } from "@/components/ui/TextField";
 import { Money } from "@/components/shared/Money";
 import { useToast } from "@/providers/toast-provider";
 import { useLanguage } from "@/providers/language-provider";
+import { userMessage } from "@/lib/i18n/message";
+import { formatMoney } from "@/lib/utils/money";
 import { useCurrencySymbol } from "@/hooks/use-currency-symbol";
 import { useCreateSupplierPayment } from "@/hooks/use-supplier-payments";
 import { usePurchasesBySupplier } from "@/hooks/use-purchases";
@@ -38,7 +40,7 @@ export function SupplierPaymentForm({
 }) {
   const router = useRouter();
   const toast = useToast();
-  const { t, lang } = useLanguage();
+  const { t, tParams, lang } = useLanguage();
   const symbol = useCurrencySymbol();
   const createMutation = useCreateSupplierPayment(supplierId);
   const { data: purchases } = usePurchasesBySupplier(supplierId);
@@ -82,11 +84,13 @@ export function SupplierPaymentForm({
         notes: notes.trim() || null,
         date,
       });
-      toast.success(t("supplierPayment.recorded"));
+      toast.success("supplierPayment.savedAmount", {
+        amount: formatMoney(value, symbol),
+      });
       router.push(`/more/suppliers/${supplierId}`);
       router.refresh();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : t("common.failed"));
+      toast.error(userMessage(err, t, tParams));
     }
   }
 
@@ -96,18 +100,30 @@ export function SupplierPaymentForm({
         <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
       ) : null}
 
-      <TextField
-        label={`${t("supplierPayment.amount")} (${symbol})`}
-        name="amount"
-        type="number"
-        inputMode="decimal"
-        step="0.01"
-        min="0"
-        value={amount}
-        onChange={(e) => setAmount(e.target.value)}
-        error={!error ? undefined : error}
-        required
-      />
+      <div className="space-y-1.5">
+        <TextField
+          label={`${t("supplierPayment.amount")} (${symbol})`}
+          name="amount"
+          type="number"
+          inputMode="decimal"
+          step="0.01"
+          min="0"
+          value={amount}
+          onChange={(e) => setAmount(e.target.value)}
+          required
+        />
+        {/* Quick-fill the whole remaining amount of the chosen invoice. */}
+        {selectedInvoice && Number(selectedInvoice.remaining) > 0 ? (
+          <button
+            type="button"
+            onClick={() => setAmount(String(selectedInvoice.remaining))}
+            className="rounded-lg bg-brand-50 px-3 py-2 text-xs font-medium text-brand-700 hover:bg-brand-100"
+          >
+            {t("supplierPayment.payFull")}:{" "}
+            <Money value={selectedInvoice.remaining} symbol={symbol} />
+          </button>
+        ) : null}
+      </div>
 
       <div className="space-y-1">
         <label htmlFor="payment-method" className="block text-sm font-medium text-slate-700">

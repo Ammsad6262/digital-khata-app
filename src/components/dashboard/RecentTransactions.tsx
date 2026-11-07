@@ -23,6 +23,7 @@ import {
   Truck,
   ArrowUpRight,
   ArrowDownLeft,
+  History,
 } from "lucide-react";
 import { Money } from "@/components/shared/Money";
 import { formatRelative } from "@/lib/utils/date";
@@ -142,7 +143,10 @@ export function RecentTransactions({
   return (
     <section className="space-y-2">
       <div className="flex items-center justify-between px-1">
-        <h2 className="text-sm font-semibold text-slate-700">{t("dashboard.recentActivity")}</h2>
+        <div className="flex items-center gap-1.5">
+          <History className="h-4 w-4 text-slate-500" aria-hidden />
+          <h2 className="text-base font-bold text-slate-900">{t("dashboard.recentActivity")}</h2>
+        </div>
         <Link
           href="/more/transactions"
           className="text-xs font-medium text-brand-600 hover:text-brand-700"
@@ -162,7 +166,7 @@ export function RecentTransactions({
             <div
               key={tx.id}
               className={cn(
-                "flex items-center gap-3 px-3 py-2.5",
+                "flex items-center gap-3 px-3 py-3",
                 idx > 0 && "border-t border-slate-100",
               )}
             >

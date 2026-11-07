@@ -11,14 +11,21 @@ export interface TextAreaProps extends TextareaHTMLAttributes<HTMLTextAreaElemen
   label: string;
   error?: string | null;
   hint?: string;
+  /**
+   * Marks the field as required: shows a red asterisk after the label and
+   * sets aria-required. Separate from the native `required` attribute so the
+   * marker is consistent and translated across the app.
+   */
+  showRequired?: boolean;
 }
 
 export const TextArea = forwardRef<HTMLTextAreaElement, TextAreaProps>(
   function TextArea(
-    { label, error, hint, className, id, ...props },
+    { label, error, hint, showRequired, className, id, ...props },
     ref,
   ) {
     const inputId = id ?? props.name;
+    const isRequired = showRequired || props.required;
     return (
       <div className="space-y-1">
         <label
@@ -26,6 +33,7 @@ export const TextArea = forwardRef<HTMLTextAreaElement, TextAreaProps>(
           className="block text-sm font-medium text-slate-700"
         >
           {label}
+          {isRequired ? <span className="text-red-500" aria-hidden> *</span> : null}
         </label>
         <textarea
           ref={ref}
@@ -41,6 +49,7 @@ export const TextArea = forwardRef<HTMLTextAreaElement, TextAreaProps>(
             className,
           )}
           aria-invalid={!!error}
+          aria-required={isRequired || undefined}
           aria-describedby={error ? `${inputId}-error` : hint ? `${inputId}-hint` : undefined}
           {...props}
         />

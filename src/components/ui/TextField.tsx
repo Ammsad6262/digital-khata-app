@@ -15,14 +15,22 @@ export interface TextFieldProps extends InputHTMLAttributes<HTMLInputElement> {
   error?: string | null;
   hint?: string;
   leftIcon?: React.ReactNode;
+  /**
+   * Marks the field as required: shows a red asterisk after the label and
+   * sets aria-required. This is separate from the native `required`
+   * attribute so callers can show a consistent, translated marker without
+   * triggering the browser's own (untranslated) validation bubble.
+   */
+  showRequired?: boolean;
 }
 
 export const TextField = forwardRef<HTMLInputElement, TextFieldProps>(
   function TextField(
-    { label, error, hint, leftIcon, className, id, ...props },
+    { label, error, hint, leftIcon, showRequired, className, id, ...props },
     ref,
   ) {
     const inputId = id ?? props.name;
+    const isRequired = showRequired || props.required;
     return (
       <div className="space-y-1">
         <label
@@ -30,6 +38,7 @@ export const TextField = forwardRef<HTMLInputElement, TextFieldProps>(
           className="block text-sm font-medium text-slate-700"
         >
           {label}
+          {isRequired ? <span className="text-red-500" aria-hidden> *</span> : null}
         </label>
         <div className="relative">
           {leftIcon ? (
@@ -51,6 +60,7 @@ export const TextField = forwardRef<HTMLInputElement, TextFieldProps>(
               className,
             )}
             aria-invalid={!!error}
+            aria-required={isRequired || undefined}
             aria-describedby={error ? `${inputId}-error` : hint ? `${inputId}-hint` : undefined}
             {...props}
           />

@@ -36,6 +36,7 @@ import { ApiError } from "@/lib/utils/api-client";
 import { Decimal } from "@/lib/utils/decimal";
 import { useSettings } from "@/hooks/use-settings";
 import { useLanguage } from "@/providers/language-provider";
+import { userMessage } from "@/lib/i18n/message";
 
 const UNITS = ["piece", "kg", "box", "dozen", "litre", "metre", "pack", "bag", "bottle", "carton"];
 
@@ -48,7 +49,7 @@ export function ProductForm({
 }) {
   const router = useRouter();
   const toast = useToast();
-  const { t } = useLanguage();
+  const { t, tParams } = useLanguage();
 
   // In edit mode, fetch the existing product to pre-fill.
   const { data: existing } = useProduct(mode === "edit" ? productId : null);
@@ -65,6 +66,9 @@ export function ProductForm({
   const [sku, setSku] = useState<string>("");
   const [openingStock, setOpeningStock] = useState<string>("");
   const [lowStockThreshold, setLowStockThreshold] = useState<string>("5");
+  // Only surface validation messages after the first save attempt, so the form
+  // doesn't greet the shopkeeper with red errors before they've typed anything.
+  const [submitted, setSubmitted] = useState(false);
 
   // Built-in defaults + this business's own units (Settings → Units). The
   // current value is kept even if it is not in either list, so editing an old
@@ -141,6 +145,7 @@ export function ProductForm({
     !!errors.unit || !!errors.openingStock || !!errors.lowStockThreshold;
 
   const handleSubmit = () => {
+    setSubmitted(true);
     if (hasErrors) {
       toast.error(t("common.fixErrorsBeforeSaving"));
       return;
@@ -167,7 +172,7 @@ export function ProductForm({
             if (error instanceof ApiError && error.code === "CONFLICT") {
               toast.error(t("product.skuExists"));
             } else {
-              toast.error(error instanceof Error ? error.message : t("common.failed"));
+              toast.error(userMessage(error, t, tParams));
             }
           },
         },
@@ -192,7 +197,7 @@ export function ProductForm({
             if (error instanceof ApiError && error.code === "CONFLICT") {
               toast.error(t("product.skuInUse"));
             } else {
-              toast.error(error instanceof Error ? error.message : t("common.failed"));
+              toast.error(userMessage(error, t, tParams));
             }
           },
         },
@@ -212,7 +217,8 @@ export function ProductForm({
             onChange={(e) => setName(e.target.value)}
             placeholder={t("product.productNamePlaceholder")}
             autoComplete="off"
-            error={errors.name ?? null}
+            showRequired
+            error={submitted ? errors.name ?? null : null}
           />
 
           <TextField
@@ -233,7 +239,8 @@ export function ProductForm({
               value={purchasePrice}
               onChange={(e) => setPurchasePrice(e.target.value)}
               placeholder="0"
-              error={errors.purchasePrice ?? null}
+              showRequired
+              error={submitted ? errors.purchasePrice ?? null : null}
               hint={`${t("product.per")} ${unit || t("product.unit")}`}
             />
             <TextField
@@ -245,7 +252,8 @@ export function ProductForm({
               value={sellingPrice}
               onChange={(e) => setSellingPrice(e.target.value)}
               placeholder="0"
-              error={errors.sellingPrice ?? null}
+              showRequired
+              error={submitted ? errors.sellingPrice ?? null : null}
             />
           </div>
 
@@ -253,6 +261,7 @@ export function ProductForm({
             <div>
               <label className="mb-1 block text-sm font-medium text-slate-700">
                 {t("product.unit")}
+                <span className="text-red-500" aria-hidden> *</span>
               </label>
               <select
                 value={unit}
@@ -263,7 +272,7 @@ export function ProductForm({
                   <option key={u} value={u}>{u}</option>
                 ))}
               </select>
-              {errors.unit ? (
+              {submitted && errors.unit ? (
                 <p className="mt-1 text-xs text-red-600">{errors.unit}</p>
               ) : null}
             </div>
@@ -288,7 +297,7 @@ export function ProductForm({
               onChange={(e) => setOpeningStock(e.target.value)}
               placeholder="0"
               hint={t("product.openingStockHint")}
-              error={errors.openingStock ?? null}
+              error={submitted ? errors.openingStock ?? null : null}
             />
           ) : null}
 
@@ -300,7 +309,7 @@ export function ProductForm({
             value={lowStockThreshold}
             onChange={(e) => setLowStockThreshold(e.target.value)}
             hint={t("product.lowStockHint")}
-            error={errors.lowStockThreshold ?? null}
+            error={submitted ? errors.lowStockThreshold ?? null : null}
           />
         </div>
       </div>
@@ -320,7 +329,6 @@ export function ProductForm({
         onCancel={() => router.back()}
         onSave={handleSubmit}
         saveLabel={mode === "create" ? t("product.saveProduct") : t("product.updateProduct")}
-        saveDisabled={hasErrors}
         isPending={isPending}
       />
     </div>

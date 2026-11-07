@@ -29,6 +29,8 @@ import {
   useExpense,
 } from "@/hooks/use-expenses";
 import { ApiError } from "@/lib/utils/api-client";
+import { userMessage } from "@/lib/i18n/message";
+import { formatMoney } from "@/lib/utils/money";
 import { cn } from "@/lib/utils/cn";
 import { useLanguage } from "@/providers/language-provider";
 import { useCurrencySymbol } from "@/hooks/use-currency-symbol";
@@ -66,7 +68,7 @@ export function ExpenseForm({
 }) {
   const router = useRouter();
   const toast = useToast();
-  const { t } = useLanguage();
+  const { t, tParams } = useLanguage();
   const symbol = useCurrencySymbol();
 
   // In edit mode, fetch existing expense to pre-fill.
@@ -80,6 +82,8 @@ export function ExpenseForm({
   const [category, setCategory] = useState<Category>("other");
   const [date, setDate] = useState<string>(todayIsoLocal());
   const [notes, setNotes] = useState<string>("");
+  // Only show validation messages after the first save attempt.
+  const [submitted, setSubmitted] = useState(false);
 
   // Sync form fields when existing expense data arrives (edit mode)
   useEffect(() => {
@@ -126,6 +130,7 @@ export function ExpenseForm({
   const hasErrors = !!errors.name || !!errors.amount || !!errors.date;
 
   const handleSubmit = () => {
+    setSubmitted(true);
     if (hasErrors) {
       toast.error(t("common.fixErrorsBeforeSaving"));
       return;
@@ -143,11 +148,13 @@ export function ExpenseForm({
     if (mode === "create") {
       recordExpense.mutate(payload, {
         onSuccess: (expense) => {
-          toast.success(t("expense.expenseRecorded"));
+          toast.success("expense.savedAmount", {
+            amount: formatMoney(amt, symbol),
+          });
           router.push(`/more/expenses/${expense.id}`);
         },
         onError: (error) => {
-          toast.error(error instanceof Error ? error.message : t("common.failed"));
+          toast.error(userMessage(error, t, tParams));
         },
       });
     } else {
@@ -160,7 +167,7 @@ export function ExpenseForm({
           if (error instanceof ApiError && error.code === "NOT_FOUND") {
             toast.error(t("expense.notFound"));
           } else {
-            toast.error(error instanceof Error ? error.message : t("common.failed"));
+            toast.error(userMessage(error, t, tParams));
           }
         },
       });
@@ -180,13 +187,15 @@ export function ExpenseForm({
             onChange={(e) => setName(e.target.value)}
             placeholder={t("expense.expenseNamePlaceholder")}
             autoComplete="off"
-            error={errors.name ?? null}
+            showRequired
+            error={submitted ? errors.name ?? null : null}
           />
 
           {/* Amount */}
           <div>
             <label className="mb-1 block text-sm font-medium text-slate-700">
               {t("expense.amount")}
+              <span className="text-red-500" aria-hidden> *</span>
             </label>
             <div className="relative">
               <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-medium text-slate-500">
@@ -209,7 +218,7 @@ export function ExpenseForm({
                 )}
               />
             </div>
-            {errors.amount ? (
+            {submitted && errors.amount ? (
               <p className="mt-1 text-xs text-red-600">{errors.amount}</p>
             ) : null}
           </div>
@@ -218,6 +227,7 @@ export function ExpenseForm({
           <div>
             <label className="mb-1.5 block text-sm font-medium text-slate-700">
               {t("expense.expenseCategory")}
+              <span className="text-red-500" aria-hidden> *</span>
             </label>
             <div className="grid grid-cols-4 gap-1.5">
               {CATEGORIES.map((cat) => (
@@ -274,7 +284,6 @@ export function ExpenseForm({
         onCancel={() => router.back()}
         onSave={handleSubmit}
         saveLabel={mode === "create" ? t("expense.saveExpense") : t("expense.updateExpense")}
-        saveDisabled={hasErrors}
         isPending={isPending}
       />
     </div>

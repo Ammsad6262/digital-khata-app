@@ -14,6 +14,7 @@
  */
 
 import { translations, type TranslationKey } from "./translations";
+import { ApiError } from "@/lib/utils/api-client";
 
 let reverse: Map<string, TranslationKey> | null = null;
 
@@ -59,4 +60,53 @@ export function localizeMessage(
   }
 
   return message;
+}
+
+/** Resolve params that are themselves translation keys (e.g. {resource}). */
+function resolveParamKeys(
+  params: Record<string, string | number> | undefined,
+  t: (key: TranslationKey) => string,
+): Record<string, string | number> | undefined {
+  if (!params) return undefined;
+  const resolved: Record<string, string | number> = {};
+  for (const [key, value] of Object.entries(params)) {
+    resolved[key] =
+      typeof value === "string" && isTranslationKey(value) ? t(value) : value;
+  }
+  return resolved;
+}
+
+/**
+ * Turn any thrown value into a clear, localized message that is safe to show
+ * to an ordinary shopkeeper.
+ *
+ * - `ApiError` → re-translates the original key (so parameterised financial
+ *   messages work in Urdu) or the English message.
+ * - Network/timeout errors → friendly message from the client wrapper.
+ * - Anything else (an unexpected runtime error) → the caller's friendly
+ *   fallback. Raw technical text is never surfaced.
+ */
+export function userMessage(
+  error: unknown,
+  t: (key: TranslationKey) => string,
+  tParams: (key: TranslationKey, params: Record<string, string | number>) => string,
+  fallbackKey: TranslationKey = "common.failed",
+): string {
+  if (error instanceof ApiError) {
+    const params = resolveParamKeys(error.params, t);
+    if (
+      error.translationKey &&
+      error.messageKey &&
+      isTranslationKey(error.messageKey)
+    ) {
+      return params
+        ? tParams(error.messageKey, params)
+        : t(error.messageKey);
+    }
+    if (error.message && error.message.trim()) {
+      return localizeMessage(error.message, t, tParams, params);
+    }
+    return t(fallbackKey);
+  }
+  return t(fallbackKey);
 }

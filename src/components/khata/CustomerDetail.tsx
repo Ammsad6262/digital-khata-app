@@ -46,6 +46,7 @@ import type {
 } from "@/lib/services/customers";
 import { cn } from "@/lib/utils/cn";
 import { useLanguage } from "@/providers/language-provider";
+import { userMessage } from "@/lib/i18n/message";
 
 export function CustomerDetail({ customerId }: { customerId: string }) {
   const { data, isLoading, isError, error, refetch } = useCustomerHistory(customerId);
@@ -266,7 +267,7 @@ export function CustomerDetail({ customerId }: { customerId: string }) {
                 router.push("/khata");
               },
               onError: (err) => {
-                setDeleteError(err instanceof Error ? err.message : t("customer.deleteFailed"));
+                setDeleteError(userMessage(err, t, tParams, "customer.deleteFailed"));
               },
             });
           }}

@@ -32,6 +32,7 @@ import { apiGet } from "@/lib/utils/api-client";
 import { Decimal } from "@/lib/utils/decimal";
 import { formatMoney, formatQuantity } from "@/lib/utils/money";
 import { useLanguage } from "@/providers/language-provider";
+import { useCurrencySymbol } from "@/hooks/use-currency-symbol";
 
 type CustomerHit = {
   id: string;
@@ -57,6 +58,7 @@ type SearchResult = {
 export function GlobalSearch() {
   const router = useRouter();
   const { t, tParams } = useLanguage();
+  const symbol = useCurrencySymbol();
   const [query, setQuery] = useState("");
   const [isOpen, setIsOpen] = useState(false);
   const [results, setResults] = useState<SearchResult | null>(null);
@@ -220,7 +222,7 @@ export function GlobalSearch() {
                         </div>
                         {owes ? (
                           <span className="shrink-0 text-xs font-semibold text-red-600">
-                            {formatMoney(balance)}
+                            {formatMoney(balance, symbol)}
                           </span>
                         ) : null}
                         <ChevronRight className="h-4 w-4 shrink-0 text-slate-300" />
@@ -253,7 +255,7 @@ export function GlobalSearch() {
                             {p.name}
                           </p>
                           <p className="truncate text-[11px] text-slate-500">
-                            {formatQuantity(stock, p.unit)} · {formatMoney(p.sellingPrice)}
+                            {formatQuantity(stock, p.unit)} · {formatMoney(p.sellingPrice, symbol)}
                           </p>
                         </div>
                         <ChevronRight className="h-4 w-4 shrink-0 text-slate-300" />

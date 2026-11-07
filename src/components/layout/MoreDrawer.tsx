@@ -310,7 +310,7 @@ export function MoreDrawer({
             type="button"
             onClick={onClose}
             aria-label={t("common.close")}
-            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-brand-500/40"
+            className="flex h-10 w-10 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-brand-500/40"
           >
             <X className="h-5 w-5" />
           </button>
@@ -320,7 +320,7 @@ export function MoreDrawer({
         <div className="flex-1 overflow-y-auto px-3 py-4">
           {GROUPS.map((group, gi) => (
             <section key={group.titleKey} className={cn(gi > 0 && "mt-5")}>
-              <p className="px-1 pb-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+              <p className="px-1 pb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
                 {t(group.titleKey as never)}
               </p>
               <div className="space-y-1">
@@ -344,16 +344,21 @@ export function MoreDrawer({
                           "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg",
                           active
                             ? "bg-brand-100 text-brand-700"
-                            : "bg-slate-100 text-slate-500",
+                            : "bg-slate-100 text-slate-600",
                         )}
                       >
                         <Icon className="h-4 w-4" />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium">
+                        <p
+                          className={cn(
+                            "truncate text-sm",
+                            active ? "font-semibold" : "font-medium",
+                          )}
+                        >
                           {t(item.titleKey as never)}
                         </p>
-                        <p className="truncate text-[11px] text-slate-500">
+                        <p className="truncate text-xs text-slate-500">
                           {t(item.descKey as never)}
                         </p>
                       </div>

@@ -29,7 +29,7 @@ import { StockProductPicker } from "@/components/stock/StockProductPicker";
 import { StickyFormActions } from "@/components/ui/StickyFormActions";
 import { useAddStockMove } from "@/hooks/use-stock";
 import { useToast } from "@/providers/toast-provider";
-import { ApiError } from "@/lib/utils/api-client";
+import { userMessage } from "@/lib/i18n/message";
 import { Decimal } from "@/lib/utils/decimal";
 import { formatQuantity } from "@/lib/utils/money";
 import type { ProductSearchResult } from "@/lib/services/products";
@@ -49,13 +49,15 @@ export function AdjustStockForm({ initialProductId }: { initialProductId?: strin
   const router = useRouter();
   const toast = useToast();
   const addStockMove = useAddStockMove();
-  const { t } = useLanguage();
+  const { t, tParams } = useLanguage();
 
   const [selected, setSelected] = useState<ProductSearchResult | null>(null);
   const [adjustType, setAdjustType] = useState<AdjustType>("remove");
   const [quantity, setQuantity] = useState<string>("");
   const [reason, setReason] = useState<string>("");
   const [date, setDate] = useState<string>(todayIsoLocal());
+  // Only show validation messages after the first save attempt.
+  const [submitted, setSubmitted] = useState(false);
 
   // Signed quantity based on type
   const signedQuantity = useMemo(() => {
@@ -89,6 +91,7 @@ export function AdjustStockForm({ initialProductId }: { initialProductId?: strin
   const willGoNegative = newStock !== null && newStock.lt(0);
 
   const handleSubmit = () => {
+    setSubmitted(true);
     if (!selected) {
       toast.error(t("stock.selectProductFirst"));
       return;
@@ -110,17 +113,14 @@ export function AdjustStockForm({ initialProductId }: { initialProductId?: strin
       },
       {
         onSuccess: () => {
-          toast.success(t("stock.stockAdjusted"));
+          toast.success("stock.adjustedFor", {
+            qty: formatQuantity(signedQuantity, selected.unit),
+            name: selected.name,
+          });
           router.push(`/more/products/${selected.id}`);
         },
         onError: (error) => {
-          const message =
-            error instanceof ApiError
-              ? error.message
-              : error instanceof Error
-                ? error.message
-                : t("common.failed");
-          toast.error(message);
+          toast.error(userMessage(error, t, tParams));
         },
       },
     );
@@ -223,6 +223,7 @@ export function AdjustStockForm({ initialProductId }: { initialProductId?: strin
             <div>
               <label className="mb-1 block text-xs font-medium text-slate-600">
                 {adjustType === "add" ? t("stock.quantityToAdd") : t("stock.quantityToRemove")}
+                <span className="text-red-500" aria-hidden> *</span>
               </label>
               <input
                 type="number"
@@ -234,12 +235,12 @@ export function AdjustStockForm({ initialProductId }: { initialProductId?: strin
                 placeholder="0"
                 autoFocus
                 className={`w-full rounded-lg border bg-white px-3 py-2.5 text-lg font-bold tabular-nums text-slate-900 placeholder:text-slate-300 focus:outline-none focus:ring-2 ${
-                  validation.quantity
+                  submitted && validation.quantity
                     ? "border-red-300 focus:border-red-500 focus:ring-red-500/30"
                     : "border-slate-300 focus:border-brand-500 focus:ring-brand-500/30"
                 }`}
               />
-              {validation.quantity ? (
+              {submitted && validation.quantity ? (
                 <p className="mt-1 text-xs text-red-600">{validation.quantity}</p>
               ) : null}
             </div>
@@ -259,12 +260,12 @@ export function AdjustStockForm({ initialProductId }: { initialProductId?: strin
                 }
                 rows={2}
                 className={`w-full rounded-lg border bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 ${
-                  validation.reason
+                  submitted && validation.reason
                     ? "border-red-300 focus:border-red-500 focus:ring-red-500/30"
                     : "border-slate-300 focus:border-brand-500 focus:ring-brand-500/30"
                 }`}
               />
-              {validation.reason ? (
+              {submitted && validation.reason ? (
                 <p className="mt-1 text-xs text-red-600">{validation.reason}</p>
               ) : null}
             </div>
@@ -332,7 +333,6 @@ export function AdjustStockForm({ initialProductId }: { initialProductId?: strin
         onCancel={() => router.back()}
         onSave={handleSubmit}
         saveLabel={t("stock.saveAdjustment")}
-        saveDisabled={hasErrors || !selected}
         isPending={addStockMove.isPending}
       />
     </div>

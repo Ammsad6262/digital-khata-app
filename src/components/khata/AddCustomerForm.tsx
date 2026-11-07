@@ -26,6 +26,7 @@ import { useCreateCustomer } from "@/hooks/use-customers";
 import { useToast } from "@/providers/toast-provider";
 import { createCustomerSchema } from "@/lib/schemas/customer";
 import { ApiError } from "@/lib/utils/api-client";
+import { userMessage } from "@/lib/i18n/message";
 import type { z } from "zod";
 import { useLanguage } from "@/providers/language-provider";
 
@@ -35,7 +36,7 @@ export function AddCustomerForm() {
   const router = useRouter();
   const toast = useToast();
   const createCustomer = useCreateCustomer();
-  const { t } = useLanguage();
+  const { t, tParams } = useLanguage();
 
   const form = useForm<FormValues>({
     resolver: zodResolver(createCustomerSchema),
@@ -52,7 +53,7 @@ export function AddCustomerForm() {
   const onSubmit = (values: FormValues) => {
     createCustomer.mutate(values, {
       onSuccess: (customer) => {
-        toast.success(t("customer.customerAdded"));
+        toast.success("customer.customerAddedName", { name: customer.name });
         router.push(`/khata/${customer.id}`);
       },
       onError: (error) => {
@@ -63,7 +64,7 @@ export function AddCustomerForm() {
           });
           toast.error(t("customer.phoneInUse"));
         } else {
-          toast.error(error instanceof Error ? error.message : t("common.failed"));
+          toast.error(userMessage(error, t, tParams));
         }
       },
     });
@@ -79,6 +80,7 @@ export function AddCustomerForm() {
             label={t("customer.name")}
             placeholder={t("customer.namePlaceholder")}
             autoComplete="off"
+            showRequired
             {...form.register("name")}
             error={form.formState.errors.name?.message ?? null}
           />

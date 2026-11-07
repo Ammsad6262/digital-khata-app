@@ -30,6 +30,7 @@ import { formatMoney } from "@/lib/utils/money";
 import { formatDateTime } from "@/lib/utils/date";
 import { cn } from "@/lib/utils/cn";
 import { useLanguage } from "@/providers/language-provider";
+import { useCurrencySymbol } from "@/hooks/use-currency-symbol";
 
 type MethodLabelKey = "payment.cash" | "payment.bank" | "payment.cheque" | "payment.jazzcash" | "payment.easypaisa" | "payment.other";
 const METHOD_LABELS: Record<string, MethodLabelKey> = {
@@ -46,6 +47,7 @@ export function PaymentDetail({ paymentId }: { paymentId: string }) {
   const voidPayment = useVoidPayment();
   const [confirmVoid, setConfirmVoid] = useState(false);
   const { t } = useLanguage();
+  const symbol = useCurrencySymbol();
 
   if (isLoading) {
     return <PaymentDetailSkeleton />;
@@ -181,7 +183,7 @@ export function PaymentDetail({ paymentId }: { paymentId: string }) {
           <div>
             <p className="text-sm font-semibold text-red-900">{t("payment.voidConfirm")}</p>
             <p className="mt-1 text-xs text-red-700">
-              {t("payment.voidDesc")} {formatMoney(payment.amount)}
+              {t("payment.voidDesc")} {formatMoney(payment.amount, symbol)}
               {t("payment.thisCannotBeUndone")}
             </p>
           </div>

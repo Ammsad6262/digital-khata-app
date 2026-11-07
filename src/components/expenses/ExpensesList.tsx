@@ -24,6 +24,7 @@ import { formatDate, formatTime } from "@/lib/utils/date";
 import { formatMoney } from "@/lib/utils/money";
 import { cn } from "@/lib/utils/cn";
 import { useLanguage } from "@/providers/language-provider";
+import { useCurrencySymbol } from "@/hooks/use-currency-symbol";
 
 type ExpenseFilterKey = "transactions.today" | "transactions.thisWeek" | "transactions.thisMonth" | "transactions.all";
 const FILTERS: Array<{ value: ExpenseFilter; labelKey: ExpenseFilterKey }> = [
@@ -252,6 +253,7 @@ function ExpenseRow({
   isFirst: boolean;
 }) {
   const { t } = useLanguage();
+  const symbol = useCurrencySymbol();
   const fallbackBadge = { labelKey: "payment.other" as CategoryKey, bg: "bg-slate-100", text: "text-slate-700", icon: "•" };
   const badge = CATEGORY_BADGES[expense.category] ?? CATEGORY_BADGES.other ?? fallbackBadge;
 
@@ -295,7 +297,7 @@ function ExpenseRow({
 
       <div className="shrink-0 text-right">
         <p className="text-sm font-bold tabular-nums text-red-600">
-          -{formatMoney(expense.amount)}
+          -{formatMoney(expense.amount, symbol)}
         </p>
       </div>
     </Link>

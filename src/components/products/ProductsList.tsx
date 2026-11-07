@@ -16,10 +16,12 @@ import { Decimal } from "@/lib/utils/decimal";
 import { formatQuantity, formatMoney } from "@/lib/utils/money";
 import { cn } from "@/lib/utils/cn";
 import { useLanguage } from "@/providers/language-provider";
+import { useCurrencySymbol } from "@/hooks/use-currency-symbol";
 
 export function ProductsList() {
   const { query, setQuery, data, isLoading, isError, error, refetch } = useProductSearch();
   const { t } = useLanguage();
+  const symbol = useCurrencySymbol();
 
   const isShortQuery = query.trim().length > 0 && query.trim().length < 2;
   const isEmpty = !data || data.length === 0;
@@ -155,7 +157,7 @@ export function ProductsList() {
                     {product.name}
                   </p>
                   <p className="text-[11px] text-slate-500">
-                    {product.category ?? t("stock.uncategorized")} · {formatMoney(product.sellingPrice)} / {product.unit}
+                    {product.category ?? t("stock.uncategorized")} · {formatMoney(product.sellingPrice, symbol)} / {product.unit}
                   </p>
                 </div>
 

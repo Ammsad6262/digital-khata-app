@@ -11,7 +11,13 @@
  *
  * This wrapper unwraps `data` on success and throws an `ApiError` on failure
  * so React Query's `error` state receives it cleanly.
+ *
+ * Messages are always safe to show to a shopkeeper. The browser's raw network
+ * text ("Failed to fetch") and technical parse errors are replaced with
+ * friendly, translatable messages; technical diagnostics stay in `details`.
  */
+
+import { translations } from "@/lib/i18n/translations";
 
 export class ApiError extends Error {
   readonly code: string;
@@ -21,6 +27,12 @@ export class ApiError extends Error {
   readonly translationKey?: boolean;
   /** Translation params for placeholder substitution. */
   readonly params?: Record<string, string | number>;
+  /**
+   * The original translation key (when the server had one). Lets the client
+   * re-translate parameterised messages that were already interpolated to
+   * English server-side.
+   */
+  readonly messageKey?: string;
 
   constructor(
     message: string,
@@ -29,6 +41,7 @@ export class ApiError extends Error {
     details?: unknown,
     translationKey?: boolean,
     params?: Record<string, string | number>,
+    messageKey?: string,
   ) {
     super(message);
     this.name = "ApiError";
@@ -37,6 +50,7 @@ export class ApiError extends Error {
     this.details = details;
     this.translationKey = translationKey;
     this.params = params;
+    this.messageKey = messageKey;
   }
 }
 
@@ -53,6 +67,7 @@ interface ApiFailure {
     details?: unknown;
     translationKey?: boolean;
     params?: Record<string, string | number>;
+    messageKey?: string;
   };
 }
 
@@ -88,7 +103,16 @@ async function fetchWithTimeout(
         true,
       );
     }
-    throw error;
+    // Network failure (offline, DNS, connection reset, server unreachable).
+    // Never surface the browser's raw technical text to the shopkeeper.
+    // The original message is kept in `details` for developers.
+    throw new ApiError(
+      translations["common.networkError"].en,
+      "NETWORK_ERROR",
+      0,
+      error instanceof Error ? { cause: error.message } : undefined,
+      true,
+    );
   } finally {
     clearTimeout(timeoutId);
   }
@@ -169,11 +193,16 @@ async function unwrap<T>(res: Response, path: string): Promise<T> {
   let json: ApiResponse<T>;
   try {
     json = (await res.json()) as ApiResponse<T>;
-  } catch {
+  } catch (error) {
+    // The server returned something that is not our JSON envelope (for
+    // example a proxy error page). Keep the path for diagnostics, but show
+    // the user a plain, translatable message.
     throw new ApiError(
-      `Failed to parse response from ${path}`,
+      translations["api.errors.internal"].en,
       "PARSE_ERROR",
       res.status,
+      { path, cause: error instanceof Error ? error.message : String(error) },
+      true,
     );
   }
 
@@ -188,5 +217,6 @@ async function unwrap<T>(res: Response, path: string): Promise<T> {
     json.error.details,
     json.error.translationKey,
     json.error.params,
+    json.error.messageKey,
   );
 }

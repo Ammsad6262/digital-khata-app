@@ -27,6 +27,7 @@ import { Decimal } from "@/lib/utils/decimal";
 import { formatQuantity, formatMoney } from "@/lib/utils/money";
 import { useToast } from "@/providers/toast-provider";
 import { ApiError } from "@/lib/utils/api-client";
+import { userMessage } from "@/lib/i18n/message";
 import type { ProductSearchResult } from "@/lib/services/products";
 import { useLanguage } from "@/providers/language-provider";
 import { useCurrencySymbol } from "@/hooks/use-currency-symbol";
@@ -160,7 +161,7 @@ export function ProductPicker({
                   </div>
                   <div className="shrink-0 text-right">
                     <p className="text-xs font-medium text-slate-700">
-                      {formatMoney(product.sellingPrice)}
+                      {formatMoney(product.sellingPrice, symbol)}
                     </p>
                     <p className="text-[10px] text-slate-400">{t("product.per")} {product.unit}</p>
                   </div>
@@ -197,7 +198,7 @@ function QuickAddProduct({
 }) {
   const toast = useToast();
   const createProduct = useCreateProduct();
-  const { t } = useLanguage();
+  const { t, tParams } = useLanguage();
   const symbol = useCurrencySymbol();
   const { data: settings } = useSettings();
   const [name, setName] = useState(initialName);
@@ -244,7 +245,7 @@ function QuickAddProduct({
           if (error instanceof ApiError && error.code === "CONFLICT") {
             toast.error(t("product.skuExists"));
           } else {
-            toast.error(error instanceof Error ? error.message : t("common.failed"));
+            toast.error(userMessage(error, t, tParams));
           }
         },
       },

@@ -29,6 +29,7 @@ import { useAssistantText } from "@/hooks/assistant/use-assistant-text";
 import { useVoiceAssistant } from "@/hooks/voice-assistant/use-voice-assistant";
 import { PlanCard } from "@/components/assistant/PlanCard";
 import { languageLabel } from "@/lib/assistant/language";
+import { formatRecordingDuration } from "@/lib/voice/recording-config";
 import type { VoicePhraseKey } from "@/lib/assistant/phrases";
 import type { AssistantReply, PlanPayload } from "@/lib/assistant/types";
 
@@ -107,13 +108,21 @@ export function VoiceAssistant() {
     voice.submit(text);
   }, [busy, typed, voice]);
 
-  const micError =
-    speech.error?.message ??
-    (recorder.error
-      ? lang === "ur" && !/[\u0600-\u06FF]/.test(recorder.error)
-        ? vt("micErrorGeneric")
-        : recorder.error
-      : null);
+  // Recorder errors are stored as smartentry.* translation keys (or a raw
+  // browser message). Never show either to the owner: map them to the same
+  // plain-language voice phrases used by the recognition path.
+  const recorderError = recorder.error;
+  const recorderMessage =
+    recorderError === "smartentry.micError.deniedWithSettings"
+      ? vt("microphoneDenied")
+      : recorderError === "smartentry.micError.unsupportedLong"
+        ? vt("speechUnsupported")
+        : recorderError === "smartentry.recording.failedRetry"
+          ? vt("speechFailed")
+          : recorderError
+            ? vt("micErrorGeneric")
+            : null;
+  const micError = speech.error?.message ?? recorderMessage;
   const hasConversation = assistant.turns.length > 0;
 
   return (
@@ -238,10 +247,21 @@ export function VoiceAssistant() {
           {/* Live transcript while listening */}
           {voice.listening ? (
             <div className="border-t border-neutral-200 px-4 py-2 text-sm dark:border-neutral-800">
-              <span className="text-neutral-400">{vt("youSaid")} </span>
-              <span className="text-neutral-800 dark:text-neutral-100">
-                {speech.interim || speech.transcript || "…"}
-              </span>
+              <div className="flex items-baseline justify-between gap-2">
+                <div className="min-w-0">
+                  <span className="text-neutral-400">{vt("youSaid")} </span>
+                  <span className="text-neutral-800 dark:text-neutral-100">
+                    {speech.interim || speech.transcript || "…"}
+                  </span>
+                </div>
+                <span
+                  aria-hidden="true"
+                  className="shrink-0 text-[11px] tabular-nums text-neutral-400"
+                >
+                  {formatRecordingDuration(voice.recordingElapsedMs)} /{" "}
+                  {formatRecordingDuration(voice.recordingMaxMs)}
+                </span>
+              </div>
             </div>
           ) : null}
 
@@ -261,6 +281,17 @@ export function VoiceAssistant() {
                   {speech.lowConfidence ? vt("lowConfidence") : vt("correctIfNeeded")}
                 </p>
               </div>
+              {voice.endedReason === "max-duration" ? (
+                <p className="mt-1 flex items-center gap-1 text-[11px] text-amber-600">
+                  <AlertTriangle className="h-3 w-3 shrink-0" />
+                  {vt("recordingLimitReached")}
+                </p>
+              ) : null}
+              {voice.endedReason === "silence" ? (
+                <p className="mt-1 text-[11px] text-neutral-400">
+                  {vt("recordingStoppedPause")}
+                </p>
+              ) : null}
               <textarea
                 value={voice.transcript}
                 onChange={(e) => voice.setTranscript(e.target.value)}
@@ -321,17 +352,30 @@ export function VoiceAssistant() {
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
                   {voice.listening
-                    ? vt("listeningTapStop")
+                    ? vt("listeningTakeYourTime")
                     : busy
                       ? vt(PHASE_KEYS[phase])
                       : vt("tapToSpeak")}
                 </p>
                 <p className="mt-0.5 text-xs text-neutral-500">
-                  {speech.supported
-                    ? vt("localTranscriptHint")
-                    : vt("recordingFallbackHint")}
+                  {voice.listening
+                    ? vt("recordingMaxHint")
+                    : speech.supported
+                      ? vt("localTranscriptHint")
+                      : vt("recordingFallbackHint")}
                 </p>
               </div>
+              {voice.listening ? (
+                <button
+                  type="button"
+                  onClick={() => voice.cancel()}
+                  aria-label={vt("cancelRecording")}
+                  title={vt("cancelRecording")}
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-neutral-300 text-neutral-600 hover:bg-neutral-100 dark:border-neutral-600 dark:text-neutral-300 dark:hover:bg-neutral-800"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              ) : null}
             </div>
 
             <div className="mt-3 flex items-end gap-2">

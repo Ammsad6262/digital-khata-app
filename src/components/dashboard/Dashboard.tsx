@@ -42,6 +42,7 @@ import {
   Users,
   Package,
   TrendingUp,
+  CalendarDays,
 } from "lucide-react";
 import { useLanguage } from "@/providers/language-provider";
 
@@ -137,7 +138,10 @@ export function Dashboard() {
       {/* Today's stats — 2×2 grid */}
       <section className="space-y-2">
         <div className="flex items-center justify-between px-1">
-          <h2 className="text-sm font-semibold text-slate-700">{t("dashboard.today")}</h2>
+          <div className="flex items-center gap-1.5">
+            <CalendarDays className="h-4 w-4 text-slate-500" aria-hidden />
+            <h2 className="text-base font-bold text-slate-900">{t("dashboard.today")}</h2>
+          </div>
           {isFetching ? (
             <span className="flex items-center gap-1 text-[11px] text-slate-400">
               <RefreshCw className="h-3 w-3 animate-spin" />
@@ -165,7 +169,7 @@ export function Dashboard() {
             tone="amber"
           />
           <StatCard
-            label={t("dashboard.customers")}
+            label={t("dashboard.totalCustomers")}
             value={String(data.customerCount)}
             icon={Users}
             tone="slate"

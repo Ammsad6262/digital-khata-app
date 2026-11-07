@@ -150,6 +150,20 @@ export const P = {
     ur: "آواز کی شناخت ناکام ہوگئی۔",
   },
   couldNotStart: { en: "Could not start.", ur: "شروع نہیں ہو سکا۔" },
+  listeningTakeYourTime: {
+    en: "Listening — take your time, then tap to stop.",
+    ur: "سن رہا ہوں — وقت لیں، پھر روکنے کے لیے دبائیں۔",
+  },
+  recordingMaxHint: { en: "Up to 60 seconds", ur: "زیادہ سے زیادہ 60 سیکنڈ" },
+  recordingLimitReached: {
+    en: "Maximum 60 seconds reached. Check the words, then send.",
+    ur: "زیادہ سے زیادہ 60 سیکنڈ مکمل ہو گئے۔ الفاظ چیک کر کے بھیجیں۔",
+  },
+  recordingStoppedPause: {
+    en: "Stopped after a pause.",
+    ur: "وقفے کے بعد رک گیا۔",
+  },
+  cancelRecording: { en: "Cancel recording", ur: "ریکارڈنگ منسوخ کریں" },
 
   // ── Speech language labels ────────────────────────────────────────────
   langEnglish: { en: "English", ur: "انگریزی" },

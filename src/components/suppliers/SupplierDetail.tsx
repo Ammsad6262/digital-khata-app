@@ -16,11 +16,12 @@ import { SupplierLedger } from "@/components/suppliers/SupplierLedger";
 import { useLanguage } from "@/providers/language-provider";
 import { useCurrencySymbol } from "@/hooks/use-currency-symbol";
 import { useToast } from "@/providers/toast-provider";
+import { userMessage } from "@/lib/i18n/message";
 import { Money } from "@/components/shared/Money";
 import { Button } from "@/components/ui/Button";
 
 export function SupplierDetail({ supplierId }: { supplierId: string }) {
-  const { t } = useLanguage();
+  const { t, tParams } = useLanguage();
   const symbol = useCurrencySymbol();
   const toast = useToast();
   const router = useRouter();
@@ -34,7 +35,7 @@ export function SupplierDetail({ supplierId }: { supplierId: string }) {
   if (isError || !data) {
     return (
       <p className="py-8 text-center text-sm text-red-600">
-        {error instanceof Error ? error.message : t("common.couldntLoad")}
+        {userMessage(error, t, tParams, "common.couldntLoad")}
       </p>
     );
   }
@@ -50,7 +51,7 @@ export function SupplierDetail({ supplierId }: { supplierId: string }) {
       router.push("/more/suppliers");
       router.refresh();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : t("common.failed"));
+      toast.error(userMessage(err, t, tParams));
       setConfirming(false);
     }
   }

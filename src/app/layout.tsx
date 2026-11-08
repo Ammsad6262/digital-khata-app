@@ -78,8 +78,10 @@ const initScript = `
       try { localStorage.setItem('digital-khata-theme', t); } catch (e) {}
     }
     if (KNOWN.indexOf(t) === -1) {
+      // No usable choice stored yet. Show the default for the first paint but
+      // do NOT persist it: an absent value means "no preference", which lets
+      // the server seed the signed-in user's own theme once settings load.
       t = 'ink';
-      try { localStorage.setItem('digital-khata-theme', t); } catch (e) {}
     }
     document.documentElement.setAttribute('data-theme', t);
 

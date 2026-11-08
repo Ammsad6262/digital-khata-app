@@ -62,14 +62,21 @@ export function WaterfallChart({
   const values = steps.flatMap((step) => [step.start, step.end]);
   const rawMax = Math.max(0, ...values);
   const rawMin = Math.min(0, ...values);
-  const hi = rawMax > 0 ? niceCeil(rawMax) : 1;
+  const isEmpty = rawMax === 0 && rawMin === 0;
+  // An expense-only period has a max of zero: keep the axis top at zero
+  // rather than inventing a spurious Rs.1 tick.
+  const hi = rawMax > 0 ? niceCeil(rawMax) : rawMin < 0 ? 0 : 1;
   const lo = rawMin < 0 ? -niceCeil(-rawMin) : 0;
   const span = hi - lo || 1;
   const top = (value: number) => ((hi - value) / span) * 100;
   const zero = top(0);
   const count = steps.length;
   const center = (index: number) => ((index + 0.5) / count) * 100;
-  const ticks = Array.from({ length: TICKS + 1 }, (_, index) => lo + (span * index) / TICKS);
+  // With no activity at all, a 0–1 axis yields duplicate rounded labels
+  // ("Rs.0, Rs.1, Rs.1…"); a single zero tick is honest and clean.
+  const ticks = isEmpty
+    ? [0]
+    : Array.from({ length: TICKS + 1 }, (_, index) => lo + (span * index) / TICKS);
 
   return (
     <div>

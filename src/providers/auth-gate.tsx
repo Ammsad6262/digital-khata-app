@@ -18,6 +18,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { PinUnlockScreen } from "@/components/auth/PinUnlockScreen";
 import { ExpiredAccessScreen } from "@/components/subscription/ExpiredAccessScreen";
 import { useLanguage } from "@/providers/language-provider";
+import { ThemeSync } from "@/providers/theme-sync";
 
 type AuthStatus = {
   hasPin: boolean;
@@ -191,5 +192,10 @@ export function AuthGate({ children }: { children: ReactNode }) {
   }
 
   // Authenticated + unlocked + (active subscription or on accessible page) → render app
-  return <>{children}</>;
+  return (
+    <>
+      <ThemeSync />
+      {children}
+    </>
+  );
 }

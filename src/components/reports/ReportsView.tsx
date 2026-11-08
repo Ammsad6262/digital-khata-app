@@ -447,6 +447,11 @@ export function ReportsView() {
 
   function choosePreset(preset: string) {
     setRangeError(null);
+    // Clear the drafts too: otherwise a later re-render (e.g. switching
+    // language) re-runs the auto-apply effect and yanks the user back to an
+    // old custom range over the preset they just chose.
+    setDraftFrom("");
+    setDraftTo("");
     setQuery({ kind: "preset", preset });
   }
 

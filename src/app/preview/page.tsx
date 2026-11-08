@@ -74,6 +74,23 @@ const MOCK_BARS = [
   { key: "other", label: "Other", value: 4000, display: "Rs.4k" },
 ];
 
+// Edge-case fixtures — these must render without crashing or looking broken.
+const MOCK_LOSS_WATERFALL: WaterfallStep[] = [
+  { key: "revenue", label: "Sales billed", shortLabel: "Sales", display: "Rs.80k", start: 0, end: 80000, kind: "total" },
+  { key: "cogs", label: "Cost of goods", shortLabel: "Cost", display: "Rs.50k", start: 80000, end: 30000, kind: "minus" },
+  { key: "gross", label: "Gross profit", shortLabel: "Gross", display: "Rs.30k", start: 0, end: 30000, kind: "subtotal" },
+  { key: "expenses", label: "Expenses", shortLabel: "Expenses", display: "Rs.55k", start: 30000, end: -25000, kind: "minus" },
+  { key: "net", label: "Net estimate", shortLabel: "Net", display: "−Rs.25k", start: 0, end: -25000, kind: "net" },
+];
+
+const MOCK_QUIET_WATERFALL: WaterfallStep[] = [
+  { key: "revenue", label: "Sales billed", shortLabel: "Sales", display: "Rs.0", start: 0, end: 0, kind: "total" },
+  { key: "cogs", label: "Cost of goods", shortLabel: "Cost", display: "Rs.0", start: 0, end: 0, kind: "minus" },
+  { key: "gross", label: "Gross profit", shortLabel: "Gross", display: "Rs.0", start: 0, end: 0, kind: "subtotal" },
+  { key: "expenses", label: "Expenses", shortLabel: "Expenses", display: "Rs.0", start: 0, end: 0, kind: "minus" },
+  { key: "net", label: "Net estimate", shortLabel: "Net", display: "Rs.0", start: 0, end: 0, kind: "net" },
+];
+
 const THEME_LABELS: Record<Theme, string> = {
   ink: "Ink",
   emerald: "Emerald",
@@ -228,6 +245,19 @@ export default function PreviewPage() {
             </ChartFrame>
             <ChartFrame title="Expenses by category" hint="Ranked, largest first.">
               <BarList items={MOCK_BARS} />
+            </ChartFrame>
+          </section>
+
+          <section className="space-y-2">
+            <h2 className="section-title px-1">Charts — edge cases</h2>
+            <ChartFrame title="A loss month" hint="Net below zero must render under the baseline.">
+              <WaterfallChart steps={MOCK_LOSS_WATERFALL} symbol="Rs." caption="Loss month" />
+            </ChartFrame>
+            <ChartFrame title="A quiet week" hint="All-zero data must not look broken.">
+              <WaterfallChart steps={MOCK_QUIET_WATERFALL} symbol="Rs." caption="Quiet week" />
+            </ChartFrame>
+            <ChartFrame title="No data" hint="Empty list renders nothing, not a crash.">
+              <BarList items={[]} />
             </ChartFrame>
           </section>
 

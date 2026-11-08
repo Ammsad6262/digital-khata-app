@@ -37,6 +37,17 @@ if (!process.env.VERCEL) {
   process.exit(0);
 }
 
+// Escape hatch: set SKIP_PRODUCTION_DDL=1 in Vercel to unblock a deploy when
+// the schema is already up to date (the deltas below are idempotent).
+if (process.env.SKIP_PRODUCTION_DDL === "1") {
+  log("SKIP_PRODUCTION_DDL=1 — skipping production DDL");
+  process.exit(0);
+}
+
+// A hung database connection must never occupy Vercel's build slot: cap each
+// prisma invocation, then abort so the previous deployment stays live.
+const DDL_TIMEOUT_MS = Number(process.env.DDL_TIMEOUT_MS || 60000);
+
 /**
  * Supabase exposes two pooler ports:
  *   6543 — transaction mode, used by the app at runtime
@@ -75,6 +86,14 @@ if (!process.env.DIRECT_URL) {
     log("WARNING: DIRECT_URL is not set — using DATABASE_URL for DDL");
   }
 }
+
+// Log the target host/port only — never the credentials.
+try {
+  const target = new URL(url);
+  log(`DDL target: ${target.hostname}:${target.port || "5432"}${target.pathname}`);
+} catch {
+  // non-URL connection strings are passed through to Prisma untouched
+}
 if (!existsSync(PRISMA_CLI)) {
   console.error(`[ddl] Prisma CLI not found at ${PRISMA_CLI}`);
   process.exit(1);
@@ -88,18 +107,27 @@ for (const rel of FILES) {
   }
 
   let applied = false;
+  let reason = "unknown error";
   for (let attempt = 1; attempt <= 3 && !applied; attempt++) {
     const res = spawnSync(
       process.execPath,
       [PRISMA_CLI, "db", "execute", "--file", file, "--url", url],
-      { stdio: "inherit" },
+      { stdio: "inherit", timeout: DDL_TIMEOUT_MS, killSignal: "SIGTERM" },
     );
     applied = res.status === 0;
-    if (!applied && attempt < 3) log(`attempt ${attempt} failed for ${rel} — retrying`);
+    if (!applied) {
+      if (res.error?.code === "ETIMEDOUT") reason = `timed out after ${DDL_TIMEOUT_MS}ms`;
+      else if (res.signal) reason = `killed by ${res.signal}`;
+      else reason = `exit code ${res.status}`;
+      if (attempt < 3) log(`attempt ${attempt} failed for ${rel} (${reason}) — retrying`);
+    }
   }
 
   if (!applied) {
-    console.error(`[ddl] could not apply ${rel}; aborting the build so the previous deployment stays live`);
+    console.error(
+      `[ddl] could not apply ${rel} (${reason}); aborting the build so the previous deployment stays live. ` +
+        `If the schema is already up to date, set SKIP_PRODUCTION_DDL=1 in Vercel.`,
+    );
     process.exit(1);
   }
   log(`applied ${rel}`);

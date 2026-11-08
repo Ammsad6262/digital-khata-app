@@ -9,7 +9,6 @@
  */
 
 import { useCallback, useRef, useState } from "react";
-import { useAssistantText } from "@/hooks/assistant/use-assistant-text";
 import type { AssistantReply, PlanPayload } from "@/lib/assistant/types";
 import type { SpeechLanguage } from "@/lib/assistant/language";
 
@@ -48,7 +47,6 @@ async function blobToBase64(blob: Blob): Promise<string> {
 }
 
 export function useAssistant() {
-  const { lang, vt } = useAssistantText();
   const [turns, setTurns] = useState<AssistantTurn[]>([]);
   const [busy, setBusy] = useState(false);
   const [state, setState] = useState<AssistantState>("idle");
@@ -83,13 +81,15 @@ export function useAssistant() {
       setLastError(null);
       setBusy(true);
 
-      const userLabel = input.text ? input.text : vt("voiceMessage");
+      const userLabel = input.text
+        ? input.text
+        : "🎤 (voice message)";
       append({ id: nextId(), role: "user", text: userLabel });
 
       try {
         setState(input.audioBlob ? "transcribing" : "understanding");
 
-        const payload: Record<string, unknown> = { lang };
+        const payload: Record<string, unknown> = {};
         if (input.text) payload.text = input.text;
         if (input.language) payload.language = input.language;
         if (input.audioBlob) {
@@ -109,20 +109,14 @@ export function useAssistant() {
           const errorBody = (await res.json().catch(() => null)) as
             | { error?: { message?: string } }
             | null;
-          throw new Error(
-            errorBody?.error?.message || vt("requestFailed", { status: res.status }),
-          );
+          throw new Error(errorBody?.error?.message || `Request failed (${res.status}).`);
         }
 
         const json = (await res.json()) as { data: AssistantReply };
         append({ id: nextId(), role: "assistant", reply: json.data });
         if (json.data.kind === "error") setLastError(json.data.text);
       } catch (err) {
-        const raw = err instanceof Error ? err.message : "";
-        const message =
-          raw && (lang === "en" || /[\u0600-\u06FF]/.test(raw))
-            ? raw
-            : vt("somethingWentWrong");
+        const message = err instanceof Error ? err.message : "Something went wrong.";
         setLastError(message);
         append({
           id: nextId(),
@@ -143,7 +137,7 @@ export function useAssistant() {
         void refreshStatus();
       }
     },
-    [append, lang, refreshStatus, vt],
+    [append, refreshStatus],
   );
 
   const confirm = useCallback(
@@ -156,24 +150,18 @@ export function useAssistant() {
         const res = await fetch("/api/assistant/confirm", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ actionId, patch, lang }),
+          body: JSON.stringify({ actionId, patch }),
         });
         const json = (await res.json().catch(() => null)) as
           | { data?: AssistantReply; error?: { message?: string } }
           | null;
 
         if (!res.ok || !json?.data) {
-          throw new Error(
-            json?.error?.message || vt("couldNotConfirmStatus", { status: res.status }),
-          );
+          throw new Error(json?.error?.message || `Could not confirm (${res.status}).`);
         }
         append({ id: nextId(), role: "assistant", reply: json.data });
       } catch (err) {
-        const raw = err instanceof Error ? err.message : "";
-        const message =
-          raw && (lang === "en" || /[\u0600-\u06FF]/.test(raw))
-            ? raw
-            : vt("couldNotConfirm");
+        const message = err instanceof Error ? err.message : "Could not confirm.";
         append({
           id: nextId(),
           role: "assistant",
@@ -192,7 +180,7 @@ export function useAssistant() {
         setState("idle");
       }
     },
-    [append, lang, vt],
+    [append],
   );
 
   const cancel = useCallback(
@@ -201,7 +189,7 @@ export function useAssistant() {
         await fetch("/api/assistant/cancel", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ actionId, lang }),
+          body: JSON.stringify({ actionId }),
         });
       } catch {
         /* best-effort */
@@ -209,12 +197,12 @@ export function useAssistant() {
       setTurns((prev) =>
         prev.map((t) =>
           t.role === "assistant" && t.reply.kind === "plan" && t.reply.actionId === actionId
-            ? { ...t, reply: { ...t.reply, kind: "answer", text: vt("cancelled"), source: "database", requestsUsed: 0, timings: { totalMs: 0 } } as AssistantReply }
+            ? { ...t, reply: { ...t.reply, kind: "answer", text: "Cancelled.", source: "database", requestsUsed: 0, timings: { totalMs: 0 } } as AssistantReply }
             : t,
         ),
       );
     },
-    [lang, vt],
+    [],
   );
 
   const reset = useCallback(() => {

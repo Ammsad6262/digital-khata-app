@@ -266,7 +266,7 @@ export function MoreDrawer({
       {/* Backdrop — click to close. Visible only when open. */}
       {open ? (
         <div
-          className="fixed inset-0 z-[200] bg-black/40"
+          className="fixed inset-0 z-[200] bg-ink/45 backdrop-blur-[2px]"
           onClick={onClose}
           aria-hidden="true"
           style={{
@@ -290,18 +290,18 @@ export function MoreDrawer({
           // cap at 380px for an elegant side panel.
           // V13: In RTL, the drawer slides in from the LEFT (handled via
           // CSS rules: right-0 → left-0, translate-x-full → translateX(-100%)).
-          "fixed inset-y-0 right-0 z-[210] flex h-full w-[85vw] max-w-[380px] flex-col bg-white shadow-2xl",
+          "fixed inset-y-0 right-0 z-[210] flex h-full w-[85vw] max-w-[380px] flex-col border-l border-line bg-surface shadow-lift",
           "transition-transform duration-200 ease-out will-change-transform",
           open ? "translate-x-0" : "translate-x-full",
         )}
       >
         {/* Drawer header — sticky at the top with title + close button */}
-        <header className="flex shrink-0 items-center justify-between border-b border-slate-200 px-4 py-3">
-          <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
+        <header className="flex shrink-0 items-center justify-between border-b border-line px-4 py-3.5">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-9 w-9 items-center justify-center rounded-control bg-brand-50 text-brand-700">
               <ListTree className="h-4 w-4" />
             </div>
-            <h2 className="text-base font-semibold text-slate-900">
+            <h2 className="text-[15px] font-bold tracking-[-0.02em] text-ink">
               {t("nav.more")}
             </h2>
           </div>
@@ -310,7 +310,7 @@ export function MoreDrawer({
             type="button"
             onClick={onClose}
             aria-label={t("common.close")}
-            className="flex h-10 w-10 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-brand-500/40"
+            className="rounded-control p-1.5 text-ink-faint transition-colors hover:bg-surface-2 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/50"
           >
             <X className="h-5 w-5" />
           </button>
@@ -320,7 +320,7 @@ export function MoreDrawer({
         <div className="flex-1 overflow-y-auto px-3 py-4">
           {GROUPS.map((group, gi) => (
             <section key={group.titleKey} className={cn(gi > 0 && "mt-5")}>
-              <p className="px-1 pb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+              <p className="px-1 pb-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-ink-faint">
                 {t(group.titleKey as never)}
               </p>
               <div className="space-y-1">
@@ -332,33 +332,28 @@ export function MoreDrawer({
                       key={item.href}
                       href={item.href}
                       className={cn(
-                        "flex items-center gap-3 rounded-xl px-3 py-2.5 transition-colors",
+                        "flex items-center gap-3 rounded-control px-3 py-2.5 transition-colors",
                         active
-                          ? "bg-brand-50 text-brand-700"
-                          : "text-slate-700 hover:bg-slate-50 active:bg-slate-100",
+                          ? "bg-brand-50 text-brand-800 ring-1 ring-brand-500/15"
+                          : "text-ink-muted hover:bg-surface-2 active:bg-surface-3",
                       )}
                       aria-current={active ? "page" : undefined}
                     >
                       <div
                         className={cn(
-                          "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg",
+                          "flex h-9 w-9 shrink-0 items-center justify-center rounded-[0.7rem]",
                           active
-                            ? "bg-brand-100 text-brand-700"
-                            : "bg-slate-100 text-slate-600",
+                            ? "bg-brand-600 text-white"
+                            : "bg-surface-2 text-ink-subtle",
                         )}
                       >
                         <Icon className="h-4 w-4" />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p
-                          className={cn(
-                            "truncate text-sm",
-                            active ? "font-semibold" : "font-medium",
-                          )}
-                        >
+                        <p className="truncate text-sm font-medium">
                           {t(item.titleKey as never)}
                         </p>
-                        <p className="truncate text-xs text-slate-500">
+                        <p className="truncate text-[11px] text-ink-subtle">
                           {t(item.descKey as never)}
                         </p>
                       </div>
@@ -371,8 +366,8 @@ export function MoreDrawer({
         </div>
 
         {/* Footer — app name + version (subtle) */}
-        <footer className="shrink-0 border-t border-slate-200 px-4 py-3">
-          <p className="text-[11px] text-slate-400">
+        <footer className="shrink-0 border-t border-line px-4 py-3">
+          <p className="text-[11px] text-ink-faint">
             {t("app.name")} · v0.3.0
           </p>
         </footer>

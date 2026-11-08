@@ -22,13 +22,13 @@ export default function SubscriptionPage() {
   const { t } = useLanguage();
   return (
     <>
-      <div className="sticky top-0 z-20 flex items-center gap-3 border-b border-slate-200 bg-white px-4 py-3">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-600">
+      <div className="sticky top-0 z-20 flex items-center gap-3 border-b border-line bg-surface px-4 py-3">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-warning-soft text-warning-ink">
           <Crown className="h-5 w-5" />
         </div>
         <div className="min-w-0">
-          <h1 className="truncate text-base font-semibold text-slate-900">{t("subscription.title")}</h1>
-          <p className="truncate text-xs text-slate-500">{t("subscription.subtitle")}</p>
+          <h1 className="truncate text-base font-semibold text-ink">{t("subscription.title")}</h1>
+          <p className="truncate text-xs text-ink-subtle">{t("subscription.subtitle")}</p>
         </div>
       </div>
       <main className="flex-1 px-4 pb-24 pt-4 min-h-[calc(100dvh-4rem)]">
@@ -43,7 +43,7 @@ function SubscriptionContent() {
   const { data: history } = useRedemptionHistory();
   const { t } = useLanguage();
 
-  if (isLoading) return <div className="space-y-4"><div className="h-48 animate-pulse rounded-2xl bg-slate-200" /><div className="h-32 animate-pulse rounded-xl bg-slate-200" /></div>;
+  if (isLoading) return <div className="space-y-4"><div className="h-48 animate-pulse rounded-2xl bg-surface-2" /><div className="h-32 animate-pulse rounded-xl bg-surface-2" /></div>;
   if (isError) return <EmptyState title={t("subscription.unableToCheck")} description={error instanceof Error ? error.message : ""} icon={<AlertCircle className="h-6 w-6" />} action={<Button onClick={() => refetch()} variant="outline" size="sm"><RefreshCw className="h-4 w-4" />{t("subscription.tryAgain")}</Button>} />;
   if (!subscription) return null;
 
@@ -52,35 +52,35 @@ function SubscriptionContent() {
   if (!subscription.billingEnabled) {
     return (
       <div className="space-y-4">
-        <div className="rounded-2xl border border-brand-200 bg-white p-5 shadow-sm">
+        <div className="rounded-2xl border border-brand-200 bg-surface p-5 shadow-card">
           <div className="flex items-start gap-3">
             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-brand-600 text-white">
               <CheckCircle2 className="h-6 w-6" />
             </div>
             <div className="min-w-0">
-              <p className="text-sm font-semibold text-slate-900">
+              <p className="text-sm font-semibold text-ink">
                 {t("subscription.billingOffTitle")}
               </p>
-              <p className="mt-1 text-xs leading-relaxed text-slate-600">
+              <p className="mt-1 text-xs leading-relaxed text-ink-muted">
                 {t("subscription.billingOffDesc")}
               </p>
             </div>
           </div>
         </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-4">
-          <h3 className="mb-3 text-sm font-semibold text-slate-900">
+        <div className="rounded-card border border-line bg-surface shadow-card p-4">
+          <h3 className="mb-3 text-sm font-semibold text-ink">
             {t("subscription.whatsIncluded")}
           </h3>
           <div className="space-y-2">
             {INCLUDED_FEATURES.map((feature) => (
-              <div key={feature} className="flex items-center gap-2 text-sm text-slate-700">
+              <div key={feature} className="flex items-center gap-2 text-sm text-ink-muted">
                 <Check className="h-4 w-4 shrink-0 text-brand-600" />
                 {t(feature)}
               </div>
             ))}
           </div>
         </div>
-        <p className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] leading-relaxed text-slate-500">
+        <p className="rounded-card border border-line bg-app px-3 py-2 text-[11px] leading-relaxed text-ink-subtle">
           {t("subscription.billingOffNote")}
         </p>
       </div>
@@ -101,42 +101,42 @@ function SubscriptionContent() {
 
   return (
     <div className="space-y-4">
-      <div className={cn("overflow-hidden rounded-2xl border shadow-sm", isExpired ? "border-slate-200 bg-white" : isActive ? "border-brand-200 bg-white" : "border-amber-200 bg-white")}>
-        <div className={cn("flex items-center gap-3 p-4", isExpired ? "bg-slate-50" : isActive ? "bg-brand-50" : "bg-amber-50")}>
-          <div className={cn("flex h-12 w-12 shrink-0 items-center justify-center rounded-full", isExpired ? "bg-slate-200 text-slate-600" : isActive ? "bg-brand-600 text-white" : "bg-amber-500 text-white")}>
+      <div className={cn("overflow-hidden rounded-2xl border shadow-card", isExpired ? "border-line bg-surface" : isActive ? "border-brand-200 bg-surface" : "border-warning/25 bg-surface")}>
+        <div className={cn("flex items-center gap-3 p-4", isExpired ? "bg-app" : isActive ? "bg-brand-50" : "bg-warning-soft")}>
+          <div className={cn("flex h-12 w-12 shrink-0 items-center justify-center rounded-full", isExpired ? "bg-surface-2 text-ink-muted" : isActive ? "bg-brand-600 text-white" : "bg-warning text-white")}>
             {isExpired ? <AlertCircle className="h-6 w-6" /> : isActive ? <CheckCircle2 className="h-6 w-6" /> : <Crown className="h-6 w-6" />}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold text-slate-900">{isExpired ? t("subscription.trialEnded") : isTrial ? t("subscription.freeTrial") : t("subscription.activeAccess")}</p>
-            {isActive ? <p className="text-xs text-slate-500">{remainingDays === 0 ? t("subscription.expiresToday") : `${remainingDays} ${remainingDays === 1 ? t("subscription.dayRemaining") : t("subscription.daysRemaining")}`}</p> : <p className="text-xs text-slate-500">{t("subscription.activateAccess")}</p>}
+            <p className="text-sm font-semibold text-ink">{isExpired ? t("subscription.trialEnded") : isTrial ? t("subscription.freeTrial") : t("subscription.activeAccess")}</p>
+            {isActive ? <p className="text-xs text-ink-subtle">{remainingDays === 0 ? t("subscription.expiresToday") : `${remainingDays} ${remainingDays === 1 ? t("subscription.dayRemaining") : t("subscription.daysRemaining")}`}</p> : <p className="text-xs text-ink-subtle">{t("subscription.activateAccess")}</p>}
           </div>
         </div>
         <div className="space-y-3 p-4">
           {isActive && effectiveExpiresAt ? (
             <>
-              {isTrial && (<div><div className="mb-1 flex items-center justify-between text-xs text-slate-500"><span>{t("subscription.trialEndsOn")}</span><span>{Math.round(trialProgress)}%</span></div><div className="h-2 overflow-hidden rounded-full bg-slate-100"><div className={cn("h-full rounded-full transition-all", isExpiringSoon ? "bg-amber-500" : "bg-brand-600")} style={{ width: `${trialProgress}%` }} /></div></div>)}
-              <div className="flex items-center justify-between text-sm"><span className="text-slate-500">{isTrial ? t("subscription.trialEndsOn") : t("subscription.accessExpires")}</span><span className="font-medium text-slate-900">{formatDate(effectiveExpiresAt)}</span></div>
-              {!isTrial && accessStartedAt ? <div className="flex items-center justify-between text-sm"><span className="text-slate-500">{t("subscription.activatedOn")}</span><span className="font-medium text-slate-900">{formatDate(accessStartedAt)}</span></div> : null}
+              {isTrial && (<div><div className="mb-1 flex items-center justify-between text-xs text-ink-subtle"><span>{t("subscription.trialEndsOn")}</span><span>{Math.round(trialProgress)}%</span></div><div className="h-2 overflow-hidden rounded-full bg-surface-2"><div className={cn("h-full rounded-full transition-all", isExpiringSoon ? "bg-warning" : "bg-brand-600")} style={{ width: `${trialProgress}%` }} /></div></div>)}
+              <div className="flex items-center justify-between text-sm"><span className="text-ink-subtle">{isTrial ? t("subscription.trialEndsOn") : t("subscription.accessExpires")}</span><span className="font-medium text-ink">{formatDate(effectiveExpiresAt)}</span></div>
+              {!isTrial && accessStartedAt ? <div className="flex items-center justify-between text-sm"><span className="text-ink-subtle">{t("subscription.activatedOn")}</span><span className="font-medium text-ink">{formatDate(accessStartedAt)}</span></div> : null}
             </>
           ) : isExpired ? (
-            <div className="space-y-3"><p className="text-sm text-slate-600">{t("subscription.afterTrialDesc")}</p><p className="text-sm font-medium text-brand-600">{t("subscription.dataSafe")}</p></div>
+            <div className="space-y-3"><p className="text-sm text-ink-muted">{t("subscription.afterTrialDesc")}</p><p className="text-sm font-medium text-brand-600">{t("subscription.dataSafe")}</p></div>
           ) : null}
-          {isActive && isExpiringSoon ? (<div className="rounded-lg bg-amber-50 p-3"><p className="text-xs font-medium text-amber-800">{remainingDays} {remainingDays === 1 ? t("subscription.dayRemaining") : t("subscription.daysRemaining")}</p><p className="mt-0.5 text-xs text-amber-700">{t("subscription.afterTrialDesc")}</p></div>) : null}
+          {isActive && isExpiringSoon ? (<div className="rounded-lg bg-warning-soft p-3"><p className="text-xs font-medium text-warning-ink">{remainingDays} {remainingDays === 1 ? t("subscription.dayRemaining") : t("subscription.daysRemaining")}</p><p className="mt-0.5 text-xs text-warning-ink">{t("subscription.afterTrialDesc")}</p></div>) : null}
         </div>
       </div>
       <div className="space-y-2">
-        <a href={getWhatsAppLink(getDefaultWhatsAppMessage())} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2 rounded-xl bg-[#25D366] px-4 py-3 text-sm font-semibold text-white shadow-sm transition-transform hover:scale-[1.02] active:scale-95"><MessageCircle className="h-5 w-5" />{t("subscription.contactUs")}</a>
-        <p className="text-center text-xs text-slate-500">{WHATSAPP_NUMBER_DISPLAY}</p>
-        <Link href="/more/redeem" className="flex items-center justify-center gap-2 rounded-xl bg-brand-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition-transform hover:scale-[1.02] active:scale-95"><KeyRound className="h-5 w-5" />{isActive ? t("subscription.redeemAnother") : t("subscription.redeemCode")}</Link>
+        <a href={getWhatsAppLink(getDefaultWhatsAppMessage())} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2 rounded-xl bg-[#25D366] px-4 py-3 text-sm font-semibold text-white shadow-card transition-transform hover:scale-[1.02] active:scale-95"><MessageCircle className="h-5 w-5" />{t("subscription.contactUs")}</a>
+        <p className="text-center text-xs text-ink-subtle">{WHATSAPP_NUMBER_DISPLAY}</p>
+        <Link href="/more/redeem" className="flex items-center justify-center gap-2 rounded-xl bg-brand-600 px-4 py-3 text-sm font-semibold text-white shadow-card transition-transform hover:scale-[1.02] active:scale-95"><KeyRound className="h-5 w-5" />{isActive ? t("subscription.redeemAnother") : t("subscription.redeemCode")}</Link>
       </div>
-      <div className="rounded-xl border border-slate-200 bg-white p-4">
-        <h3 className="mb-3 text-sm font-semibold text-slate-900">{t("subscription.whatsIncluded")}</h3>
-        <div className="space-y-2">{INCLUDED_FEATURES.map((f) => (<div key={f} className="flex items-center gap-2 text-sm text-slate-700"><Check className="h-4 w-4 shrink-0 text-brand-600" />{t(f)}</div>))}</div>
+      <div className="rounded-card border border-line bg-surface shadow-card p-4">
+        <h3 className="mb-3 text-sm font-semibold text-ink">{t("subscription.whatsIncluded")}</h3>
+        <div className="space-y-2">{INCLUDED_FEATURES.map((f) => (<div key={f} className="flex items-center gap-2 text-sm text-ink-muted"><Check className="h-4 w-4 shrink-0 text-brand-600" />{t(f)}</div>))}</div>
       </div>
       {history && history.length > 0 ? (
-        <div className="rounded-xl border border-slate-200 bg-white p-4">
-          <h3 className="mb-3 text-sm font-semibold text-slate-900">{t("subscription.activationHistory")}</h3>
-          <div className="space-y-3">{history.map((entry) => (<div key={entry.id} className="border-t border-slate-100 pt-3 first:border-0 first:pt-0"><div className="flex items-center justify-between text-sm"><span className="font-medium text-slate-900">{entry.durationDays} days</span><span className="text-xs text-slate-500">{formatDate(new Date(entry.redeemedAt))}</span></div><div className="mt-1 flex items-center justify-between text-xs text-slate-500"><span>→ {formatDate(new Date(entry.newAccessExpiresAt))}</span></div></div>))}</div>
+        <div className="rounded-card border border-line bg-surface shadow-card p-4">
+          <h3 className="mb-3 text-sm font-semibold text-ink">{t("subscription.activationHistory")}</h3>
+          <div className="space-y-3">{history.map((entry) => (<div key={entry.id} className="border-t border-line pt-3 first:border-0 first:pt-0"><div className="flex items-center justify-between text-sm"><span className="font-medium text-ink">{entry.durationDays} days</span><span className="text-xs text-ink-subtle">{formatDate(new Date(entry.redeemedAt))}</span></div><div className="mt-1 flex items-center justify-between text-xs text-ink-subtle"><span>→ {formatDate(new Date(entry.newAccessExpiresAt))}</span></div></div>))}</div>
         </div>
       ) : null}
     </div>

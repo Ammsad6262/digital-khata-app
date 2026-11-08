@@ -26,7 +26,6 @@ import {
   meaningfulWords,
   type EntityMatch,
 } from "./nlg";
-import { pickVoice, type VoiceLang } from "./phrases";
 import type {
   ActionKind,
   PlanPayload,
@@ -247,12 +246,7 @@ function guessProductName(text: string, entities: Entities): string | null {
   return null;
 }
 
-function detectAction(
-  text: string,
-  entities: Entities,
-  ctx: RouterContext,
-  lang: VoiceLang = "en",
-): RouteAction | null {
+function detectAction(text: string, entities: Entities, ctx: RouterContext): RouteAction | null {
   const numbers = classifyNumbers(text);
   const qty = pick(numbers, "quantity");
   const unitPrice = pick(numbers, "unitPrice");
@@ -290,7 +284,7 @@ function detectAction(
       .replace(/\b(remind me|reminder|to|that|please|yaad dila(na)?|karo|kar)\b/g, " ")
       .replace(/\s+/g, " ")
       .trim();
-    const title = (entity ? `${rawTitle}` : rawTitle) || pickVoice(lang, "followUp");
+    const title = (entity ? `${rawTitle}` : rawTitle) || "Follow up";
     return action(
       "CREATE_REMINDER",
       {
@@ -553,7 +547,7 @@ function detectAction(
             .trim(),
           3,
         ) ??
-        pickVoice(lang, "generalExpense");
+        "General expense";
       return action(
         "CREATE_EXPENSE",
         {
@@ -623,11 +617,7 @@ function capitalize(s: string): string {
 // Public entry point
 // ────────────────────────────────────────────────────────────────────────────
 
-export function route(
-  rawText: string,
-  ctx: RouterContext,
-  lang: VoiceLang = "en",
-): RouteMatch | null {
+export function route(rawText: string, ctx: RouterContext): RouteMatch | null {
   const text = normalizeText(rawText);
   if (!text) return null;
 
@@ -636,7 +626,7 @@ export function route(
   // Queries first: "show me today's expenses" must not be read as an expense
   // creation because of the word "expenses".
   const query = detectQuery(text, entities);
-  const actionMatch = detectAction(text, entities, ctx, lang);
+  const actionMatch = detectAction(text, entities, ctx);
 
   if (query && actionMatch) {
     // "add customer Imran" contains the word "customer" (a list-query trigger)

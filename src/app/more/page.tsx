@@ -30,7 +30,7 @@ import {
   History,
 } from "lucide-react";
 import { ScreenContent } from "@/components/layout/Screen";
-import { MoreButton } from "@/components/layout/MoreButton";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { useLanguage } from "@/providers/language-provider";
 
 type Section = {
@@ -58,14 +58,14 @@ const GROUPS: SectionGroup[] = [
         titleKey: "more.payments",
         descKey: "more.paymentsDesc",
         icon: Wallet,
-        color: "bg-blue-50 text-blue-700",
+        color: "bg-info-soft text-info-ink",
       },
       {
         href: "/more/transactions",
         titleKey: "more.transactions",
         descKey: "more.transactionsDesc",
         icon: ListTree,
-        color: "bg-purple-50 text-purple-700",
+        color: "bg-accent-50 text-accent-700",
       },
     ],
   },
@@ -77,21 +77,21 @@ const GROUPS: SectionGroup[] = [
         titleKey: "more.backup",
         descKey: "more.backupDesc",
         icon: Database,
-        color: "bg-slate-100 text-slate-700",
+        color: "bg-surface-2 text-ink-muted",
       },
       {
         href: "/more/recovery",
         titleKey: "more.recovery",
         descKey: "more.recoveryDesc",
         icon: HandCoins,
-        color: "bg-rose-50 text-rose-700",
+        color: "bg-danger-soft text-danger-ink",
       },
       {
         href: "/more/audit",
         titleKey: "more.audit",
         descKey: "more.auditDesc",
         icon: History,
-        color: "bg-slate-100 text-slate-700",
+        color: "bg-surface-2 text-ink-muted",
       },
     ],
   },
@@ -103,21 +103,21 @@ const GROUPS: SectionGroup[] = [
         titleKey: "subscription.title",
         descKey: "subscription.subtitle",
         icon: Crown,
-        color: "bg-amber-50 text-amber-700",
+        color: "bg-warning-soft text-warning-ink",
       },
       {
         href: "/more/redeem",
         titleKey: "more.redeem",
         descKey: "more.redeemDesc",
         icon: Gift,
-        color: "bg-emerald-50 text-emerald-700",
+        color: "bg-success-soft text-success-ink",
       },
       {
         href: "/more/settings",
         titleKey: "more.settings",
         descKey: "more.settingsDesc",
         icon: SettingsIcon,
-        color: "bg-slate-100 text-slate-700",
+        color: "bg-surface-2 text-ink-muted",
       },
     ],
   },
@@ -127,23 +127,18 @@ export default function MorePage() {
   const { t } = useLanguage();
   return (
     <>
-      <header className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 py-3">
-        <div className="flex min-w-0 items-center gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-600">
-            <Menu className="h-5 w-5" />
-          </div>
-          <div className="min-w-0">
-            <h1 className="truncate text-base font-semibold text-slate-900">{t("nav.more")}</h1>
-            <p className="truncate text-xs text-slate-500">{t("nav.moreDesc")}</p>
-          </div>
-        </div>
-        <MoreButton />
-      </header>
+      <PageHeader
+        icon={Menu}
+        tone="neutral"
+        showMore={false}
+        title={t("nav.more")}
+        subtitle={t("nav.moreDesc")}
+      />
       <ScreenContent>
         <div className="space-y-5">
           {GROUPS.map((group) => (
             <section key={group.titleKey}>
-              <p className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
+              <p className="eyebrow mb-1.5 px-1">
                 {t(group.titleKey as never)}
               </p>
               <div className="space-y-2">
@@ -153,20 +148,20 @@ export default function MorePage() {
                     <Link
                       key={section.href}
                       href={section.href}
-                      className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-3 hover:bg-slate-50 active:bg-slate-100"
+                      className="flex items-center gap-3 rounded-card border border-line bg-surface p-3 shadow-card transition-colors hover:bg-app active:bg-surface-2"
                     >
-                      <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${section.color}`}>
+                      <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-[0.7rem] ${section.color}`}>
                         <Icon className="h-5 w-5" />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium text-slate-900">
+                        <p className="text-[13px] font-semibold text-ink">
                           {t(section.titleKey as never)}
                         </p>
-                        <p className="text-xs text-slate-500">
+                        <p className="text-[11px] text-ink-subtle">
                           {t(section.descKey as never)}
                         </p>
                       </div>
-                      <ChevronRight className="rtl-flip h-4 w-4 shrink-0 text-slate-300" />
+                      <ChevronRight className="h-4 w-4 shrink-0 text-ink-faint rtl-flip" />
                     </Link>
                   );
                 })}

@@ -29,7 +29,7 @@ import { StockProductPicker } from "@/components/stock/StockProductPicker";
 import { StickyFormActions } from "@/components/ui/StickyFormActions";
 import { useAddStockMove } from "@/hooks/use-stock";
 import { useToast } from "@/providers/toast-provider";
-import { userMessage } from "@/lib/i18n/message";
+import { ApiError } from "@/lib/utils/api-client";
 import { Decimal } from "@/lib/utils/decimal";
 import { formatQuantity } from "@/lib/utils/money";
 import type { ProductSearchResult } from "@/lib/services/products";
@@ -49,15 +49,13 @@ export function AdjustStockForm({ initialProductId }: { initialProductId?: strin
   const router = useRouter();
   const toast = useToast();
   const addStockMove = useAddStockMove();
-  const { t, tParams } = useLanguage();
+  const { t } = useLanguage();
 
   const [selected, setSelected] = useState<ProductSearchResult | null>(null);
   const [adjustType, setAdjustType] = useState<AdjustType>("remove");
   const [quantity, setQuantity] = useState<string>("");
   const [reason, setReason] = useState<string>("");
   const [date, setDate] = useState<string>(todayIsoLocal());
-  // Only show validation messages after the first save attempt.
-  const [submitted, setSubmitted] = useState(false);
 
   // Signed quantity based on type
   const signedQuantity = useMemo(() => {
@@ -91,7 +89,6 @@ export function AdjustStockForm({ initialProductId }: { initialProductId?: strin
   const willGoNegative = newStock !== null && newStock.lt(0);
 
   const handleSubmit = () => {
-    setSubmitted(true);
     if (!selected) {
       toast.error(t("stock.selectProductFirst"));
       return;
@@ -113,14 +110,17 @@ export function AdjustStockForm({ initialProductId }: { initialProductId?: strin
       },
       {
         onSuccess: () => {
-          toast.success("stock.adjustedFor", {
-            qty: formatQuantity(signedQuantity, selected.unit),
-            name: selected.name,
-          });
+          toast.success(t("stock.stockAdjusted"));
           router.push(`/more/products/${selected.id}`);
         },
         onError: (error) => {
-          toast.error(userMessage(error, t, tParams));
+          const message =
+            error instanceof ApiError
+              ? error.message
+              : error instanceof Error
+                ? error.message
+                : t("common.failed");
+          toast.error(message);
         },
       },
     );
@@ -130,26 +130,26 @@ export function AdjustStockForm({ initialProductId }: { initialProductId?: strin
     <div className="space-y-4">
       {/* Product selection */}
       <section className="space-y-2">
-        <h2 className="px-1 text-sm font-semibold text-slate-700">
+        <h2 className="px-1 text-sm font-semibold text-ink-muted">
           1. {t("sale.products")}
         </h2>
 
         {selected ? (
-          <div className="rounded-xl border border-slate-200 bg-white p-3">
+          <div className="rounded-card border border-line bg-surface shadow-card p-3">
             <div className="flex items-start gap-3">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-100">
                 <Package className="h-5 w-5 text-brand-700" />
               </div>
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium text-slate-900">
+                <p className="truncate text-sm font-medium text-ink">
                   {selected.name}
                 </p>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-ink-subtle">
                   {selected.category ?? t("stock.uncategorized")} · {selected.unit}
                 </p>
                 <p className="mt-1 text-xs">
-                  <span className="text-slate-500">{t("stock.currentStock")}: </span>
-                  <span className="font-semibold text-slate-900">
+                  <span className="text-ink-subtle">{t("stock.currentStock")}: </span>
+                  <span className="font-semibold text-ink">
                     {formatQuantity(selected.currentStock, selected.unit)}
                   </span>
                 </p>
@@ -174,14 +174,14 @@ export function AdjustStockForm({ initialProductId }: { initialProductId?: strin
       {/* Adjustment details */}
       {selected ? (
         <section className="space-y-3">
-          <h2 className="px-1 text-sm font-semibold text-slate-700">
+          <h2 className="px-1 text-sm font-semibold text-ink-muted">
             2. {t("stock.adjustmentType")}
           </h2>
 
-          <div className="rounded-xl border border-slate-200 bg-white p-3 space-y-3">
+          <div className="rounded-card border border-line bg-surface shadow-card p-3 space-y-3">
             {/* Type toggle */}
             <div>
-              <label className="mb-1.5 block text-xs font-medium text-slate-600">
+              <label className="mb-1.5 block text-xs font-medium text-ink-muted">
                 {t("stock.adjustmentType")}
               </label>
               <div className="grid grid-cols-2 gap-1.5">
@@ -192,7 +192,7 @@ export function AdjustStockForm({ initialProductId }: { initialProductId?: strin
                     "flex items-center justify-center gap-1.5 rounded-lg border py-2.5 text-sm font-medium transition-colors",
                     adjustType === "add"
                       ? "border-brand-500 bg-brand-50 text-brand-700"
-                      : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50",
+                      : "border-line bg-surface text-ink-muted hover:bg-app",
                   )}
                 >
                   <Plus className="h-4 w-4" />
@@ -204,15 +204,15 @@ export function AdjustStockForm({ initialProductId }: { initialProductId?: strin
                   className={cn(
                     "flex items-center justify-center gap-1.5 rounded-lg border py-2.5 text-sm font-medium transition-colors",
                     adjustType === "remove"
-                      ? "border-red-500 bg-red-50 text-red-700"
-                      : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50",
+                      ? "border-danger bg-danger-soft text-danger-ink"
+                      : "border-line bg-surface text-ink-muted hover:bg-app",
                   )}
                 >
                   <Minus className="h-4 w-4" />
                   {t("stock.removeStockType")}
                 </button>
               </div>
-              <p className="mt-1 text-[11px] text-slate-500">
+              <p className="mt-1 text-[11px] text-ink-subtle">
                 {adjustType === "add"
                   ? t("stock.addStockDesc")
                   : t("stock.removeStockDesc")}
@@ -221,9 +221,8 @@ export function AdjustStockForm({ initialProductId }: { initialProductId?: strin
 
             {/* Quantity */}
             <div>
-              <label className="mb-1 block text-xs font-medium text-slate-600">
+              <label className="mb-1 block text-xs font-medium text-ink-muted">
                 {adjustType === "add" ? t("stock.quantityToAdd") : t("stock.quantityToRemove")}
-                <span className="text-red-500" aria-hidden> *</span>
               </label>
               <input
                 type="number"
@@ -234,21 +233,21 @@ export function AdjustStockForm({ initialProductId }: { initialProductId?: strin
                 onChange={(e) => setQuantity(e.target.value)}
                 placeholder="0"
                 autoFocus
-                className={`w-full rounded-lg border bg-white px-3 py-2.5 text-lg font-bold tabular-nums text-slate-900 placeholder:text-slate-300 focus:outline-none focus:ring-2 ${
-                  submitted && validation.quantity
-                    ? "border-red-300 focus:border-red-500 focus:ring-red-500/30"
-                    : "border-slate-300 focus:border-brand-500 focus:ring-brand-500/30"
+                className={`w-full rounded-lg border bg-surface px-3 py-2.5 text-lg font-bold tabular-nums text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2 ${
+                  validation.quantity
+                    ? "border-danger/40 focus:border-danger focus:ring-danger/30"
+                    : "border-line-strong focus:border-brand-500 focus:ring-brand-500/30"
                 }`}
               />
-              {submitted && validation.quantity ? (
-                <p className="mt-1 text-xs text-red-600">{validation.quantity}</p>
+              {validation.quantity ? (
+                <p className="mt-1 text-xs text-danger-ink">{validation.quantity}</p>
               ) : null}
             </div>
 
             {/* Reason (REQUIRED) */}
             <div>
-              <label className="mb-1 block text-xs font-medium text-slate-600">
-                {t("stock.reasonRequired")} <span className="text-red-600">*</span>
+              <label className="mb-1 block text-xs font-medium text-ink-muted">
+                {t("stock.reasonRequired")} <span className="text-danger-ink">*</span>
               </label>
               <textarea
                 value={reason}
@@ -259,20 +258,20 @@ export function AdjustStockForm({ initialProductId }: { initialProductId?: strin
                     : t("stock.addReasonPlaceholder")
                 }
                 rows={2}
-                className={`w-full rounded-lg border bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 ${
-                  submitted && validation.reason
-                    ? "border-red-300 focus:border-red-500 focus:ring-red-500/30"
-                    : "border-slate-300 focus:border-brand-500 focus:ring-brand-500/30"
+                className={`w-full rounded-lg border bg-surface px-3 py-2 text-sm focus:outline-none focus:ring-2 ${
+                  validation.reason
+                    ? "border-danger/40 focus:border-danger focus:ring-danger/30"
+                    : "border-line-strong focus:border-brand-500 focus:ring-brand-500/30"
                 }`}
               />
-              {submitted && validation.reason ? (
-                <p className="mt-1 text-xs text-red-600">{validation.reason}</p>
+              {validation.reason ? (
+                <p className="mt-1 text-xs text-danger-ink">{validation.reason}</p>
               ) : null}
             </div>
 
             {/* Date */}
             <div>
-              <label className="mb-1 block text-xs font-medium text-slate-600">
+              <label className="mb-1 block text-xs font-medium text-ink-muted">
                 {t("payment.date")}
               </label>
               <input
@@ -280,17 +279,17 @@ export function AdjustStockForm({ initialProductId }: { initialProductId?: strin
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
                 max={todayIsoLocal()}
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+                className="w-full rounded-lg border border-line-strong bg-surface px-3 py-2.5 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
               />
             </div>
           </div>
 
           {/* Live preview */}
           {quantity && parseDecimalSafe(quantity).gt(0) ? (
-            <div className="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600 space-y-1">
+            <div className="rounded-lg bg-app px-3 py-2 text-xs text-ink-muted space-y-1">
               <div className="flex items-center justify-between">
                 <span>{t("stock.currentStock")}</span>
-                <span className="font-medium text-slate-900">
+                <span className="font-medium text-ink">
                   {formatQuantity(selected.currentStock, selected.unit)}
                 </span>
               </div>
@@ -298,17 +297,17 @@ export function AdjustStockForm({ initialProductId }: { initialProductId?: strin
                 <span>{adjustType === "add" ? t("stock.addStockType") : t("stock.removeStockType")}</span>
                 <span className={cn(
                   "font-medium",
-                  adjustType === "add" ? "text-brand-700" : "text-red-600",
+                  adjustType === "add" ? "text-brand-700" : "text-danger-ink",
                 )}>
                   {adjustType === "add" ? "+" : "−"}
                   {formatQuantity(parseDecimalSafe(quantity), selected.unit)}
                 </span>
               </div>
-              <div className="flex items-center justify-between border-t border-slate-200 pt-1">
+              <div className="flex items-center justify-between border-t border-line pt-1">
                 <span>{t("stock.newStockWillBe")}</span>
                 <span className={cn(
                   "font-bold",
-                  willGoNegative ? "text-red-600" : "text-slate-900",
+                  willGoNegative ? "text-danger-ink" : "text-ink",
                 )}>
                   {newStock ? formatQuantity(newStock, selected.unit) : "—"}
                 </span>
@@ -318,7 +317,7 @@ export function AdjustStockForm({ initialProductId }: { initialProductId?: strin
 
           {/* Negative stock warning */}
           {willGoNegative ? (
-            <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+            <div className="flex items-start gap-2 rounded-lg border border-warning/25 bg-warning-soft px-3 py-2 text-xs text-warning-ink">
               <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
               <span>
                 {t("stock.negativeStockWarning")}
@@ -333,6 +332,7 @@ export function AdjustStockForm({ initialProductId }: { initialProductId?: strin
         onCancel={() => router.back()}
         onSave={handleSubmit}
         saveLabel={t("stock.saveAdjustment")}
+        saveDisabled={hasErrors || !selected}
         isPending={addStockMove.isPending}
       />
     </div>

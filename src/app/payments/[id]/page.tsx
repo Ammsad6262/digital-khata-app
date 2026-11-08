@@ -29,7 +29,7 @@ export default function PaymentDetailPage({
         rightSlot={
           <Link
             href="/payments"
-            className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100"
+            className="rounded-lg p-1.5 text-ink-subtle hover:bg-surface-2"
             aria-label={t("common.back")}
           >
             <ArrowLeft className="h-5 w-5" />

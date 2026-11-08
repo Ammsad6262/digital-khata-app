@@ -17,8 +17,6 @@ import { getBusinessInsights } from "@/lib/services/insights";
 import { listOutstandingCustomers } from "@/lib/services/customers";
 import { listProductsWithStock } from "@/lib/services/products";
 import { listSuppliersWithBalance } from "@/lib/services/suppliers";
-import { tServer } from "@/lib/i18n/server";
-import type { Language } from "@/lib/i18n/translations";
 
 const RANGE_DAYS = 30;
 
@@ -89,10 +87,7 @@ function pct(part: Decimal, whole: Decimal): number {
   return Number(part.div(whole).times(100).toFixed(0));
 }
 
-export async function getGrowthPlan(
-  userId: string,
-  lang: Language = "en",
-): Promise<GrowthPlan> {
+export async function getGrowthPlan(userId: string): Promise<GrowthPlan> {
   const insights = await getBusinessInsights(userId);
   const recommendations: GrowthRecommendation[] = [];
 
@@ -118,19 +113,11 @@ export async function getGrowthPlan(
       id: `collect:${customer.id}`,
       type: "collect_receivables",
       priority: isHigh ? "high" : "medium",
-      title: tServer("growth.rec.collect.title", { name: customer.name }, lang),
+      title: `Collect payment from ${customer.name}`,
       reason:
         share > 0
-          ? tServer(
-              idleDays !== null ? "growth.rec.collect.shareIdle" : "growth.rec.collect.share",
-              { share, days: idleDays ?? 0 },
-              lang,
-            )
-          : tServer(
-              idleDays !== null ? "growth.rec.collect.outstandingIdle" : "growth.rec.collect.outstanding",
-              { days: idleDays ?? 0 },
-              lang,
-            ),
+          ? `${share}% of all receivables${idleDays !== null ? ` · no activity for ${idleDays} days` : ""}.`
+          : `Outstanding balance${idleDays !== null ? ` · no activity for ${idleDays} days` : ""}.`,
       amount: balance.toString(),
       amountLabel: "growth.amount.outstanding",
       href: `/khata/${customer.id}`,
@@ -149,11 +136,11 @@ export async function getGrowthPlan(
       id: `reengage:${customer.id}`,
       type: "reengage_customer",
       priority: "medium",
-      title: tServer("growth.rec.reengage.title", { name: customer.name }, lang),
+      title: `Re-engage ${customer.name}`,
       reason:
         customer.daysInactive === null
-          ? tServer("growth.rec.reengage.never", undefined, lang)
-          : tServer("growth.rec.reengage.reason", { days: customer.daysInactive }, lang),
+          ? "Has a balance but no recorded activity yet."
+          : `No purchases for ${customer.daysInactive} days and still owes money.`,
       amount: customer.balance,
       amountLabel: "growth.amount.outstanding",
       href: `/khata/${customer.id}`,
@@ -220,17 +207,8 @@ export async function getGrowthPlan(
         id: `restock:${product.id}`,
         type: "restock",
         priority: Number(sold) >= 10 ? "high" : "medium",
-        title: tServer("growth.rec.restock.title", { name: product.name }, lang),
-        reason: tServer(
-          "growth.rec.restock.reason",
-          {
-            sold: sold.toString(),
-            unit: product.unit,
-            days: RANGE_DAYS,
-            stock: product.currentStock,
-          },
-          lang,
-        ),
+        title: `Restock ${product.name}`,
+        reason: `${sold.toString()} ${product.unit} sold in ${RANGE_DAYS} days · only ${product.currentStock} ${product.unit} left.`,
         amount: null,
         amountLabel: null,
         href: `/stock/add?productId=${product.id}`,
@@ -256,12 +234,8 @@ export async function getGrowthPlan(
       id: `dead:${mover.id}`,
       type: "clear_dead_stock",
       priority: value.greaterThanOrEqualTo(5000) ? "medium" : "low",
-      title: tServer("growth.rec.dead.title", { name: mover.name }, lang),
-      reason: tServer(
-        "growth.rec.dead.reason",
-        { days: RANGE_DAYS, stock: mover.currentStock, unit: mover.unit },
-        lang,
-      ),
+      title: `Clear dead stock: ${mover.name}`,
+      reason: `No sales in ${RANGE_DAYS} days · ${mover.currentStock} ${mover.unit} sitting in stock.`,
       amount: value.toString(),
       amountLabel: "growth.amount.stockValue",
       href: `/more/products/${mover.id}`,
@@ -282,12 +256,8 @@ export async function getGrowthPlan(
       id: `promote:${product.id}`,
       type: "promote_product",
       priority: "low",
-      title: tServer("growth.rec.promote.title", { name: product.name }, lang),
-      reason: tServer(
-        "growth.rec.promote.reason",
-        { qty: product.quantity, unit: product.unit, days: RANGE_DAYS },
-        lang,
-      ),
+      title: `Push ${product.name} to more customers`,
+      reason: `Top seller: ${product.quantity} ${product.unit} sold in ${RANGE_DAYS} days.`,
       amount: revenue.toString(),
       amountLabel: "growth.amount.revenue30d",
       href: `/more/products/${product.id}`,
@@ -310,14 +280,8 @@ export async function getGrowthPlan(
       id: `pay:${topPayable.id}`,
       type: "supplier_payment",
       priority: "low",
-      title: tServer("growth.rec.supplier.title", { name: topPayable.name }, lang),
-      reason: tServer(
-        payablesTotal.greaterThan(0)
-          ? "growth.rec.supplier.reasonOnRecord"
-          : "growth.rec.supplier.reason",
-        undefined,
-        lang,
-      ),
+      title: `Plan a payment to ${topPayable.name}`,
+      reason: `Largest supplier balance${payablesTotal.greaterThan(0) ? " on record" : ""}.`,
       amount: topPayable.balance,
       amountLabel: "growth.amount.payable",
       href: `/more/suppliers/${topPayable.id}`,
@@ -339,18 +303,10 @@ export async function getGrowthPlan(
   const highCount = recommendations.filter((r) => r.priority === "high").length;
   const summary =
     recommendations.length === 0
-      ? tServer("growth.summary.empty", undefined, lang)
+      ? "No actions yet — record a few sales, purchases and payments first. Recommendations only appear when your own records support them."
       : highCount > 0
-        ? tServer(
-            highCount === 1 ? "growth.summary.highOne" : "growth.summary.highMany",
-            { high: highCount, total: recommendations.length },
-            lang,
-          )
-        : tServer(
-            recommendations.length === 1 ? "growth.summary.someOne" : "growth.summary.someMany",
-            { count: recommendations.length, days: RANGE_DAYS },
-            lang,
-          );
+        ? `${highCount} high-priority action${highCount === 1 ? "" : "s"} across ${recommendations.length} total. Start with collections, then restock what is selling.`
+        : `${recommendations.length} improvement${recommendations.length === 1 ? "" : "s"} found in the last ${RANGE_DAYS} days.`;
 
   return {
     generatedAt: new Date().toISOString(),

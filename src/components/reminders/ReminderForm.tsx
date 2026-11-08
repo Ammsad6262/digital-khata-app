@@ -13,7 +13,6 @@ import { Button } from "@/components/ui/Button";
 import { TextField } from "@/components/ui/TextField";
 import { useToast } from "@/providers/toast-provider";
 import { useLanguage } from "@/providers/language-provider";
-import { userMessage } from "@/lib/i18n/message";
 import {
   useCreateReminder,
   useDeleteReminder,
@@ -77,7 +76,7 @@ export function ReminderForm({
 }) {
   const router = useRouter();
   const toast = useToast();
-  const { t, tParams } = useLanguage();
+  const { t } = useLanguage();
 
   const { data: existing, isLoading } = useReminder(mode === "edit" ? reminderId : null);
   const createMutation = useCreateReminder();
@@ -170,7 +169,7 @@ export function ReminderForm({
       router.push("/more/reminders");
       router.refresh();
     } catch (err) {
-      toast.error(userMessage(err, t, tParams));
+      toast.error(err instanceof Error ? err.message : t("common.failed"));
     }
   }
 
@@ -182,19 +181,19 @@ export function ReminderForm({
       router.push("/more/reminders");
       router.refresh();
     } catch (err) {
-      toast.error(userMessage(err, t, tParams));
+      toast.error(err instanceof Error ? err.message : t("common.failed"));
       setConfirmingDelete(false);
     }
   }
 
   if (mode === "edit" && isLoading) {
-    return <p className="py-8 text-center text-sm text-slate-500">{t("common.loading")}</p>;
+    return <p className="py-8 text-center text-sm text-ink-subtle">{t("common.loading")}</p>;
   }
 
   return (
     <form onSubmit={onSubmit} className="space-y-4 pb-6">
       {error ? (
-        <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
+        <p className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger-ink">{error}</p>
       ) : null}
 
       <TextField
@@ -208,14 +207,14 @@ export function ReminderForm({
 
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1">
-          <label htmlFor="reminder-type" className="block text-sm font-medium text-slate-700">
+          <label htmlFor="reminder-type" className="block text-sm font-medium text-ink-muted">
             {t("reminders.type")}
           </label>
           <select
             id="reminder-type"
             value={type}
             onChange={(e) => setType(e.target.value)}
-            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/40"
+            className="w-full rounded-lg border border-line-strong bg-surface px-3 py-2.5 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/40"
           >
             {TYPES.map((value) => (
               <option key={value} value={value}>
@@ -226,14 +225,14 @@ export function ReminderForm({
         </div>
 
         <div className="space-y-1">
-          <label htmlFor="reminder-priority" className="block text-sm font-medium text-slate-700">
+          <label htmlFor="reminder-priority" className="block text-sm font-medium text-ink-muted">
             {t("reminders.priority")}
           </label>
           <select
             id="reminder-priority"
             value={priority}
             onChange={(e) => setPriority(e.target.value)}
-            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/40"
+            className="w-full rounded-lg border border-line-strong bg-surface px-3 py-2.5 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/40"
           >
             {PRIORITIES.map((value) => (
               <option key={value} value={value}>
@@ -254,14 +253,14 @@ export function ReminderForm({
       />
 
       <div className="space-y-1">
-        <label htmlFor="reminder-link-kind" className="block text-sm font-medium text-slate-700">
+        <label htmlFor="reminder-link-kind" className="block text-sm font-medium text-ink-muted">
           {t("reminders.linkTo")}
         </label>
         <select
           id="reminder-link-kind"
           value={linkKind}
           onChange={(e) => onLinkKindChange(e.target.value as LinkKind)}
-          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/40"
+          className="w-full rounded-lg border border-line-strong bg-surface px-3 py-2.5 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/40"
         >
           <option value="none">{t("reminders.noLink")}</option>
           <option value="customer">{t("reminders.customer")}</option>
@@ -272,7 +271,7 @@ export function ReminderForm({
 
       {linkKind !== "none" ? (
         <div className="space-y-1">
-          <label htmlFor="reminder-link-id" className="block text-sm font-medium text-slate-700">
+          <label htmlFor="reminder-link-id" className="block text-sm font-medium text-ink-muted">
             {linkKind === "customer"
               ? t("reminders.pickCustomer")
               : linkKind === "supplier"
@@ -283,7 +282,7 @@ export function ReminderForm({
             id="reminder-link-id"
             value={linkId}
             onChange={(e) => setLinkId(e.target.value)}
-            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/40"
+            className="w-full rounded-lg border border-line-strong bg-surface px-3 py-2.5 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/40"
           >
             <option value="">—</option>
             {linkKind === "customer"
@@ -308,7 +307,7 @@ export function ReminderForm({
       ) : null}
 
       <div className="space-y-1">
-        <label htmlFor="reminder-notes" className="block text-sm font-medium text-slate-700">
+        <label htmlFor="reminder-notes" className="block text-sm font-medium text-ink-muted">
           {t("common.notes")}
         </label>
         <textarea
@@ -316,7 +315,7 @@ export function ReminderForm({
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           rows={3}
-          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/40"
+          className="w-full rounded-lg border border-line-strong bg-surface px-3 py-2.5 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/40"
         />
       </div>
 
@@ -336,8 +335,8 @@ export function ReminderForm({
 
       {mode === "edit" ? (
         confirmingDelete ? (
-          <div className="rounded-xl border border-red-200 bg-red-50 p-4">
-            <p className="text-sm text-red-800">{t("reminders.deleteWarning")}</p>
+          <div className="rounded-xl border border-danger/20 bg-danger-soft p-4">
+            <p className="text-sm text-danger-ink">{t("reminders.deleteWarning")}</p>
             <div className="mt-3 flex gap-2">
               <Button
                 variant="danger"
@@ -357,7 +356,7 @@ export function ReminderForm({
             type="button"
             variant="ghost"
             onClick={() => setConfirmingDelete(true)}
-            className="w-full text-red-600 hover:bg-red-50"
+            className="w-full text-danger-ink hover:bg-danger-soft"
           >
             <Trash2 className="h-4 w-4" />
             {t("reminders.delete")}

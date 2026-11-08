@@ -7,9 +7,9 @@
  * payment come in?" or "what did I sell today?" at a glance.
  *
  * Each row shows:
- *   - icon + type label (color-coded)
+ *   - icon + type label (tone-coded)
  *   - customer or product name (context)
- *   - amount (positive/negative direction shown with color)
+ *   - amount (direction shown with sign + colour)
  *   - relative time (e.g. "5 min ago")
  */
 
@@ -23,7 +23,6 @@ import {
   Truck,
   ArrowUpRight,
   ArrowDownLeft,
-  History,
 } from "lucide-react";
 import { Money } from "@/components/shared/Money";
 import { formatRelative } from "@/lib/utils/date";
@@ -40,46 +39,39 @@ type TxTypeInfo = {
     | "transactions.supplierPayments"
     | "transactions.adjustments";
   icon: typeof ShoppingCart;
-  iconBg: string;
-  iconColor: string;
+  chip: string;
 };
 
 const TX_TYPE_INFO: Record<RecentTransaction["type"], TxTypeInfo> = {
   sale: {
     labelKey: "transactions.sales",
     icon: ShoppingCart,
-    iconBg: "bg-brand-100",
-    iconColor: "text-brand-700",
+    chip: "bg-brand-50 text-brand-700",
   },
   payment: {
     labelKey: "transactions.payments",
     icon: Wallet,
-    iconBg: "bg-blue-100",
-    iconColor: "text-blue-700",
+    chip: "bg-success-soft text-success-ink",
   },
   expense: {
     labelKey: "transactions.expenses",
     icon: Receipt,
-    iconBg: "bg-amber-100",
-    iconColor: "text-amber-700",
+    chip: "bg-warning-soft text-warning-ink",
   },
   stock_move: {
     labelKey: "transactions.stock",
     icon: Package,
-    iconBg: "bg-purple-100",
-    iconColor: "text-purple-700",
+    chip: "bg-info-soft text-info-ink",
   },
   supplier_payment: {
     labelKey: "transactions.supplierPayments",
     icon: Truck,
-    iconBg: "bg-orange-100",
-    iconColor: "text-orange-700",
+    chip: "bg-accent-50 text-accent-700",
   },
   balance_adjustment: {
     labelKey: "transactions.adjustments",
     icon: Scale,
-    iconBg: "bg-slate-200",
-    iconColor: "text-slate-700",
+    chip: "bg-surface-2 text-ink-muted",
   },
 };
 
@@ -91,45 +83,24 @@ function getContext(tx: RecentTransaction): string | null {
 }
 
 function getAmountDisplay(tx: RecentTransaction): {
-  text: string;
+  sign: "" | "+" | "-";
   color: string;
   icon: typeof ArrowUpRight;
 } {
   // For the owner's perspective:
-  // - Sale: customer owes more → red (negative for owner's cash) — actually positive for business
-  //   but shown as "+" because it's a sale. We use direction-based coloring.
-  // - Payment: money received → green (+)
-  // - Expense: money spent → red (-)
-  // - Stock move: no direct cash impact, show neutral
-  // - Adjustment: depends on direction
-
+  // - Payment: money received → positive (success)
+  // - Expense: money spent → negative (danger)
+  // - Sale: revenue → neutral ink
   if (tx.type === "payment") {
-    return {
-      text: `+${tx.amount}`,
-      color: "text-brand-700",
-      icon: ArrowDownLeft,
-    };
+    return { sign: "+", color: "text-success-ink", icon: ArrowDownLeft };
   }
   if (tx.type === "expense") {
-    return {
-      text: `-${tx.amount}`,
-      color: "text-red-600",
-      icon: ArrowUpRight,
-    };
+    return { sign: "-", color: "text-danger-ink", icon: ArrowUpRight };
   }
   if (tx.type === "sale") {
-    return {
-      text: tx.amount,
-      color: "text-slate-900",
-      icon: ShoppingCart,
-    };
+    return { sign: "", color: "text-ink", icon: ShoppingCart };
   }
-  // Stock move / adjustment — no money direction, just show the amount.
-  return {
-    text: tx.amount,
-    color: "text-slate-700",
-    icon: ArrowDownLeft,
-  };
+  return { sign: "", color: "text-ink-muted", icon: ArrowDownLeft };
 }
 
 export function RecentTransactions({
@@ -137,25 +108,22 @@ export function RecentTransactions({
 }: {
   transactions: RecentTransaction[];
 }) {
-  const { t, lang } = useLanguage();
+  const { t } = useLanguage();
   if (transactions.length === 0) return null;
 
   return (
     <section className="space-y-2">
       <div className="flex items-center justify-between px-1">
-        <div className="flex items-center gap-1.5">
-          <History className="h-4 w-4 text-slate-500" aria-hidden />
-          <h2 className="text-base font-bold text-slate-900">{t("dashboard.recentActivity")}</h2>
-        </div>
+        <h2 className="section-title">{t("dashboard.recentActivity")}</h2>
         <Link
           href="/more/transactions"
-          className="text-xs font-medium text-brand-600 hover:text-brand-700"
+          className="rounded-full px-1.5 py-0.5 text-[11px] font-semibold text-brand-600 transition-colors hover:text-brand-700"
         >
           {t("dashboard.viewAll")}
         </Link>
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+      <div className="overflow-hidden rounded-card border border-line bg-surface shadow-card shadow-card">
         {transactions.map((tx, idx) => {
           const info = TX_TYPE_INFO[tx.type];
           const Icon = info.icon;
@@ -166,34 +134,45 @@ export function RecentTransactions({
             <div
               key={tx.id}
               className={cn(
-                "flex items-center gap-3 px-3 py-3",
-                idx > 0 && "border-t border-slate-100",
+                "flex items-center gap-3 px-3.5 py-3 transition-colors hover:bg-surface-2/60",
+                idx > 0 && "border-t border-line",
               )}
             >
               <div
                 className={cn(
-                  "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg",
-                  info.iconBg,
+                  "flex h-9 w-9 shrink-0 items-center justify-center rounded-[0.7rem]",
+                  info.chip,
                 )}
               >
-                <Icon className={cn("h-4 w-4", info.iconColor)} />
+                <Icon className="h-4 w-4" />
               </div>
 
               <div className="min-w-0 flex-1">
                 <div className="flex items-baseline justify-between gap-2">
-                  <p className="truncate text-sm font-medium text-slate-900">
+                  <p className="truncate text-[13px] font-semibold text-ink">
                     {t(info.labelKey)}
                   </p>
-                  <p className={cn("text-sm font-bold tabular-nums", amountInfo.color)}>
-                    <Money value={amountInfo.text.replace(/^[+-]/, "")} />
+                  <p
+                    className={cn(
+                      "shrink-0 text-[13px] font-bold tabular-nums",
+                      amountInfo.color,
+                    )}
+                  >
+                    <span className="mr-0.5 text-[11px] font-semibold opacity-70">
+                      {amountInfo.sign}
+                    </span>
+                    <Money value={tx.amount} />
                   </p>
                 </div>
                 <div className="flex items-center justify-between gap-2">
-                  <p className="truncate text-xs text-slate-500">
+                  <p className="truncate text-[11px] text-ink-subtle">
                     {context ?? "—"}
                   </p>
-                  <p className="shrink-0 text-[11px] text-slate-400">
-                    {formatRelative(new Date(tx.date), "Asia/Karachi", lang)}
+                  <p
+                    className="shrink-0 text-[10px] font-medium text-ink-faint"
+                    suppressHydrationWarning
+                  >
+                    {formatRelative(new Date(tx.date))}
                   </p>
                 </div>
               </div>

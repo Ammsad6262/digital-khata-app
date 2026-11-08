@@ -103,7 +103,7 @@ function moneyFromMetadata(row: AuditLogView): string | null {
     : null;
 }
 
-function dayLabel(iso: string, lang: "en" | "ur" = "en"): string {
+function dayLabel(iso: string): string {
   const date = new Date(iso);
   const today = new Date();
   const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
@@ -111,9 +111,9 @@ function dayLabel(iso: string, lang: "en" | "ur" = "en"): string {
   const days = Math.round(
     (startOfToday.getTime() - startOfDate.getTime()) / 86_400_000,
   );
-  if (days === 0) return lang === "ur" ? "آج" : "Today";
-  if (days === 1) return lang === "ur" ? "کل" : "Yesterday";
-  return date.toLocaleDateString(lang === "ur" ? "ur-PK-u-nu-latn" : "en-GB", {
+  if (days === 0) return "Today";
+  if (days === 1) return "Yesterday";
+  return date.toLocaleDateString(undefined, {
     day: "numeric",
     month: "short",
     year: "numeric",
@@ -121,7 +121,7 @@ function dayLabel(iso: string, lang: "en" | "ur" = "en"): string {
 }
 
 export function AuditView() {
-  const { t, lang } = useLanguage();
+  const { t } = useLanguage();
   const symbol = useCurrencySymbol();
   const { data, isLoading, isError, refetch } = useAuditLog();
   const [filter, setFilter] = useState<AuditGroup>("all");
@@ -135,19 +135,19 @@ export function AuditView() {
   const grouped = useMemo(() => {
     const map = new Map<string, AuditLogView[]>();
     for (const row of rows) {
-      const label = dayLabel(row.createdAt, lang);
+      const label = dayLabel(row.createdAt);
       const list = map.get(label) ?? [];
       list.push(row);
       map.set(label, list);
     }
     return [...map.entries()];
-  }, [rows, lang]);
+  }, [rows]);
 
   if (isLoading) {
     return (
       <div className="space-y-2">
         {[0, 1, 2].map((index) => (
-          <div key={index} className="h-20 animate-pulse rounded-xl bg-slate-100" />
+          <div key={index} className="h-20 animate-pulse rounded-xl bg-surface-2" />
         ))}
       </div>
     );
@@ -155,8 +155,8 @@ export function AuditView() {
 
   if (isError) {
     return (
-      <div className="rounded-xl border border-red-200 bg-red-50 p-4">
-        <p className="text-sm text-red-700">{t("audit.error")}</p>
+      <div className="rounded-xl border border-danger/20 bg-danger-soft p-4">
+        <p className="text-sm text-danger-ink">{t("audit.error")}</p>
         <Button
           type="button"
           variant="secondary"
@@ -172,7 +172,7 @@ export function AuditView() {
 
   return (
     <div className="space-y-4">
-      <p className="px-1 text-xs text-slate-500">{t("audit.subtitle")}</p>
+      <p className="px-1 text-xs text-ink-subtle">{t("audit.subtitle")}</p>
 
       <div className="flex gap-1.5 overflow-x-auto pb-0.5">
         {FILTERS.map((item) => (
@@ -183,7 +183,7 @@ export function AuditView() {
             className={`shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-semibold transition ${
               filter === item.value
                 ? "border-brand-600 bg-brand-600 text-white"
-                : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                : "border-line bg-surface text-ink-muted hover:bg-app"
             }`}
           >
             {t(item.key as never)}
@@ -201,7 +201,7 @@ export function AuditView() {
         <div className="space-y-4">
           {grouped.map(([label, items]) => (
             <div key={label}>
-              <p className="mb-1.5 px-1 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+              <p className="mb-1.5 px-1 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">
                 {label}
               </p>
               <div className="space-y-1.5">
@@ -212,17 +212,17 @@ export function AuditView() {
                   return (
                     <div
                       key={row.id}
-                      className="flex items-start gap-2.5 rounded-xl border border-slate-200 bg-white p-3"
+                      className="flex items-start gap-2.5 rounded-card border border-line bg-surface shadow-card p-3"
                     >
-                      <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
+                      <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-surface-2 text-ink-muted">
                         <GroupIcon group={group} />
                       </span>
                       <div className="min-w-0 flex-1">
                         <div className="flex items-start justify-between gap-2">
-                          <p className="text-sm font-medium text-slate-900">
+                          <p className="text-sm font-medium text-ink">
                             {actionKey ? t(actionKey as never) : row.action}
                           </p>
-                          <span className="shrink-0 text-[10px] tabular-nums text-slate-400">
+                          <span className="shrink-0 text-[10px] tabular-nums text-ink-faint">
                             {new Date(row.createdAt).toLocaleTimeString(undefined, {
                               hour: "2-digit",
                               minute: "2-digit",
@@ -230,12 +230,12 @@ export function AuditView() {
                           </span>
                         </div>
                         {row.summary ? (
-                          <p className="mt-0.5 truncate text-[11px] text-slate-500">
+                          <p className="mt-0.5 truncate text-[11px] text-ink-subtle">
                             {row.summary}
                           </p>
                         ) : null}
                         {amount ? (
-                          <p className="mt-0.5 text-[11px] font-semibold tabular-nums text-slate-700">
+                          <p className="mt-0.5 text-[11px] font-semibold tabular-nums text-ink-muted">
                             <Money value={amount} symbol={symbol} />
                           </p>
                         ) : null}
@@ -249,7 +249,7 @@ export function AuditView() {
         </div>
       )}
 
-      <p className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] leading-relaxed text-slate-500">
+      <p className="rounded-card border border-line bg-app px-3 py-2 text-[11px] leading-relaxed text-ink-subtle">
         {t("audit.note")}
       </p>
     </div>

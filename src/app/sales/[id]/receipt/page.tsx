@@ -101,7 +101,7 @@ export default function SaleReceiptPage({
         </header>
 
         {sale.voidedAt ? (
-          <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-center text-xs font-semibold text-red-700">
+          <p className="mt-3 rounded-lg border border-danger/30 bg-danger-soft px-3 py-2 text-center text-xs font-semibold text-danger-ink">
             {t("receipt.voidedNotice")}
           </p>
         ) : null}
@@ -150,7 +150,7 @@ export default function SaleReceiptPage({
                   {formatMoney(total.plus(discount).toString(), symbol)}
                 </span>
               </div>
-              <div className="flex justify-between text-xs font-medium text-amber-700">
+              <div className="flex justify-between text-xs font-medium text-warning-ink">
                 <span>{t("sale.discountLabel")}</span>
                 <span className="tabular-nums">
                   − {formatMoney(discount.toString(), symbol)}
@@ -167,21 +167,21 @@ export default function SaleReceiptPage({
             <span className="tabular-nums">{formatMoney(paid.toString(), symbol)}</span>
           </div>
           {outstanding.gt(0) ? (
-            <div className="flex justify-between font-semibold text-red-700">
+            <div className="flex justify-between font-semibold text-danger-ink">
               <span>{t("receipt.balanceLabel")}</span>
               <span className="tabular-nums">
                 {formatMoney(outstanding.toString(), symbol)}
               </span>
             </div>
           ) : (
-            <p className="text-right text-xs font-medium text-emerald-700">
+            <p className="text-right text-xs font-medium text-success-ink">
               {t("receipt.paidFull")}
             </p>
           )}
         </div>
 
         {sale.dueDate && outstanding.gt(0) ? (
-          <p className={cn("mt-2 text-xs", sale.isOverdue ? "font-semibold text-red-700" : "text-slate-500")}>
+          <p className={cn("mt-2 text-xs", sale.isOverdue ? "font-semibold text-danger-ink" : "text-slate-500")}>
             {tParams("sale.dueOn", { date: formatDate(sale.dueDate) })}
             {sale.isOverdue ? ` · ${t("sale.overdue")}` : ""}
           </p>

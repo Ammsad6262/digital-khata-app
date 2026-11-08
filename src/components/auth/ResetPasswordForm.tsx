@@ -69,13 +69,13 @@ export function ResetPasswordForm({ initialEmail = "" }: { initialEmail?: string
 
   if (done) {
     return (
-      <div className="flex min-h-[100dvh] items-center justify-center bg-slate-50 p-6">
+      <div className="flex min-h-[100dvh] items-center justify-center bg-app p-6">
         <div className="w-full max-w-sm text-center">
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-brand-100">
             <CheckCircle2 className="h-9 w-9 text-brand-700" />
           </div>
-          <h1 className="text-xl font-bold text-slate-900">{t("reset.successTitle")}</h1>
-          <p className="mt-2 text-sm leading-relaxed text-slate-500">{t("reset.successBody")}</p>
+          <h1 className="text-xl font-bold text-ink">{t("reset.successTitle")}</h1>
+          <p className="mt-2 text-sm leading-relaxed text-ink-subtle">{t("reset.successBody")}</p>
           <Link
             href="/login"
             className="mt-6 flex w-full items-center justify-center gap-2 rounded-lg bg-brand-600 py-2.5 text-sm font-semibold text-white shadow-lg shadow-brand-600/20 transition-colors hover:bg-brand-700"
@@ -89,7 +89,7 @@ export function ResetPasswordForm({ initialEmail = "" }: { initialEmail?: string
   }
 
   return (
-    <div className="flex min-h-[100dvh] items-center justify-center bg-slate-50 p-6">
+    <div className="flex min-h-[100dvh] items-center justify-center bg-app p-6">
       <div className="w-full max-w-sm">
         <div className="mb-6 text-center">
           <img
@@ -97,18 +97,18 @@ export function ResetPasswordForm({ initialEmail = "" }: { initialEmail?: string
             alt={t("app.name")}
             className="mx-auto mb-3 h-14 w-14 rounded-2xl shadow-lg"
           />
-          <h1 className="text-xl font-bold text-slate-900">{t("reset.title")}</h1>
-          <p className="mt-1 text-sm text-slate-500">{t("reset.subtitle")}</p>
+          <h1 className="text-xl font-bold text-ink">{t("reset.title")}</h1>
+          <p className="mt-1 text-sm text-ink-subtle">{t("reset.subtitle")}</p>
         </div>
 
-        <div className="mb-4 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3">
-          <KeyRound className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" />
-          <p className="text-xs leading-relaxed text-amber-900">{t("reset.adminHint")}</p>
+        <div className="mb-4 flex items-start gap-2 rounded-xl border border-warning/25 bg-warning-soft p-3">
+          <KeyRound className="mt-0.5 h-4 w-4 shrink-0 text-warning-ink" />
+          <p className="text-xs leading-relaxed text-warning-ink">{t("reset.adminHint")}</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-3">
           {error ? (
-            <div className="flex items-start gap-2 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+            <div className="flex items-start gap-2 rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger-ink">
               <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
               <span>{error}</span>
             </div>
@@ -117,12 +117,12 @@ export function ResetPasswordForm({ initialEmail = "" }: { initialEmail?: string
           <div>
             <label
               htmlFor="reset-email"
-              className="mb-1 block text-xs font-medium text-slate-600"
+              className="mb-1 block text-xs font-medium text-ink-muted"
             >
               {t("auth.email")}
             </label>
             <div className="relative">
-              <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-faint" />
               <input
                 id="reset-email"
                 type="email"
@@ -131,7 +131,7 @@ export function ResetPasswordForm({ initialEmail = "" }: { initialEmail?: string
                 placeholder={t("auth.emailPlaceholder")}
                 autoComplete="email"
                 autoFocus={!initialEmail}
-                className="w-full rounded-lg border border-slate-300 bg-white py-2.5 pl-10 pr-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+                className="w-full rounded-lg border border-line-strong bg-surface py-2.5 pl-10 pr-3 text-sm text-ink placeholder:text-ink-faint focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
               />
             </div>
           </div>
@@ -139,12 +139,12 @@ export function ResetPasswordForm({ initialEmail = "" }: { initialEmail?: string
           <div>
             <label
               htmlFor="reset-code"
-              className="mb-1 block text-xs font-medium text-slate-600"
+              className="mb-1 block text-xs font-medium text-ink-muted"
             >
               {t("reset.code")}
             </label>
             <div className="relative">
-              <KeyRound className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <KeyRound className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-faint" />
               <input
                 id="reset-code"
                 type="text"
@@ -155,21 +155,21 @@ export function ResetPasswordForm({ initialEmail = "" }: { initialEmail?: string
                 autoCapitalize="characters"
                 spellCheck={false}
                 autoFocus={!!initialEmail}
-                className="w-full rounded-lg border border-slate-300 bg-white py-2.5 pl-10 pr-3 font-mono text-sm tracking-wider text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+                className="w-full rounded-lg border border-line-strong bg-surface py-2.5 pl-10 pr-3 font-mono text-sm tracking-wider text-ink placeholder:text-ink-faint focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
               />
             </div>
-            <p className="mt-1 text-[11px] text-slate-500">{t("reset.codeHint")}</p>
+            <p className="mt-1 text-[11px] text-ink-subtle">{t("reset.codeHint")}</p>
           </div>
 
           <div>
             <label
               htmlFor="reset-new-password"
-              className="mb-1 block text-xs font-medium text-slate-600"
+              className="mb-1 block text-xs font-medium text-ink-muted"
             >
               {t("reset.newPassword")}
             </label>
             <div className="relative">
-              <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-faint" />
               <input
                 id="reset-new-password"
                 type="password"
@@ -177,7 +177,7 @@ export function ResetPasswordForm({ initialEmail = "" }: { initialEmail?: string
                 onChange={(event) => setNewPassword(event.target.value)}
                 placeholder={t("auth.passwordMinPlaceholder")}
                 autoComplete="new-password"
-                className="w-full rounded-lg border border-slate-300 bg-white py-2.5 pl-10 pr-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+                className="w-full rounded-lg border border-line-strong bg-surface py-2.5 pl-10 pr-3 text-sm text-ink placeholder:text-ink-faint focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
               />
             </div>
           </div>
@@ -185,12 +185,12 @@ export function ResetPasswordForm({ initialEmail = "" }: { initialEmail?: string
           <div>
             <label
               htmlFor="reset-confirm-password"
-              className="mb-1 block text-xs font-medium text-slate-600"
+              className="mb-1 block text-xs font-medium text-ink-muted"
             >
               {t("reset.confirmPassword")}
             </label>
             <div className="relative">
-              <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-faint" />
               <input
                 id="reset-confirm-password"
                 type="password"
@@ -198,7 +198,7 @@ export function ResetPasswordForm({ initialEmail = "" }: { initialEmail?: string
                 onChange={(event) => setConfirmPassword(event.target.value)}
                 placeholder={t("reset.confirmPassword")}
                 autoComplete="new-password"
-                className="w-full rounded-lg border border-slate-300 bg-white py-2.5 pl-10 pr-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+                className="w-full rounded-lg border border-line-strong bg-surface py-2.5 pl-10 pr-3 text-sm text-ink placeholder:text-ink-faint focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
               />
             </div>
           </div>
@@ -221,7 +221,7 @@ export function ResetPasswordForm({ initialEmail = "" }: { initialEmail?: string
 
         <Link
           href="/login"
-          className="mt-5 flex items-center justify-center gap-1.5 text-sm font-medium text-slate-500 hover:text-slate-700"
+          className="mt-5 flex items-center justify-center gap-1.5 text-sm font-medium text-ink-subtle hover:text-ink-muted"
         >
           <ArrowLeft className="h-4 w-4 rtl-flip" />
           {t("reset.backToLogin")}

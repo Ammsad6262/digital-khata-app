@@ -9,22 +9,22 @@
  *   5. The mobile-first app shell (Screen + BottomNav)
  *
  * Fonts:
- *   - Inter: for English text (Latin script)
+ *   - Plus Jakarta Sans: the interface typeface — geometric, warm and a touch
+ *     more characterful than the default system stack.
  *   - Noto Nastaliq Urdu: for Urdu text (Arabic script) — the gold standard
- *     Urdu font, designed specifically for Nastaliq calligraphy
+ *     Urdu font, designed specifically for Nastaliq calligraphy.
  *
- * Anti-FOUC: inline script sets theme + language dir before first paint
+ * Anti-FOUC: inline script sets theme + language dir before first paint.
  */
 
 import type { Metadata, Viewport } from "next";
-import { Inter } from "next/font/google";
-import { Noto_Nastaliq_Urdu } from "next/font/google";
+import { Plus_Jakarta_Sans, Noto_Nastaliq_Urdu } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
 
-const inter = Inter({
+const jakarta = Plus_Jakarta_Sans({
   subsets: ["latin"],
-  variable: "--font-sans",
+  variable: "--font-jakarta",
   display: "swap",
   preload: true,
   fallback: ["system-ui", "-apple-system", "BlinkMacSystemFont", "Segoe UI", "Roboto", "sans-serif"],
@@ -60,30 +60,28 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  
-  
-  themeColor: "#16a34a",
+  themeColor: "#FAF8F4",
 };
 
-// Anti-FOUC: set theme + language dir BEFORE React hydrates
-// Default theme is "monochrome" (Black & White) for new users.
-// If no localStorage preference exists, apply monochrome immediately.
+// Anti-FOUC: set theme + language dir BEFORE React hydrates.
+// Default theme is "ink" — warm graphite on ledger paper.
 const initScript = `
 (function() {
   try {
-    // Theme — default to monochrome (Black & White) for new users
+    var KNOWN = ['ink', 'emerald', 'saffron', 'indigo', 'rose'];
+    // Migrate theme ids saved by older builds.
+    var LEGACY = { monochrome: 'ink', default: 'emerald', leaf: 'emerald' };
     var t = localStorage.getItem('digital-khata-theme');
-    if (t === 'leaf') {
-      document.documentElement.setAttribute('data-theme', 'leaf');
-    } else if (t === 'default') {
-      // 'default' = no data-theme attribute (uses :root green variables)
-      document.documentElement.removeAttribute('data-theme');
-    } else if (t === 'monochrome') {
-      document.documentElement.setAttribute('data-theme', 'monochrome');
-    } else {
-      // No stored preference → apply monochrome (the default)
-      document.documentElement.setAttribute('data-theme', 'monochrome');
+    if (LEGACY[t]) {
+      t = LEGACY[t];
+      try { localStorage.setItem('digital-khata-theme', t); } catch (e) {}
     }
+    if (KNOWN.indexOf(t) === -1) {
+      t = 'ink';
+      try { localStorage.setItem('digital-khata-theme', t); } catch (e) {}
+    }
+    document.documentElement.setAttribute('data-theme', t);
+
     // Language
     var lang = localStorage.getItem('digital-khata-lang');
     if (lang === 'ur') {
@@ -106,7 +104,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${inter.variable} ${nastaliq.variable}`} suppressHydrationWarning>
+    <html
+      lang="en"
+      data-theme="ink"
+      className={`${jakarta.variable} ${nastaliq.variable}`}
+      suppressHydrationWarning
+    >
       <head>
         <script dangerouslySetInnerHTML={{ __html: initScript }} />
       </head>

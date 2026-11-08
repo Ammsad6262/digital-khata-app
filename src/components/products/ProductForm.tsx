@@ -36,7 +36,6 @@ import { ApiError } from "@/lib/utils/api-client";
 import { Decimal } from "@/lib/utils/decimal";
 import { useSettings } from "@/hooks/use-settings";
 import { useLanguage } from "@/providers/language-provider";
-import { userMessage } from "@/lib/i18n/message";
 
 const UNITS = ["piece", "kg", "box", "dozen", "litre", "metre", "pack", "bag", "bottle", "carton"];
 
@@ -49,7 +48,7 @@ export function ProductForm({
 }) {
   const router = useRouter();
   const toast = useToast();
-  const { t, tParams } = useLanguage();
+  const { t } = useLanguage();
 
   // In edit mode, fetch the existing product to pre-fill.
   const { data: existing } = useProduct(mode === "edit" ? productId : null);
@@ -66,9 +65,6 @@ export function ProductForm({
   const [sku, setSku] = useState<string>("");
   const [openingStock, setOpeningStock] = useState<string>("");
   const [lowStockThreshold, setLowStockThreshold] = useState<string>("5");
-  // Only surface validation messages after the first save attempt, so the form
-  // doesn't greet the shopkeeper with red errors before they've typed anything.
-  const [submitted, setSubmitted] = useState(false);
 
   // Built-in defaults + this business's own units (Settings → Units). The
   // current value is kept even if it is not in either list, so editing an old
@@ -94,9 +90,9 @@ export function ProductForm({
   if (mode === "edit" && !existing) {
     return (
       <div className="space-y-4">
-        <div className="h-16 animate-pulse rounded-xl bg-slate-200" />
-        <div className="h-12 animate-pulse rounded-xl bg-slate-200" />
-        <div className="h-12 animate-pulse rounded-xl bg-slate-200" />
+        <div className="h-16 animate-pulse rounded-xl bg-surface-2" />
+        <div className="h-12 animate-pulse rounded-xl bg-surface-2" />
+        <div className="h-12 animate-pulse rounded-xl bg-surface-2" />
       </div>
     );
   }
@@ -145,7 +141,6 @@ export function ProductForm({
     !!errors.unit || !!errors.openingStock || !!errors.lowStockThreshold;
 
   const handleSubmit = () => {
-    setSubmitted(true);
     if (hasErrors) {
       toast.error(t("common.fixErrorsBeforeSaving"));
       return;
@@ -172,7 +167,7 @@ export function ProductForm({
             if (error instanceof ApiError && error.code === "CONFLICT") {
               toast.error(t("product.skuExists"));
             } else {
-              toast.error(userMessage(error, t, tParams));
+              toast.error(error instanceof Error ? error.message : t("common.failed"));
             }
           },
         },
@@ -197,7 +192,7 @@ export function ProductForm({
             if (error instanceof ApiError && error.code === "CONFLICT") {
               toast.error(t("product.skuInUse"));
             } else {
-              toast.error(userMessage(error, t, tParams));
+              toast.error(error instanceof Error ? error.message : t("common.failed"));
             }
           },
         },
@@ -209,7 +204,7 @@ export function ProductForm({
 
   return (
     <div className="space-y-4">
-      <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="rounded-card border border-line bg-surface shadow-card p-4 shadow-card">
         <div className="space-y-3">
           <TextField
             label={t("product.productName")}
@@ -217,8 +212,7 @@ export function ProductForm({
             onChange={(e) => setName(e.target.value)}
             placeholder={t("product.productNamePlaceholder")}
             autoComplete="off"
-            showRequired
-            error={submitted ? errors.name ?? null : null}
+            error={errors.name ?? null}
           />
 
           <TextField
@@ -239,8 +233,7 @@ export function ProductForm({
               value={purchasePrice}
               onChange={(e) => setPurchasePrice(e.target.value)}
               placeholder="0"
-              showRequired
-              error={submitted ? errors.purchasePrice ?? null : null}
+              error={errors.purchasePrice ?? null}
               hint={`${t("product.per")} ${unit || t("product.unit")}`}
             />
             <TextField
@@ -252,28 +245,26 @@ export function ProductForm({
               value={sellingPrice}
               onChange={(e) => setSellingPrice(e.target.value)}
               placeholder="0"
-              showRequired
-              error={submitted ? errors.sellingPrice ?? null : null}
+              error={errors.sellingPrice ?? null}
             />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">
+              <label className="mb-1 block text-sm font-medium text-ink-muted">
                 {t("product.unit")}
-                <span className="text-red-500" aria-hidden> *</span>
               </label>
               <select
                 value={unit}
                 onChange={(e) => setUnit(e.target.value)}
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+                className="w-full rounded-lg border border-line-strong bg-surface px-3 py-2.5 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
               >
                 {unitOptions.map((u) => (
                   <option key={u} value={u}>{u}</option>
                 ))}
               </select>
-              {submitted && errors.unit ? (
-                <p className="mt-1 text-xs text-red-600">{errors.unit}</p>
+              {errors.unit ? (
+                <p className="mt-1 text-xs text-danger-ink">{errors.unit}</p>
               ) : null}
             </div>
 
@@ -297,7 +288,7 @@ export function ProductForm({
               onChange={(e) => setOpeningStock(e.target.value)}
               placeholder="0"
               hint={t("product.openingStockHint")}
-              error={submitted ? errors.openingStock ?? null : null}
+              error={errors.openingStock ?? null}
             />
           ) : null}
 
@@ -309,13 +300,13 @@ export function ProductForm({
             value={lowStockThreshold}
             onChange={(e) => setLowStockThreshold(e.target.value)}
             hint={t("product.lowStockHint")}
-            error={submitted ? errors.lowStockThreshold ?? null : null}
+            error={errors.lowStockThreshold ?? null}
           />
         </div>
       </div>
 
       {mode === "edit" ? (
-        <div className="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600">
+        <div className="rounded-lg bg-app px-3 py-2 text-xs text-ink-muted">
           <p>
             <strong>{t("product.openingStockEdit")}</strong>{" "}
             <a href="/stock/adjust" className="font-medium text-brand-600 hover:underline">
@@ -329,6 +320,7 @@ export function ProductForm({
         onCancel={() => router.back()}
         onSave={handleSubmit}
         saveLabel={mode === "create" ? t("product.saveProduct") : t("product.updateProduct")}
+        saveDisabled={hasErrors}
         isPending={isPending}
       />
     </div>

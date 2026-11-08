@@ -14,7 +14,7 @@
  *   - Pull-to-refresh: drag down from the top to refetch
  */
 
-import { Search, X, Users, AlertCircle, UserPlus, UserPlus2, Plus, Sparkles, Lightbulb, ChevronRight, ArrowDownWideNarrow } from "lucide-react";
+import { Search, X, Users, AlertCircle, UserPlus, UserPlus2, Plus, Lightbulb, ChevronRight, ArrowDownWideNarrow } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useCustomerSearch } from "@/hooks/use-customers";
@@ -60,10 +60,10 @@ export function KhataList() {
     <PullToRefresh onRefresh={async () => { await refetch(); }} className="-mx-4 px-4 sm:-mx-6 sm:px-6">
       <div className="space-y-3">
         {/* Search bar — sticky within the scroll container */}
-        <div className="sticky top-0 z-10 -mx-4 bg-slate-50 px-4 py-2">
+        <div className="sticky top-0 z-10 -mx-4 bg-app px-4 py-2">
           <div className="relative">
             <Search
-              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-faint"
               aria-hidden
             />
             <input
@@ -72,14 +72,14 @@ export function KhataList() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder={t("customer.searchPlaceholder")}
-              className="w-full rounded-lg border border-slate-300 bg-white py-2.5 pl-9 pr-9 text-sm text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+              className="w-full rounded-lg border border-line-strong bg-surface py-2.5 pl-9 pr-9 text-sm text-ink placeholder:text-ink-faint focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
               aria-label={t("common.searchCustomerAria")}
             />
             {query ? (
               <button
                 type="button"
                 onClick={() => setQuery("")}
-                className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-slate-400 hover:text-slate-700"
+                className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-ink-faint hover:text-ink-muted"
                 aria-label={t("common.clearSearchAria")}
               >
                 <X className="h-4 w-4" />
@@ -87,7 +87,7 @@ export function KhataList() {
             ) : null}
           </div>
           {isShortQuery ? (
-            <p className="mt-1 pl-1 text-xs text-slate-500">
+            <p className="mt-1 pl-1 text-xs text-ink-subtle">
               {t("customer.keepTyping")}
             </p>
           ) : null}
@@ -96,7 +96,7 @@ export function KhataList() {
         {/* Sort chips — only meaningful when there are customers to sort */}
         {!isLoading && !isEmpty ? (
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
-            <span className="flex shrink-0 items-center gap-1 pl-1 text-[11px] font-medium text-slate-500">
+            <span className="flex shrink-0 items-center gap-1 pl-1 text-[11px] font-medium text-ink-subtle">
               <ArrowDownWideNarrow className="h-3.5 w-3.5" />
               {t("customer.sortBy")}
             </span>
@@ -112,7 +112,7 @@ export function KhataList() {
                     "shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors",
                     active
                       ? "border-brand-600 bg-brand-50 text-brand-700"
-                      : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50",
+                      : "border-line bg-surface text-ink-muted hover:bg-app",
                   )}
                 >
                   {t(item.labelKey)}
@@ -161,7 +161,7 @@ export function KhataList() {
         ) : (
           <>
             <div className="flex items-center justify-between px-1">
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-ink-subtle">
                 {query.trim() ? (
                   <>
                     {sorted.length} {sorted.length === 1 ? t("customer.result") : t("customer.results")} {t("customer.for")} &ldquo;{query.trim()}&rdquo;
@@ -173,11 +173,11 @@ export function KhataList() {
                 )}
               </p>
             </div>
-            <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+            <div className="overflow-hidden rounded-card border border-line bg-surface shadow-card">
               {sorted.map((customer, idx) => (
                 <div
                   key={customer.id}
-                  className={idx > 0 ? "border-t border-slate-100" : ""}
+                  className={idx > 0 ? "border-t border-line" : ""}
                 >
                   <CustomerRow customer={customer} />
                 </div>
@@ -193,18 +193,18 @@ export function KhataList() {
 function KhataListSkeleton() {
   return (
     <div className="space-y-2">
-      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+      <div className="overflow-hidden rounded-card border border-line bg-surface shadow-card">
         {[0, 1, 2, 3, 4].map((i) => (
           <div
             key={i}
-            className={`flex items-center gap-3 px-3 py-3 ${i > 0 ? "border-t border-slate-100" : ""}`}
+            className={`flex items-center gap-3 px-3 py-3 ${i > 0 ? "border-t border-line" : ""}`}
           >
-            <div className="h-10 w-10 shrink-0 animate-pulse rounded-full bg-slate-200" />
+            <div className="h-10 w-10 shrink-0 animate-pulse rounded-full bg-surface-2" />
             <div className="flex-1 space-y-1.5">
-              <div className="h-3.5 w-32 animate-pulse rounded bg-slate-200" />
-              <div className="h-3 w-24 animate-pulse rounded bg-slate-100" />
+              <div className="h-3.5 w-32 animate-pulse rounded bg-surface-2" />
+              <div className="h-3 w-24 animate-pulse rounded bg-surface-2" />
             </div>
-            <div className="h-5 w-16 animate-pulse rounded-full bg-slate-200" />
+            <div className="h-5 w-16 animate-pulse rounded-full bg-surface-2" />
           </div>
         ))}
       </div>
@@ -226,29 +226,25 @@ function KhataListSkeleton() {
 function EmptyCustomersState() {
   const { t } = useLanguage();
   return (
-    <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-white/60 px-6 py-12 text-center">
+    <div className="flex flex-col items-center justify-center rounded-card border border-dashed border-line-strong bg-surface/50 px-6 py-12 text-center">
       {/* Icon with badge + sparkles */}
       <div className="relative mb-5">
-        {/* Sparkle accents */}
-        <Sparkles className="absolute -left-3 -top-2 h-4 w-4 text-brand-300" aria-hidden />
-        <Sparkles className="absolute -right-2 top-2 h-3 w-3 text-brand-200" aria-hidden />
-
         {/* Main icon container */}
         <div className="flex h-20 w-20 items-center justify-center rounded-full bg-brand-50">
           <UserPlus2 className="h-9 w-9 text-brand-600" strokeWidth={1.75} />
         </div>
 
         {/* Small "+" badge at bottom-right of the icon */}
-        <div className="absolute bottom-1 right-1 flex h-6 w-6 items-center justify-center rounded-full border-2 border-white bg-brand-600 text-white shadow-sm">
+        <div className="absolute bottom-1 right-1 flex h-6 w-6 items-center justify-center rounded-full border-2 border-surface bg-brand-600 text-white shadow-card">
           <Plus className="h-3.5 w-3.5" strokeWidth={3} />
         </div>
       </div>
 
       {/* Heading + description */}
-      <h3 className="text-base font-semibold text-slate-900">
+      <h3 className="text-base font-semibold text-ink">
         {t("customer.noCustomers")}
       </h3>
-      <p className="mt-1.5 max-w-xs text-sm text-slate-500">
+      <p className="mt-1.5 max-w-xs text-sm text-ink-subtle">
         {t("customer.addFirst")}
       </p>
 
@@ -264,13 +260,13 @@ function EmptyCustomersState() {
       {/* Helper tip */}
       <Link
         href="/sales/new"
-        className="mt-8 flex w-full max-w-xs items-center gap-2 rounded-lg bg-slate-50 px-3 py-2.5 text-left text-xs text-slate-500 transition-colors hover:bg-slate-100"
+        className="mt-8 flex w-full max-w-xs items-center gap-2 rounded-lg bg-app px-3 py-2.5 text-left text-xs text-ink-subtle transition-colors hover:bg-surface-2"
       >
         <Lightbulb className="h-4 w-4 shrink-0 text-brand-500" />
         <span className="flex-1">
           {t("customer.createFromTransactionHint")}
         </span>
-        <ChevronRight className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+        <ChevronRight className="h-3.5 w-3.5 shrink-0 text-ink-faint" />
       </Link>
     </div>
   );

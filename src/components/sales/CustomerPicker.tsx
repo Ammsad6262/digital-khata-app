@@ -22,7 +22,6 @@ import { Money } from "@/components/shared/Money";
 import { Decimal } from "@/lib/utils/decimal";
 import { useToast } from "@/providers/toast-provider";
 import { ApiError } from "@/lib/utils/api-client";
-import { userMessage } from "@/lib/i18n/message";
 import type { CustomerSearchResult } from "@/lib/services/customers";
 import { useLanguage } from "@/providers/language-provider";
 
@@ -47,39 +46,39 @@ export function CustomerPicker({
     const owes = balance.gt(0);
 
     return (
-      <div className="rounded-xl border border-slate-200 bg-white p-3">
+      <div className="rounded-card border border-line bg-surface shadow-card p-3">
         <div className="flex items-start gap-3">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-100 text-sm font-semibold text-brand-700">
             {selected.name.charAt(0).toUpperCase()}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium text-slate-900">
+            <p className="truncate text-sm font-medium text-ink">
               {selected.name}
             </p>
             {selected.phone ? (
-              <p className="flex items-center gap-1 text-xs text-slate-500">
+              <p className="flex items-center gap-1 text-xs text-ink-subtle">
                 <Phone className="h-3 w-3" />
                 {selected.phone}
               </p>
             ) : (
-              <p className="text-xs text-slate-400">{t("customer.noPhone")}</p>
+              <p className="text-xs text-ink-faint">{t("customer.noPhone")}</p>
             )}
             {owes ? (
               <p className="mt-1 text-xs">
-                <span className="text-slate-500">{t("customer.currentBalance")}: </span>
-                <span className="font-semibold text-red-600">
+                <span className="text-ink-subtle">{t("customer.currentBalance")}: </span>
+                <span className="font-semibold text-danger-ink">
                   <Money value={balance.toString()} /> {t("customer.owes")}
                 </span>
               </p>
             ) : balance.lt(0) ? (
               <p className="mt-1 text-xs">
-                <span className="text-slate-500">{t("customer.advancePayment")}: </span>
-                <span className="font-semibold text-blue-600">
+                <span className="text-ink-subtle">{t("customer.advancePayment")}: </span>
+                <span className="font-semibold text-info-ink">
                   <Money value={balance.abs().toString()} />
                 </span>
               </p>
             ) : (
-              <p className="mt-1 text-xs text-slate-500">{t("customer.noBalance")}</p>
+              <p className="mt-1 text-xs text-ink-subtle">{t("customer.noBalance")}</p>
             )}
           </div>
           <button
@@ -117,7 +116,7 @@ export function CustomerPicker({
     <div className="space-y-2">
       <div className="relative">
         <Search
-          className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+          className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-faint"
           aria-hidden
         />
         <input
@@ -126,10 +125,10 @@ export function CustomerPicker({
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder={t("sale.searchCustomer")}
-          className={`w-full rounded-lg border bg-white py-2.5 pl-9 pr-3 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 ${
+          className={`w-full rounded-lg border bg-surface py-2.5 pl-9 pr-3 text-sm text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2 ${
             error
-              ? "border-red-300 focus:border-red-500 focus:ring-red-500/30"
-              : "border-slate-300 focus:border-brand-500 focus:ring-brand-500/30"
+              ? "border-danger/40 focus:border-danger focus:ring-danger/30"
+              : "border-line-strong focus:border-brand-500 focus:ring-brand-500/30"
           }`}
           aria-label={t("common.searchCustomerAria")}
           aria-invalid={!!error}
@@ -138,15 +137,15 @@ export function CustomerPicker({
       </div>
 
       {error ? (
-        <p className="text-xs text-red-600">{error}</p>
+        <p className="text-xs text-danger-ink">{error}</p>
       ) : null}
 
       {/* Results */}
       <div className="space-y-1">
         {isLoading ? (
-          <p className="px-2 py-3 text-xs text-slate-400">{t("common.loading")}</p>
+          <p className="px-2 py-3 text-xs text-ink-faint">{t("common.loading")}</p>
         ) : isError ? (
-          <p className="px-2 py-3 text-xs text-red-600">{t("customer.couldntLoad")}</p>
+          <p className="px-2 py-3 text-xs text-danger-ink">{t("customer.couldntLoad")}</p>
         ) : !data || data.length === 0 ? (
           query.trim() ? (
             <button
@@ -161,49 +160,49 @@ export function CustomerPicker({
                 <p className="text-sm font-medium text-brand-700">
                   {t("action.addCustomer")} &ldquo;{query.trim()}&rdquo; {t("customer.asNew")}
                 </p>
-                <p className="text-[11px] text-slate-500">
+                <p className="text-[11px] text-ink-subtle">
                   {t("common.tapToCreate")}
                 </p>
               </div>
               <ChevronRight className="h-4 w-4 shrink-0 text-brand-400" />
             </button>
           ) : (
-            <p className="px-2 py-3 text-xs text-slate-400">
+            <p className="px-2 py-3 text-xs text-ink-faint">
               {t("sale.startTypingCustomer")}
             </p>
           )
         ) : (
-          <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
+          <div className="overflow-hidden rounded-lg border border-line bg-surface">
             {data.slice(0, 5).map((customer, idx) => (
               <button
                 key={customer.id}
                 type="button"
                 onClick={() => onSelect(customer)}
-                className={`flex w-full items-center gap-3 px-3 py-2.5 text-left hover:bg-slate-50 ${
-                  idx > 0 ? "border-t border-slate-100" : ""
+                className={`flex w-full items-center gap-3 px-3 py-2.5 text-left hover:bg-app ${
+                  idx > 0 ? "border-t border-line" : ""
                 }`}
               >
                 <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-100 text-xs font-semibold text-brand-700">
                   {customer.name.charAt(0).toUpperCase()}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-slate-900">
+                  <p className="truncate text-sm font-medium text-ink">
                     {customer.name}
                   </p>
-                  <p className="truncate text-xs text-slate-500">
+                  <p className="truncate text-xs text-ink-subtle">
                     {customer.phone || t("customer.noPhone")}
                   </p>
                 </div>
                 {new Decimal(customer.balance).gt(0) ? (
-                  <span className="shrink-0 text-xs font-semibold text-red-600">
+                  <span className="shrink-0 text-xs font-semibold text-danger-ink">
                     <Money value={customer.balance} />
                   </span>
                 ) : null}
-                <ChevronRight className="h-4 w-4 shrink-0 text-slate-300" />
+                <ChevronRight className="h-4 w-4 shrink-0 text-ink-faint" />
               </button>
             ))}
             {data.length > 5 ? (
-              <p className="border-t border-slate-100 px-3 py-1.5 text-center text-[11px] text-slate-400">
+              <p className="border-t border-line px-3 py-1.5 text-center text-[11px] text-ink-faint">
                 {data.length} {t("common.refineSearch")}
               </p>
             ) : null}
@@ -230,7 +229,7 @@ function QuickAddCustomer({
 }) {
   const toast = useToast();
   const createCustomer = useCreateCustomer();
-  const { t, tParams } = useLanguage();
+  const { t } = useLanguage();
   const [name, setName] = useState(initialName);
   const [phone, setPhone] = useState("");
 
@@ -263,7 +262,7 @@ function QuickAddCustomer({
           if (error instanceof ApiError && error.code === "CONFLICT") {
             toast.error(t("customer.phoneAlreadyExists"));
           } else {
-            toast.error(userMessage(error, t, tParams));
+            toast.error(error instanceof Error ? error.message : t("common.failed"));
           }
         },
       },
@@ -271,25 +270,25 @@ function QuickAddCustomer({
   };
 
   return (
-    <div className="rounded-xl border-2 border-brand-300 bg-white p-3 space-y-3">
+    <div className="rounded-xl border-2 border-brand-300 bg-surface p-3 space-y-3">
       <div className="flex items-center gap-2 text-sm font-semibold text-brand-700">
         <UserPlus className="h-4 w-4" />
         {t("action.addCustomer")}
       </div>
 
       <div>
-        <label className="mb-1 block text-xs font-medium text-slate-600">{t("customer.name")}</label>
+        <label className="mb-1 block text-xs font-medium text-ink-muted">{t("customer.name")}</label>
         <input
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
           autoFocus
-          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+          className="w-full rounded-lg border border-line-strong bg-surface px-3 py-2 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
         />
       </div>
 
       <div>
-        <label className="mb-1 block text-xs font-medium text-slate-600">
+        <label className="mb-1 block text-xs font-medium text-ink-muted">
           {t("customer.phone")}
         </label>
         <input
@@ -298,7 +297,7 @@ function QuickAddCustomer({
           value={phone}
           onChange={(e) => setPhone(e.target.value)}
           placeholder={t("customer.phonePlaceholder")}
-          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+          className="w-full rounded-lg border border-line-strong bg-surface px-3 py-2 text-sm text-ink placeholder:text-ink-faint focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
         />
       </div>
 
@@ -306,7 +305,7 @@ function QuickAddCustomer({
         <button
           type="button"
           onClick={onCancel}
-          className="flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50"
+          className="flex-1 rounded-lg border border-line-strong bg-surface px-3 py-2 text-xs font-medium text-ink-muted hover:bg-app"
         >
           {t("common.cancel")}
         </button>

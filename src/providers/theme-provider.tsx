@@ -1,12 +1,14 @@
 "use client";
 
 /**
- * ThemeProvider — manages the app's color theme.
+ * ThemeProvider — manages the app's colour theme.
  *
  * Themes available:
- *   - "monochrome" — premium Black & White theme (DEFAULT for new users)
- *   - "default"    — classic green palette
- *   - "leaf"       — Bright Leaf theme using #CDFF9B (accent) + #203D43 (dark)
+ *   - "ink"      — warm graphite + ember (DEFAULT — premium ledger paper)
+ *   - "emerald"  — deep emerald + gold (money / growth)
+ *   - "saffron"  — marigold + teal (bazaar warmth)
+ *   - "indigo"   — indigo + teal (modern fintech)
+ *   - "rose"     — rosewood + gold (confident & warm)
  *
  * The selected theme is:
  *   1. Stored in localStorage (persists across sessions for instant load)
@@ -18,7 +20,7 @@
  *
  * Usage:
  *   const { theme, setTheme } = useTheme();
- *   setTheme("leaf");
+ *   setTheme("emerald");
  */
 
 import {
@@ -30,7 +32,22 @@ import {
   type ReactNode,
 } from "react";
 
-export type Theme = "monochrome" | "default" | "leaf";
+export type Theme = "ink" | "emerald" | "saffron" | "indigo" | "rose";
+
+export const THEMES: readonly Theme[] = [
+  "ink",
+  "emerald",
+  "saffron",
+  "indigo",
+  "rose",
+] as const;
+
+/** Map ids saved by older builds onto the current palette. */
+const LEGACY_THEMES: Record<string, Theme> = {
+  monochrome: "ink",
+  default: "emerald",
+  leaf: "emerald",
+};
 
 type ThemeContextValue = {
   theme: Theme;
@@ -44,7 +61,14 @@ const ThemeContext = createContext<ThemeContextValue | null>(null);
 const STORAGE_KEY = "digital-khata-theme";
 
 /** The default theme for new users / first-time visitors. */
-const DEFAULT_THEME: Theme = "monochrome";
+const DEFAULT_THEME: Theme = "ink";
+
+function normalizeTheme(value: string | null | undefined): Theme | null {
+  if (!value) return null;
+  if (LEGACY_THEMES[value]) return LEGACY_THEMES[value];
+  if ((THEMES as readonly string[]).includes(value)) return value as Theme;
+  return null;
+}
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<Theme>(DEFAULT_THEME);
@@ -52,11 +76,14 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   // On mount: read from localStorage (or use default)
   useEffect(() => {
     try {
-      const stored = localStorage.getItem(STORAGE_KEY) as Theme | null;
-      if (stored === "monochrome" || stored === "leaf" || stored === "default") {
-        setThemeState(stored);
+      const stored = localStorage.getItem(STORAGE_KEY);
+      const normalized = normalizeTheme(stored);
+      if (normalized) {
+        setThemeState(normalized);
+        if (normalized !== stored) {
+          localStorage.setItem(STORAGE_KEY, normalized);
+        }
       } else {
-        // No stored preference → use the default (monochrome)
         setThemeState(DEFAULT_THEME);
       }
     } catch {
@@ -67,12 +94,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   // Apply theme to <html> whenever it changes
   useEffect(() => {
     const root = document.documentElement;
-    if (theme === "default") {
-      // Default theme = no data-theme attribute (uses :root CSS variables)
-      root.removeAttribute("data-theme");
-    } else {
-      root.setAttribute("data-theme", theme);
-    }
+    root.setAttribute("data-theme", theme);
   }, [theme]);
 
   const setTheme = useCallback((newTheme: Theme) => {
@@ -86,22 +108,18 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   /** Sync theme from server-side settings (called when settings load after login). */
   const syncThemeFromServer = useCallback((serverTheme: string | null) => {
-    if (!serverTheme) return;
-    // Map server theme string to Theme type
-    const validThemes: Theme[] = ["monochrome", "default", "leaf"];
-    if (validThemes.includes(serverTheme as Theme)) {
-      const serverT = serverTheme as Theme;
-      // Only update if different from current (avoid unnecessary re-renders)
-      setThemeState((current) => {
-        if (current !== serverT) {
-          try {
-            localStorage.setItem(STORAGE_KEY, serverT);
-          } catch {}
-          return serverT;
-        }
-        return current;
-      });
-    }
+    const normalized = normalizeTheme(serverTheme);
+    if (!normalized) return;
+    // Only update if different from current (avoid unnecessary re-renders)
+    setThemeState((current) => {
+      if (current !== normalized) {
+        try {
+          localStorage.setItem(STORAGE_KEY, normalized);
+        } catch {}
+        return normalized;
+      }
+      return current;
+    });
   }, []);
 
   return (

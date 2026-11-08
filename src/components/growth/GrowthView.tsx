@@ -42,9 +42,9 @@ type Narration = {
 };
 
 const PRIORITY_STYLE: Record<GrowthPriority, string> = {
-  high: "bg-red-50 text-red-700 border-red-200",
-  medium: "bg-amber-50 text-amber-700 border-amber-200",
-  low: "bg-slate-50 text-slate-600 border-slate-200",
+  high: "bg-danger-soft text-danger-ink border-danger/20",
+  medium: "bg-warning-soft text-warning-ink border-warning/25",
+  low: "bg-app text-ink-muted border-line",
 };
 
 const TYPE_ICON: Record<GrowthRecommendation["type"], React.ReactNode> = {
@@ -64,16 +64,16 @@ function RecommendationCard({ item }: { item: GrowthRecommendation }) {
   const whatsappMessage = growthContactMessage(item, tParams, symbol);
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-3.5">
+    <div className="rounded-card border border-line bg-surface shadow-card p-3.5">
       <div className="flex items-start gap-3">
-        <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
+        <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-surface-2 text-ink-muted">
           {TYPE_ICON[item.type]}
         </span>
 
         <div className="min-w-0 flex-1">
           <Link href={item.href} className="block">
             <div className="flex items-start justify-between gap-2">
-              <p className="text-sm font-semibold text-slate-900">{item.title}</p>
+              <p className="text-sm font-semibold text-ink">{item.title}</p>
               <span
                 className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${PRIORITY_STYLE[item.priority]}`}
               >
@@ -81,13 +81,13 @@ function RecommendationCard({ item }: { item: GrowthRecommendation }) {
               </span>
             </div>
 
-            <p className="mt-0.5 text-xs text-slate-500">{item.reason}</p>
+            <p className="mt-0.5 text-xs text-ink-subtle">{item.reason}</p>
 
             {item.amount ? (
-              <p className="mt-1.5 text-sm font-semibold text-slate-800">
+              <p className="mt-1.5 text-sm font-semibold text-ink">
                 <Money value={item.amount ?? "0"} />
                 {item.amountLabel ? (
-                  <span className="ml-1.5 text-[11px] font-normal text-slate-500">
+                  <span className="ml-1.5 text-[11px] font-normal text-ink-subtle">
                     {t(item.amountLabel)}
                   </span>
                 ) : null}
@@ -95,9 +95,9 @@ function RecommendationCard({ item }: { item: GrowthRecommendation }) {
             ) : null}
 
             {item.reorder ? (
-              <p className="mt-1.5 text-xs text-slate-600">
+              <p className="mt-1.5 text-xs text-ink-muted">
                 {t("growth.suggestedOrder")}{" "}
-                <span className="font-semibold text-slate-800">
+                <span className="font-semibold text-ink">
                   {item.reorder.quantity} {item.reorder.unit}
                 </span>
               </p>
@@ -124,11 +124,11 @@ function RecommendationCard({ item }: { item: GrowthRecommendation }) {
 }
 
 export function GrowthView() {
-  const { t, lang } = useLanguage();
+  const { t } = useLanguage();
   const { data, isLoading, isError, refetch } = useGrowthPlan();
 
   const narration = useMutation<Narration>({
-    mutationFn: () => apiPost<Narration>("/api/growth/summary", { lang }),
+    mutationFn: () => apiPost<Narration>("/api/growth/summary", {}),
   });
 
   // Ask for the explanation as soon as the plan is on screen, so the page
@@ -144,7 +144,7 @@ export function GrowthView() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-16 text-slate-400">
+      <div className="flex items-center justify-center py-16 text-ink-faint">
         <Loader2 className="h-5 w-5 animate-spin" />
       </div>
     );
@@ -152,7 +152,7 @@ export function GrowthView() {
 
   if (isError || !data) {
     return (
-      <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+      <div className="rounded-xl border border-danger/20 bg-danger-soft p-4 text-sm text-danger-ink">
         {t("growth.error")}
         <button type="button" onClick={() => refetch()} className="ml-2 underline">
           {t("growth.retry")}
@@ -167,39 +167,39 @@ export function GrowthView() {
 
   return (
     <div className="space-y-4">
-      <section className="rounded-xl border border-slate-200 bg-white p-4">
+      <section className="rounded-card border border-line bg-surface shadow-card p-4">
         <div className="flex items-start gap-2">
           <span className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-lg bg-brand-50 text-brand-700">
             <Sparkles className="h-4 w-4" />
           </span>
           <div className="min-w-0">
-            <h2 className="text-sm font-semibold text-slate-900">{t("growth.subtitle")}</h2>
-            <p className="mt-1 text-sm leading-relaxed text-slate-600">{data.summary}</p>
+            <h2 className="text-sm font-semibold text-ink">{t("growth.subtitle")}</h2>
+            <p className="mt-1 text-sm leading-relaxed text-ink-muted">{data.summary}</p>
           </div>
         </div>
 
         <div className="mt-3 grid grid-cols-3 gap-2">
-          <div className="rounded-lg bg-slate-50 px-2.5 py-2">
-            <p className="text-[10px] font-medium uppercase tracking-wide text-slate-500">
+          <div className="rounded-lg bg-app px-2.5 py-2">
+            <p className="text-[10px] font-medium uppercase tracking-wide text-ink-subtle">
               {t("growth.totals.receivables")}
             </p>
-            <p className="mt-0.5 text-sm font-semibold text-slate-900">
+            <p className="mt-0.5 text-sm font-semibold text-ink">
               <Money value={data.totals.receivables} />
             </p>
           </div>
-          <div className="rounded-lg bg-slate-50 px-2.5 py-2">
-            <p className="text-[10px] font-medium uppercase tracking-wide text-slate-500">
+          <div className="rounded-lg bg-app px-2.5 py-2">
+            <p className="text-[10px] font-medium uppercase tracking-wide text-ink-subtle">
               {t("growth.totals.payables")}
             </p>
-            <p className="mt-0.5 text-sm font-semibold text-slate-900">
+            <p className="mt-0.5 text-sm font-semibold text-ink">
               <Money value={data.totals.payables} />
             </p>
           </div>
-          <div className="rounded-lg bg-slate-50 px-2.5 py-2">
-            <p className="text-[10px] font-medium uppercase tracking-wide text-slate-500">
+          <div className="rounded-lg bg-app px-2.5 py-2">
+            <p className="text-[10px] font-medium uppercase tracking-wide text-ink-subtle">
               {t("growth.totals.deadStock")}
             </p>
-            <p className="mt-0.5 text-sm font-semibold text-slate-900">
+            <p className="mt-0.5 text-sm font-semibold text-ink">
               <Money value={data.totals.deadStockValue} />
             </p>
           </div>
@@ -223,16 +223,16 @@ export function GrowthView() {
                 ? t("growth.refreshAi")
                 : t("growth.explain")}
           </button>
-          <span className="text-[11px] text-slate-400">{t("growth.evidenceNote")}</span>
+          <span className="text-[11px] text-ink-faint">{t("growth.evidenceNote")}</span>
         </div>
 
         {narration.isError ? (
-          <div className="mt-3 flex items-center justify-between gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3">
-            <p className="text-xs text-amber-800">{t("growth.aiBusy")}</p>
+          <div className="mt-3 flex items-center justify-between gap-2 rounded-lg border border-warning/25 bg-warning-soft p-3">
+            <p className="text-xs text-warning-ink">{t("growth.aiBusy")}</p>
             <button
               type="button"
               onClick={() => narration.mutate()}
-              className="shrink-0 text-xs font-semibold text-amber-900 underline"
+              className="shrink-0 text-xs font-semibold text-warning-ink underline"
             >
               {t("growth.retry")}
             </button>
@@ -243,15 +243,15 @@ export function GrowthView() {
               <p className="text-[10px] font-semibold uppercase tracking-wide text-brand-700">
                 {t("growth.aiBadge")}
               </p>
-              <p className="mt-1 text-sm leading-relaxed text-slate-700">{narration.data.text}</p>
+              <p className="mt-1 text-sm leading-relaxed text-ink-muted">{narration.data.text}</p>
             </div>
           ) : (
-            <div className="mt-3 flex items-center justify-between gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3">
-              <p className="text-xs text-amber-800">{t("growth.aiBusy")}</p>
+            <div className="mt-3 flex items-center justify-between gap-2 rounded-lg border border-warning/25 bg-warning-soft p-3">
+              <p className="text-xs text-warning-ink">{t("growth.aiBusy")}</p>
               <button
                 type="button"
                 onClick={() => narration.mutate()}
-                className="shrink-0 text-xs font-semibold text-amber-900 underline"
+                className="shrink-0 text-xs font-semibold text-warning-ink underline"
               >
                 {t("growth.retry")}
               </button>
@@ -261,7 +261,7 @@ export function GrowthView() {
       </section>
 
       {data.recommendations.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-slate-300 p-6 text-center text-sm text-slate-500">
+        <div className="rounded-xl border border-dashed border-line-strong p-6 text-center text-sm text-ink-subtle">
           {t("growth.empty")}
         </div>
       ) : (
@@ -273,7 +273,7 @@ export function GrowthView() {
           ].map((group) =>
             group.items.length > 0 ? (
               <section key={group.key} className="space-y-2">
-                <h3 className="px-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                <h3 className="px-1 text-xs font-semibold uppercase tracking-wide text-ink-subtle">
                   {group.label} · {group.items.length}
                 </h3>
                 {group.items.map((item) => (

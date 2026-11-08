@@ -37,7 +37,7 @@ export function SmartEntryFab({
       onClick={onClick}
       className={cn(
         "fixed bottom-[5.5rem] z-30 flex h-16 w-16 items-center justify-center rounded-full text-white shadow-xl transition-transform",
-        "bg-gradient-to-br from-brand-600 via-brand-700 to-purple-700 shadow-brand-600/40 hover:scale-110 active:scale-95",
+        "bg-gradient-to-br from-brand-600 via-brand-700 to-accent-700 shadow-brand-600/40 hover:scale-110 active:scale-95",
       )}
       style={{
         right: "max(1rem, calc((100vw - 1024px) / 2 + 1rem))",
@@ -52,7 +52,7 @@ export function SmartEntryFab({
       />
 
       {/* Sparkles badge */}
-      <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-amber-400 text-white shadow-sm ring-2 ring-white">
+      <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-warning text-white shadow-card ring-2 ring-white">
         <Sparkles className="h-3 w-3" />
       </span>
 

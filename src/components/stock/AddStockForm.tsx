@@ -24,7 +24,7 @@ import { StickyFormActions } from "@/components/ui/StickyFormActions";
 import { Money } from "@/components/shared/Money";
 import { useAddStockMove } from "@/hooks/use-stock";
 import { useToast } from "@/providers/toast-provider";
-import { userMessage } from "@/lib/i18n/message";
+import { ApiError } from "@/lib/utils/api-client";
 import { Decimal } from "@/lib/utils/decimal";
 import { formatQuantity } from "@/lib/utils/money";
 import type { ProductSearchResult } from "@/lib/services/products";
@@ -51,8 +51,6 @@ export function AddStockForm({ initialProductId }: { initialProductId?: string }
   const [batchName, setBatchName] = useState<string>("");
   const [reason, setReason] = useState<string>("");
   const [date, setDate] = useState<string>(todayIsoLocal());
-  // Only show validation messages after the first save attempt.
-  const [submitted, setSubmitted] = useState(false);
 
   // If initialProductId is provided (e.g. /stock/add?productId=X), we could
   // fetch the product. For V1 simplicity, we let the user search/select.
@@ -93,7 +91,6 @@ export function AddStockForm({ initialProductId }: { initialProductId?: string }
   const hasErrors = !!validation.product || !!validation.quantity || !!validation.unitCost;
 
   const handleSubmit = () => {
-    setSubmitted(true);
     if (!selected) {
       toast.error(t("stock.selectProductFirst"));
       return;
@@ -117,14 +114,17 @@ export function AddStockForm({ initialProductId }: { initialProductId?: string }
       },
       {
         onSuccess: (move) => {
-          toast.success("stock.addedFor", {
-            qty: formatQuantity(quantity, selected.unit),
-            name: selected.name,
-          });
+          toast.success(t("stock.stockAdded"));
           router.push(`/more/products/${selected.id}`);
         },
         onError: (error) => {
-          toast.error(userMessage(error, t, tParams));
+          const message =
+            error instanceof ApiError
+              ? error.message
+              : error instanceof Error
+                ? error.message
+                : t("common.failed");
+          toast.error(message);
         },
       },
     );
@@ -134,26 +134,26 @@ export function AddStockForm({ initialProductId }: { initialProductId?: string }
     <div className="space-y-4">
       {/* Product selection */}
       <section className="space-y-2">
-        <h2 className="px-1 text-sm font-semibold text-slate-700">
+        <h2 className="px-1 text-sm font-semibold text-ink-muted">
           1. {t("sale.products")}
         </h2>
 
         {selected ? (
-          <div className="rounded-xl border border-slate-200 bg-white p-3">
+          <div className="rounded-card border border-line bg-surface shadow-card p-3">
             <div className="flex items-start gap-3">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-100">
                 <Package className="h-5 w-5 text-brand-700" />
               </div>
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium text-slate-900">
+                <p className="truncate text-sm font-medium text-ink">
                   {selected.name}
                 </p>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-ink-subtle">
                   {selected.category ?? t("stock.uncategorized")} · {selected.unit}
                 </p>
                 <p className="mt-1 text-xs">
-                  <span className="text-slate-500">{t("stock.currentStock")}: </span>
-                  <span className="font-semibold text-slate-900">
+                  <span className="text-ink-subtle">{t("stock.currentStock")}: </span>
+                  <span className="font-semibold text-ink">
                     {formatQuantity(selected.currentStock, selected.unit)}
                   </span>
                 </p>
@@ -178,15 +178,15 @@ export function AddStockForm({ initialProductId }: { initialProductId?: string }
       {/* Quantity + details */}
       {selected ? (
         <section className="space-y-3">
-          <h2 className="px-1 text-sm font-semibold text-slate-700">
+          <h2 className="px-1 text-sm font-semibold text-ink-muted">
             2. {t("stock.addStock")}
           </h2>
 
-          <div className="rounded-xl border border-slate-200 bg-white p-3 space-y-3">
+          <div className="rounded-card border border-line bg-surface shadow-card p-3 space-y-3">
             {/* Batch name (user-defined label for this stock purchase) */}
             <div>
-              <label className="mb-1 block text-xs font-medium text-slate-600">
-                {t("stock.batchNameLabel")} <span className="text-slate-400">{t("stock.batchNameHintExample")}</span>
+              <label className="mb-1 block text-xs font-medium text-ink-muted">
+                {t("stock.batchNameLabel")} <span className="text-ink-faint">{t("stock.batchNameHintExample")}</span>
               </label>
               <input
                 type="text"
@@ -194,18 +194,17 @@ export function AddStockForm({ initialProductId }: { initialProductId?: string }
                 onChange={(e) => setBatchName(e.target.value)}
                 placeholder={t("stock.batchNamePlaceholder")}
                 maxLength={100}
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+                className="w-full rounded-lg border border-line-strong bg-surface px-3 py-2.5 text-sm text-ink placeholder:text-ink-faint focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
               />
-              <p className="mt-1 text-[11px] text-slate-500">
+              <p className="mt-1 text-[11px] text-ink-subtle">
                 {t("stock.batchNameHint")}
               </p>
             </div>
 
             {/* Quantity */}
             <div>
-              <label className="mb-1 block text-xs font-medium text-slate-600">
+              <label className="mb-1 block text-xs font-medium text-ink-muted">
                 {t("stock.quantityAdded")}
-                <span className="text-red-500" aria-hidden> *</span>
               </label>
               <input
                 type="number"
@@ -216,24 +215,24 @@ export function AddStockForm({ initialProductId }: { initialProductId?: string }
                 onChange={(e) => setQuantity(e.target.value)}
                 placeholder="0"
                 autoFocus
-                className={`w-full rounded-lg border bg-white px-3 py-2.5 text-lg font-bold tabular-nums text-slate-900 placeholder:text-slate-300 focus:outline-none focus:ring-2 ${
-                  submitted && validation.quantity
-                    ? "border-red-300 focus:border-red-500 focus:ring-red-500/30"
-                    : "border-slate-300 focus:border-brand-500 focus:ring-brand-500/30"
+                className={`w-full rounded-lg border bg-surface px-3 py-2.5 text-lg font-bold tabular-nums text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2 ${
+                  validation.quantity
+                    ? "border-danger/40 focus:border-danger focus:ring-danger/30"
+                    : "border-line-strong focus:border-brand-500 focus:ring-brand-500/30"
                 }`}
               />
-              {submitted && validation.quantity ? (
-                <p className="mt-1 text-xs text-red-600">{validation.quantity}</p>
+              {validation.quantity ? (
+                <p className="mt-1 text-xs text-danger-ink">{validation.quantity}</p>
               ) : null}
             </div>
 
             {/* Unit cost (REQUIRED for purchases — powers batch tracking) */}
             <div>
-              <label className="mb-1 block text-xs font-medium text-slate-600">
-                {t("stock.unitCost")} <span className="text-red-500">*</span>
+              <label className="mb-1 block text-xs font-medium text-ink-muted">
+                {t("stock.unitCost")} <span className="text-danger">*</span>
               </label>
               <div className="relative">
-                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-medium text-slate-500">
+                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-medium text-ink-subtle">
                   {symbol}
                 </span>
                 <input
@@ -244,22 +243,22 @@ export function AddStockForm({ initialProductId }: { initialProductId?: string }
                   value={unitCost}
                   onChange={(e) => setUnitCost(e.target.value)}
                   placeholder="0"
-                  className={`w-full rounded-lg border bg-white py-2.5 pl-10 pr-3 text-sm tabular-nums text-slate-900 placeholder:text-slate-300 focus:outline-none focus:ring-2 ${
-                    submitted && validation.unitCost
-                      ? "border-red-300 focus:border-red-500 focus:ring-red-500/30"
-                      : "border-slate-300 focus:border-brand-500 focus:ring-brand-500/30"
+                  className={`w-full rounded-lg border bg-surface py-2.5 pl-10 pr-3 text-sm tabular-nums text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2 ${
+                    validation.unitCost
+                      ? "border-danger/40 focus:border-danger focus:ring-danger/30"
+                      : "border-line-strong focus:border-brand-500 focus:ring-brand-500/30"
                   }`}
                 />
               </div>
-              {submitted && validation.unitCost ? (
-                <p className="mt-1 text-xs text-red-600">{validation.unitCost}</p>
+              {validation.unitCost ? (
+                <p className="mt-1 text-xs text-danger-ink">{validation.unitCost}</p>
               ) : (
-                <p className="mt-1 text-[11px] text-slate-500">
+                <p className="mt-1 text-[11px] text-ink-subtle">
                   {t("stock.unitCostHintRequired")}
                 </p>
               )}
               {validation.costWarning ? (
-                <p className="mt-1 rounded-md bg-amber-50 px-2 py-1.5 text-[11px] text-amber-800">
+                <p className="mt-1 rounded-md bg-warning-soft px-2 py-1.5 text-[11px] text-warning-ink">
                   {validation.costWarning}
                 </p>
               ) : null}
@@ -267,7 +266,7 @@ export function AddStockForm({ initialProductId }: { initialProductId?: string }
 
             {/* Date */}
             <div>
-              <label className="mb-1 block text-xs font-medium text-slate-600">
+              <label className="mb-1 block text-xs font-medium text-ink-muted">
                 {t("payment.date")}
               </label>
               <input
@@ -275,13 +274,13 @@ export function AddStockForm({ initialProductId }: { initialProductId?: string }
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
                 max={todayIsoLocal()}
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+                className="w-full rounded-lg border border-line-strong bg-surface px-3 py-2.5 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
               />
             </div>
 
             {/* Reason (optional) */}
             <div>
-              <label className="mb-1 block text-xs font-medium text-slate-600">
+              <label className="mb-1 block text-xs font-medium text-ink-muted">
                 {t("stock.reason")}
               </label>
               <textarea
@@ -289,29 +288,29 @@ export function AddStockForm({ initialProductId }: { initialProductId?: string }
                 onChange={(e) => setReason(e.target.value)}
                 placeholder={t("stock.reasonPlaceholder")}
                 rows={2}
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+                className="w-full rounded-lg border border-line-strong bg-surface px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
               />
             </div>
           </div>
 
           {/* Live totals */}
           {quantity && parseDecimalSafe(quantity).gt(0) ? (
-            <div className="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600 space-y-1">
+            <div className="rounded-lg bg-app px-3 py-2 text-xs text-ink-muted space-y-1">
               <div className="flex items-center justify-between">
                 <span>{t("stock.quantityAdded")}</span>
-                <span className="font-semibold text-slate-900">
+                <span className="font-semibold text-ink">
                   {formatQuantity(parseDecimalSafe(quantity), selected.unit)}
                 </span>
               </div>
               {unitCost && parseDecimalSafe(unitCost).gt(0) ? (
                 <div className="flex items-center justify-between">
                   <span>{t("expense.total")}</span>
-                  <span className="font-semibold text-slate-900">
+                  <span className="font-semibold text-ink">
                     <Money value={totalCost.toString()} />
                   </span>
                 </div>
               ) : null}
-              <div className="flex items-center justify-between border-t border-slate-200 pt-1">
+              <div className="flex items-center justify-between border-t border-line pt-1">
                 <span>{t("stock.newStockWillBe")}</span>
                 <span className="font-bold text-brand-700">
                   {formatQuantity(
@@ -330,6 +329,7 @@ export function AddStockForm({ initialProductId }: { initialProductId?: string }
         onCancel={() => router.back()}
         onSave={handleSubmit}
         saveLabel={t("stock.addStock")}
+        saveDisabled={hasErrors || !selected}
         isPending={addStockMove.isPending}
       />
     </div>

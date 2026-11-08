@@ -1,20 +1,13 @@
 "use client";
 
 /**
- * ProfitLossCard — simple, beautiful P&L summary.
+ * ProfitLossCard — a calm, statement-style profit & loss summary.
  *
  * Design:
- *   - One big number: Net Profit (green) or Net Loss (red)
- *   - Period tabs: Today / Week / Month / All
- *   - Clean breakdown card:
- *       Revenue
- *      − Cost of Goods
- *      ─────────────
- *       Gross Profit
- *      − Expenses
- *      ─────────────
- *       Net Profit
- *   - Margin badge next to the big number
+ *   - Segmented period control: Today / Week / Month / All
+ *   - One clear net number (success green or danger red)
+ *   - Margin pill + a composition bar (profit / cost / expenses)
+ *   - A receipt-like breakdown: Revenue → COGS → Gross → Expenses → Net
  *
  * COGS uses batch-level costs when available (batch tracking), otherwise
  * falls back to product.purchasePrice.
@@ -28,7 +21,6 @@ import { Money } from "@/components/shared/Money";
 import { Decimal } from "@/lib/utils/decimal";
 import { cn } from "@/lib/utils/cn";
 import { useLanguage } from "@/providers/language-provider";
-import type { ProfitLossPeriod } from "@/lib/services/profit-loss";
 
 type PeriodKey = "today" | "thisWeek" | "thisMonth" | "allTime";
 
@@ -45,14 +37,15 @@ export function ProfitLossCard() {
   if (new Decimal(data.allTime.revenue).isZero()) {
     return (
       <section className="space-y-2">
-        <div className="flex items-center gap-1.5 px-1">
-          <TrendingUp className="h-4 w-4 text-slate-500" aria-hidden />
-          <h2 className="text-base font-bold text-slate-900">{t("pnl.title")}</h2>
-        </div>
-        <div className="rounded-xl border border-dashed border-slate-300 bg-white p-6 text-center">
-          <TrendingUp className="mx-auto h-6 w-6 text-slate-300" />
-          <p className="mt-2 text-sm font-medium text-slate-600">{t("pnl.noData")}</p>
-          <p className="mt-0.5 text-xs text-slate-400">{t("pnl.noDataDesc")}</p>
+        <h2 className="section-title px-1">{t("pnl.title")}</h2>
+        <div className="rounded-card border border-dashed border-line-strong bg-surface p-7 text-center">
+          <span className="mx-auto flex h-11 w-11 items-center justify-center rounded-2xl bg-surface-2 text-ink-faint">
+            <TrendingUp className="h-5 w-5" />
+          </span>
+          <p className="mt-3 text-[13px] font-semibold text-ink-muted">
+            {t("pnl.noData")}
+          </p>
+          <p className="mt-1 text-[11px] text-ink-faint">{t("pnl.noDataDesc")}</p>
         </div>
       </section>
     );
@@ -63,15 +56,25 @@ export function ProfitLossCard() {
   const isProfit = netProfit.gte(0);
   const margin = new Decimal(p.profitMargin);
 
+  // Composition bar (only when there is revenue to divide)
+  const revenue = new Decimal(p.revenue);
+  const cogs = new Decimal(p.cogs);
+  const expenses = new Decimal(p.expenses);
+  const hasRevenue = revenue.gt(0);
+  const pct = (v: Decimal) =>
+    hasRevenue
+      ? Math.max(0, Math.min(100, v.div(revenue).mul(100).toNumber()))
+      : 0;
+  const cogsPct = pct(cogs);
+  const expPct = pct(expenses);
+  const profitPct = Math.max(0, 100 - cogsPct - expPct);
+
   return (
     <section className="space-y-2">
-      <div className="flex items-center gap-1.5 px-1">
-        <TrendingUp className="h-4 w-4 text-slate-500" aria-hidden />
-        <h2 className="text-base font-bold text-slate-900">{t("pnl.title")}</h2>
-      </div>
+      <h2 className="section-title px-1">{t("pnl.title")}</h2>
 
       {/* Period tabs */}
-      <div className="flex gap-1 rounded-lg bg-slate-100 p-1">
+      <div className="flex gap-1 rounded-control bg-surface-2 p-1">
         {([
           { key: "today", label: t("dashboard.today") },
           { key: "thisWeek", label: t("pnl.thisWeek") },
@@ -83,10 +86,10 @@ export function ProfitLossCard() {
             type="button"
             onClick={() => setPeriod(tab.key)}
             className={cn(
-              "flex min-h-[44px] flex-1 items-center justify-center rounded-md text-[13px] font-medium transition-all",
+              "flex-1 rounded-[0.6rem] py-1.5 text-[11px] font-semibold transition-all duration-150",
               period === tab.key
-                ? "bg-white text-slate-900 shadow-sm"
-                : "text-slate-500 hover:text-slate-700",
+                ? "bg-surface text-ink shadow-soft"
+                : "text-ink-subtle hover:text-ink",
             )}
           >
             {tab.label}
@@ -94,69 +97,122 @@ export function ProfitLossCard() {
         ))}
       </div>
 
-      {/* Net profit hero */}
-      <div
-        className={cn(
-          "rounded-2xl p-4 text-white shadow-lg",
-          isProfit
-            ? "bg-gradient-to-br from-brand-600 to-brand-800"
-            : "bg-gradient-to-br from-red-500 to-rose-600",
-        )}
-      >
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm font-semibold opacity-90">
+      {/* Net profit summary */}
+      <div className="relative overflow-hidden rounded-card border border-line bg-surface shadow-card p-4 shadow-card">
+        <div
+          aria-hidden
+          className={cn(
+            "pointer-events-none absolute -right-10 -top-14 h-36 w-36 rounded-full blur-3xl",
+            isProfit ? "bg-brand-500/15" : "bg-danger/15",
+          )}
+        />
+        <div className="relative flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-ink-faint">
               {isProfit ? t("pnl.netProfit") : t("pnl.netLoss")}
             </p>
-            <p className="mt-1 text-3xl font-bold tracking-tight">
+            <p
+              className={cn(
+                "mt-1.5 truncate text-[1.85rem] font-extrabold leading-none tracking-[-0.03em] tabular-nums",
+                isProfit ? "text-success-ink" : "text-danger-ink",
+              )}
+            >
               {isProfit ? "" : "−"}
               <Money value={netProfit.abs().toString()} />
             </p>
           </div>
-          <div className="text-right">
-            <p className="text-sm font-semibold opacity-90">{t("pnl.margin")}</p>
-            <p className="mt-1 text-xl font-bold">{margin.toString()}%</p>
+          <div className="flex shrink-0 flex-col items-end gap-1">
+            <span
+              className={cn(
+                "pill",
+                isProfit
+                  ? "bg-success-soft text-success-ink"
+                  : "bg-danger-soft text-danger-ink",
+              )}
+            >
+              {isProfit ? (
+                <TrendingUp className="h-3 w-3" />
+              ) : (
+                <TrendingDown className="h-3 w-3" />
+              )}
+              {margin.toNumber().toFixed(0)}%
+            </span>
+            <span className="text-[10px] text-ink-faint">{t("pnl.margin")}</span>
           </div>
         </div>
+
+        {/* Composition bar */}
+        {hasRevenue ? (
+          <div className="relative mt-4">
+            <div className="flex h-2 overflow-hidden rounded-full bg-surface-3">
+              <span
+                className="h-full bg-brand-500"
+                style={{ width: `${profitPct}%` }}
+                title={t("pnl.netProfit")}
+              />
+              <span
+                className="h-full bg-accent-400"
+                style={{ width: `${cogsPct}%` }}
+                title={t("pnl.cogs")}
+              />
+              <span
+                className="h-full bg-warning"
+                style={{ width: `${expPct}%` }}
+                title={t("pnl.expenses")}
+              />
+            </div>
+            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] font-medium text-ink-subtle">
+              <LegendDot className="bg-brand-500" label={t("pnl.netProfit")} />
+              <LegendDot className="bg-accent-400" label={t("pnl.cogs")} />
+              <LegendDot className="bg-warning" label={t("pnl.expenses")} />
+            </div>
+          </div>
+        ) : null}
       </div>
 
       {/* Breakdown card */}
-      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
-        {/* Revenue */}
-        <Row label={t("pnl.revenue")} value={p.revenue} sub={`${p.salesCount} ${t("transactions.sales")}`} tone="blue" />
-
-        {/* COGS */}
-        <Row label={t("pnl.cogs")} value={`−${p.cogs}`} tone="amber" />
-
-        {/* Gross Profit subtotal */}
-        <div className="border-t-2 border-dashed border-slate-200">
+      <div className="overflow-hidden rounded-card border border-line bg-surface shadow-card shadow-card">
+        <Row
+          label={t("pnl.revenue")}
+          value={p.revenue}
+          sub={`${p.salesCount} ${t("transactions.sales")}`}
+          tone="info"
+        />
+        <Row label={t("pnl.cogs")} value={p.cogs} tone="accent" sign="−" />
+        <div className="border-t border-dashed border-line-strong/70">
           <Row
             label={t("pnl.grossProfit")}
             value={p.grossProfit}
-            tone={new Decimal(p.grossProfit).gte(0) ? "green" : "red"}
+            tone={new Decimal(p.grossProfit).gte(0) ? "success" : "danger"}
             bold
           />
         </div>
-
-        {/* Expenses */}
-        <Row label={t("pnl.expenses")} value={`−${p.expenses}`} sub={`${p.expenseCount} ${t("transactions.expenses")}`} tone="amber" />
-
-        {/* Net Profit total */}
-        <div className="border-t-2 border-slate-300 bg-slate-50">
+        <Row
+          label={t("pnl.expenses")}
+          value={p.expenses}
+          sub={`${p.expenseCount} ${t("transactions.expenses")}`}
+          tone="accent"
+          sign="−"
+        />
+        <div className="border-t border-line bg-surface-2/60">
           <Row
             label={isProfit ? t("pnl.netProfit") : t("pnl.netLoss")}
-            value={`${isProfit ? "" : "−"}${netProfit.abs().toString()}`}
-            tone={isProfit ? "green" : "red"}
+            value={netProfit.abs().toString()}
+            tone={isProfit ? "success" : "danger"}
             bold
             large
+            sign={isProfit ? "" : "−"}
           />
         </div>
       </div>
 
       {/* Honest caveat: this is a computed estimate, not an audited profit. */}
-      <p className="px-1 text-[11px] leading-relaxed text-slate-400">
+      <p className="px-1 text-[11px] leading-relaxed text-ink-faint">
         {t("pnl.estimateNote")}{" "}
-        <Link href="/more/reports" className="font-medium text-brand-700 underline-offset-2 hover:underline">
+        <Link
+          href="/more/reports"
+          className="font-semibold text-brand-600 underline-offset-2 hover:underline"
+        >
           {t("pnl.fullReport")}
         </Link>
       </p>
@@ -173,35 +229,59 @@ function Row({
   value,
   sub,
   tone,
+  sign = "",
   bold = false,
   large = false,
 }: {
   label: string;
   value: string;
   sub?: string;
-  tone: "green" | "red" | "blue" | "amber";
+  tone: "success" | "danger" | "info" | "accent";
+  sign?: string;
   bold?: boolean;
   large?: boolean;
 }) {
   const valueColor = {
-    green: "text-green-600",
-    red: "text-red-600",
-    blue: "text-blue-600",
-    amber: "text-amber-600",
+    success: "text-success-ink",
+    danger: "text-danger-ink",
+    info: "text-info-ink",
+    accent: "text-accent-700",
   }[tone];
 
   return (
-    <div className="flex items-center justify-between px-4 py-3">
-      <div>
-        <p className={cn("text-sm", bold ? "font-semibold text-slate-900" : "font-medium text-slate-600")}>
+    <div className="flex items-center justify-between gap-3 px-4 py-2.5">
+      <div className="min-w-0">
+        <p
+          className={cn(
+            "text-[13px]",
+            bold ? "font-semibold text-ink" : "font-medium text-ink-muted",
+          )}
+        >
           {label}
         </p>
-        {sub ? <p className="text-xs text-slate-500">{sub}</p> : null}
+        {sub ? <p className="text-[10px] text-ink-faint">{sub}</p> : null}
       </div>
-      <p className={cn("tabular-nums", valueColor, bold ? "font-bold" : "font-semibold", large ? "text-lg" : "text-sm")}>
-        <Money value={value.replace("−", "")} />
+      <p
+        className={cn(
+          "shrink-0 tabular-nums",
+          valueColor,
+          bold ? "font-bold" : "font-semibold",
+          large ? "text-[17px]" : "text-[13px]",
+        )}
+      >
+        {sign}
+        <Money value={value} />
       </p>
     </div>
+  );
+}
+
+function LegendDot({ className, label }: { className: string; label: string }) {
+  return (
+    <span className="inline-flex items-center gap-1">
+      <span className={cn("h-1.5 w-1.5 rounded-full", className)} />
+      {label}
+    </span>
   );
 }
 
@@ -212,16 +292,16 @@ function Row({
 function Skeleton() {
   return (
     <div className="space-y-2">
-      <div className="h-4 w-32 animate-pulse rounded bg-slate-200" />
-      <div className="flex gap-1 rounded-lg bg-slate-100 p-1">
+      <div className="h-4 w-28 animate-pulse rounded bg-surface-2" />
+      <div className="flex gap-1 rounded-control bg-surface-2 p-1">
         {[0, 1, 2, 3].map((i) => (
-          <div key={i} className="h-7 flex-1 animate-pulse rounded-md bg-slate-200" />
+          <div key={i} className="h-7 flex-1 animate-pulse rounded-md bg-surface-3" />
         ))}
       </div>
-      <div className="h-24 animate-pulse rounded-2xl bg-slate-200" />
-      <div className="space-y-1 rounded-xl border border-slate-200 bg-white p-2">
+      <div className="h-28 animate-pulse rounded-card bg-surface-2" />
+      <div className="space-y-1 overflow-hidden rounded-card border border-line bg-surface shadow-card p-2">
         {[0, 1, 2, 3, 4].map((i) => (
-          <div key={i} className="h-10 animate-pulse rounded bg-slate-100" />
+          <div key={i} className="h-9 animate-pulse rounded bg-surface-2" />
         ))}
       </div>
     </div>

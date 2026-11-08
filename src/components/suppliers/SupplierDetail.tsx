@@ -16,12 +16,11 @@ import { SupplierLedger } from "@/components/suppliers/SupplierLedger";
 import { useLanguage } from "@/providers/language-provider";
 import { useCurrencySymbol } from "@/hooks/use-currency-symbol";
 import { useToast } from "@/providers/toast-provider";
-import { userMessage } from "@/lib/i18n/message";
 import { Money } from "@/components/shared/Money";
 import { Button } from "@/components/ui/Button";
 
 export function SupplierDetail({ supplierId }: { supplierId: string }) {
-  const { t, tParams } = useLanguage();
+  const { t } = useLanguage();
   const symbol = useCurrencySymbol();
   const toast = useToast();
   const router = useRouter();
@@ -30,12 +29,12 @@ export function SupplierDetail({ supplierId }: { supplierId: string }) {
   const [confirming, setConfirming] = useState(false);
 
   if (isLoading) {
-    return <p className="py-8 text-center text-sm text-slate-500">{t("common.loading")}</p>;
+    return <p className="py-8 text-center text-sm text-ink-subtle">{t("common.loading")}</p>;
   }
   if (isError || !data) {
     return (
-      <p className="py-8 text-center text-sm text-red-600">
-        {userMessage(error, t, tParams, "common.couldntLoad")}
+      <p className="py-8 text-center text-sm text-danger-ink">
+        {error instanceof Error ? error.message : t("common.couldntLoad")}
       </p>
     );
   }
@@ -51,33 +50,33 @@ export function SupplierDetail({ supplierId }: { supplierId: string }) {
       router.push("/more/suppliers");
       router.refresh();
     } catch (err) {
-      toast.error(userMessage(err, t, tParams));
+      toast.error(err instanceof Error ? err.message : t("common.failed"));
       setConfirming(false);
     }
   }
 
   return (
     <div className="space-y-5">
-      <div className="rounded-xl border border-slate-200 bg-white p-5">
+      <div className="rounded-card border border-line bg-surface shadow-card p-5">
         <div className="flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-full bg-slate-100 text-slate-500">
+          <div className="flex h-11 w-11 items-center justify-center rounded-full bg-surface-2 text-ink-subtle">
             <Truck className="h-5 w-5" />
           </div>
           <div className="min-w-0">
-            <h2 className="truncate text-lg font-semibold text-slate-900">{data.name}</h2>
-            {data.phone ? <p className="text-sm text-slate-500">{data.phone}</p> : null}
+            <h2 className="truncate text-lg font-semibold text-ink">{data.name}</h2>
+            {data.phone ? <p className="text-sm text-ink-subtle">{data.phone}</p> : null}
           </div>
         </div>
 
-        <div className="mt-5 rounded-lg bg-slate-50 p-4 text-center">
-          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{statusLabel}</p>
+        <div className="mt-5 rounded-lg bg-app p-4 text-center">
+          <p className="text-xs font-medium uppercase tracking-wide text-ink-subtle">{statusLabel}</p>
           <p
             className={
               balance > 0
-                ? "mt-1 text-2xl font-bold text-amber-700"
+                ? "mt-1 text-2xl font-bold text-warning-ink"
                 : balance < 0
-                  ? "mt-1 text-2xl font-bold text-emerald-700"
-                  : "mt-1 text-2xl font-bold text-slate-700"
+                  ? "mt-1 text-2xl font-bold text-success-ink"
+                  : "mt-1 text-2xl font-bold text-ink-muted"
             }
           >
             <Money value={Math.abs(balance)} symbol={symbol} />
@@ -85,27 +84,27 @@ export function SupplierDetail({ supplierId }: { supplierId: string }) {
         </div>
 
         <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
-          <div className="rounded-lg border border-slate-100 p-3">
-            <dt className="text-xs text-slate-500">{t("supplier.totalPurchases")}</dt>
-            <dd className="mt-0.5 font-semibold text-slate-900">
+          <div className="rounded-lg border border-line p-3">
+            <dt className="text-xs text-ink-subtle">{t("supplier.totalPurchases")}</dt>
+            <dd className="mt-0.5 font-semibold text-ink">
               <Money value={data.totalPurchases} symbol={symbol} />
             </dd>
           </div>
-          <div className="rounded-lg border border-slate-100 p-3">
-            <dt className="text-xs text-slate-500">{t("supplier.totalPayments")}</dt>
-            <dd className="mt-0.5 font-semibold text-slate-900">
+          <div className="rounded-lg border border-line p-3">
+            <dt className="text-xs text-ink-subtle">{t("supplier.totalPayments")}</dt>
+            <dd className="mt-0.5 font-semibold text-ink">
               <Money value={data.totalPayments} symbol={symbol} />
             </dd>
           </div>
-          <div className="rounded-lg border border-slate-100 p-3">
-            <dt className="text-xs text-slate-500">{t("supplier.totalOutstanding")}</dt>
-            <dd className="mt-0.5 font-semibold text-slate-900">
+          <div className="rounded-lg border border-line p-3">
+            <dt className="text-xs text-ink-subtle">{t("supplier.totalOutstanding")}</dt>
+            <dd className="mt-0.5 font-semibold text-ink">
               <Money value={data.totalOutstanding} symbol={symbol} />
             </dd>
           </div>
-          <div className="rounded-lg border border-slate-100 p-3">
-            <dt className="text-xs text-slate-500">{t("supplier.openingBalance")}</dt>
-            <dd className="mt-0.5 font-semibold text-slate-900">
+          <div className="rounded-lg border border-line p-3">
+            <dt className="text-xs text-ink-subtle">{t("supplier.openingBalance")}</dt>
+            <dd className="mt-0.5 font-semibold text-ink">
               <Money value={data.openingBalance} symbol={symbol} />
             </dd>
           </div>
@@ -113,15 +112,15 @@ export function SupplierDetail({ supplierId }: { supplierId: string }) {
       </div>
 
       {data.email || data.address || data.notes ? (
-        <div className="space-y-2 rounded-xl border border-slate-200 bg-white p-4 text-sm">
+        <div className="space-y-2 rounded-card border border-line bg-surface shadow-card p-4 text-sm">
           {data.email ? (
-            <p><span className="text-slate-500">{t("supplier.email")}: </span>{data.email}</p>
+            <p><span className="text-ink-subtle">{t("supplier.email")}: </span>{data.email}</p>
           ) : null}
           {data.address ? (
-            <p><span className="text-slate-500">{t("supplier.address")}: </span>{data.address}</p>
+            <p><span className="text-ink-subtle">{t("supplier.address")}: </span>{data.address}</p>
           ) : null}
           {data.notes ? (
-            <p><span className="text-slate-500">{t("common.notes")}: </span>{data.notes}</p>
+            <p><span className="text-ink-subtle">{t("common.notes")}: </span>{data.notes}</p>
           ) : null}
         </div>
       ) : null}
@@ -161,8 +160,8 @@ export function SupplierDetail({ supplierId }: { supplierId: string }) {
       </div>
 
       {confirming ? (
-        <div className="rounded-xl border border-red-200 bg-red-50 p-4">
-          <p className="text-sm text-red-800">{t("supplier.deleteWarning")}</p>
+        <div className="rounded-xl border border-danger/20 bg-danger-soft p-4">
+          <p className="text-sm text-danger-ink">{t("supplier.deleteWarning")}</p>
           <div className="mt-3 flex gap-2">
             <Button
               variant="danger"

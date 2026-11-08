@@ -12,6 +12,9 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Mail, Lock, Loader2, AlertCircle } from "lucide-react";
+import { AuthLayout } from "@/components/auth/AuthLayout";
+import { TextField } from "@/components/ui/TextField";
+import { Button } from "@/components/ui/Button";
 import { useToast } from "@/providers/toast-provider";
 import { useLanguage } from "@/providers/language-provider";
 
@@ -56,99 +59,76 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-[100dvh] items-center justify-center bg-slate-50 p-6">
-      <div className="w-full max-w-sm">
-        {/* Logo + title */}
-        <div className="mb-8 text-center">
-          <img src="/icon.png" alt={t("app.name")} className="mx-auto mb-3 h-14 w-14 rounded-2xl shadow-lg" />
-          <h1 className="text-xl font-bold text-slate-900">{t("app.name")}</h1>
-          <p className="mt-1 text-sm text-slate-500">{t("auth.loginSubtitle")}</p>
+    <AuthLayout
+      subtitle={t("auth.loginSubtitle")}
+      footer={
+        <>
+          {t("auth.noAccountQuestion")}{" "}
+          <Link
+            href="/register"
+            className="font-semibold text-brand-600 underline-offset-2 hover:underline"
+          >
+            {t("auth.signUp")}
+          </Link>
+        </>
+      }
+    >
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {error ? (
+          <div className="flex items-center gap-2 rounded-control bg-danger-soft px-3 py-2.5 text-[13px] font-medium text-danger-ink ring-1 ring-danger/15">
+            <AlertCircle className="h-4 w-4 shrink-0" />
+            <span>{error}</span>
+          </div>
+        ) : null}
+
+        <TextField
+          label={t("auth.email")}
+          name="email"
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder={t("auth.emailPlaceholder")}
+          autoComplete="email"
+          autoFocus
+          leftIcon={<Mail className="h-4 w-4" />}
+        />
+
+        <TextField
+          label={t("auth.password")}
+          name="password"
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          placeholder="••••••••"
+          autoComplete="current-password"
+          leftIcon={<Lock className="h-4 w-4" />}
+        />
+
+        <div className="-mt-1 flex justify-end">
+          <Link
+            href="/reset-password"
+            className="text-[12px] font-semibold text-brand-600 underline-offset-2 hover:underline"
+          >
+            {t("auth.forgotPassword")}
+          </Link>
         </div>
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-3">
-          {error ? (
-            <div className="flex items-center gap-2 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
-              <AlertCircle className="h-4 w-4 shrink-0" />
-              {error}
-            </div>
-          ) : null}
-
-          <div>
-            <label
-              htmlFor="login-email"
-              className="mb-1 block text-xs font-medium text-slate-600"
-            >
-              {t("auth.email")}
-            </label>
-            <div className="relative">
-              <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-              <input
-                id="login-email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder={t("auth.emailPlaceholder")}
-                autoComplete="email"
-                autoFocus
-                className="w-full rounded-lg border border-slate-300 bg-white py-2.5 pl-10 pr-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
-              />
-            </div>
-          </div>
-
-          <div>
-            <div className="mb-1 flex items-center justify-between">
-              <label
-                htmlFor="login-password"
-                className="block text-xs font-medium text-slate-600"
-              >
-                {t("auth.password")}
-              </label>
-              <Link
-                href="/reset-password"
-                className="text-xs font-semibold text-brand-600 hover:underline"
-              >
-                {t("auth.forgotPassword")}
-              </Link>
-            </div>
-            <div className="relative">
-              <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-              <input
-                id="login-password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                autoComplete="current-password"
-                className="w-full rounded-lg border border-slate-300 bg-white py-2.5 pl-10 pr-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
-              />
-            </div>
-          </div>
-
-          <button
-            type="submit"
-            disabled={isPending}
-            className="flex w-full items-center justify-center gap-2 rounded-lg bg-brand-600 py-2.5 text-sm font-semibold text-white shadow-lg shadow-brand-600/20 transition-colors hover:bg-brand-700 disabled:bg-brand-300"
-          >
-            {isPending ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                {t("auth.loggingIn")}
-              </>
-            ) : (
-              t("auth.login")
-            )}
-          </button>
-        </form>
-
-        {/* Register link */}
-        <p className="mt-6 text-center text-sm text-slate-500">
-          {t("auth.noAccountQuestion")}{" "}
-          <a href="/register" className="font-semibold text-brand-600 hover:underline">
-            {t("auth.signUp")}
-          </a>
-        </p>
-      </div>
-    </div>
+        <Button
+          type="submit"
+          size="lg"
+          className="w-full"
+          disabled={isPending}
+        >
+          {isPending ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              {t("auth.loggingIn")}
+            </>
+          ) : (
+            t("auth.login")
+          )}
+        </Button>
+      </form>
+    </AuthLayout>
   );
 }

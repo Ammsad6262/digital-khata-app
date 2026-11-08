@@ -15,34 +15,25 @@ export interface TextFieldProps extends InputHTMLAttributes<HTMLInputElement> {
   error?: string | null;
   hint?: string;
   leftIcon?: React.ReactNode;
-  /**
-   * Marks the field as required: shows a red asterisk after the label and
-   * sets aria-required. This is separate from the native `required`
-   * attribute so callers can show a consistent, translated marker without
-   * triggering the browser's own (untranslated) validation bubble.
-   */
-  showRequired?: boolean;
 }
 
 export const TextField = forwardRef<HTMLInputElement, TextFieldProps>(
   function TextField(
-    { label, error, hint, leftIcon, showRequired, className, id, ...props },
+    { label, error, hint, leftIcon, className, id, ...props },
     ref,
   ) {
     const inputId = id ?? props.name;
-    const isRequired = showRequired || props.required;
     return (
-      <div className="space-y-1">
+      <div className="space-y-1.5">
         <label
           htmlFor={inputId}
-          className="block text-sm font-medium text-slate-700"
+          className="block text-[13px] font-medium text-ink-muted"
         >
           {label}
-          {isRequired ? <span className="text-red-500" aria-hidden> *</span> : null}
         </label>
         <div className="relative">
           {leftIcon ? (
-            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-faint">
               {leftIcon}
             </span>
           ) : null}
@@ -50,27 +41,26 @@ export const TextField = forwardRef<HTMLInputElement, TextFieldProps>(
             ref={ref}
             id={inputId}
             className={cn(
-              "w-full rounded-lg border bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400",
-              "focus:outline-none focus:ring-2 focus:ring-brand-500/40 focus:border-brand-500",
-              "disabled:bg-slate-50 disabled:text-slate-400",
-              leftIcon && "pl-9",
+              "w-full rounded-control border bg-surface px-3.5 py-3 text-sm text-ink placeholder:text-ink-faint",
+              "transition-shadow focus:outline-none focus:ring-4",
+              "disabled:bg-surface-2 disabled:text-ink-subtle",
+              leftIcon && "pl-10",
               error
-                ? "border-red-300 focus:border-red-500 focus:ring-red-500/30"
-                : "border-slate-300",
+                ? "border-danger/60 focus:border-danger focus:ring-danger/15"
+                : "border-line-strong focus:border-brand-500 focus:ring-brand-500/15",
               className,
             )}
             aria-invalid={!!error}
-            aria-required={isRequired || undefined}
             aria-describedby={error ? `${inputId}-error` : hint ? `${inputId}-hint` : undefined}
             {...props}
           />
         </div>
         {error ? (
-          <p id={`${inputId}-error`} className="text-xs text-red-600">
+          <p id={`${inputId}-error`} className="text-xs font-medium text-danger">
             {error}
           </p>
         ) : hint ? (
-          <p id={`${inputId}-hint`} className="text-xs text-slate-500">
+          <p id={`${inputId}-hint`} className="text-xs text-ink-subtle">
             {hint}
           </p>
         ) : null}

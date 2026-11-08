@@ -51,16 +51,10 @@ export function useVoiceAssistant() {
     setLanguage(defaultSpeechLocale(lang));
   }, [lang, setLanguage]);
 
-  const listening =
-    speech.state === "listening" ||
-    recorder.state === "recording" ||
-    recorder.state === "requesting";
+  const listening = speech.state === "listening" || recorder.state === "recording";
 
   const start = useCallback(() => {
     if (assistant.busy) return;
-    // A second tap while a session is already live must not create a second
-    // recognizer or recorder.
-    if (listening) return;
     setTranscript("");
     setDetected(detectSpeechLanguage(""));
 
@@ -74,19 +68,11 @@ export function useVoiceAssistant() {
     void recorder.start((blob, mimeType) => {
       void assistant.send({ audioBlob: blob, audioMimeType: mimeType });
     });
-  }, [assistant, listening, recorder, speech]);
+  }, [assistant, recorder, speech]);
 
   const stop = useCallback(() => {
     if (speech.state === "listening") speech.stop();
     if (recorder.state === "recording") recorder.stop();
-    else if (recorder.state === "requesting") recorder.cancel();
-  }, [recorder, speech]);
-
-  const cancel = useCallback(() => {
-    speech.cancel();
-    recorder.cancel();
-    setTranscript("");
-    setDetected("en");
   }, [recorder, speech]);
 
   const submit = useCallback(
@@ -118,11 +104,6 @@ export function useVoiceAssistant() {
     setDetected("en");
   }, [assistant, recorder, speech]);
 
-  const usingFallbackRecorder =
-    recorder.state === "recording" ||
-    recorder.state === "requesting" ||
-    recorder.state === "stopping";
-
   return {
     assistant,
     speech,
@@ -132,20 +113,8 @@ export function useVoiceAssistant() {
     detected,
     locale: (lang === "ur" ? "ur-PK" : "en-PK") as SpeechLocale,
     listening,
-    recordingElapsedMs: usingFallbackRecorder
-      ? recorder.elapsedMs
-      : speech.elapsedMs,
-    recordingRemainingMs: usingFallbackRecorder
-      ? recorder.remainingMs
-      : speech.remainingMs,
-    recordingMaxMs: usingFallbackRecorder
-      ? recorder.maxDurationMs
-      : speech.maxDurationMs,
-    endedReason: speech.endedReason ?? recorder.endedReason,
-    restarting: speech.restarting,
     start,
     stop,
-    cancel,
     submit,
     retry,
     reset,

@@ -34,8 +34,7 @@ import { Money } from "@/components/shared/Money";
 import { useCreateSale } from "@/hooks/use-sales";
 import { useCustomer } from "@/hooks/use-customers";
 import { useToast } from "@/providers/toast-provider";
-import { userMessage } from "@/lib/i18n/message";
-import { useCurrencySymbol } from "@/hooks/use-currency-symbol";
+import { ApiError } from "@/lib/utils/api-client";
 import { Decimal } from "@/lib/utils/decimal";
 import { formatQuantity, formatMoney } from "@/lib/utils/money";
 import type { ProductSearchResult } from "@/lib/services/products";
@@ -57,8 +56,7 @@ export function NewSaleForm() {
   const searchParams = useSearchParams();
   const toast = useToast();
   const createSale = useCreateSale();
-  const { t, tParams } = useLanguage();
-  const symbol = useCurrencySymbol();
+  const { t } = useLanguage();
 
   const [customer, setCustomer] = useState<SelectedCustomer | null>(null);
   const [items, setItems] = useState<LineItem[]>([]);
@@ -67,9 +65,6 @@ export function NewSaleForm() {
   const [dueDate, setDueDate] = useState<string>("");
   const [notes, setNotes] = useState<string>("");
   const [customerError, setCustomerError] = useState<string | null>(null);
-  // Validation messages stay hidden until the shopkeeper attempts to save, so
-  // an empty sale doesn't open covered in red warnings.
-  const [submitted, setSubmitted] = useState(false);
 
   // Pre-fill customer from ?customerId=... (e.g. when tapping "New Sale" from a customer's khata page)
   const customerIdParam = searchParams.get("customerId");
@@ -222,7 +217,6 @@ export function NewSaleForm() {
 
   // ── Submit ──────────────────────────────────────────────────────────
   const handleSubmit = () => {
-    setSubmitted(true);
     if (!customer) {
       setCustomerError(t("sale.selectCustomerFirst"));
       return;
@@ -251,14 +245,17 @@ export function NewSaleForm() {
       },
       {
         onSuccess: (sale) => {
-          toast.success("sale.savedFor", {
-            name: customer?.name ?? "",
-            amount: formatMoney(totals.netTotal, symbol),
-          });
+          toast.success(t("sale.saleRecorded"));
           router.push(`/sales/${sale.id}`);
         },
         onError: (error) => {
-          toast.error(userMessage(error, t, tParams));
+          const message =
+            error instanceof ApiError
+              ? error.message
+              : error instanceof Error
+                ? error.message
+                : t("common.failed");
+          toast.error(message);
         },
       },
     );
@@ -269,7 +266,7 @@ export function NewSaleForm() {
     <div className="space-y-4">
       {/* Customer section */}
       <section className="space-y-2">
-        <h2 className="px-1 text-sm font-semibold text-slate-700">
+        <h2 className="px-1 text-sm font-semibold text-ink-muted">
           <span dir="ltr">1.</span> {t("sale.customer")}
         </h2>
         <CustomerPicker
@@ -281,7 +278,7 @@ export function NewSaleForm() {
 
       {/* Line items section */}
       <section className="space-y-2">
-        <h2 className="px-1 text-sm font-semibold text-slate-700">
+        <h2 className="px-1 text-sm font-semibold text-ink-muted">
           <span dir="ltr">2.</span> {t("sale.products")}
         </h2>
         <ProductPicker
@@ -302,21 +299,21 @@ export function NewSaleForm() {
               return (
                 <div
                   key={`${item.productId}-${idx}`}
-                  className="rounded-xl border border-slate-200 bg-white p-3"
+                  className="rounded-card border border-line bg-surface shadow-card p-3"
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium text-slate-900">
+                      <p className="truncate text-sm font-medium text-ink">
                         {item.productName}
                       </p>
-                      <p className="text-[11px] text-slate-500">
+                      <p className="text-[11px] text-ink-subtle">
                         {formatQuantity(item.currentStock, item.productUnit)} {t("stock.inStock")}
                       </p>
                     </div>
                     <button
                       type="button"
                       onClick={() => handleRemoveItem(idx)}
-                      className="shrink-0 rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600"
+                      className="shrink-0 rounded-lg p-1.5 text-ink-faint hover:bg-danger-soft hover:text-danger-ink"
                       aria-label={t("sale.removeItem")}
                     >
                       <Trash2 className="h-4 w-4" />
@@ -325,9 +322,8 @@ export function NewSaleForm() {
 
                   <div className="mt-2 grid grid-cols-2 gap-2">
                     <div>
-                      <label className="mb-0.5 block text-[11px] font-medium text-slate-600">
+                      <label className="mb-0.5 block text-[11px] font-medium text-ink-muted">
                         {t("sale.quantity")}
-                        <span className="text-red-500" aria-hidden> *</span>
                       </label>
                       <input
                         type="number"
@@ -336,20 +332,19 @@ export function NewSaleForm() {
                         min="0"
                         value={item.quantity}
                         onChange={(e) => updateItem(idx, { quantity: e.target.value })}
-                        className={`w-full rounded-md border bg-white px-2 py-1.5 text-sm tabular-nums focus:outline-none focus:ring-2 ${
-                          submitted && itemErr.quantity
-                            ? "border-red-300 focus:border-red-500 focus:ring-red-500/30"
-                            : "border-slate-300 focus:border-brand-500 focus:ring-brand-500/30"
+                        className={`w-full rounded-md border bg-surface px-2 py-1.5 text-sm tabular-nums focus:outline-none focus:ring-2 ${
+                          itemErr.quantity
+                            ? "border-danger/40 focus:border-danger focus:ring-danger/30"
+                            : "border-line-strong focus:border-brand-500 focus:ring-brand-500/30"
                         }`}
                       />
-                      {submitted && itemErr.quantity ? (
-                        <p className="mt-0.5 text-[10px] text-red-600">{itemErr.quantity}</p>
+                      {itemErr.quantity ? (
+                        <p className="mt-0.5 text-[10px] text-danger-ink">{itemErr.quantity}</p>
                       ) : null}
                     </div>
                     <div>
-                      <label className="mb-0.5 block text-[11px] font-medium text-slate-600">
+                      <label className="mb-0.5 block text-[11px] font-medium text-ink-muted">
                         {t("sale.unitPrice")} ({item.productUnit})
-                        <span className="text-red-500" aria-hidden> *</span>
                       </label>
                       <input
                         type="number"
@@ -358,14 +353,14 @@ export function NewSaleForm() {
                         min="0"
                         value={item.unitPrice}
                         onChange={(e) => updateItem(idx, { unitPrice: e.target.value })}
-                        className={`w-full rounded-md border bg-white px-2 py-1.5 text-sm tabular-nums focus:outline-none focus:ring-2 ${
-                          submitted && itemErr.unitPrice
-                            ? "border-red-300 focus:border-red-500 focus:ring-red-500/30"
-                            : "border-slate-300 focus:border-brand-500 focus:ring-brand-500/30"
+                        className={`w-full rounded-md border bg-surface px-2 py-1.5 text-sm tabular-nums focus:outline-none focus:ring-2 ${
+                          itemErr.unitPrice
+                            ? "border-danger/40 focus:border-danger focus:ring-danger/30"
+                            : "border-line-strong focus:border-brand-500 focus:ring-brand-500/30"
                         }`}
                       />
-                      {submitted && itemErr.unitPrice ? (
-                        <p className="mt-0.5 text-[10px] text-red-600">{itemErr.unitPrice}</p>
+                      {itemErr.unitPrice ? (
+                        <p className="mt-0.5 text-[10px] text-danger-ink">{itemErr.unitPrice}</p>
                       ) : null}
                     </div>
                   </div>
@@ -383,15 +378,15 @@ export function NewSaleForm() {
                     />
                   </div>
 
-                  <div className="mt-2 flex items-center justify-between border-t border-slate-100 pt-2">
-                    <span className="text-[11px] text-slate-500">{t("sale.lineTotal")}</span>
-                    <span className="text-sm font-semibold tabular-nums text-slate-900">
+                  <div className="mt-2 flex items-center justify-between border-t border-line pt-2">
+                    <span className="text-[11px] text-ink-subtle">{t("sale.lineTotal")}</span>
+                    <span className="text-sm font-semibold tabular-nums text-ink">
                       <Money value={lineTotal.toString()} />
                     </span>
                   </div>
 
                   {overSelling ? (
-                    <div className="mt-1.5 flex items-start gap-1.5 rounded-md bg-amber-50 px-2 py-1 text-[11px] text-amber-800">
+                    <div className="mt-1.5 flex items-start gap-1.5 rounded-md bg-warning-soft px-2 py-1 text-[11px] text-warning-ink">
                       <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />
                       <span>{itemErr.stock}</span>
                     </div>
@@ -401,29 +396,29 @@ export function NewSaleForm() {
             })}
           </div>
         ) : (
-          <div className="rounded-lg border border-dashed border-slate-300 px-3 py-4 text-center">
-            <ShoppingCart className="mx-auto h-5 w-5 text-slate-300" />
-            <p className="mt-1 text-xs text-slate-500">
+          <div className="rounded-lg border border-dashed border-line-strong px-3 py-4 text-center">
+            <ShoppingCart className="mx-auto h-5 w-5 text-ink-faint" />
+            <p className="mt-1 text-xs text-ink-subtle">
               {t("sale.noProductsAdded")}
             </p>
           </div>
         )}
 
-        {submitted && validation.items ? (
-          <p className="px-1 text-xs text-red-600">{validation.items}</p>
+        {validation.items ? (
+          <p className="px-1 text-xs text-danger-ink">{validation.items}</p>
         ) : null}
       </section>
 
       {/* Payment section */}
       {items.length > 0 ? (
         <section className="space-y-2">
-          <h2 className="px-1 text-sm font-semibold text-slate-700">
+          <h2 className="px-1 text-sm font-semibold text-ink-muted">
             <span dir="ltr">3.</span> {t("sale.payment")}
           </h2>
 
-          <div className="rounded-xl border border-slate-200 bg-white p-3">
+          <div className="rounded-card border border-line bg-surface shadow-card p-3">
             <div className="space-y-1.5 text-sm">
-              <div className="flex items-center justify-between text-slate-500">
+              <div className="flex items-center justify-between text-ink-subtle">
                 <span>{t("sale.itemsTotal")}</span>
                 <span className="tabular-nums">
                   <Money value={totals.grandTotal.toString()} />
@@ -431,7 +426,7 @@ export function NewSaleForm() {
               </div>
 
               <div>
-                <label className="mb-1 block text-xs font-medium text-slate-600">
+                <label className="mb-1 block text-xs font-medium text-ink-muted">
                   {t("sale.discount")}
                 </label>
                 <input
@@ -442,26 +437,26 @@ export function NewSaleForm() {
                   value={discountAmount}
                   onChange={(e) => setDiscountAmount(e.target.value)}
                   placeholder="0"
-                  className={`w-full rounded-lg border bg-white px-3 py-2.5 text-sm tabular-nums focus:outline-none focus:ring-2 ${
-                    submitted && validation.discount
-                      ? "border-red-300 focus:border-red-500 focus:ring-red-500/30"
-                      : "border-slate-300 focus:border-brand-500 focus:ring-brand-500/30"
+                  className={`w-full rounded-lg border bg-surface px-3 py-2.5 text-sm tabular-nums focus:outline-none focus:ring-2 ${
+                    validation.discount
+                      ? "border-danger/40 focus:border-danger focus:ring-danger/30"
+                      : "border-line-strong focus:border-brand-500 focus:ring-brand-500/30"
                   }`}
                 />
-                {submitted && validation.discount ? (
-                  <p className="mt-1 text-xs text-red-600">{validation.discount}</p>
+                {validation.discount ? (
+                  <p className="mt-1 text-xs text-danger-ink">{validation.discount}</p>
                 ) : null}
               </div>
 
-              <div className="flex items-center justify-between border-t border-slate-100 pt-1.5">
-                <span className="text-slate-600">{t("sale.total")}</span>
-                <span className="font-bold tabular-nums text-slate-900">
+              <div className="flex items-center justify-between border-t border-line pt-1.5">
+                <span className="text-ink-muted">{t("sale.total")}</span>
+                <span className="font-bold tabular-nums text-ink">
                   <Money value={totals.netTotal.toString()} />
                 </span>
               </div>
 
               <div>
-                <label className="mb-1 block text-xs font-medium text-slate-600">
+                <label className="mb-1 block text-xs font-medium text-ink-muted">
                   {t("sale.amountPaidNow")}
                 </label>
                 <input
@@ -472,58 +467,58 @@ export function NewSaleForm() {
                   value={paidAmount}
                   onChange={(e) => setPaidAmount(e.target.value)}
                   placeholder="0"
-                  className={`w-full rounded-lg border bg-white px-3 py-2.5 text-sm tabular-nums focus:outline-none focus:ring-2 ${
-                    submitted && validation.paidAmount
-                      ? "border-red-300 focus:border-red-500 focus:ring-red-500/30"
-                      : "border-slate-300 focus:border-brand-500 focus:ring-brand-500/30"
+                  className={`w-full rounded-lg border bg-surface px-3 py-2.5 text-sm tabular-nums focus:outline-none focus:ring-2 ${
+                    validation.paidAmount
+                      ? "border-danger/40 focus:border-danger focus:ring-danger/30"
+                      : "border-line-strong focus:border-brand-500 focus:ring-brand-500/30"
                   }`}
                 />
-                {submitted && validation.paidAmount ? (
-                  <p className="mt-1 text-xs text-red-600">{validation.paidAmount}</p>
+                {validation.paidAmount ? (
+                  <p className="mt-1 text-xs text-danger-ink">{validation.paidAmount}</p>
                 ) : null}
                 <div className="mt-1.5 flex gap-1.5">
                   <button
                     type="button"
                     onClick={() => setPaidAmount(totals.netTotal.toString())}
-                    className="flex-1 rounded-lg bg-brand-50 px-3 py-2 text-xs font-medium text-brand-700 hover:bg-brand-100"
+                    className="rounded-md bg-brand-50 px-2 py-1 text-[11px] font-medium text-brand-700 hover:bg-brand-100"
                   >
                     {t("sale.fullPayment")}
                   </button>
                   <button
                     type="button"
                     onClick={() => setPaidAmount("0")}
-                    className="flex-1 rounded-lg bg-slate-100 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-200"
+                    className="rounded-md bg-surface-2 px-2 py-1 text-[11px] font-medium text-ink-muted hover:bg-surface-2"
                   >
                     {t("sale.creditOnly")}
                   </button>
                 </div>
               </div>
 
-              <div className="flex items-center justify-between border-t border-slate-100 pt-1.5">
-                <span className="text-slate-600">{t("sale.outstanding")}</span>
-                <span className="font-bold tabular-nums text-red-600">
+              <div className="flex items-center justify-between border-t border-line pt-1.5">
+                <span className="text-ink-muted">{t("sale.outstanding")}</span>
+                <span className="font-bold tabular-nums text-danger-ink">
                   <Money value={totals.outstanding.toString()} />
                 </span>
               </div>
 
-              <div className="border-t border-slate-100 pt-1.5">
-                <label className="mb-1 block text-xs font-medium text-slate-600">
+              <div className="border-t border-line pt-1.5">
+                <label className="mb-1 block text-xs font-medium text-ink-muted">
                   {t("sale.dueDate")}
                 </label>
                 <input
                   type="date"
                   value={dueDate}
                   onChange={(e) => setDueDate(e.target.value)}
-                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+                  className="w-full rounded-lg border border-line-strong bg-surface px-3 py-2 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
                 />
-                <p className="mt-1 text-[11px] text-slate-400">{t("sale.dueDateHint")}</p>
+                <p className="mt-1 text-[11px] text-ink-faint">{t("sale.dueDateHint")}</p>
               </div>
             </div>
           </div>
 
           {/* Notes */}
           <div>
-            <label className="mb-1 block px-1 text-xs font-medium text-slate-600">
+            <label className="mb-1 block px-1 text-xs font-medium text-ink-muted">
               {t("sale.saleNotes")}
             </label>
             <textarea
@@ -531,13 +526,13 @@ export function NewSaleForm() {
               onChange={(e) => setNotes(e.target.value)}
               placeholder={t("sale.saleNotesPlaceholder")}
               rows={2}
-              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+              className="w-full rounded-lg border border-line-strong bg-surface px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
             />
           </div>
 
           {/* Stock warning banner */}
           {hasStockWarnings ? (
-            <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+            <div className="flex items-start gap-2 rounded-lg border border-warning/25 bg-warning-soft px-3 py-2 text-xs text-warning-ink">
               <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
               <span>
                 {t("sale.overSellingBanner")}
@@ -552,6 +547,7 @@ export function NewSaleForm() {
         onCancel={() => router.back()}
         onSave={handleSubmit}
         saveLabel={t("sale.saveSale")}
+        saveDisabled={hasBlockingErrors || items.length === 0}
         isPending={createSale.isPending}
       />
     </div>

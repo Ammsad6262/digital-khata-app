@@ -31,7 +31,7 @@ import {
 import { CheckCircle2, AlertCircle, X, Info } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { useLanguage } from "@/providers/language-provider";
-import { localizeMessage } from "@/lib/i18n/message";
+import { translations, type TranslationKey } from "@/lib/i18n/translations";
 
 type ToastVariant = "success" | "error" | "info";
 
@@ -51,6 +51,16 @@ const ToastContext = createContext<ToastContextValue | null>(null);
 
 let toastIdCounter = 0;
 
+/**
+ * Check if a string is a known translation key.
+ * Conservative: must contain a dot, no whitespace, AND be a key in `translations`.
+ */
+function isTranslationKey(s: string): s is TranslationKey {
+  if (!s || typeof s !== "string") return false;
+  if (!s.includes(".") || /\s/.test(s)) return false;
+  return Object.prototype.hasOwnProperty.call(translations, s);
+}
+
 export function ToastProvider({ children }: { children: ReactNode }) {
   const { t, tParams } = useLanguage();
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -62,8 +72,11 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const push = useCallback(
     (variant: ToastVariant, message: string, params?: Record<string, string | number>) => {
       const id = ++toastIdCounter;
-      // Keys and known English system messages are localised automatically.
-      const displayMessage = localizeMessage(message, t, tParams, params);
+      // If the message is a known translation key, translate it.
+      let displayMessage = message;
+      if (isTranslationKey(message)) {
+        displayMessage = params ? tParams(message, params) : t(message);
+      }
       setToasts((prev) => [...prev, { id, variant, message: displayMessage }]);
       const ttl = variant === "error" ? 5000 : 3000;
       setTimeout(() => dismiss(id), ttl);
@@ -99,17 +112,17 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: () => void }
     success: {
       icon: CheckCircle2,
       iconColor: "text-brand-600",
-      bg: "bg-white border-brand-200",
+      bg: "bg-surface border-brand-200",
     },
     error: {
       icon: AlertCircle,
-      iconColor: "text-red-600",
-      bg: "bg-white border-red-200",
+      iconColor: "text-danger-ink",
+      bg: "bg-surface border-danger/20",
     },
     info: {
       icon: Info,
-      iconColor: "text-blue-600",
-      bg: "bg-white border-blue-200",
+      iconColor: "text-info-ink",
+      bg: "bg-surface border-info/20",
     },
   }[toast.variant];
 
@@ -118,17 +131,17 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: () => void }
   return (
     <div
       className={cn(
-        "pointer-events-auto flex items-start gap-2.5 rounded-xl border px-3.5 py-2.5 shadow-lg shadow-slate-900/5",
+        "pointer-events-auto flex items-start gap-2.5 rounded-xl border px-3.5 py-2.5 shadow-lift",
         config.bg,
       )}
       role="status"
     >
       <Icon className={cn("mt-0.5 h-4 w-4 shrink-0", config.iconColor)} />
-      <p className="flex-1 text-sm text-slate-900">{toast.message}</p>
+      <p className="flex-1 text-sm text-ink">{toast.message}</p>
       <button
         type="button"
         onClick={onDismiss}
-        className="shrink-0 text-slate-400 hover:text-slate-700"
+        className="shrink-0 text-ink-faint hover:text-ink-muted"
         aria-label={t("common.dismiss")}
       >
         <X className="h-4 w-4" />

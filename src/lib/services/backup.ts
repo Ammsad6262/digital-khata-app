@@ -911,7 +911,7 @@ function deserializeSetting(row: Record<string, unknown>) {
     ownerPinHash: (row.ownerPinHash as string | null) ?? null,
     timezone: row.timezone as string,
     customUnits: (row.customUnits as string[]) ?? [],
-    theme: (row.theme as string) ?? "monochrome",
+    theme: (row.theme as string) ?? "ink",
     createdAt: deserializeDate(row.createdAt),
     updatedAt: deserializeDate(row.updatedAt),
   };

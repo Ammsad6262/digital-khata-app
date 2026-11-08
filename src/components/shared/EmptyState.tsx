@@ -1,14 +1,12 @@
 "use client";
 
 /**
- * Empty state component — friendly message + optional CTA.
+ * Empty state — friendly message + optional CTA.
  * Used by every list screen when there's nothing to show yet.
  */
 
 import { type ReactNode } from "react";
 import { cn } from "@/lib/utils/cn";
-import { useLanguage } from "@/providers/language-provider";
-import { localizeMessage } from "@/lib/i18n/message";
 
 export function EmptyState({
   title,
@@ -23,32 +21,30 @@ export function EmptyState({
   action?: ReactNode;
   className?: string;
 }) {
-  const { t, tParams } = useLanguage();
-  // Titles and descriptions arrive as `t(...)` strings, API error messages,
-  // or translation keys. Localise here so error text is translated on every
-  // list/detail screen without each caller having to remember to do it.
-  const shownTitle = localizeMessage(title, t, tParams);
-  const shownDescription = description
-    ? localizeMessage(description, t, tParams)
-    : undefined;
-
   return (
     <div
       className={cn(
-        "flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 bg-white/50 p-8 text-center",
+        "relative flex flex-col items-center justify-center overflow-hidden rounded-card border border-line bg-surface shadow-card px-6 py-10 text-center shadow-card",
         className,
       )}
     >
+      {/* soft brand wash behind the icon */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -top-16 left-1/2 h-40 w-40 -translate-x-1/2 rounded-full bg-brand-500/10 blur-2xl"
+      />
       {icon ? (
-        <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-500">
+        <div className="relative mb-3.5 flex h-14 w-14 items-center justify-center rounded-2xl bg-surface-2 text-brand-600 ring-1 ring-line">
           {icon}
         </div>
       ) : null}
-      <h3 className="text-sm font-semibold text-slate-900">{shownTitle}</h3>
-      {shownDescription ? (
-        <p className="mt-1 max-w-xs text-xs text-slate-500">{shownDescription}</p>
+      <h3 className="relative text-[15px] font-semibold text-ink">{title}</h3>
+      {description ? (
+        <p className="relative mt-1.5 max-w-[17rem] text-[13px] leading-relaxed text-ink-subtle">
+          {description}
+        </p>
       ) : null}
-      {action ? <div className="mt-4">{action}</div> : null}
+      {action ? <div className="relative mt-5">{action}</div> : null}
     </div>
   );
 }

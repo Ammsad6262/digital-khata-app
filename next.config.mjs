@@ -56,6 +56,10 @@ const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
 
+  // Keep the dev view clean — the floating indicator covers the app's own
+  // bottom navigation while reviewing screens.
+  devIndicators: false,
+
   // Enable gzip + brotli compression for all responses
   // Vercel does this automatically, but for self-hosted/local dev this helps
   compress: true,

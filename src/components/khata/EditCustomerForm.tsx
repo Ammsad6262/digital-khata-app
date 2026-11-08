@@ -22,7 +22,6 @@ import { useCustomer, useUpdateCustomer } from "@/hooks/use-customers";
 import { useToast } from "@/providers/toast-provider";
 import { createCustomerSchema } from "@/lib/schemas/customer";
 import { ApiError } from "@/lib/utils/api-client";
-import { userMessage } from "@/lib/i18n/message";
 import type { z } from "zod";
 import { useLanguage } from "@/providers/language-provider";
 
@@ -31,7 +30,7 @@ type FormValues = z.infer<typeof createCustomerSchema>;
 export function EditCustomerForm({ customerId }: { customerId: string }) {
   const router = useRouter();
   const toast = useToast();
-  const { t, tParams } = useLanguage();
+  const { t } = useLanguage();
   const { data: customer, isLoading, isError, error, refetch } = useCustomer(customerId);
   const updateCustomer = useUpdateCustomer();
 
@@ -63,7 +62,7 @@ export function EditCustomerForm({ customerId }: { customerId: string }) {
     return (
       <div className="space-y-3">
         {[0, 1, 2, 3].map((i) => (
-          <div key={i} className="h-16 animate-pulse rounded-xl bg-slate-200" />
+          <div key={i} className="h-16 animate-pulse rounded-xl bg-surface-2" />
         ))}
       </div>
     );
@@ -106,7 +105,9 @@ export function EditCustomerForm({ customerId }: { customerId: string }) {
               message: t("customer.phoneAlreadyExists"),
             });
           }
-          toast.error(userMessage(mutationError, t, tParams));
+          toast.error(
+            mutationError instanceof Error ? mutationError.message : t("common.failed"),
+          );
         },
       },
     );
@@ -114,15 +115,14 @@ export function EditCustomerForm({ customerId }: { customerId: string }) {
 
   return (
     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-      <p className="px-1 text-xs text-slate-500">{t("customer.editCustomerSubtitle")}</p>
+      <p className="px-1 text-xs text-ink-subtle">{t("customer.editCustomerSubtitle")}</p>
 
-      <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="rounded-card border border-line bg-surface shadow-card p-4 shadow-card">
         <div className="space-y-3">
           <TextField
             label={t("customer.name")}
             placeholder={t("customer.namePlaceholder")}
             autoComplete="off"
-            showRequired
             {...form.register("name")}
             error={form.formState.errors.name?.message ?? null}
           />

@@ -71,8 +71,8 @@ export function BatchPicker({
   // ── Loading state ──────────────────────────────────────────────────────
   if (isLoading) {
     return (
-      <div className="rounded-md bg-slate-50 px-2 py-1.5 text-[11px] text-slate-500">
-        <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-slate-400" />
+      <div className="rounded-md bg-app px-2 py-1.5 text-[11px] text-ink-subtle">
+        <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-ink-faint" />
         <span className="ml-1">{t("stock.loadingBatches")}</span>
       </div>
     );
@@ -81,7 +81,7 @@ export function BatchPicker({
   // ── Error state ────────────────────────────────────────────────────────
   if (isError) {
     return (
-      <div className="rounded-md bg-red-50 px-2 py-1.5 text-[11px] text-red-700">
+      <div className="rounded-md bg-danger-soft px-2 py-1.5 text-[11px] text-danger-ink">
         {t("stock.batchesLoadFailed")}
       </div>
     );
@@ -90,12 +90,12 @@ export function BatchPicker({
   // ── No batches — sale from opening stock ───────────────────────────────
   if (availableBatches.length === 0) {
     return (
-      <div className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1.5">
-        <p className="text-[11px] font-medium text-amber-800">
+      <div className="rounded-md border border-warning/25 bg-warning-soft px-2 py-1.5">
+        <p className="text-[11px] font-medium text-warning-ink">
           <Package className="mr-1 inline h-3 w-3" />
           {t("sale.noBatches")}
         </p>
-        <p className="mt-0.5 text-[10px] text-amber-700">
+        <p className="mt-0.5 text-[10px] text-warning-ink">
           {t("sale.noBatchesDesc")}
         </p>
       </div>
@@ -109,8 +109,8 @@ export function BatchPicker({
     const b = availableBatches[0];
     if (!b) return null;
     return (
-      <div className="rounded-md bg-slate-50 px-2 py-1.5">
-        <p className="text-[10px] font-medium uppercase tracking-wide text-slate-500">
+      <div className="rounded-md bg-app px-2 py-1.5">
+        <p className="text-[10px] font-medium uppercase tracking-wide text-ink-subtle">
           {t("sale.batchLabel")}
         </p>
         <BatchSummary
@@ -126,8 +126,8 @@ export function BatchPicker({
 
   // ── Multiple batches: picker UI ────────────────────────────────────────
   return (
-    <div className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5">
-      <p className="mb-1 flex items-center gap-1 text-[10px] font-medium uppercase tracking-wide text-slate-500">
+    <div className="rounded-md border border-line bg-app px-2 py-1.5">
+      <p className="mb-1 flex items-center gap-1 text-[10px] font-medium uppercase tracking-wide text-ink-subtle">
         <Layers className="h-3 w-3" />
         {t("sale.batchLabel")} ({availableBatches.length})
       </p>
@@ -145,13 +145,13 @@ export function BatchPicker({
                 "shrink-0 rounded-md border px-2 py-1 text-left text-[11px] transition-colors",
                 isSelected
                   ? "border-brand-500 bg-brand-50 ring-1 ring-brand-500/30"
-                  : "border-slate-200 bg-white hover:border-brand-300",
-                insufficient && !isSelected && "border-amber-300 bg-amber-50",
+                  : "border-line bg-surface hover:border-brand-300",
+                insufficient && !isSelected && "border-warning/30 bg-warning-soft",
               )}
               aria-pressed={isSelected}
             >
               {b.batchName ? (
-                <div className="mb-0.5 truncate text-[11px] font-semibold text-slate-900">
+                <div className="mb-0.5 truncate text-[11px] font-semibold text-ink">
                   {b.batchName}
                 </div>
               ) : null}
@@ -159,24 +159,24 @@ export function BatchPicker({
                 <span className="rounded bg-brand-100 px-1 text-[9px] font-semibold text-brand-700">
                   #{idx + 1}
                 </span>
-                <span className="font-semibold tabular-nums text-slate-900">
+                <span className="font-semibold tabular-nums text-ink">
                   {symbol} {b.unitCost ?? "—"}
                 </span>
               </div>
-              <div className="mt-0.5 flex items-center gap-1 text-[10px] text-slate-500">
+              <div className="mt-0.5 flex items-center gap-1 text-[10px] text-ink-subtle">
                 <Calendar className="h-2.5 w-2.5" />
                 {formatDate(new Date(b.date))}
               </div>
               <div
                 className={cn(
                   "mt-0.5 text-[10px] font-medium",
-                  insufficient ? "text-amber-700" : "text-slate-600",
+                  insufficient ? "text-warning-ink" : "text-ink-muted",
                 )}
               >
                 {formatQuantity(remaining, productUnit)} {t("sale.batchRemaining")}
               </div>
               {insufficient ? (
-                <div className="mt-0.5 text-[9px] text-amber-700">
+                <div className="mt-0.5 text-[9px] text-warning-ink">
                   ⚠ {t("sale.shortBy")} {formatQuantity(requested.minus(remaining), productUnit)}
                 </div>
               ) : null}
@@ -213,11 +213,11 @@ function BatchSummary({
   return (
     <div className="mt-0.5 space-y-0.5">
       <div className="flex items-center gap-2 text-[11px]">
-        <span className="font-semibold text-slate-900">
+        <span className="font-semibold text-ink">
           {t("sale.batchBoughtAt")} {symbol} {unitCost ?? t("sale.batchNoCost")}
         </span>
-        <span className="text-slate-400">·</span>
-        <span className="text-slate-500">
+        <span className="text-ink-faint">·</span>
+        <span className="text-ink-subtle">
           <Calendar className="mr-0.5 inline h-2.5 w-2.5" />
           {formatDate(new Date(date))}
         </span>
@@ -225,12 +225,12 @@ function BatchSummary({
       <div
         className={cn(
           "text-[10px] font-medium",
-          insufficient ? "text-amber-700" : "text-slate-600",
+          insufficient ? "text-warning-ink" : "text-ink-muted",
         )}
       >
         {formatQuantity(remainingDec, unit)} {t("sale.batchRemaining")}
         {insufficient ? (
-          <span className="ml-1 text-amber-700">
+          <span className="ml-1 text-warning-ink">
             ⚠ {t("sale.shortBy")} {formatQuantity(requested.minus(remainingDec), unit)}
           </span>
         ) : null}

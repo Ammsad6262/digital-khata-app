@@ -8,7 +8,6 @@
 
 import { generateNarration } from "@/lib/ai/gemini-narrate";
 import { getGrowthPlan, growthFactsForNarration } from "@/lib/services/growth";
-import type { Language } from "@/lib/i18n/translations";
 
 const SYSTEM_INSTRUCTION = `You are a business analyst for a small Pakistani wholesale shop.
 Rewrite the supplied FACTS into at most 3 short, practical sentences.
@@ -20,15 +19,6 @@ Hard rules:
 - Do not use markdown, bullet points, headings or emojis.
 - Write plainly, in the second person ("you"), as advice.
 - If the facts list no recommendations, say there is nothing to act on yet.`;
-
-const URDU_INSTRUCTION = `
-
-Additional rule:
-- Write the entire answer in Urdu (اردو), in simple everyday wording a shop owner understands. Keep digits as Western numerals (0-9). Do not mix in English words.`;
-
-function instructionFor(lang: Language): string {
-  return lang === "ur" ? SYSTEM_INSTRUCTION + URDU_INSTRUCTION : SYSTEM_INSTRUCTION;
-}
 
 export type GrowthNarration = {
   text: string;
@@ -74,17 +64,13 @@ export function tidyNarration(text: string): string | null {
   return out.length >= 40 ? out : null;
 }
 
-export async function narrateGrowthPlan(
-  userId: string,
-  lang: Language = "en",
-): Promise<GrowthNarration> {
-  const cacheKey = `${userId}:${lang}`;
-  const cached = cache.get(cacheKey);
+export async function narrateGrowthPlan(userId: string): Promise<GrowthNarration> {
+  const cached = cache.get(userId);
   if (cached && Date.now() - cached.at < CACHE_TTL_MS) {
     return { text: cached.text, source: "ai" };
   }
 
-  const plan = await getGrowthPlan(userId, lang);
+  const plan = await getGrowthPlan(userId);
   const facts = growthFactsForNarration(plan);
   const fallback: GrowthNarration = { text: plan.summary, source: "deterministic" };
 
@@ -92,7 +78,7 @@ export async function narrateGrowthPlan(
     return { ...fallback, reason: "empty-plan" };
   }
 
-  const failedAt = failures.get(cacheKey);
+  const failedAt = failures.get(userId);
   if (failedAt && Date.now() - failedAt < FAILURE_BACKOFF_MS) {
     return { ...fallback, reason: "ai-failed" };
   }
@@ -100,31 +86,31 @@ export async function narrateGrowthPlan(
   let text: string;
   try {
     text = await generateNarration(
-      instructionFor(lang),
+      SYSTEM_INSTRUCTION,
       `FACTS:\n${facts}\n\nRewrite these facts for the shop owner.`,
     );
   } catch (error) {
     console.warn(
       `[growth:narration] AI call failed: ${error instanceof Error ? error.message.slice(0, 140) : String(error)}`,
     );
-    failures.set(cacheKey, Date.now());
+    failures.set(userId, Date.now());
     return { ...fallback, reason: "ai-failed" };
   }
 
   const clean = tidyNarration(text);
   if (!clean) {
     console.warn(`[growth:narration] answer had no complete sentence: ${JSON.stringify(text.slice(0, 140))}`);
-    failures.set(cacheKey, Date.now());
+    failures.set(userId, Date.now());
     return { ...fallback, reason: "incomplete" };
   }
 
   if (!numbersAreSupported(clean, facts)) {
     console.warn(`[growth:narration] rejected an answer with unsupported numbers: ${JSON.stringify(clean.slice(0, 200))}`);
-    failures.set(cacheKey, Date.now());
+    failures.set(userId, Date.now());
     return { ...fallback, reason: "unsupported-number" };
   }
 
-  failures.delete(cacheKey);
-  cache.set(cacheKey, { text: clean, at: Date.now() });
+  failures.delete(userId);
+  cache.set(userId, { text: clean, at: Date.now() });
   return { text: clean, source: "ai" };
 }

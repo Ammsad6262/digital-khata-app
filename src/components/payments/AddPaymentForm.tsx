@@ -43,7 +43,7 @@ import { useRecordPayment } from "@/hooks/use-payments";
 import { useSale } from "@/hooks/use-sales";
 import { useCustomerBalance } from "@/hooks/use-customer-balance";
 import { useToast } from "@/providers/toast-provider";
-import { userMessage } from "@/lib/i18n/message";
+import { ApiError } from "@/lib/utils/api-client";
 import { Decimal } from "@/lib/utils/decimal";
 import { formatMoney } from "@/lib/utils/money";
 import { formatDateTime } from "@/lib/utils/date";
@@ -75,7 +75,7 @@ export function AddPaymentForm() {
   const searchParams = useSearchParams();
   const toast = useToast();
   const recordPayment = useRecordPayment();
-  const { t, tParams } = useLanguage();
+  const { t } = useLanguage();
   const symbol = useCurrencySymbol();
 
   // ?saleId=X (from Sale Detail → "Record Payment") — if present, we lock
@@ -88,8 +88,6 @@ export function AddPaymentForm() {
   const [date, setDate] = useState<string>(todayIsoLocal());
   const [notes, setNotes] = useState<string>("");
   const [customerError, setCustomerError] = useState<string | null>(null);
-  // Validation messages stay hidden until the first save attempt.
-  const [submitted, setSubmitted] = useState(false);
 
   // Fetch the linked sale (if ?saleId=X). This gives us:
   //   - customer.id + name + phone (to pre-fill the customer picker)
@@ -134,7 +132,7 @@ export function AddPaymentForm() {
         const overpay = enteredAmount.minus(saleOutstanding);
         return {
           type: "warning" as const,
-          message: `${t("payment.overpayPrefix")} ${formatMoney(saleOutstanding, symbol)}. ${t("payment.overpayMiddle")} ${formatMoney(enteredAmount, symbol)} ${t("payment.overpayCreate")} ${formatMoney(overpay, symbol)} ${t("payment.overpaySuffix")}`,
+          message: `${t("payment.overpayPrefix")} ${formatMoney(saleOutstanding)}. ${t("payment.overpayMiddle")} ${formatMoney(enteredAmount)} ${t("payment.overpayCreate")} ${formatMoney(overpay)} ${t("payment.overpaySuffix")}`,
         };
       }
       return null;
@@ -147,7 +145,7 @@ export function AddPaymentForm() {
     if (currentBalance.lte(0)) {
       return {
         type: "info" as const,
-        message: `${t("payment.noBalancePrefix")} ${formatMoney(currentBalance, symbol)}${t("payment.noBalanceSuffix")}`,
+        message: `${t("payment.noBalancePrefix")} ${formatMoney(currentBalance)}${t("payment.noBalanceSuffix")}`,
       };
     }
 
@@ -155,7 +153,7 @@ export function AddPaymentForm() {
       const overpay = enteredAmount.minus(currentBalance);
       return {
         type: "warning" as const,
-        message: `${t("payment.overpayPrefix")} ${formatMoney(currentBalance, symbol)}. ${t("payment.overpayMiddle")} ${formatMoney(enteredAmount, symbol)} ${t("payment.overpayCreate")} ${formatMoney(overpay, symbol)} ${t("payment.overpaySuffix")}`,
+        message: `${t("payment.overpayPrefix")} ${formatMoney(currentBalance)}. ${t("payment.overpayMiddle")} ${formatMoney(enteredAmount)} ${t("payment.overpayCreate")} ${formatMoney(overpay)} ${t("payment.overpaySuffix")}`,
       };
     }
 
@@ -186,7 +184,6 @@ export function AddPaymentForm() {
 
   // ── Submit ───────────────────────────────────────────────────────────
   const handleSubmit = () => {
-    setSubmitted(true);
     if (!customer) {
       setCustomerError(t("sale.selectCustomerFirst"));
       return;
@@ -214,10 +211,7 @@ export function AddPaymentForm() {
       },
       {
         onSuccess: (payment) => {
-          toast.success("payment.receivedFrom", {
-            name: customer?.name ?? "",
-            amount: formatMoney(amount, symbol),
-          });
+          toast.success(t("payment.paymentRecorded"));
           // If the payment was for a specific sale, go back to that sale's
           // detail page (so the user sees the updated outstanding amount).
           // Otherwise, go to the payment's own detail page.
@@ -228,7 +222,13 @@ export function AddPaymentForm() {
           }
         },
         onError: (error) => {
-          toast.error(userMessage(error, t, tParams));
+          const message =
+            error instanceof ApiError
+              ? error.message
+              : error instanceof Error
+                ? error.message
+                : t("common.failed");
+          toast.error(message);
         },
       },
     );
@@ -254,7 +254,7 @@ export function AddPaymentForm() {
       {/* Customer section — hidden when linked to a sale (customer is pre-filled + locked) */}
       {linkedSale ? null : (
         <section className="space-y-2">
-          <h2 className="px-1 text-sm font-semibold text-slate-700">
+          <h2 className="px-1 text-sm font-semibold text-ink-muted">
             1. {t("sale.customer")}
           </h2>
           <CustomerPicker
@@ -268,19 +268,18 @@ export function AddPaymentForm() {
       {/* Amount + method + date section */}
       {customer ? (
         <section className="space-y-3">
-          <h2 className="px-1 text-sm font-semibold text-slate-700">
+          <h2 className="px-1 text-sm font-semibold text-ink-muted">
             {linkedSale ? "1." : "2."} {t("payment.paymentMethod")}
           </h2>
 
-          <div className="rounded-xl border border-slate-200 bg-white p-3 space-y-3">
+          <div className="rounded-card border border-line bg-surface shadow-card p-3 space-y-3">
             {/* Amount */}
             <div>
-              <label className="mb-1 block text-xs font-medium text-slate-600">
+              <label className="mb-1 block text-xs font-medium text-ink-muted">
                 {t("payment.amountReceived")}
-                <span className="text-red-500" aria-hidden> *</span>
               </label>
               <div className="relative">
-                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-medium text-slate-500">
+                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-medium text-ink-subtle">
                   {symbol}
                 </span>
                 <input
@@ -292,16 +291,16 @@ export function AddPaymentForm() {
                   onChange={(e) => setAmount(e.target.value)}
                   placeholder="0"
                   className={cn(
-                    "w-full rounded-lg border bg-white py-2.5 pl-10 pr-3 text-lg font-bold tabular-nums text-slate-900 placeholder:text-slate-300 focus:outline-none focus:ring-2",
-                    submitted && validation.amount
-                      ? "border-red-300 focus:border-red-500 focus:ring-red-500/30"
-                      : "border-slate-300 focus:border-brand-500 focus:ring-brand-500/30",
+                    "w-full rounded-lg border bg-surface py-2.5 pl-10 pr-3 text-lg font-bold tabular-nums text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2",
+                    validation.amount
+                      ? "border-danger/40 focus:border-danger focus:ring-danger/30"
+                      : "border-line-strong focus:border-brand-500 focus:ring-brand-500/30",
                   )}
                   autoFocus
                 />
               </div>
-              {submitted && validation.amount ? (
-                <p className="mt-1 text-xs text-red-600">{validation.amount}</p>
+              {validation.amount ? (
+                <p className="mt-1 text-xs text-danger-ink">{validation.amount}</p>
               ) : null}
 
               {/* "Full amount" quick-fill button — only when a sale is linked
@@ -310,29 +309,16 @@ export function AddPaymentForm() {
                 <button
                   type="button"
                   onClick={() => setAmount(linkedSale.outstanding)}
-                  className="mt-1.5 rounded-lg bg-brand-50 px-3 py-2 text-xs font-medium text-brand-700 hover:bg-brand-100"
+                  className="mt-1.5 rounded-md bg-brand-50 px-2 py-1 text-[11px] font-medium text-brand-700 hover:bg-brand-100"
                 >
                   {t("payment.fullAmount")}: <Money value={linkedSale.outstanding} />
-                </button>
-              ) : null}
-
-              {/* "Pay full balance" quick-fill — when NOT linked to a sale and
-                  the customer owes money, so the shopkeeper can settle the
-                  whole khata in one tap instead of retyping the figure. */}
-              {!linkedSale && balanceQuery.data && new Decimal(balanceQuery.data.balance).gt(0) ? (
-                <button
-                  type="button"
-                  onClick={() => setAmount(balanceQuery.data!.balance)}
-                  className="mt-1.5 rounded-lg bg-brand-50 px-3 py-2 text-xs font-medium text-brand-700 hover:bg-brand-100"
-                >
-                  {t("payment.payFullBalance")}: <Money value={balanceQuery.data.balance} />
                 </button>
               ) : null}
             </div>
 
             {/* Method */}
             <div>
-              <label className="mb-1.5 block text-xs font-medium text-slate-600">
+              <label className="mb-1.5 block text-xs font-medium text-ink-muted">
                 {t("payment.paymentMethod")}
               </label>
               <div className="grid grid-cols-3 gap-1.5">
@@ -345,7 +331,7 @@ export function AddPaymentForm() {
                       "flex flex-col items-center gap-0.5 rounded-lg border py-2 text-xs font-medium transition-colors",
                       method === m.value
                         ? "border-brand-500 bg-brand-50 text-brand-700"
-                        : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50",
+                        : "border-line bg-surface text-ink-muted hover:bg-app",
                     )}
                   >
                     <span className="text-base leading-none">{m.icon}</span>
@@ -357,7 +343,7 @@ export function AddPaymentForm() {
 
             {/* Date */}
             <div>
-              <label className="mb-1 block text-xs font-medium text-slate-600">
+              <label className="mb-1 block text-xs font-medium text-ink-muted">
                 {t("payment.date")}
               </label>
               <input
@@ -366,20 +352,20 @@ export function AddPaymentForm() {
                 onChange={(e) => setDate(e.target.value)}
                 max={todayIsoLocal()}
                 className={cn(
-                  "w-full rounded-lg border bg-white px-3 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2",
-                  submitted && validation.date
-                    ? "border-red-300 focus:border-red-500 focus:ring-red-500/30"
-                    : "border-slate-300 focus:border-brand-500 focus:ring-brand-500/30",
+                  "w-full rounded-lg border bg-surface px-3 py-2.5 text-sm text-ink focus:outline-none focus:ring-2",
+                  validation.date
+                    ? "border-danger/40 focus:border-danger focus:ring-danger/30"
+                    : "border-line-strong focus:border-brand-500 focus:ring-brand-500/30",
                 )}
               />
-              {submitted && validation.date ? (
-                <p className="mt-1 text-xs text-red-600">{validation.date}</p>
+              {validation.date ? (
+                <p className="mt-1 text-xs text-danger-ink">{validation.date}</p>
               ) : null}
             </div>
 
             {/* Notes */}
             <div>
-              <label className="mb-1 block text-xs font-medium text-slate-600">
+              <label className="mb-1 block text-xs font-medium text-ink-muted">
                 {t("payment.paymentNotes")}
               </label>
               <textarea
@@ -387,7 +373,7 @@ export function AddPaymentForm() {
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder={t("payment.paymentNotesPlaceholder")}
                 rows={2}
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+                className="w-full rounded-lg border border-line-strong bg-surface px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
               />
             </div>
           </div>
@@ -398,8 +384,8 @@ export function AddPaymentForm() {
               className={cn(
                 "flex items-start gap-2 rounded-lg border px-3 py-2 text-xs",
                 warning.type === "warning"
-                  ? "border-amber-200 bg-amber-50 text-amber-900"
-                  : "border-blue-200 bg-blue-50 text-blue-900",
+                  ? "border-warning/25 bg-warning-soft text-warning-ink"
+                  : "border-info/20 bg-info-soft text-info-ink",
               )}
             >
               <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
@@ -410,9 +396,9 @@ export function AddPaymentForm() {
           {/* Current balance summary — only show when not linked to a sale
               (when linked, the linked-sale card above already shows the relevant outstanding) */}
           {!linkedSale && balanceQuery.data ? (
-            <div className="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600">
+            <div className="rounded-lg bg-app px-3 py-2 text-xs text-ink-muted">
               {t("customer.currentBalance")}:{" "}
-              <span className="font-semibold text-slate-900">
+              <span className="font-semibold text-ink">
                 <Money value={balanceQuery.data.balance} />
               </span>
             </div>
@@ -425,6 +411,7 @@ export function AddPaymentForm() {
         onCancel={() => router.back()}
         onSave={handleSubmit}
         saveLabel={t("payment.savePayment")}
+        saveDisabled={hasErrors || !customer}
         isPending={recordPayment.isPending}
       />
     </div>
@@ -467,18 +454,18 @@ function LinkedSaleCard({
               </span>
             ) : null}
           </div>
-          <p className="mt-0.5 text-xs text-slate-500">
+          <p className="mt-0.5 text-xs text-ink-subtle">
             {formatDateTime(new Date(sale.date))}
           </p>
-          <p className="mt-0.5 text-xs text-slate-600">
+          <p className="mt-0.5 text-xs text-ink-muted">
             {sale.customerName}
           </p>
         </div>
         <div className="shrink-0 text-right">
-          <p className="text-[10px] uppercase tracking-wide text-slate-500">
+          <p className="text-[10px] uppercase tracking-wide text-ink-subtle">
             {t("payment.saleOutstanding")}
           </p>
-          <p className="text-lg font-bold tabular-nums text-red-600">
+          <p className="text-lg font-bold tabular-nums text-danger-ink">
             <Money value={sale.outstanding} />
           </p>
         </div>
@@ -486,20 +473,20 @@ function LinkedSaleCard({
       {/* Mini breakdown: total / paid / outstanding */}
       <div className="mt-2 grid grid-cols-3 gap-1 border-t border-brand-200 pt-2 text-center">
         <div>
-          <p className="text-[9px] uppercase tracking-wide text-slate-500">{t("sale.total")}</p>
-          <p className="text-xs font-semibold tabular-nums text-slate-900">
+          <p className="text-[9px] uppercase tracking-wide text-ink-subtle">{t("sale.total")}</p>
+          <p className="text-xs font-semibold tabular-nums text-ink">
             <Money value={total.toString()} />
           </p>
         </div>
         <div>
-          <p className="text-[9px] uppercase tracking-wide text-slate-500">{t("sale.paid")}</p>
+          <p className="text-[9px] uppercase tracking-wide text-ink-subtle">{t("sale.paid")}</p>
           <p className="text-xs font-semibold tabular-nums text-brand-700">
             <Money value={paid.toString()} />
           </p>
         </div>
         <div>
-          <p className="text-[9px] uppercase tracking-wide text-slate-500">{t("sale.due")}</p>
-          <p className="text-xs font-semibold tabular-nums text-red-600">
+          <p className="text-[9px] uppercase tracking-wide text-ink-subtle">{t("sale.due")}</p>
+          <p className="text-xs font-semibold tabular-nums text-danger-ink">
             <Money value={outstanding.toString()} />
           </p>
         </div>

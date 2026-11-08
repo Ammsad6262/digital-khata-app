@@ -3,9 +3,9 @@
 /**
  * BalanceBadge — displays a customer's balance with the right tone.
  *
- *   Positive balance → red (customer owes money)
- *   Zero balance     → slate (settled)
- *   Negative balance → blue (advance payment — customer paid extra)
+ *   Positive balance → danger (customer owes money)
+ *   Zero balance     → neutral (settled)
+ *   Negative balance → info (advance payment — customer paid extra)
  *
  * V13: Wired into i18n — label and title use translation keys.
  */
@@ -14,7 +14,6 @@ import { Decimal } from "@/lib/utils/decimal";
 import { formatMoney } from "@/lib/utils/money";
 import { cn } from "@/lib/utils/cn";
 import { useLanguage } from "@/providers/language-provider";
-import { useCurrencySymbol } from "@/hooks/use-currency-symbol";
 
 export function BalanceBadge({
   balance,
@@ -26,21 +25,20 @@ export function BalanceBadge({
   size?: "sm" | "md" | "lg";
 }) {
   const { t } = useLanguage();
-  const symbol = useCurrencySymbol();
   const d = new Decimal(balance);
   const isPositive = d.gt(0);
   const isNegative = d.lt(0);
 
   const tone = isPositive
-    ? "bg-red-50 text-red-700 border-red-200"
+    ? "bg-danger-soft text-danger-ink ring-1 ring-danger/15"
     : isNegative
-      ? "bg-blue-50 text-blue-700 border-blue-200"
-      : "bg-slate-100 text-slate-600 border-slate-200";
+      ? "bg-info-soft text-info-ink ring-1 ring-info/15"
+      : "bg-surface-2 text-ink-subtle ring-1 ring-line";
 
   const sizeClasses = {
-    sm: "text-xs px-2 py-0.5",
-    md: "text-sm px-2.5 py-1",
-    lg: "text-base px-3 py-1.5",
+    sm: "text-[11px] px-2 py-0.5",
+    md: "text-[13px] px-2.5 py-1",
+    lg: "text-[15px] px-3 py-1.5",
   }[size];
 
   const label = isPositive
@@ -58,15 +56,15 @@ export function BalanceBadge({
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 rounded-full border font-semibold tabular-nums",
+        "inline-flex items-center gap-1 rounded-full font-semibold tabular-nums",
         tone,
         sizeClasses,
         className,
       )}
       title={title}
     >
-      {formatMoney(d.abs(), symbol)}
-      {size !== "lg" ? <span className="opacity-70">· {label}</span> : null}
+      {formatMoney(d.abs())}
+      {size !== "lg" ? <span className="opacity-65">· {label}</span> : null}
     </span>
   );
 }

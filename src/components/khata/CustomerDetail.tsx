@@ -46,7 +46,6 @@ import type {
 } from "@/lib/services/customers";
 import { cn } from "@/lib/utils/cn";
 import { useLanguage } from "@/providers/language-provider";
-import { userMessage } from "@/lib/i18n/message";
 
 export function CustomerDetail({ customerId }: { customerId: string }) {
   const { data, isLoading, isError, error, refetch } = useCustomerHistory(customerId);
@@ -104,15 +103,15 @@ export function CustomerDetail({ customerId }: { customerId: string }) {
   return (
     <div className="space-y-4">
       {/* Customer info + balance hero */}
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <div className="overflow-hidden rounded-2xl border border-line bg-surface shadow-card">
         <div
           className={cn(
             "p-4 text-white",
             isOwed
-              ? "bg-gradient-to-br from-red-500 to-red-600"
+              ? "bg-gradient-to-br from-danger to-danger"
               : currentBalance.lt(0)
-                ? "bg-gradient-to-br from-blue-500 to-blue-600"
-                : "bg-gradient-to-br from-slate-600 to-slate-700",
+                ? "bg-gradient-to-br from-brand-500 to-brand-600"
+                : "bg-gradient-to-br from-brand-500 to-brand-500",
           )}
         >
           <p className="text-xs font-medium uppercase tracking-wider opacity-80">
@@ -126,14 +125,14 @@ export function CustomerDetail({ customerId }: { customerId: string }) {
         <div className="space-y-2.5 p-4">
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
-              <h2 className="text-base font-semibold text-slate-900">{customer.name}</h2>
+              <h2 className="text-base font-semibold text-ink">{customer.name}</h2>
               {customer.companyName ? (
-                <p className="text-xs text-slate-500">{customer.companyName}</p>
+                <p className="text-xs text-ink-subtle">{customer.companyName}</p>
               ) : null}
             </div>
             <Link
               href={`/khata/${customer.id}/edit`}
-              className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-slate-200 px-2 py-1 text-[11px] font-semibold text-slate-600 hover:bg-slate-50"
+              className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-line px-2 py-1 text-[11px] font-semibold text-ink-muted hover:bg-app"
             >
               <Pencil className="h-3 w-3" />
               {t("customer.editCustomer")}
@@ -144,9 +143,9 @@ export function CustomerDetail({ customerId }: { customerId: string }) {
             {customer.phone ? (
               <a
                 href={`tel:${customer.phone}`}
-                className="flex items-center gap-2 text-slate-600 hover:text-slate-900"
+                className="flex items-center gap-2 text-ink-muted hover:text-ink"
               >
-                <Phone className="h-4 w-4 shrink-0 text-slate-400" />
+                <Phone className="h-4 w-4 shrink-0 text-ink-faint" />
                 {customer.phone}
               </a>
             ) : null}
@@ -167,15 +166,15 @@ export function CustomerDetail({ customerId }: { customerId: string }) {
             ) : null}
 
             {customer.address ? (
-              <p className="flex items-start gap-2 text-slate-600">
-                <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
+              <p className="flex items-start gap-2 text-ink-muted">
+                <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-ink-faint" />
                 {customer.address}
               </p>
             ) : null}
 
             {customer.notes ? (
-              <p className="flex items-start gap-2 text-slate-600">
-                <StickyNote className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
+              <p className="flex items-start gap-2 text-ink-muted">
+                <StickyNote className="mt-0.5 h-4 w-4 shrink-0 text-ink-faint" />
                 {customer.notes}
               </p>
             ) : null}
@@ -236,10 +235,10 @@ export function CustomerDetail({ customerId }: { customerId: string }) {
       {/* Transaction history */}
       <section className="space-y-2">
         <div className="flex items-center justify-between px-1">
-          <h3 className="text-sm font-semibold text-slate-700">
+          <h3 className="text-sm font-semibold text-ink-muted">
             {t("customer.transactionHistory")}
           </h3>
-          <span className="text-xs text-slate-500">
+          <span className="text-xs text-ink-subtle">
             {transactions.length} {transactions.length === 1 ? t("customer.entry") : t("customer.entries")}
           </span>
         </div>
@@ -267,7 +266,7 @@ export function CustomerDetail({ customerId }: { customerId: string }) {
                 router.push("/khata");
               },
               onError: (err) => {
-                setDeleteError(userMessage(err, t, tParams, "customer.deleteFailed"));
+                setDeleteError(err instanceof Error ? err.message : t("customer.deleteFailed"));
               },
             });
           }}
@@ -293,20 +292,20 @@ function SummaryTile({
   tone: "red" | "green" | "slate";
 }) {
   const toneClasses = {
-    red: "text-red-700 bg-red-50",
+    red: "text-danger-ink bg-danger-soft",
     green: "text-brand-700 bg-brand-50",
-    slate: "text-slate-700 bg-slate-100",
+    slate: "text-ink-muted bg-surface-2",
   }[tone];
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-2.5">
+    <div className="rounded-card border border-line bg-surface shadow-card p-2.5">
       <div className="flex items-center gap-1">
         <span className={cn("rounded p-0.5", toneClasses)}>{icon}</span>
-        <p className="text-[10px] font-medium uppercase tracking-wide text-slate-500">
+        <p className="text-[10px] font-medium uppercase tracking-wide text-ink-subtle">
           {label}
         </p>
       </div>
-      <p className="mt-1 text-sm font-bold tabular-nums text-slate-900">
+      <p className="mt-1 text-sm font-bold tabular-nums text-ink">
         <Money value={value} />
       </p>
     </div>
@@ -320,7 +319,7 @@ function TransactionHistory({ transactions }: { transactions: CustomerTransactio
   const reversed = [...transactions].reverse();
 
   return (
-    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+    <div className="overflow-hidden rounded-card border border-line bg-surface shadow-card">
       {reversed.map((tx, idx) => (
         <TransactionRow key={tx.id} tx={tx} isFirst={idx === 0} />
       ))}
@@ -340,14 +339,14 @@ function TransactionRow({
   const Icon = config.icon;
 
   const isDebit = tx.direction === "debit";
-  const amountColor = isDebit ? "text-red-600" : "text-brand-700";
+  const amountColor = isDebit ? "text-danger-ink" : "text-brand-700";
   const amountSign = isDebit ? "+" : "−";
 
   return (
     <div
       className={cn(
         "flex items-center gap-3 px-3 py-2.5",
-        !isFirst && "border-t border-slate-100",
+        !isFirst && "border-t border-line",
       )}
     >
       <div className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-lg", config.iconBg)}>
@@ -356,7 +355,7 @@ function TransactionRow({
 
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline justify-between gap-2">
-          <p className="truncate text-sm font-medium text-slate-900">
+          <p className="truncate text-sm font-medium text-ink">
             {tx.description}
           </p>
           <p className={cn("text-sm font-bold tabular-nums", amountColor)}>
@@ -365,10 +364,10 @@ function TransactionRow({
           </p>
         </div>
         <div className="flex items-center justify-between gap-2">
-          <p className="text-[11px] text-slate-400">
+          <p className="text-[11px] text-ink-faint">
             {formatDate(new Date(tx.date))} · {formatTime(new Date(tx.date))}
           </p>
-          <p className="text-[11px] font-medium text-slate-500">
+          <p className="text-[11px] font-medium text-ink-subtle">
             {t("customer.currentBalance")}: <span className="tabular-nums">
               <Money value={tx.runningBalance} />
             </span>
@@ -382,8 +381,8 @@ function TransactionRow({
 const TX_TYPE_CONFIG = {
   sale: {
     icon: ShoppingCart,
-    iconBg: "bg-red-50",
-    iconColor: "text-red-600",
+    iconBg: "bg-danger-soft",
+    iconColor: "text-danger-ink",
   },
   payment: {
     icon: Wallet,
@@ -392,8 +391,8 @@ const TX_TYPE_CONFIG = {
   },
   adjustment: {
     icon: Scale,
-    iconBg: "bg-slate-100",
-    iconColor: "text-slate-600",
+    iconBg: "bg-surface-2",
+    iconColor: "text-ink-muted",
   },
 } as const;
 
@@ -404,32 +403,32 @@ const TX_TYPE_CONFIG = {
 function CustomerDetailSkeleton() {
   return (
     <div className="space-y-4">
-      <div className="h-32 animate-pulse rounded-2xl bg-slate-200" />
+      <div className="h-32 animate-pulse rounded-2xl bg-surface-2" />
       <div className="grid grid-cols-3 gap-2">
         {[0, 1, 2].map((i) => (
-          <div key={i} className="h-16 animate-pulse rounded-xl bg-slate-200" />
+          <div key={i} className="h-16 animate-pulse rounded-xl bg-surface-2" />
         ))}
       </div>
       <div className="grid grid-cols-2 gap-2">
         {[0, 1].map((i) => (
-          <div key={i} className="h-11 animate-pulse rounded-lg bg-slate-200" />
+          <div key={i} className="h-11 animate-pulse rounded-lg bg-surface-2" />
         ))}
       </div>
       <div className="space-y-2">
-        <div className="h-4 w-40 animate-pulse rounded bg-slate-200" />
-        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+        <div className="h-4 w-40 animate-pulse rounded bg-surface-2" />
+        <div className="overflow-hidden rounded-card border border-line bg-surface shadow-card">
           {[0, 1, 2, 3, 4].map((i) => (
             <div
               key={i}
               className={cn(
                 "flex items-center gap-3 px-3 py-2.5",
-                i > 0 && "border-t border-slate-100",
+                i > 0 && "border-t border-line",
               )}
             >
-              <div className="h-9 w-9 animate-pulse rounded-lg bg-slate-200" />
+              <div className="h-9 w-9 animate-pulse rounded-lg bg-surface-2" />
               <div className="flex-1 space-y-1.5">
-                <div className="h-3 w-32 animate-pulse rounded bg-slate-200" />
-                <div className="h-2.5 w-24 animate-pulse rounded bg-slate-100" />
+                <div className="h-3 w-32 animate-pulse rounded bg-surface-2" />
+                <div className="h-2.5 w-24 animate-pulse rounded bg-surface-2" />
               </div>
             </div>
           ))}

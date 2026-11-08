@@ -30,7 +30,6 @@ import { formatMoney } from "@/lib/utils/money";
 import { formatDateTime } from "@/lib/utils/date";
 import { cn } from "@/lib/utils/cn";
 import { useLanguage } from "@/providers/language-provider";
-import { useCurrencySymbol } from "@/hooks/use-currency-symbol";
 
 type MethodLabelKey = "payment.cash" | "payment.bank" | "payment.cheque" | "payment.jazzcash" | "payment.easypaisa" | "payment.other";
 const METHOD_LABELS: Record<string, MethodLabelKey> = {
@@ -47,7 +46,6 @@ export function PaymentDetail({ paymentId }: { paymentId: string }) {
   const voidPayment = useVoidPayment();
   const [confirmVoid, setConfirmVoid] = useState(false);
   const { t } = useLanguage();
-  const symbol = useCurrencySymbol();
 
   if (isLoading) {
     return <PaymentDetailSkeleton />;
@@ -93,7 +91,7 @@ export function PaymentDetail({ paymentId }: { paymentId: string }) {
       {/* Amount hero */}
       <div
         className={cn(
-          "rounded-2xl border border-slate-200 bg-white p-4 shadow-sm",
+          "rounded-2xl border border-line bg-surface p-4 shadow-card",
           isVoided && "opacity-75",
         )}
       >
@@ -104,21 +102,21 @@ export function PaymentDetail({ paymentId }: { paymentId: string }) {
                 className={cn(
                   "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-semibold",
                   isVoided
-                    ? "border-slate-200 bg-slate-100 text-slate-600"
+                    ? "border-line bg-surface-2 text-ink-muted"
                     : "border-brand-200 bg-brand-50 text-brand-700",
                 )}
               >
                 {isVoided ? <Ban className="h-3 w-3" /> : <CheckCircle2 className="h-3 w-3" />}
                 {isVoided ? t("sale.voided") : t("payment.received")}
               </span>
-              <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-medium text-slate-600">
+              <span className="rounded-full border border-line bg-app px-2 py-0.5 text-[11px] font-medium text-ink-muted">
                 {METHOD_LABELS[payment.method] ? t(METHOD_LABELS[payment.method] as any) : payment.method}
               </span>
             </div>
             <p className="mt-2 text-3xl font-bold tabular-nums text-brand-700">
               +<Money value={payment.amount} />
             </p>
-            <p className="mt-0.5 text-xs text-slate-500">
+            <p className="mt-0.5 text-xs text-ink-subtle">
               {formatDateTime(new Date(payment.date))}
             </p>
           </div>
@@ -131,17 +129,17 @@ export function PaymentDetail({ paymentId }: { paymentId: string }) {
       {/* Customer card */}
       <Link
         href={`/khata/${payment.customerId}`}
-        className="block rounded-xl border border-slate-200 bg-white p-3 hover:bg-slate-50"
+        className="block rounded-card border border-line bg-surface shadow-card p-3 hover:bg-app"
       >
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-100 text-sm font-semibold text-brand-700">
             {payment.customerName.charAt(0).toUpperCase()}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium text-slate-900">
+            <p className="truncate text-sm font-medium text-ink">
               {payment.customerName}
             </p>
-            <p className="flex items-center gap-1 text-xs text-slate-500">
+            <p className="flex items-center gap-1 text-xs text-ink-subtle">
               <Phone className="h-3 w-3" />
               {payment.customerPhone}
             </p>
@@ -152,9 +150,9 @@ export function PaymentDetail({ paymentId }: { paymentId: string }) {
 
       {/* Notes */}
       {payment.notes ? (
-        <div className="rounded-xl border border-slate-200 bg-white p-3">
-          <p className="text-xs font-medium text-slate-500">{t("customer.notes")}</p>
-          <p className="mt-1 text-sm text-slate-900">{payment.notes}</p>
+        <div className="rounded-card border border-line bg-surface shadow-card p-3">
+          <p className="text-xs font-medium text-ink-subtle">{t("customer.notes")}</p>
+          <p className="mt-1 text-sm text-ink">{payment.notes}</p>
         </div>
       ) : null}
 
@@ -162,10 +160,10 @@ export function PaymentDetail({ paymentId }: { paymentId: string }) {
       {payment.saleId ? (
         <Link
           href={`/sales/${payment.saleId}`}
-          className="block rounded-xl border border-slate-200 bg-white p-3 hover:bg-slate-50"
+          className="block rounded-card border border-line bg-surface shadow-card p-3 hover:bg-app"
         >
           <div className="flex items-center justify-between text-sm">
-            <span className="text-slate-500">{t("payment.linkedToSale")}</span>
+            <span className="text-ink-subtle">{t("payment.linkedToSale")}</span>
             <span className="font-medium text-brand-600">{t("common.viewSale")} <ChevronRight className="inline h-3 w-3 rtl-flip" /></span>
           </div>
         </Link>
@@ -173,17 +171,17 @@ export function PaymentDetail({ paymentId }: { paymentId: string }) {
 
       {/* Void section */}
       {isVoided ? (
-        <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-center">
-          <p className="text-xs text-slate-500">
+        <div className="rounded-card border border-line bg-app p-3 text-center">
+          <p className="text-xs text-ink-subtle">
             {t("payment.voidedOnPrefix")}{payment.voidedAt ? ` ${formatDateTime(new Date(payment.voidedAt))}` : ""}. {t("payment.voidedOnSuffix")}
           </p>
         </div>
       ) : confirmVoid ? (
-        <div className="rounded-xl border border-red-200 bg-red-50 p-3 space-y-3">
+        <div className="rounded-xl border border-danger/20 bg-danger-soft p-3 space-y-3">
           <div>
-            <p className="text-sm font-semibold text-red-900">{t("payment.voidConfirm")}</p>
-            <p className="mt-1 text-xs text-red-700">
-              {t("payment.voidDesc")} {formatMoney(payment.amount, symbol)}
+            <p className="text-sm font-semibold text-danger-ink">{t("payment.voidConfirm")}</p>
+            <p className="mt-1 text-xs text-danger-ink">
+              {t("payment.voidDesc")} {formatMoney(payment.amount)}
               {t("payment.thisCannotBeUndone")}
             </p>
           </div>
@@ -231,7 +229,7 @@ export function PaymentDetail({ paymentId }: { paymentId: string }) {
         <button
           type="button"
           onClick={() => setConfirmVoid(true)}
-          className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-medium text-red-600 hover:bg-red-50"
+          className="w-full rounded-card border border-line bg-surface shadow-card px-3 py-2.5 text-xs font-medium text-danger-ink hover:bg-danger-soft"
         >
           {t("payment.voidPayment")}
         </button>
@@ -243,9 +241,9 @@ export function PaymentDetail({ paymentId }: { paymentId: string }) {
 function PaymentDetailSkeleton() {
   return (
     <div className="space-y-4">
-      <div className="h-32 animate-pulse rounded-2xl bg-slate-200" />
-      <div className="h-20 animate-pulse rounded-xl bg-slate-200" />
-      <div className="h-16 animate-pulse rounded-xl bg-slate-200" />
+      <div className="h-32 animate-pulse rounded-2xl bg-surface-2" />
+      <div className="h-20 animate-pulse rounded-xl bg-surface-2" />
+      <div className="h-16 animate-pulse rounded-xl bg-surface-2" />
     </div>
   );
 }

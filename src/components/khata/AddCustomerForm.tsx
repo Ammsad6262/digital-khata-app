@@ -26,7 +26,6 @@ import { useCreateCustomer } from "@/hooks/use-customers";
 import { useToast } from "@/providers/toast-provider";
 import { createCustomerSchema } from "@/lib/schemas/customer";
 import { ApiError } from "@/lib/utils/api-client";
-import { userMessage } from "@/lib/i18n/message";
 import type { z } from "zod";
 import { useLanguage } from "@/providers/language-provider";
 
@@ -36,7 +35,7 @@ export function AddCustomerForm() {
   const router = useRouter();
   const toast = useToast();
   const createCustomer = useCreateCustomer();
-  const { t, tParams } = useLanguage();
+  const { t } = useLanguage();
 
   const form = useForm<FormValues>({
     resolver: zodResolver(createCustomerSchema),
@@ -53,7 +52,7 @@ export function AddCustomerForm() {
   const onSubmit = (values: FormValues) => {
     createCustomer.mutate(values, {
       onSuccess: (customer) => {
-        toast.success("customer.customerAddedName", { name: customer.name });
+        toast.success(t("customer.customerAdded"));
         router.push(`/khata/${customer.id}`);
       },
       onError: (error) => {
@@ -64,7 +63,7 @@ export function AddCustomerForm() {
           });
           toast.error(t("customer.phoneInUse"));
         } else {
-          toast.error(userMessage(error, t, tParams));
+          toast.error(error instanceof Error ? error.message : t("common.failed"));
         }
       },
     });
@@ -74,13 +73,12 @@ export function AddCustomerForm() {
 
   return (
     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-      <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="rounded-card border border-line bg-surface shadow-card p-4 shadow-card">
         <div className="space-y-3">
           <TextField
             label={t("customer.name")}
             placeholder={t("customer.namePlaceholder")}
             autoComplete="off"
-            showRequired
             {...form.register("name")}
             error={form.formState.errors.name?.message ?? null}
           />

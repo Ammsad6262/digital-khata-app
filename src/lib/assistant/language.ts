@@ -18,8 +18,6 @@
  *     wrong hint degrades the *reply language*, never the command handling.
  */
 
-import { pickVoice, type VoiceLang } from "./phrases";
-
 export type SpeechLanguage = "en" | "ur" | "roman-ur" | "mixed";
 
 /** Locales the browser speech engine understands, chosen automatically. */
@@ -88,18 +86,15 @@ export function defaultSpeechLocale(appLang: "en" | "ur"): SpeechLocale {
  * A short, user-facing label for a detected language. This is shown so the owner
  * can see what the assistant understood — it is not developer information.
  */
-export function languageLabel(
-  language: SpeechLanguage,
-  lang: VoiceLang = "en",
-): string {
+export function languageLabel(language: SpeechLanguage): string {
   switch (language) {
     case "ur":
-      return pickVoice(lang, "langUrdu");
+      return "اردو";
     case "roman-ur":
-      return pickVoice(lang, "langRomanUrdu");
+      return "Roman Urdu";
     case "mixed":
-      return pickVoice(lang, "langMixed");
+      return "Mixed / مکس";
     default:
-      return pickVoice(lang, "langEnglish");
+      return "English";
   }
 }

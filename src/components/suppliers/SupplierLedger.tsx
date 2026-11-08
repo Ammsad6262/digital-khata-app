@@ -14,7 +14,6 @@ import { Button } from "@/components/ui/Button";
 import { Money } from "@/components/shared/Money";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { useLanguage } from "@/providers/language-provider";
-import { userMessage } from "@/lib/i18n/message";
 import { useCurrencySymbol } from "@/hooks/use-currency-symbol";
 import { useToast } from "@/providers/toast-provider";
 import { formatDate } from "@/lib/utils/date";
@@ -39,7 +38,7 @@ const METHOD_KEYS = {
 } as const;
 
 export function SupplierLedger({ supplierId }: { supplierId: string }) {
-  const { t, tParams, lang } = useLanguage();
+  const { t } = useLanguage();
   const symbol = useCurrencySymbol();
   const toast = useToast();
   const [tab, setTab] = useState<Tab>("purchases");
@@ -56,7 +55,7 @@ export function SupplierLedger({ supplierId }: { supplierId: string }) {
       toast.success(t("purchase.void"));
       setConfirmId(null);
     } catch (err) {
-      toast.error(userMessage(err, t, tParams));
+      toast.error(err instanceof Error ? err.message : t("common.failed"));
       setConfirmId(null);
     }
   }
@@ -67,19 +66,19 @@ export function SupplierLedger({ supplierId }: { supplierId: string }) {
       toast.success(t("supplierPayment.void"));
       setConfirmId(null);
     } catch (err) {
-      toast.error(userMessage(err, t, tParams));
+      toast.error(err instanceof Error ? err.message : t("common.failed"));
       setConfirmId(null);
     }
   }
 
   return (
     <div className="space-y-3">
-      <div className="flex rounded-lg bg-slate-100 p-1">
+      <div className="flex rounded-lg bg-surface-2 p-1">
         <button
           type="button"
           onClick={() => setTab("purchases")}
           className={`flex-1 rounded-md px-3 py-1.5 text-sm font-medium ${
-            tab === "purchases" ? "bg-white text-slate-900 shadow-sm" : "text-slate-600"
+            tab === "purchases" ? "bg-surface text-ink shadow-card" : "text-ink-muted"
           }`}
         >
           {t("supplier.purchasesTab")}
@@ -88,7 +87,7 @@ export function SupplierLedger({ supplierId }: { supplierId: string }) {
           type="button"
           onClick={() => setTab("payments")}
           className={`flex-1 rounded-md px-3 py-1.5 text-sm font-medium ${
-            tab === "payments" ? "bg-white text-slate-900 shadow-sm" : "text-slate-600"
+            tab === "payments" ? "bg-surface text-ink shadow-card" : "text-ink-muted"
           }`}
         >
           {t("supplier.paymentsTab")}
@@ -97,7 +96,7 @@ export function SupplierLedger({ supplierId }: { supplierId: string }) {
 
       {tab === "purchases" ? (
         purchasesQuery.isLoading ? (
-          <p className="py-6 text-center text-sm text-slate-500">{t("common.loading")}</p>
+          <p className="py-6 text-center text-sm text-ink-subtle">{t("common.loading")}</p>
         ) : !purchasesQuery.data || purchasesQuery.data.length === 0 ? (
           <EmptyState
             title={t("purchase.noPurchases")}
@@ -105,25 +104,25 @@ export function SupplierLedger({ supplierId }: { supplierId: string }) {
             icon={<Receipt className="h-6 w-6" />}
           />
         ) : (
-          <ul className="divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200 bg-white">
+          <ul className="divide-y divide-line overflow-hidden rounded-card border border-line bg-surface shadow-card">
             {purchasesQuery.data.map((p) => {
               const voided = !!p.voidedAt;
               return (
                 <li key={p.id} className={`px-4 py-3 ${voided ? "opacity-60" : ""}`}>
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="text-sm font-medium text-slate-900">
-                        {new Date(p.date).toLocaleDateString(lang === "ur" ? "ur-PK-u-nu-latn" : "en-GB")}
+                      <p className="text-sm font-medium text-ink">
+                        {new Date(p.date).toLocaleDateString()}
                       </p>
-                      <p className="truncate text-xs text-slate-500">
+                      <p className="truncate text-xs text-ink-subtle">
                         {p.items.map((i) => `${i.productName} × ${i.quantity}`).join(", ")}
                       </p>
                       {p.dueDate ? (
                         <p
                           className={`mt-0.5 text-[11px] ${
                             p.isOverdue
-                              ? "font-semibold text-red-600"
-                              : "text-slate-500"
+                              ? "font-semibold text-danger-ink"
+                              : "text-ink-subtle"
                           }`}
                         >
                           {t("purchase.dueOn")}: {formatDate(p.dueDate)}
@@ -132,23 +131,23 @@ export function SupplierLedger({ supplierId }: { supplierId: string }) {
                       ) : null}
                     </div>
                     <div className="shrink-0 text-right">
-                      <p className="text-sm font-semibold text-slate-900">
+                      <p className="text-sm font-semibold text-ink">
                         <Money value={p.totalAmount} symbol={symbol} />
                       </p>
-                      <p className="text-[11px] text-slate-400">
+                      <p className="text-[11px] text-ink-faint">
                         {t("purchase.paidNow")}: <Money value={p.paidAmount} symbol={symbol} />
                       </p>
                     </div>
                   </div>
 
                   <div className="mt-2 flex items-center justify-between">
-                    <p className="text-xs text-slate-500">
+                    <p className="text-xs text-ink-subtle">
                       {voided ? (
                         t("common.deleted")
                       ) : (
                         <>
                           {t("supplier.remaining")}:{" "}
-                          <span className="font-semibold text-slate-700">
+                          <span className="font-semibold text-ink-muted">
                             <Money value={p.remaining} symbol={symbol} />
                           </span>
                         </>
@@ -158,7 +157,7 @@ export function SupplierLedger({ supplierId }: { supplierId: string }) {
                       <button
                         type="button"
                         onClick={() => setConfirmId(`purchase:${p.id}`)}
-                        className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50"
+                        className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-danger-ink hover:bg-danger-soft"
                       >
                         <Ban className="h-3.5 w-3.5" />
                         {t("purchase.void")}
@@ -167,8 +166,8 @@ export function SupplierLedger({ supplierId }: { supplierId: string }) {
                   </div>
 
                   {confirmId === `purchase:${p.id}` ? (
-                    <div className="mt-2 rounded-lg border border-red-200 bg-red-50 p-3">
-                      <p className="text-xs text-red-800">{t("purchase.voidWarning")}</p>
+                    <div className="mt-2 rounded-lg border border-danger/20 bg-danger-soft p-3">
+                      <p className="text-xs text-danger-ink">{t("purchase.voidWarning")}</p>
                       <div className="mt-2 flex gap-2">
                         <Button
                           size="sm"
@@ -190,29 +189,29 @@ export function SupplierLedger({ supplierId }: { supplierId: string }) {
           </ul>
         )
       ) : paymentsQuery.isLoading ? (
-        <p className="py-6 text-center text-sm text-slate-500">{t("common.loading")}</p>
+        <p className="py-6 text-center text-sm text-ink-subtle">{t("common.loading")}</p>
       ) : !paymentsQuery.data || paymentsQuery.data.length === 0 ? (
         <EmptyState
           title={t("supplierPayment.noPayments")}
           icon={<Wallet className="h-6 w-6" />}
         />
       ) : (
-        <ul className="divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200 bg-white">
+        <ul className="divide-y divide-line overflow-hidden rounded-card border border-line bg-surface shadow-card">
           {paymentsQuery.data.map((p) => {
             const voided = !!p.voidedAt;
             return (
               <li key={p.id} className={`px-4 py-3 ${voided ? "opacity-60" : ""}`}>
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="text-sm font-medium text-slate-900">
-                      {new Date(p.date).toLocaleDateString(lang === "ur" ? "ur-PK-u-nu-latn" : "en-GB")}
+                    <p className="text-sm font-medium text-ink">
+                      {new Date(p.date).toLocaleDateString()}
                     </p>
-                    <p className="text-xs text-slate-500">
+                    <p className="text-xs text-ink-subtle">
                       {t(METHOD_KEYS[p.method as keyof typeof METHOD_KEYS] ?? "method.other")}
                       {p.notes ? ` · ${p.notes}` : ""}
                     </p>
                   </div>
-                  <p className="shrink-0 text-sm font-semibold text-emerald-700">
+                  <p className="shrink-0 text-sm font-semibold text-success-ink">
                     <Money value={p.amount} symbol={symbol} />
                   </p>
                 </div>
@@ -222,7 +221,7 @@ export function SupplierLedger({ supplierId }: { supplierId: string }) {
                     <button
                       type="button"
                       onClick={() => setConfirmId(`payment:${p.id}`)}
-                      className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50"
+                      className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-danger-ink hover:bg-danger-soft"
                     >
                       <Ban className="h-3.5 w-3.5" />
                       {t("supplierPayment.void")}
@@ -231,8 +230,8 @@ export function SupplierLedger({ supplierId }: { supplierId: string }) {
                 ) : null}
 
                 {confirmId === `payment:${p.id}` ? (
-                  <div className="mt-2 rounded-lg border border-red-200 bg-red-50 p-3">
-                    <p className="text-xs text-red-800">{t("supplierPayment.voidWarning")}</p>
+                  <div className="mt-2 rounded-lg border border-danger/20 bg-danger-soft p-3">
+                    <p className="text-xs text-danger-ink">{t("supplierPayment.voidWarning")}</p>
                     <div className="mt-2 flex gap-2">
                       <Button
                         size="sm"

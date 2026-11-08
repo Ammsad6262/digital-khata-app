@@ -10,7 +10,6 @@ import { requireActiveAccess } from "@/lib/auth/get-current-user";
 import { ok, fail, parseJsonBody } from "@/lib/utils/api";
 import { BadRequestError } from "@/lib/errors";
 import { cancelAction } from "@/lib/assistant/service";
-import { normalizeVoiceLang, pickVoice } from "@/lib/assistant/phrases";
 
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
@@ -18,11 +17,10 @@ export const fetchCache = "force-no-store";
 export async function POST(req: NextRequest) {
   try {
     const userId = await requireActiveAccess(req);
-    const { data: body } = await parseJsonBody<{ actionId?: unknown; lang?: unknown }>(req);
-    const lang = normalizeVoiceLang(body?.lang);
+    const { data: body } = await parseJsonBody<{ actionId?: unknown }>(req);
     const actionId = typeof body?.actionId === "string" ? body.actionId : "";
-    if (!actionId) throw new BadRequestError(pickVoice(lang, "errActionIdRequired"));
-    const cancelled = await cancelAction(userId, actionId, lang);
+    if (!actionId) throw new BadRequestError("actionId is required.");
+    const cancelled = await cancelAction(userId, actionId);
     return ok({ cancelled });
   } catch (error) {
     return fail(error);

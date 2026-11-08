@@ -23,7 +23,6 @@ import { Money } from "@/components/shared/Money";
 import { useInsights } from "@/hooks/use-insights";
 import { useCurrencySymbol } from "@/hooks/use-currency-symbol";
 import { useLanguage } from "@/providers/language-provider";
-import { userMessage } from "@/lib/i18n/message";
 import type { SalesTrend } from "@/lib/services/insights";
 
 function ChangeBadge({
@@ -35,7 +34,7 @@ function ChangeBadge({
 }) {
   if (pct === null) {
     return (
-      <span className="inline-flex items-center gap-1 text-[11px] text-slate-400">
+      <span className="inline-flex items-center gap-1 text-[11px] text-ink-faint">
         <Minus className="h-3 w-3" />
         {noBaselineLabel}
       </span>
@@ -45,7 +44,7 @@ function ChangeBadge({
   return (
     <span
       className={`inline-flex items-center gap-0.5 text-[11px] font-medium ${
-        up ? "text-emerald-700" : "text-red-600"
+        up ? "text-success-ink" : "text-danger-ink"
       }`}
     >
       {up ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
@@ -66,12 +65,12 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-xl border border-slate-200 bg-white">
-      <div className="flex items-start gap-2 border-b border-slate-100 px-4 py-3">
-        <span className="mt-0.5 text-slate-400">{icon}</span>
+    <section className="rounded-card border border-line bg-surface shadow-card">
+      <div className="flex items-start gap-2 border-b border-line px-4 py-3">
+        <span className="mt-0.5 text-ink-faint">{icon}</span>
         <div className="min-w-0">
-          <h2 className="text-sm font-semibold text-slate-900">{title}</h2>
-          {hint ? <p className="text-xs text-slate-500">{hint}</p> : null}
+          <h2 className="text-sm font-semibold text-ink">{title}</h2>
+          {hint ? <p className="text-xs text-ink-subtle">{hint}</p> : null}
         </div>
       </div>
       <div className="p-4">{children}</div>
@@ -94,9 +93,9 @@ function TrendRow({
 }) {
   return (
     <div className="flex items-center justify-between gap-3 py-1.5">
-      <span className="text-sm text-slate-600">{label}</span>
+      <span className="text-sm text-ink-muted">{label}</span>
       <div className="flex items-center gap-2">
-        <span className="text-sm font-semibold text-slate-900">
+        <span className="text-sm font-semibold text-ink">
           <Money value={value} symbol={symbol} />
         </span>
         <ChangeBadge pct={changePct} noBaselineLabel={noBaseline} />
@@ -106,17 +105,17 @@ function TrendRow({
 }
 
 export function InsightsView() {
-  const { t, tParams } = useLanguage();
+  const { t } = useLanguage();
   const symbol = useCurrencySymbol();
   const { data, isLoading, isError, error } = useInsights();
 
   if (isLoading) {
-    return <p className="py-8 text-center text-sm text-slate-500">{t("common.loading")}</p>;
+    return <p className="py-8 text-center text-sm text-ink-subtle">{t("common.loading")}</p>;
   }
   if (isError || !data) {
     return (
-      <p className="py-8 text-center text-sm text-red-600">
-        {userMessage(error, t, tParams, "common.couldntLoad")}
+      <p className="py-8 text-center text-sm text-danger-ink">
+        {error instanceof Error ? error.message : t("common.couldntLoad")}
       </p>
     );
   }
@@ -125,25 +124,25 @@ export function InsightsView() {
 
   return (
     <div className="space-y-4">
-      <p className="px-1 text-xs text-slate-500">{t("insights.basedOnRecords")}</p>
+      <p className="px-1 text-xs text-ink-subtle">{t("insights.basedOnRecords")}</p>
 
       {/* Money in / money out */}
       <div className="grid grid-cols-2 gap-2.5">
-        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3.5">
-          <p className="text-xs font-medium text-emerald-700">{t("insights.receivables")}</p>
-          <p className="mt-1 text-lg font-bold text-emerald-800">
+        <div className="rounded-xl border border-success/20 bg-success-soft p-3.5">
+          <p className="text-xs font-medium text-success-ink">{t("insights.receivables")}</p>
+          <p className="mt-1 text-lg font-bold text-success-ink">
             <Money value={data.receivables.total} symbol={symbol} />
           </p>
-          <p className="text-[11px] text-emerald-700">
+          <p className="text-[11px] text-success-ink">
             {data.receivables.customersCount} {t("insights.customers")}
           </p>
         </div>
-        <div className="rounded-xl border border-amber-200 bg-amber-50 p-3.5">
-          <p className="text-xs font-medium text-amber-700">{t("insights.payables")}</p>
-          <p className="mt-1 text-lg font-bold text-amber-800">
+        <div className="rounded-xl border border-warning/25 bg-warning-soft p-3.5">
+          <p className="text-xs font-medium text-warning-ink">{t("insights.payables")}</p>
+          <p className="mt-1 text-lg font-bold text-warning-ink">
             <Money value={data.payables.total} symbol={symbol} />
           </p>
-          <p className="text-[11px] text-amber-700">
+          <p className="text-[11px] text-warning-ink">
             {data.payables.suppliersCount} {t("insights.suppliers")}
           </p>
         </div>
@@ -151,14 +150,14 @@ export function InsightsView() {
 
       {/* Overdue — only when something is actually past its date */}
       {Number(data.overdue.total) > 0 ? (
-        <div className="rounded-xl border border-red-200 bg-red-50 p-3.5">
+        <div className="rounded-xl border border-danger/20 bg-danger-soft p-3.5">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <p className="text-xs font-medium text-red-700">{t("insights.overdue")}</p>
-              <p className="mt-1 text-lg font-bold text-red-800">
+              <p className="text-xs font-medium text-danger-ink">{t("insights.overdue")}</p>
+              <p className="mt-1 text-lg font-bold text-danger-ink">
                 <Money value={data.overdue.total} symbol={symbol} />
               </p>
-              <p className="text-[11px] text-red-700">
+              <p className="text-[11px] text-danger-ink">
                 {data.overdue.salesCount}{" "}
                 {t(
                   data.overdue.salesCount === 1
@@ -172,11 +171,11 @@ export function InsightsView() {
                     : "insights.customers",
                 )}
               </p>
-              <p className="mt-0.5 text-[11px] text-red-600">{t("insights.overdueHint")}</p>
+              <p className="mt-0.5 text-[11px] text-danger-ink">{t("insights.overdueHint")}</p>
             </div>
             <Link
               href="/sales"
-              className="shrink-0 rounded-lg border border-red-300 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-red-700 hover:bg-red-100"
+              className="shrink-0 rounded-lg border border-danger/40 bg-surface px-2.5 py-1.5 text-[11px] font-semibold text-danger-ink hover:bg-danger-soft"
             >
               {t("insights.viewSales")}
             </Link>
@@ -186,16 +185,16 @@ export function InsightsView() {
 
       {/* Overdue supplier invoices — only when one actually exists */}
       {Number(data.overduePayables.total) > 0 ? (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 p-3.5">
+        <div className="rounded-xl border border-warning/25 bg-warning-soft p-3.5">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <p className="text-xs font-medium text-amber-800">
+              <p className="text-xs font-medium text-warning-ink">
                 {t("insights.overduePayables")}
               </p>
-              <p className="mt-1 text-lg font-bold text-amber-900">
+              <p className="mt-1 text-lg font-bold text-warning-ink">
                 <Money value={data.overduePayables.total} symbol={symbol} />
               </p>
-              <p className="text-[11px] text-amber-800">
+              <p className="text-[11px] text-warning-ink">
                 {data.overduePayables.invoicesCount}{" "}
                 {t(
                   data.overduePayables.invoicesCount === 1
@@ -209,13 +208,13 @@ export function InsightsView() {
                     : "insights.suppliers",
                 )}
               </p>
-              <p className="mt-0.5 text-[11px] text-amber-700">
+              <p className="mt-0.5 text-[11px] text-warning-ink">
                 {t("insights.overduePayablesHint")}
               </p>
             </div>
             <Link
               href="/more/suppliers"
-              className="shrink-0 rounded-lg border border-amber-300 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-amber-800 hover:bg-amber-100"
+              className="shrink-0 rounded-lg border border-warning/30 bg-surface px-2.5 py-1.5 text-[11px] font-semibold text-warning-ink hover:bg-warning-soft"
             >
               {t("insights.viewSuppliers")}
             </Link>
@@ -225,7 +224,7 @@ export function InsightsView() {
 
       {/* Sales trend */}
       <Section title={t("insights.salesTrend")} icon={<TrendingUp className="h-4 w-4" />}>
-        <div className="divide-y divide-slate-100">
+        <div className="divide-y divide-line">
           <TrendRow
             label={t("insights.thisMonth")}
             value={trend.thisMonth}
@@ -246,23 +245,23 @@ export function InsightsView() {
       {/* Best sellers */}
       <Section title={t("insights.topProducts")} icon={<Flame className="h-4 w-4" />}>
         {data.topProducts.length === 0 ? (
-          <p className="text-sm text-slate-500">{t("insights.noTopProducts")}</p>
+          <p className="text-sm text-ink-subtle">{t("insights.noTopProducts")}</p>
         ) : (
-          <ul className="divide-y divide-slate-100">
+          <ul className="divide-y divide-line">
             {data.topProducts.map((p, index) => (
               <li key={p.id} className="flex items-center gap-3 py-2">
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xs font-semibold text-slate-600">
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-surface-2 text-xs font-semibold text-ink-muted">
                   {index + 1}
                 </span>
                 <div className="min-w-0 flex-1">
-                  <Link href={`/more/products/${p.id}`} className="truncate text-sm font-medium text-slate-900">
+                  <Link href={`/more/products/${p.id}`} className="truncate text-sm font-medium text-ink">
                     {p.name}
                   </Link>
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs text-ink-subtle">
                     {p.quantity} {p.unit}
                   </p>
                 </div>
-                <span className="shrink-0 text-sm font-semibold text-slate-900">
+                <span className="shrink-0 text-sm font-semibold text-ink">
                   <Money value={p.revenue} symbol={symbol} />
                 </span>
               </li>
@@ -278,22 +277,22 @@ export function InsightsView() {
         icon={<Boxes className="h-4 w-4" />}
       >
         {data.slowMovers.length === 0 ? (
-          <p className="text-sm text-slate-500">{t("insights.noSlowMovers")}</p>
+          <p className="text-sm text-ink-subtle">{t("insights.noSlowMovers")}</p>
         ) : (
-          <ul className="divide-y divide-slate-100">
+          <ul className="divide-y divide-line">
             {data.slowMovers.map((p) => (
               <li key={p.id} className="flex items-center justify-between gap-3 py-2">
                 <div className="min-w-0">
-                  <Link href={`/more/products/${p.id}`} className="truncate text-sm font-medium text-slate-900">
+                  <Link href={`/more/products/${p.id}`} className="truncate text-sm font-medium text-ink">
                     {p.name}
                   </Link>
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs text-ink-subtle">
                     {p.currentStock} {p.unit}
                   </p>
                 </div>
                 <div className="shrink-0 text-right">
-                  <p className="text-xs text-slate-400">{t("insights.stockValue")}</p>
-                  <p className="text-sm font-semibold text-slate-900">
+                  <p className="text-xs text-ink-faint">{t("insights.stockValue")}</p>
+                  <p className="text-sm font-semibold text-ink">
                     <Money value={p.stockValue} symbol={symbol} />
                   </p>
                 </div>
@@ -306,17 +305,17 @@ export function InsightsView() {
       {/* Low stock */}
       <Section title={t("insights.lowStock")} icon={<Receipt className="h-4 w-4" />}>
         {data.lowStock.length === 0 ? (
-          <p className="text-sm text-slate-500">{t("insights.noLowStock")}</p>
+          <p className="text-sm text-ink-subtle">{t("insights.noLowStock")}</p>
         ) : (
-          <ul className="divide-y divide-slate-100">
+          <ul className="divide-y divide-line">
             {data.lowStock.map((p) => (
               <li key={p.id} className="flex items-center justify-between gap-3 py-2">
-                <Link href={`/more/products/${p.id}`} className="truncate text-sm font-medium text-slate-900">
+                <Link href={`/more/products/${p.id}`} className="truncate text-sm font-medium text-ink">
                   {p.name}
                 </Link>
-                <span className="shrink-0 text-xs text-red-600">
+                <span className="shrink-0 text-xs text-danger-ink">
                   {p.currentStock} {p.unit}
-                  <span className="text-slate-400"> · {t("insights.threshold")}: {p.threshold}</span>
+                  <span className="text-ink-faint"> · {t("insights.threshold")}: {p.threshold}</span>
                 </span>
               </li>
             ))}
@@ -331,22 +330,22 @@ export function InsightsView() {
         icon={<Clock className="h-4 w-4" />}
       >
         {data.inactiveCustomers.length === 0 ? (
-          <p className="text-sm text-slate-500">{t("insights.noInactiveCustomers")}</p>
+          <p className="text-sm text-ink-subtle">{t("insights.noInactiveCustomers")}</p>
         ) : (
-          <ul className="divide-y divide-slate-100">
+          <ul className="divide-y divide-line">
             {data.inactiveCustomers.map((c) => (
               <li key={c.id} className="flex items-center justify-between gap-3 py-2">
                 <div className="min-w-0">
-                  <Link href={`/khata/${c.id}`} className="truncate text-sm font-medium text-slate-900">
+                  <Link href={`/khata/${c.id}`} className="truncate text-sm font-medium text-ink">
                     {c.name}
                   </Link>
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs text-ink-subtle">
                     {c.daysInactive === null
                       ? t("insights.neverActive")
                       : `${c.daysInactive} ${t("insights.daysInactive")}`}
                   </p>
                 </div>
-                <span className="shrink-0 text-sm font-semibold text-amber-700">
+                <span className="shrink-0 text-sm font-semibold text-warning-ink">
                   <Money value={c.balance} symbol={symbol} />
                 </span>
               </li>
@@ -355,7 +354,7 @@ export function InsightsView() {
         )}
       </Section>
 
-      <p className="px-1 pb-2 text-center text-[11px] text-slate-400">
+      <p className="px-1 pb-2 text-center text-[11px] text-ink-faint">
         <Truck className="mr-1 inline h-3 w-3" />
         {t("insights.range")}
       </p>

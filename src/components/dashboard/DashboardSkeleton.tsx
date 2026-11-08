@@ -12,50 +12,47 @@
 export function DashboardSkeleton() {
   return (
     <div className="space-y-4">
-      {/* Global search bar skeleton — matches the real search bar height (py-3 = h-12) */}
-      <div className="h-12 animate-pulse rounded-xl border border-slate-200 bg-slate-100" />
+      {/* Global search bar skeleton */}
+      <div className="h-12 animate-pulse rounded-control border border-line bg-surface-2" />
 
-      {/* Hero card skeleton — matches the real HeroCard (p-5 + content = h-28) */}
-      <div className="h-28 animate-pulse rounded-2xl bg-slate-200" />
+      {/* Hero card skeleton */}
+      <div className="h-32 animate-pulse rounded-[1.5rem] bg-surface-3" />
 
-      {/* Quick actions skeleton — matches QuickActions grid (h-14 per button) */}
+      {/* Quick actions skeleton */}
       <div className="grid grid-cols-2 gap-2.5">
         {[0, 1, 2, 3].map((i) => (
-          <div
-            key={i}
-            className="h-14 animate-pulse rounded-xl bg-slate-200"
-          />
+          <div key={i} className="h-[4.1rem] animate-pulse rounded-card bg-surface-2" />
         ))}
       </div>
 
       {/* Section title skeleton */}
       <div className="flex items-center justify-between px-1">
-        <div className="h-4 w-16 animate-pulse rounded bg-slate-200" />
+        <div className="h-4 w-16 animate-pulse rounded bg-surface-2" />
       </div>
 
-      {/* 4 stat cards skeleton — matches StatCard (p-3.5 + content = h-24) */}
+      {/* 4 stat cards skeleton */}
       <div className="grid grid-cols-2 gap-2.5">
         {[0, 1, 2, 3].map((i) => (
-          <div
-            key={i}
-            className="h-24 animate-pulse rounded-xl bg-slate-200"
-          />
+          <div key={i} className="h-[4.6rem] animate-pulse rounded-card bg-surface-2" />
         ))}
       </div>
 
-      {/* Recent activity skeleton — matches section title + list */}
+      {/* P&L skeleton */}
+      <div className="h-28 animate-pulse rounded-card bg-surface-2" />
+
+      {/* Recent activity skeleton */}
       <div className="space-y-2">
-        <div className="h-4 w-32 animate-pulse rounded bg-slate-200" />
-        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+        <div className="h-4 w-32 animate-pulse rounded bg-surface-2" />
+        <div className="overflow-hidden rounded-card border border-line bg-surface shadow-card">
           {[0, 1, 2, 3].map((i) => (
             <div
               key={i}
-              className={`flex items-center gap-3 px-3 py-2.5 ${i > 0 ? "border-t border-slate-100" : ""}`}
+              className={`flex items-center gap-3 px-3.5 py-3 ${i > 0 ? "border-t border-line" : ""}`}
             >
-              <div className="h-9 w-9 animate-pulse rounded-lg bg-slate-200" />
+              <div className="h-9 w-9 animate-pulse rounded-[0.7rem] bg-surface-2" />
               <div className="flex-1 space-y-1.5">
-                <div className="h-3 w-24 animate-pulse rounded bg-slate-200" />
-                <div className="h-2.5 w-32 animate-pulse rounded bg-slate-100" />
+                <div className="h-3 w-24 animate-pulse rounded bg-surface-2" />
+                <div className="h-2.5 w-32 animate-pulse rounded bg-surface-2" />
               </div>
             </div>
           ))}

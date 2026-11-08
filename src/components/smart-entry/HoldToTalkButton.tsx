@@ -248,7 +248,7 @@ export function HoldToTalkButton({
     <div className="flex flex-col items-center gap-4">
       {/* ── Status text ──────────────────────────────────────────────────── */}
       {isError ? (
-        <p className="text-sm font-medium text-red-600">
+        <p className="text-sm font-medium text-danger-ink">
           {recorderState === "denied"
             ? t("smartentry.micError.deniedTitle")
             : recorderState === "unsupported"
@@ -257,26 +257,26 @@ export function HoldToTalkButton({
         </p>
       ) : isLocked ? (
         <div className="text-center">
-          <p className="text-sm font-semibold text-slate-900">{t("smartentry.recording.locked")}</p>
-          <p className="text-xs text-slate-500">{t("smartentry.recording.tapStopWhenDone")}</p>
+          <p className="text-sm font-semibold text-ink">{t("smartentry.recording.locked")}</p>
+          <p className="text-xs text-ink-subtle">{t("smartentry.recording.tapStopWhenDone")}</p>
         </div>
       ) : isRecording ? (
         <div className="text-center">
-          <p className="text-sm font-semibold text-slate-900">{t("smartentry.recording.inProgress")}</p>
-          <p className="text-xs text-slate-500">{t("smartentry.recording.releaseOrSwipe")}</p>
+          <p className="text-sm font-semibold text-ink">{t("smartentry.recording.inProgress")}</p>
+          <p className="text-xs text-ink-subtle">{t("smartentry.recording.releaseOrSwipe")}</p>
         </div>
       ) : isHolding ? (
-        <p className="text-sm font-medium text-slate-600">{t("smartentry.recording.holdToSpeakLoading")}</p>
+        <p className="text-sm font-medium text-ink-muted">{t("smartentry.recording.holdToSpeakLoading")}</p>
       ) : (
         <div className="text-center">
-          <p className="text-sm font-semibold text-slate-900">{t("smartentry.recording.holdToSpeak")}</p>
-          <p className="text-xs text-slate-500">{t("smartentry.recording.pressAndHoldHint")}</p>
+          <p className="text-sm font-semibold text-ink">{t("smartentry.recording.holdToSpeak")}</p>
+          <p className="text-xs text-ink-subtle">{t("smartentry.recording.pressAndHoldHint")}</p>
         </div>
       )}
 
       {/* ── Timer (shown when recording or locked) ──────────────────────── */}
       {(isRecording || isLocked) && (
-        <p className="font-mono text-lg font-bold tabular-nums text-slate-900">
+        <p className="font-mono text-lg font-bold tabular-nums text-ink">
           {fmt(duration)}
         </p>
       )}
@@ -304,7 +304,7 @@ export function HoldToTalkButton({
         {/* Pulse ring (when recording) */}
         {isRecording && (
           <span
-            className="absolute inset-0 rounded-full bg-red-500/30"
+            className="absolute inset-0 rounded-full bg-danger/30"
             style={{ animation: "htt-pulse 1.5s ease-out infinite" }}
             aria-hidden
           />
@@ -315,9 +315,9 @@ export function HoldToTalkButton({
           className={cn(
             "relative flex h-full w-full items-center justify-center rounded-full text-white shadow-lg transition-colors",
             isLocked
-              ? "bg-amber-600 shadow-amber-600/40"
+              ? "bg-warning shadow-warning/40"
               : isRecording
-              ? "bg-red-500 shadow-red-500/40"
+              ? "bg-danger shadow-danger/40"
               : isHolding
               ? "bg-brand-700 shadow-brand-700/40 scale-95"
               : "bg-brand-600 shadow-brand-600/30",
@@ -345,7 +345,7 @@ export function HoldToTalkButton({
 
       {/* ── Lock hint arrow (shown when recording, not locked) ──────────── */}
       {isRecording && !isLocked && (
-        <div className="flex flex-col items-center gap-1 text-slate-400">
+        <div className="flex flex-col items-center gap-1 text-ink-faint">
           <ArrowUp className="h-4 w-4 animate-bounce" />
           <span className="text-[10px] font-medium">{t("smartentry.recording.swipeUpToLock")}</span>
         </div>
@@ -360,9 +360,9 @@ export function HoldToTalkButton({
             stopDurationTimer();
             onStopRecording();
           }}
-          className="flex items-center gap-2 rounded-xl bg-red-600 px-6 py-3 text-sm font-semibold text-white shadow-sm hover:bg-red-700 active:scale-95"
+          className="flex items-center gap-2 rounded-xl bg-danger px-6 py-3 text-sm font-semibold text-white shadow-card hover:bg-danger/90 active:scale-95"
         >
-          <span className="h-3 w-3 rounded-sm bg-white" />
+          <span className="h-3 w-3 rounded-sm bg-surface" />
           {t("smartentry.action.stopAndSend")}
         </button>
       )}
@@ -376,7 +376,7 @@ export function HoldToTalkButton({
             stopDurationTimer();
             onCancelRecording();
           }}
-          className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+          className="rounded-card border border-line-strong bg-surface px-4 py-2 text-sm font-medium text-ink-muted hover:bg-app"
         >
           {t("smartentry.action.cancel")}
         </button>

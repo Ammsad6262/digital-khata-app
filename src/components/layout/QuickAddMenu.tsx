@@ -45,29 +45,29 @@ const ACTIONS: Action[] = [
     icon: ShoppingCart,
     labelKey: "quickadd.soldSomething",
     href: "/sales/new",
-    color: "text-green-600",
-    bgColor: "bg-green-50",
+    color: "text-success-ink",
+    bgColor: "bg-success-soft",
   },
   {
     icon: Wallet,
     labelKey: "quickadd.receivedMoney",
     href: "/payments/new",
-    color: "text-blue-600",
-    bgColor: "bg-blue-50",
+    color: "text-info-ink",
+    bgColor: "bg-info-soft",
   },
   {
     icon: Receipt,
     labelKey: "quickadd.spentMoney",
     href: "/more/expenses/new",
-    color: "text-amber-600",
-    bgColor: "bg-amber-50",
+    color: "text-warning-ink",
+    bgColor: "bg-warning-soft",
   },
   {
     icon: Package,
     labelKey: "quickadd.addedStock",
     href: "/stock/add",
-    color: "text-purple-600",
-    bgColor: "bg-purple-50",
+    color: "text-accent-700",
+    bgColor: "bg-accent-50",
   },
   {
     icon: UserPlus,
@@ -80,8 +80,8 @@ const ACTIONS: Action[] = [
     icon: Box,
     labelKey: "quickadd.newProduct",
     href: "/more/products/new",
-    color: "text-slate-600",
-    bgColor: "bg-slate-100",
+    color: "text-ink-muted",
+    bgColor: "bg-surface-2",
   },
 ];
 
@@ -121,7 +121,7 @@ export function QuickAddMenu() {
       <button
         type="button"
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-20 z-30 flex h-12 w-12 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-md shadow-slate-900/5 transition-transform hover:scale-105 active:scale-95"
+        className="fixed bottom-24 z-30 flex h-12 w-12 items-center justify-center rounded-full bg-brand-600 text-white shadow-brand ring-1 ring-white/10 transition-transform hover:scale-105 active:scale-95"
         style={{
           // On mobile, 1rem from the left edge. On desktop, aligned to
           // the left edge of the centered 1024px app shell.
@@ -138,7 +138,7 @@ export function QuickAddMenu() {
             <>
               {/* Backdrop */}
               <div
-                className="fixed inset-0 z-[60] bg-black/40"
+                className="fixed inset-0 z-[60] bg-ink/45 backdrop-blur-[2px]"
                 onClick={() => setIsOpen(false)}
                 style={{ animation: "dk-fade-in 0.15s ease-out" }}
                 aria-hidden
@@ -149,23 +149,23 @@ export function QuickAddMenu() {
                 role="dialog"
                 aria-modal="true"
                 aria-label={t("quickadd.quickAddAria")}
-                className="fixed inset-x-0 bottom-0 z-[70] mx-auto flex max-h-[90dvh] w-full max-w-[480px] flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl"
+                className="fixed inset-x-0 bottom-0 z-[70] mx-auto flex max-h-[90dvh] w-full max-w-[480px] flex-col overflow-hidden rounded-t-[1.75rem] border-t border-line bg-surface shadow-lift"
                 style={{
                   animation: "dk-slide-up 0.2s ease-out",
                   paddingBottom: "calc(env(safe-area-inset-bottom) + 1rem)",
                 }}>
             {/* Drag handle */}
-            <div className="mx-auto mt-3 mb-2 h-1 w-10 shrink-0 rounded-full bg-slate-200" />
+            <div className="mx-auto mt-3 mb-2 h-1 w-10 shrink-0 rounded-full bg-line-strong" />
 
             {/* Header — sticky, doesn't scroll */}
             <div className="flex shrink-0 items-center justify-between px-4 pb-3">
-              <h3 className="text-base font-semibold text-slate-900">
+              <h3 className="text-[15px] font-bold text-ink">
                 {t("quickadd.whatHappened")}
               </h3>
               <button
                 type="button"
                 onClick={() => setIsOpen(false)}
-                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100"
+                className="rounded-control p-1.5 text-ink-faint hover:bg-surface-2 hover:text-ink"
                 aria-label={t("common.close")}
               >
                 <X className="h-5 w-5" />
@@ -181,7 +181,7 @@ export function QuickAddMenu() {
                     key={action.href}
                     type="button"
                     onClick={() => handleSelect(action.href)}
-                    className="flex flex-col items-center gap-2 rounded-xl border border-slate-100 p-3 transition-colors hover:bg-slate-50 active:bg-slate-100"
+                    className="flex flex-col items-center gap-2 rounded-control border border-line bg-surface p-3 transition-colors hover:bg-surface-2 active:bg-surface-3"
                   >
                     <div className={cn(
                       "flex h-10 w-10 items-center justify-center rounded-full",
@@ -189,7 +189,7 @@ export function QuickAddMenu() {
                     )}>
                       <Icon className={cn("h-5 w-5", action.color)} />
                     </div>
-                    <span className="text-center text-[11px] font-medium leading-tight text-slate-700">
+                    <span className="text-center text-[11px] font-medium leading-tight text-ink-muted">
                       {t(action.labelKey)}
                     </span>
                   </button>

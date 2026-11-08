@@ -4,14 +4,20 @@
  * WaterfallChart — how a starting figure becomes a final figure.
  *
  * Used for the profit estimate: sales → minus cost of goods → gross profit →
- * minus expenses → net estimate. Each bar starts at the previous running total
- * (subtracted bars span from the old total to the new one), so the reader sees
- * the arithmetic rather than a set of unrelated bars. Bars use length from a
- * zero baseline, and the value is printed under every step.
+ * minus expenses → net estimate.
  *
- * `start`/`end` are passed in by the caller so the component stays generic and
- * the arithmetic is visible in the report, next to the definition of profit.
+ * Readability rules this chart follows:
+ *   - A shared zero baseline is always drawn, and bars encode value by length
+ *     from it (no floating blocks, no truncated axis).
+ *   - A labelled value axis and light gridlines give the reader the scale, so
+ *     the bar lengths mean something.
+ *   - Connector lines join the end of one step to the start of the next, so the
+ *     arithmetic reads as a flow instead of unrelated columns.
+ *   - A step that nets to zero is drawn as a marker on the baseline, never an
+ *     empty void that looks like missing data.
  */
+
+import { compactMoney } from "./format";
 
 export type WaterfallStep = {
   key: string;
@@ -26,71 +32,139 @@ export type WaterfallStep = {
   kind: "total" | "minus" | "subtotal" | "net";
 };
 
-export function WaterfallChart({ steps }: { steps: WaterfallStep[] }) {
+const TICKS = 4;
+
+/** Round an axis maximum up to a clean 1/2/2.5/5 × 10ⁿ value. */
+function niceCeil(value: number): number {
+  if (value <= 0) return 1;
+  const exponent = Math.floor(Math.log10(value));
+  const fraction = value / 10 ** exponent;
+  const nice = fraction <= 1 ? 1 : fraction <= 2 ? 2 : fraction <= 2.5 ? 2.5 : fraction <= 5 ? 5 : 10;
+  return nice * 10 ** exponent;
+}
+
+/** Colour by meaning, from the theme tokens (no off-palette hues). */
+function colorFor(step: WaterfallStep): string {
+  switch (step.kind) {
+    case "total":
+      return "--brand-700";
+    case "minus":
+      return "--danger";
+    case "subtotal":
+      return "--brand-400";
+    default:
+      return step.end >= 0 ? "--success" : "--danger";
+  }
+}
+
+export function WaterfallChart({
+  steps,
+  symbol = "",
+}: {
+  steps: WaterfallStep[];
+  symbol?: string;
+}) {
   const values = steps.flatMap((step) => [step.start, step.end]);
-  let min = Math.min(0, ...values);
-  let max = Math.max(0, ...values);
-  if (min === max) max = min + 1;
-  const range = max - min;
-  const top = (value: number) => ((max - value) / range) * 100;
+  const rawMax = Math.max(0, ...values);
+  const rawMin = Math.min(0, ...values);
+  const hi = rawMax > 0 ? niceCeil(rawMax) : 1;
+  const lo = rawMin < 0 ? -niceCeil(-rawMin) : 0;
+  const span = hi - lo || 1;
+  const top = (value: number) => ((hi - value) / span) * 100;
   const zero = top(0);
+  const count = steps.length;
+  const center = (index: number) => ((index + 0.5) / count) * 100;
+  const ticks = Array.from({ length: TICKS + 1 }, (_, index) => lo + (span * index) / TICKS);
 
   return (
     <div>
-      <div className="relative h-40">
-        <span
-          className="absolute inset-x-0 h-px bg-line-strong"
-          style={{ top: `${zero}%` }}
-          aria-hidden="true"
-        />
-        <div className="absolute inset-0 flex items-stretch gap-1.5">
-          {steps.map((step) => {
-            const barTop = top(Math.max(step.start, step.end));
-            const barBottom = top(Math.min(step.start, step.end));
-            const height = barBottom - barTop;
-            const colorVar =
-              step.kind === "total"
-                ? "--brand-600"
-                : step.kind === "minus"
-                  ? "--danger"
-                  : step.kind === "subtotal"
-                    ? "--info"
-                    : step.end >= 0
-                      ? "--success"
-                      : "--danger";
-            return (
-              <div
-                key={step.key}
-                className="relative min-w-0 flex-1"
-                title={`${step.label}: ${step.display}`}
-              >
-                {height > 0.3 ? (
-                  <div
-                    className="absolute inset-x-0 rounded-[3px]"
-                    style={{
-                      top: `${barTop}%`,
-                      height: `${height}%`,
-                      backgroundColor: `rgb(var(${colorVar}))`,
-                    }}
-                  />
-                ) : null}
-              </div>
-            );
-          })}
+      <div className="flex gap-2">
+        {/* Value axis */}
+        <div className="relative h-44 w-11 shrink-0" aria-hidden="true">
+          {ticks.map((tick) => (
+            <span
+              key={tick}
+              className="absolute right-0 -translate-y-1/2 text-[10px] tabular-nums text-ink-faint"
+              style={{ top: `${top(tick)}%` }}
+            >
+              {compactMoney(tick, symbol)}
+            </span>
+          ))}
+        </div>
+
+        {/* Plot */}
+        <div className="relative h-44 min-w-0 flex-1">
+          {ticks.map((tick) => (
+            <span
+              key={tick}
+              className="absolute inset-x-0 h-px"
+              style={{ top: `${top(tick)}%`, backgroundColor: "rgb(var(--line))" }}
+              aria-hidden="true"
+            />
+          ))}
+          {/* Zero baseline — stronger than the gridlines */}
+          <span
+            className="absolute inset-x-0 h-px"
+            style={{ top: `${zero}%`, backgroundColor: "rgb(var(--line-strong))" }}
+            aria-hidden="true"
+          />
+
+          {/* Connectors: end of one step → start of the next */}
+          {steps.slice(0, -1).map((step, index) => (
+            <span
+              key={`connector-${step.key}`}
+              className="absolute h-px"
+              style={{
+                top: `${top(step.end)}%`,
+                left: `${center(index)}%`,
+                width: `${center(index + 1) - center(index)}%`,
+                backgroundColor: "rgb(var(--line-strong))",
+              }}
+              aria-hidden="true"
+            />
+          ))}
+
+          {/* Bars */}
+          <div className="absolute inset-0 flex items-stretch">
+            {steps.map((step) => {
+              const barTop = top(Math.max(step.start, step.end));
+              const barBottom = top(Math.min(step.start, step.end));
+              const height = barBottom - barTop;
+              const isZero = Math.abs(step.end - step.start) < 1e-9;
+              const color = `rgb(var(${colorFor(step)}))`;
+              return (
+                <div key={step.key} className="relative min-w-0 flex-1">
+                  {isZero ? (
+                    <span
+                      className="absolute left-1/2 h-[3px] w-2/3 max-w-[3rem] -translate-x-1/2 rounded-full opacity-60"
+                      style={{ top: `calc(${top(step.end)}% - 1.5px)`, backgroundColor: color }}
+                      title={`${step.label}: ${step.display}`}
+                    />
+                  ) : (
+                    <div
+                      className="absolute left-1/2 w-full max-w-[3rem] -translate-x-1/2 rounded-md"
+                      style={{ top: `${barTop}%`, height: `${height}%`, backgroundColor: color }}
+                      title={`${step.label}: ${step.display}`}
+                    />
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
 
-      <div className="mt-1.5 flex gap-1.5">
-        {steps.map((step) => (
-          <div key={step.key} className="min-w-0 flex-1 text-center">
-            <p className="truncate text-[10px] font-semibold text-ink-muted">
-              {step.shortLabel}
-            </p>
-            <p className="truncate text-[10px] tabular-nums text-ink-subtle">
-              {step.display}
-            </p>
-          </div>
-        ))}
+      {/* Step labels */}
+      <div className="mt-2 flex gap-2">
+        <div className="w-11 shrink-0" aria-hidden="true" />
+        <div className="flex min-w-0 flex-1">
+          {steps.map((step) => (
+            <div key={step.key} className="min-w-0 flex-1 px-0.5 text-center">
+              <p className="truncate text-[10px] font-semibold text-ink-muted">{step.shortLabel}</p>
+              <p className="truncate text-[10px] font-semibold tabular-nums text-ink">{step.display}</p>
+            </div>
+          ))}
+        </div>
       </div>
 
       <table className="sr-only">

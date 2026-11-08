@@ -11,7 +11,7 @@
  *      "today", not "for this period".
  */
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   AlertTriangle,
@@ -178,7 +178,9 @@ export function ReportsView() {
   const { t, tParams } = useLanguage();
   const symbol = useCurrencySymbol();
 
-  const [query, setQuery] = useState<ReportQuery>({ kind: "preset", preset: "month" });
+  // Open on this week by default so the report appears immediately with no
+  // extra tap.
+  const [query, setQuery] = useState<ReportQuery>({ kind: "preset", preset: "week" });
   const [draftFrom, setDraftFrom] = useState("");
   const [draftTo, setDraftTo] = useState("");
   const [rangeError, setRangeError] = useState<string | null>(null);
@@ -186,6 +188,21 @@ export function ReportsView() {
   const { data, isLoading, isError, isFetching, refetch } = useReport(query);
 
   const activePreset = query.kind === "preset" ? query.preset : null;
+
+  // Custom dates apply as soon as both are set — no "Show" button needed.
+  useEffect(() => {
+    if (!draftFrom || !draftTo) return;
+    if (draftFrom > draftTo) {
+      setRangeError(t("reports.invalidRange"));
+      return;
+    }
+    setRangeError(null);
+    setQuery((prev) =>
+      prev.kind === "custom" && prev.from === draftFrom && prev.to === draftTo
+        ? prev
+        : { kind: "custom", from: draftFrom, to: draftTo },
+    );
+  }, [draftFrom, draftTo, t]);
 
   const countLabel = (
     count: number,
@@ -429,19 +446,6 @@ export function ReportsView() {
     setQuery({ kind: "preset", preset });
   }
 
-  function applyCustom() {
-    if (!draftFrom || !draftTo) {
-      setRangeError(t("reports.invalidRange"));
-      return;
-    }
-    if (draftFrom > draftTo) {
-      setRangeError(t("reports.invalidRange"));
-      return;
-    }
-    setRangeError(null);
-    setQuery({ kind: "custom", from: draftFrom, to: draftTo });
-  }
-
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-2 px-1">
@@ -506,13 +510,6 @@ export function ReportsView() {
                 className="w-full rounded-lg border border-line bg-surface px-2.5 py-2 text-sm text-ink focus:border-brand-500 focus:outline-none"
               />
             </label>
-            <button
-              type="button"
-              onClick={applyCustom}
-              className="rounded-lg bg-brand-700 px-3.5 py-2 text-xs font-semibold text-white hover:bg-brand-800"
-            >
-              {t("reports.apply")}
-            </button>
           </div>
           {rangeError ? (
             <p className="mt-1.5 text-xs text-danger-ink">{rangeError}</p>
@@ -620,9 +617,17 @@ export function ReportsView() {
           <ChartFrame
             title={t("reports.chartProfitTitle")}
             hint={t("reports.chartProfitHint")}
+            legend={
+              <>
+                <LegendDot colorVar="--brand-700" label={t("reports.wfRevenue")} />
+                <LegendDot colorVar="--danger" label={t("reports.wfCogs")} />
+                <LegendDot colorVar="--brand-400" label={t("reports.wfGross")} />
+                <LegendDot colorVar="--success" label={t("reports.wfNet")} />
+              </>
+            }
           >
             {profitFlow.some((step) => Math.abs(step.start) > 0 || Math.abs(step.end) > 0) ? (
-              <WaterfallChart steps={profitFlow} />
+              <WaterfallChart steps={profitFlow} symbol={symbol} />
             ) : (
               <p className="text-sm text-ink-subtle">{t("reports.chartEmpty")}</p>
             )}

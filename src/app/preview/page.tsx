@@ -51,11 +51,11 @@ const MOCK_CUSTOMERS = [
 ] as unknown as CustomerSearchResult[];
 
 const MOCK_WATERFALL: WaterfallStep[] = [
-  { key: "revenue", label: "Sales billed", shortLabel: "Sales", display: "Rs.120k", start: 0, end: 120000, kind: "total" },
-  { key: "cogs", label: "Cost of goods", shortLabel: "Cost", display: "Rs.78k", start: 120000, end: 42000, kind: "minus" },
-  { key: "gross", label: "Gross profit", shortLabel: "Gross", display: "Rs.42k", start: 0, end: 42000, kind: "subtotal" },
-  { key: "expenses", label: "Expenses", shortLabel: "Expenses", display: "Rs.18k", start: 42000, end: 24000, kind: "minus" },
-  { key: "net", label: "Net estimate", shortLabel: "Net", display: "Rs.24k", start: 0, end: 24000, kind: "net" },
+  { key: "revenue", label: "Sales billed", shortLabel: "Sales", display: "Rs.400k", start: 0, end: 400000, kind: "total" },
+  { key: "cogs", label: "Cost of goods", shortLabel: "Cost", display: "Rs.120k", start: 400000, end: 280000, kind: "minus" },
+  { key: "gross", label: "Gross profit", shortLabel: "Gross", display: "Rs.280k", start: 0, end: 280000, kind: "subtotal" },
+  { key: "expenses", label: "Expenses", shortLabel: "Expenses", display: "Rs.0", start: 280000, end: 280000, kind: "minus" },
+  { key: "net", label: "Net estimate", shortLabel: "Net", display: "Rs.280k", start: 0, end: 280000, kind: "net" },
 ];
 
 const MOCK_DUMBBELL: DumbbellRow[] = [
@@ -195,8 +195,19 @@ export default function PreviewPage() {
 
           <section className="space-y-2">
             <h2 className="section-title px-1">Charts</h2>
-            <ChartFrame title="How profit is built" hint="Sales minus cost and expenses.">
-              <WaterfallChart steps={MOCK_WATERFALL} />
+            <ChartFrame
+              title="How profit is built"
+              hint="Sales minus cost and expenses."
+              legend={
+                <>
+                  <LegendDot colorVar="--brand-700" label="Sales" />
+                  <LegendDot colorVar="--danger" label="Cost" />
+                  <LegendDot colorVar="--brand-400" label="Gross" />
+                  <LegendDot colorVar="--success" label="Net" />
+                </>
+              }
+            >
+              <WaterfallChart steps={MOCK_WATERFALL} symbol="Rs." />
             </ChartFrame>
             <ChartFrame
               title="This period vs previous"

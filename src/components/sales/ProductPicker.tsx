@@ -273,7 +273,7 @@ function QuickAddProduct({
         <div>
           <label className="mb-1 block text-xs font-medium text-ink-muted">{t("product.sellingPrice")}</label>
           <div className="relative">
-            <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-xs text-ink-subtle">{symbol}</span>
+            <span className="pointer-events-none absolute start-2 top-1/2 -translate-y-1/2 text-xs text-ink-subtle">{symbol}</span>
             <input
               type="number"
               inputMode="decimal"
@@ -282,7 +282,7 @@ function QuickAddProduct({
               value={sellingPrice}
               onChange={(e) => setSellingPrice(e.target.value)}
               placeholder="0"
-              className="w-full rounded-lg border border-line-strong bg-surface py-2 pl-8 pr-2 text-sm tabular-nums text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+              className="w-full rounded-lg border border-line-strong bg-surface py-2 ps-8 pe-2 text-sm tabular-nums text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
             />
           </div>
         </div>

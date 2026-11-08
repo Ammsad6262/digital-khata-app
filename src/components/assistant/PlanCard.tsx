@@ -11,6 +11,8 @@
 import { useState } from "react";
 import { Check } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
+import { useLanguage } from "@/providers/language-provider";
+import type { TranslationKey } from "@/lib/i18n/translations";
 import type { AssistantPlan, Candidate, PlanPayload } from "@/lib/assistant/types";
 
 function money(value: number | undefined, symbol = "Rs.") {
@@ -24,23 +26,18 @@ const CANDIDATE_KEY: Record<"customers" | "products" | "suppliers", keyof PlanPa
   suppliers: "supplierId",
 };
 
-function labelFor(key: string): string {
-  switch (key) {
-    case "amount":
-      return "Amount";
-    case "quantity":
-      return "Quantity";
-    case "unitPrice":
-      return "Price";
-    case "name":
-      return "Name";
-    case "unit":
-      return "Unit";
-    case "targetId":
-      return "Record ID";
-    default:
-      return key;
-  }
+const FIELD_KEY: Record<string, TranslationKey> = {
+  amount: "plan.field.amount",
+  quantity: "plan.field.quantity",
+  unitPrice: "plan.field.unitPrice",
+  name: "plan.field.name",
+  unit: "plan.field.unit",
+  targetId: "plan.field.targetId",
+};
+
+function labelFor(key: string, t: (k: TranslationKey) => string): string {
+  const k = FIELD_KEY[key];
+  return k ? t(k) : key;
 }
 
 export function PlanCard({
@@ -54,6 +51,7 @@ export function PlanCard({
   onConfirm: (actionId: string, patch: Partial<PlanPayload>) => void;
   onCancel: (actionId: string) => void;
 }) {
+  const { t, tParams } = useLanguage();
   const [patch, setPatch] = useState<Partial<PlanPayload>>({});
   const [customAmount, setCustomAmount] = useState("");
 
@@ -73,10 +71,10 @@ export function PlanCard({
     (needs.has("targetId") && !patch.targetId);
 
   return (
-    <div className="rounded-2xl rounded-bl-sm border border-line bg-surface px-3 py-3 text-sm shadow-card">
+    <div className="rounded-2xl rounded-es-sm border border-line bg-surface px-3 py-3 text-sm shadow-card">
       <p className="font-semibold text-ink">{plan.summary}</p>
       {plan.usedContext ? (
-        <p className="mt-0.5 text-xs text-ink-subtle">Using your last customer</p>
+        <p className="mt-0.5 text-xs text-ink-subtle">{t("plan.usingLastCustomer")}</p>
       ) : null}
 
       <dl className="mt-2 space-y-1">
@@ -101,7 +99,15 @@ export function PlanCard({
         const selectedId = patch[key] as string | undefined;
         return (
           <div key={group} className="mt-2">
-            <p className="text-xs font-medium text-ink-subtle">Pick {group.slice(0, -1)}</p>
+            <p className="text-xs font-medium text-ink-subtle">
+              {t(
+                group === "customers"
+                  ? "plan.pickCustomer"
+                  : group === "products"
+                    ? "plan.pickProduct"
+                    : "plan.pickSupplier",
+              )}
+            </p>
             <div className="mt-1 flex flex-wrap gap-1.5">
               {list.map((candidate) => (
                 <button
@@ -125,7 +131,7 @@ export function PlanCard({
 
       {needs.has("paidAmount") ? (
         <div className="mt-2">
-          <p className="text-xs font-medium text-ink-subtle">How much did they pay?</p>
+          <p className="text-xs font-medium text-ink-subtle">{t("plan.howMuchPaid")}</p>
           <div className="mt-1 flex flex-wrap gap-1.5">
             {plan.suggested?.paidAmount !== undefined ? (
               <button
@@ -133,7 +139,7 @@ export function PlanCard({
                 onClick={() => setPatch((p) => ({ ...p, paidAmount: plan.suggested!.paidAmount }))}
                 className="rounded-full border border-brand-600 bg-brand-600 px-2.5 py-1 text-xs font-medium text-white"
               >
-                Full payment ({money(plan.suggested.paidAmount)})
+                {tParams("plan.fullPayment", { amount: money(plan.suggested.paidAmount) })}
               </button>
             ) : null}
             <button
@@ -146,14 +152,14 @@ export function PlanCard({
                   : "border-line-strong bg-surface",
               )}
             >
-              On credit
+              {t("plan.onCredit")}
             </button>
           </div>
           <input
             type="number"
             inputMode="decimal"
             value={customAmount}
-            placeholder="Or type an amount"
+            placeholder={t("plan.amountPlaceholder")}
             onChange={(e) => {
               setCustomAmount(e.target.value);
               const value = Number(e.target.value);
@@ -168,7 +174,7 @@ export function PlanCard({
         .filter((key) => needs.has(key))
         .map((key) => (
           <div key={key} className="mt-2">
-            <p className="text-xs font-medium text-ink-subtle">{labelFor(key)}</p>
+            <p className="text-xs font-medium text-ink-subtle">{labelFor(key, t)}</p>
             <input
               type="number"
               inputMode="decimal"
@@ -185,7 +191,7 @@ export function PlanCard({
         .filter((key) => needs.has(key))
         .map((key) => (
           <div key={key} className="mt-2">
-            <p className="text-xs font-medium text-ink-subtle">{labelFor(key)}</p>
+            <p className="text-xs font-medium text-ink-subtle">{labelFor(key, t)}</p>
             <input
               type="text"
               onChange={(e) => setPatch((p) => ({ ...p, [key]: e.target.value }))}
@@ -205,7 +211,7 @@ export function PlanCard({
           )}
         >
           <Check className="h-4 w-4" />
-          Confirm
+          {t("plan.confirm")}
         </button>
         <button
           type="button"
@@ -213,7 +219,7 @@ export function PlanCard({
           onClick={() => onCancel(plan.actionId)}
           className="rounded-xl border border-line-strong px-3 py-2 text-sm font-medium"
         >
-          Cancel
+          {t("plan.cancel")}
         </button>
       </div>
     </div>

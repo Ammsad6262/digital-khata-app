@@ -383,7 +383,7 @@ export function HoldToTalkFab({
 
         {/* Sparkles badge (only when idle) */}
         {!isActive && !isProcessing && !isError ? (
-          <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-warning text-white shadow-card ring-2 ring-white">
+          <span className="absolute -end-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-warning text-white shadow-card ring-2 ring-white">
             <Sparkles className="h-3 w-3" />
           </span>
         ) : null}

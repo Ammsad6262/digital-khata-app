@@ -29,7 +29,7 @@ export function BottomNav() {
   return (
     <nav
       className="fixed inset-x-0 bottom-0 z-30 mx-auto w-full max-w-[540px] px-3 pb-[max(0.6rem,env(safe-area-inset-bottom))]"
-      aria-label="Main navigation"
+      aria-label={t("nav.mainNavigation")}
     >
       <div className="flex h-[4.15rem] items-stretch gap-1 rounded-[1.7rem] border border-line bg-surface/85 p-1.5 shadow-lift backdrop-blur-xl">
         {TABS.map((tab) => {

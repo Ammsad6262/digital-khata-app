@@ -11,14 +11,14 @@
  * Fonts:
  *   - Plus Jakarta Sans: the interface typeface — geometric, warm and a touch
  *     more characterful than the default system stack.
- *   - Noto Nastaliq Urdu: for Urdu text (Arabic script) — the gold standard
- *     Urdu font, designed specifically for Nastaliq calligraphy.
+ *   - Noto Naskh Arabic: for Urdu text (Arabic script) — the standard,
+ *     highly legible face for reading at interface sizes.
  *
  * Anti-FOUC: inline script sets theme + language dir before first paint.
  */
 
 import type { Metadata, Viewport } from "next";
-import { Plus_Jakarta_Sans, Noto_Nastaliq_Urdu } from "next/font/google";
+import { Plus_Jakarta_Sans, Noto_Naskh_Arabic } from "next/font/google";
 import "./globals.css";
 import { Analytics } from "@vercel/analytics/next";
 import { Providers } from "./providers";
@@ -32,11 +32,12 @@ const jakarta = Plus_Jakarta_Sans({
   adjustFontFallback: true,
 });
 
-// Noto Nastaliq Urdu — the premier Urdu font
-// Uses weights 400 (normal) and 700 (bold)
-const nastaliq = Noto_Nastaliq_Urdu({
+// Noto Naskh Arabic — the standard, highly legible Arabic-script face used
+// across Urdu/Arabic interfaces. (Nastaliq is calligraphic and hard to read
+// at interface sizes, so it is kept only as a last-resort fallback.)
+const urduFont = Noto_Naskh_Arabic({
   subsets: ["arabic"],
-  weight: ["400", "700"],
+  weight: ["400", "500", "600", "700"],
   variable: "--font-urdu",
   display: "swap",
   preload: true,
@@ -90,7 +91,6 @@ const initScript = `
     if (lang === 'ur') {
       document.documentElement.setAttribute('dir', 'rtl');
       document.documentElement.setAttribute('lang', 'ur');
-      document.documentElement.classList.add('font-urdu');
     }
   } catch (e) {}
 })();
@@ -110,7 +110,7 @@ export default function RootLayout({
     <html
       lang="en"
       data-theme="ink"
-      className={`${jakarta.variable} ${nastaliq.variable}`}
+      className={`${jakarta.variable} ${urduFont.variable}`}
       suppressHydrationWarning
     >
       <head>

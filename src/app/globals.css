@@ -285,23 +285,22 @@
     text-wrap: balance;
   }
 
-  /* Urdu language: switch to Noto Nastaliq Urdu font
-     Applied when <html lang="ur"> is set by LanguageProvider */
+  /* Urdu: use Noto Naskh Arabic for the whole UI. It is the standard,
+     highly legible Arabic-script face — Nastaliq is calligraphic and hard to
+     read at interface sizes. We set only the family on the root elements and
+     a comfortable base line-height on <body>; deliberately NOT a line-height
+     on every element, so component `leading-*` utilities (compact buttons,
+     nav pills, charts) keep working and fixed-height rows don't clip. */
   html[lang="ur"] body,
-  html[lang="ur"] input,
-  html[lang="ur"] select,
-  html[lang="ur"] textarea,
-  html[lang="ur"] button,
-  html[lang="ur"] a,
-  html[lang="ur"] p,
-  html[lang="ur"] span,
   html[lang="ur"] h1,
   html[lang="ur"] h2,
   html[lang="ur"] h3,
-  html[lang="ur"] label,
-  html[lang="ur"] div {
-    font-family: var(--font-urdu), "Noto Nastaliq Urdu", serif;
-    line-height: 2.2; /* Nastaliq needs more vertical space */
+  html[lang="ur"] h4 {
+    font-family: var(--font-urdu), "Noto Naskh Arabic", "Noto Nastaliq Urdu", serif;
+  }
+
+  html[lang="ur"] body {
+    line-height: 1.75;
   }
 
   /* RTL: flip text alignment and spacing */

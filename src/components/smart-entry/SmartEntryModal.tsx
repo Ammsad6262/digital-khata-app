@@ -3203,7 +3203,7 @@ function ProductCreationView({ form, transcript, onConfirm, onCancel }: {
       {form.hint ? <div className="rounded-xl border border-warning/25 bg-warning-soft p-3 text-xs text-warning-ink"><AlertCircle className="mr-1 inline h-3.5 w-3.5" />{form.hint}</div> : null}
       <div className="space-y-3">
         <div><label className="mb-1 block text-xs font-medium text-ink-muted">{t("smartentry.field.name")} <span className="text-danger">*</span></label>
-          <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Product name" autoFocus className="w-full rounded-lg border border-line-strong bg-surface px-3 py-2.5 text-sm font-medium text-ink placeholder:text-ink-faint focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30" /></div>
+          <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder={t("smartentry.productNamePlaceholder")} autoFocus className="w-full rounded-lg border border-line-strong bg-surface px-3 py-2.5 text-sm font-medium text-ink placeholder:text-ink-faint focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30" /></div>
         <div><label className="mb-1 block text-xs font-medium text-ink-muted">{t("smartentry.field.unit")} <span className="text-danger">*</span></label>
           <select value={unit} onChange={(e) => setUnit(e.target.value)} className="w-full rounded-lg border border-line-strong bg-surface px-3 py-2.5 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30">{units.map((u) => <option key={u} value={u}>{u}</option>)}</select></div>
         <div><label className="mb-1 block text-xs font-medium text-ink-muted">{t("smartentry.field.purchasePrice")} <span className="text-danger">*</span></label>
@@ -3247,7 +3247,7 @@ function CustomerCreationView({ form, transcript, onConfirm, onCancel }: {
       {form.hint ? <div className="rounded-xl border border-warning/25 bg-warning-soft p-3 text-xs text-warning-ink"><AlertCircle className="mr-1 inline h-3.5 w-3.5" />{form.hint}</div> : null}
       <div className="space-y-3">
         <div><label className="mb-1 block text-xs font-medium text-ink-muted">{t("smartentry.field.name")} <span className="text-danger">*</span></label>
-          <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Customer name" autoFocus className="w-full rounded-lg border border-line-strong bg-surface px-3 py-2.5 text-sm font-medium text-ink placeholder:text-ink-faint focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30" /></div>
+          <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder={t("smartentry.customerNamePlaceholder")} autoFocus className="w-full rounded-lg border border-line-strong bg-surface px-3 py-2.5 text-sm font-medium text-ink placeholder:text-ink-faint focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30" /></div>
         <div><label className="mb-1 block text-xs font-medium text-ink-muted">{t("smartentry.field.phone")} <span className="text-ink-faint">({t("common.optional")})</span></label>
           <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="0300 1234567" className="w-full rounded-lg border border-line-strong bg-surface px-3 py-2.5 text-sm font-medium text-ink placeholder:text-ink-faint focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30" /></div>
         <div><label className="mb-1 block text-xs font-medium text-ink-muted">{t("customer.openingBalance")} <span className="text-ink-faint">({t("common.optional")})</span></label>
@@ -3289,7 +3289,7 @@ function ClarificationView({ clarification, transcript, onRetry, onCancel }: {
         </div>
       </div>
       <form onSubmit={(e) => { e.preventDefault(); if (textValue.trim()) { onRetry(); } }} className="flex items-end gap-2">
-        <textarea value={textValue} onChange={(e) => setTextValue(e.target.value)} placeholder="Type what happened..." rows={2} className="flex-1 resize-none rounded-card border border-line-strong bg-surface px-3 py-2.5 text-sm text-ink placeholder:text-ink-faint focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30" />
+        <textarea value={textValue} onChange={(e) => setTextValue(e.target.value)} placeholder={t("smartentry.typeHappened")} rows={2} className="flex-1 resize-none rounded-card border border-line-strong bg-surface px-3 py-2.5 text-sm text-ink placeholder:text-ink-faint focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30" />
         <button type="submit" disabled={!textValue.trim()} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-600 text-white shadow-card disabled:bg-brand-300" aria-label={t("smartentry.aria.submit")}><Send className="h-5 w-5" /></button>
       </form>
       <button type="button" onClick={onCancel} className="w-full rounded-card border border-line-strong bg-surface px-4 py-2.5 text-sm font-semibold text-ink-muted hover:bg-app">{t("smartentry.action.cancel")}</button>

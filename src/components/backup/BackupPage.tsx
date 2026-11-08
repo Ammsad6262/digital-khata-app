@@ -275,15 +275,15 @@ function FilePreview({
 
         {/* Counts grid */}
         <div className="mt-2 grid grid-cols-3 gap-1.5 text-xs">
-          <CountCell label="Customers" value={c.customers} />
-          <CountCell label="Products" value={c.products} />
-          <CountCell label="Sales" value={c.sales} />
-          <CountCell label="Sale Items" value={c.saleItems} />
-          <CountCell label="Payments" value={c.payments} />
-          <CountCell label="Stock Moves" value={c.stockMoves} />
-          <CountCell label="Expenses" value={c.expenses} />
-          <CountCell label="Transactions" value={c.transactions} />
-          <CountCell label="Adjustments" value={c.customerAdjustments} />
+          <CountCell label={t("backup.count.customers")} value={c.customers} />
+          <CountCell label={t("backup.count.products")} value={c.products} />
+          <CountCell label={t("backup.count.sales")} value={c.sales} />
+          <CountCell label={t("backup.count.saleItems")} value={c.saleItems} />
+          <CountCell label={t("backup.count.payments")} value={c.payments} />
+          <CountCell label={t("backup.count.stockMoves")} value={c.stockMoves} />
+          <CountCell label={t("backup.count.expenses")} value={c.expenses} />
+          <CountCell label={t("backup.count.transactions")} value={c.transactions} />
+          <CountCell label={t("backup.count.adjustments")} value={c.customerAdjustments} />
         </div>
       </div>
 

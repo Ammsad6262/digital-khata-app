@@ -355,7 +355,7 @@ function EmptySalesState({ filter }: { filter: SaleFilter }) {
         </div>
 
         {/* Solid green circle + white "+" badge at bottom-right of the icon */}
-        <div className="absolute bottom-1 right-1 flex h-7 w-7 items-center justify-center rounded-full border-2 border-surface bg-brand-600 text-white shadow-card">
+        <div className="absolute bottom-1 end-1 flex h-7 w-7 items-center justify-center rounded-full border-2 border-surface bg-brand-600 text-white shadow-card">
           <Plus className="h-4 w-4" strokeWidth={3} />
         </div>
       </div>

@@ -37,7 +37,7 @@ import type { KhataAnswer } from "@/lib/khata-assistant/types";
 type UiLanguage = "en" | "ur" | "roman-ur" | "mixed";
 
 export function KhataAssistant() {
-  const { lang } = useLanguage();
+  const { t, lang } = useLanguage();
   const assistant = useKhataAssistant();
   const [input, setInput] = useState("");
   const [detected, setDetected] = useState<UiLanguage>("en");
@@ -79,9 +79,9 @@ export function KhataAssistant() {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        aria-label="Open the Khata Assistant"
+        aria-label={t("assistant.khataOpen")}
         className={cn(
-          "fixed bottom-24 right-20 z-40 flex h-14 w-14 items-center justify-center rounded-full",
+          "fixed bottom-24 end-20 z-40 flex h-14 w-14 items-center justify-center rounded-full",
           "bg-ink text-white shadow-lg",
           "transition-transform hover:scale-105 active:scale-95",
         )}
@@ -92,10 +92,10 @@ export function KhataAssistant() {
       {open ? (
         <div
           role="dialog"
-          aria-label="Khata Assistant"
+          aria-label={t("assistant.khataTitle")}
           className={cn(
             "fixed inset-x-0 bottom-0 z-50 flex max-h-[88vh] flex-col overflow-hidden rounded-t-3xl border border-line bg-surface shadow-2xl",
-            "sm:inset-x-auto sm:bottom-4 sm:right-4 sm:w-[440px] sm:rounded-3xl",
+            "sm:inset-x-auto sm:bottom-4 sm:end-4 sm:w-[440px] sm:rounded-3xl",
           )}
         >
           {/* Header */}
@@ -104,15 +104,15 @@ export function KhataAssistant() {
               <BarChart3 className="h-5 w-5" />
             </div>
             <div className="flex-1">
-              <p className="text-sm font-semibold text-ink">Khata Assistant</p>
+              <p className="text-sm font-semibold text-ink">{t("assistant.khataTitle")}</p>
               <p className="text-xs text-ink-subtle">
-                Understand your business from your own records
+                {t("assistant.khataSubtitle")}
               </p>
             </div>
             <button
               type="button"
               onClick={() => setOpen(false)}
-              aria-label="Close"
+              aria-label={t("common.close")}
               className="rounded-lg p-1.5 text-ink-subtle hover:bg-surface-2"
             >
               <X className="h-4 w-4" />
@@ -143,14 +143,14 @@ export function KhataAssistant() {
                 }
               }}
               rows={1}
-              placeholder="Ask about your business…"
+              placeholder={t("assistant.askPlaceholder")}
               className="max-h-28 min-h-11 flex-1 resize-none rounded-2xl border border-line-strong bg-surface px-3 py-2.5 text-sm outline-none focus:border-brand-500"
             />
             <button
               type="button"
               onClick={handleSend}
               disabled={busy || input.trim().length === 0}
-              aria-label="Ask"
+              aria-label={t("assistant.askAria")}
               className={cn(
                 "flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-ink text-white",
                 (busy || input.trim().length === 0) && "opacity-40",
@@ -182,11 +182,13 @@ function AssistantBody({
   uiLanguage: UiLanguage;
   onQuestion: (id: string) => void;
 }) {
+  const { t } = useLanguage();
+
   if (busy && !answer) {
     return (
       <div className="flex flex-col items-center justify-center gap-3 py-16 text-sm text-ink-subtle">
         <Loader2 className="h-6 w-6 animate-spin" />
-        <p>Checking your records…</p>
+        <p>{t("assistant.checking")}</p>
       </div>
     );
   }

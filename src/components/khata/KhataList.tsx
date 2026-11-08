@@ -235,7 +235,7 @@ function EmptyCustomersState() {
         </div>
 
         {/* Small "+" badge at bottom-right of the icon */}
-        <div className="absolute bottom-1 right-1 flex h-6 w-6 items-center justify-center rounded-full border-2 border-surface bg-brand-600 text-white shadow-card">
+        <div className="absolute bottom-1 end-1 flex h-6 w-6 items-center justify-center rounded-full border-2 border-surface bg-brand-600 text-white shadow-card">
           <Plus className="h-3.5 w-3.5" strokeWidth={3} />
         </div>
       </div>

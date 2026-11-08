@@ -111,7 +111,7 @@ export function GlobalSearch() {
       {/* Search input */}
       <div className="relative">
         <Search
-          className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-faint"
+          className="pointer-events-none absolute start-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-faint"
           aria-hidden
         />
         <input
@@ -130,7 +130,7 @@ export function GlobalSearch() {
             }
           }}
           placeholder={t("dashboard.searchPlaceholder")}
-          className="w-full rounded-control border border-line-strong bg-surface py-3 pl-10 pr-10 text-[13px] text-ink shadow-soft placeholder:text-ink-faint transition-shadow focus:border-brand-500 focus:outline-none focus:ring-4 focus:ring-brand-500/15"
+          className="w-full rounded-control border border-line-strong bg-surface py-3 ps-10 pe-10 text-[13px] text-ink shadow-soft placeholder:text-ink-faint transition-shadow focus:border-brand-500 focus:outline-none focus:ring-4 focus:ring-brand-500/15"
           aria-label={t("common.globalSearchAria")}
           aria-expanded={isOpen}
           aria-controls="global-search-results"
@@ -143,7 +143,7 @@ export function GlobalSearch() {
               setResults(null);
               setIsOpen(false);
             }}
-            className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-full p-1 text-ink-faint transition-colors hover:bg-surface-2 hover:text-ink"
+            className="absolute end-2.5 top-1/2 -translate-y-1/2 rounded-full p-1 text-ink-faint transition-colors hover:bg-surface-2 hover:text-ink"
             aria-label={t("common.clearSearchAria")}
           >
             <X className="h-4 w-4" />

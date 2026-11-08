@@ -16,6 +16,8 @@
     "db:seed": "tsx scripts/seed-sample-data.ts",
     "test:foundation": "tsx scripts/test-foundation.ts",
     "test:charts": "tsx scripts/test-charts.ts",
+    "audit:i18n": "tsx scripts/check-i18n.ts",
+    "audit:rtl": "node scripts/rtl-audit.mjs",
     "test:audit": "tsx scripts/audit-data-integrity.ts",
     "test:e2e": "tsx scripts/test-e2e.ts",
     "test:acceptance": "tsx scripts/test-acceptance-http.ts",

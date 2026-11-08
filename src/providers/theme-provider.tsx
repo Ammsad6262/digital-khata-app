@@ -110,16 +110,24 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const syncThemeFromServer = useCallback((serverTheme: string | null) => {
     const normalized = normalizeTheme(serverTheme);
     if (!normalized) return;
-    // Only update if different from current (avoid unnecessary re-renders)
-    setThemeState((current) => {
-      if (current !== normalized) {
-        try {
-          localStorage.setItem(STORAGE_KEY, normalized);
-        } catch {}
-        return normalized;
-      }
-      return current;
-    });
+
+    // A theme the user explicitly chose on this device is stored in
+    // localStorage and must win. The server copy can be stale (the settings
+    // query may still hold the pre-change value while a PATCH is in flight),
+    // and syncing it back is what reset the theme to the default after
+    // navigating away from Settings.
+    let hasLocalChoice = false;
+    try {
+      hasLocalChoice = normalizeTheme(localStorage.getItem(STORAGE_KEY)) !== null;
+    } catch {
+      // localStorage unavailable — fall back to the server value.
+    }
+    if (hasLocalChoice) return;
+
+    setThemeState(normalized);
+    try {
+      localStorage.setItem(STORAGE_KEY, normalized);
+    } catch {}
   }, []);
 
   return (

@@ -45,7 +45,10 @@ import {
   useSetPin,
   useRemovePin,
   useClearAllData,
+  settingsKeys,
 } from "@/hooks/use-settings";
+import { useQueryClient } from "@tanstack/react-query";
+import type { SettingView } from "@/lib/services/settings";
 import { useToast } from "@/providers/toast-provider";
 import { ApiError } from "@/lib/utils/api-client";
 import { cn } from "@/lib/utils/cn";
@@ -627,6 +630,7 @@ function ThemeSection() {
   const { t } = useLanguage();
   const updateSettings = useUpdateSettings();
   const { data: settings } = useSettings();
+  const queryClient = useQueryClient();
 
   // Sync theme from server-side settings when they load (after login).
   // This ensures the theme is per-user — User A's theme doesn't affect User B.
@@ -639,7 +643,13 @@ function ThemeSection() {
   const handleSetTheme = (newTheme: Theme) => {
     // 1. Apply locally (localStorage + CSS variables) — instant feedback
     setTheme(newTheme);
-    // 2. Persist to server (per-user, survives device switch)
+    // 2. Update the settings cache immediately so a remount (e.g. navigating
+    //    to the dashboard and back) never reads the stale theme and syncs it
+    //    back over the user's choice.
+    queryClient.setQueryData<SettingView>(settingsKeys.detail(), (old) =>
+      old ? { ...old, theme: newTheme } : old,
+    );
+    // 3. Persist to server (per-user, survives device switch)
     updateSettings.mutate({ theme: newTheme });
   };
 

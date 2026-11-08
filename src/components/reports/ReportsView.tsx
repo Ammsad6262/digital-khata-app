@@ -39,6 +39,11 @@ import { cn } from "@/lib/utils/cn";
 import { formatDate } from "@/lib/utils/date";
 import type { TranslationKey } from "@/lib/i18n/translations";
 import type { ReportData, ReportLimitation } from "@/lib/services/reports";
+import { ChartFrame, LegendDot } from "@/components/charts/ChartFrame";
+import { BarList } from "@/components/charts/BarList";
+import { WaterfallChart, type WaterfallStep } from "@/components/charts/WaterfallChart";
+import { DumbbellChart, type DumbbellRow } from "@/components/charts/DumbbellChart";
+import { compactMoney } from "@/components/charts/format";
 
 const PRESETS: Array<{ preset: string; labelKey: TranslationKey }> = [
   { preset: "today", labelKey: "reports.preset.today" },
@@ -188,10 +193,105 @@ export function ReportsView() {
     many: TranslationKey,
   ): string => tParams(count === 1 ? one : many, { count });
 
-  const expenseTotalForBars = useMemo(() => {
-    if (!data) return 0;
-    return Number(data.expenses.total) || 0;
-  }, [data]);
+  /** The profit arithmetic as explicit steps so the chart cannot disagree with
+   *  the profit section below it. */
+  const profitFlow = useMemo<WaterfallStep[]>(() => {
+    if (!data) return [];
+    const revenue = Number(data.profit.revenue) || 0;
+    const cogs = Number(data.profit.cogs) || 0;
+    const gross = Number(data.profit.grossProfit) || 0;
+    const expenses = Number(data.profit.expenses) || 0;
+    const net = Number(data.profit.netProfit) || 0;
+    return [
+      {
+        key: "revenue",
+        label: t("reports.salesBilled"),
+        shortLabel: t("reports.wfRevenue"),
+        display: compactMoney(revenue, symbol),
+        start: 0,
+        end: revenue,
+        kind: "total",
+      },
+      {
+        key: "cogs",
+        label: t("reports.costOfGoods"),
+        shortLabel: t("reports.wfCogs"),
+        display: compactMoney(cogs, symbol),
+        start: revenue,
+        end: revenue - cogs,
+        kind: "minus",
+      },
+      {
+        key: "gross",
+        label: t("reports.grossProfit"),
+        shortLabel: t("reports.wfGross"),
+        display: compactMoney(gross, symbol),
+        start: 0,
+        end: gross,
+        kind: "subtotal",
+      },
+      {
+        key: "expenses",
+        label: t("reports.expenses"),
+        shortLabel: t("reports.wfExpenses"),
+        display: compactMoney(expenses, symbol),
+        start: gross,
+        end: gross - expenses,
+        kind: "minus",
+      },
+      {
+        key: "net",
+        label: t("reports.netEstimate"),
+        shortLabel: t("reports.wfNet"),
+        display: compactMoney(net, symbol),
+        start: 0,
+        end: net,
+        kind: "net",
+      },
+    ];
+  }, [data, symbol, t]);
+
+  /** Current vs previous on one shared scale (dumbbell chart). */
+  const comparisonRows = useMemo<DumbbellRow[]>(() => {
+    if (!data) return [];
+    const rows = [
+      {
+        key: "sales",
+        label: t("reports.salesBilled"),
+        current: Number(data.sales.billed) || 0,
+        previous: Number(data.comparison.salesBilled) || 0,
+      },
+      {
+        key: "cash",
+        label: t("reports.cashReceived"),
+        current: Number(data.sales.cashReceived) || 0,
+        previous: Number(data.comparison.cashReceived) || 0,
+      },
+      {
+        key: "purchases",
+        label: t("reports.purchasesBilled"),
+        current: Number(data.purchases.billed) || 0,
+        previous: Number(data.comparison.purchasesBilled) || 0,
+      },
+      {
+        key: "expenses",
+        label: t("reports.expenses"),
+        current: Number(data.expenses.total) || 0,
+        previous: Number(data.comparison.expenses) || 0,
+      },
+      {
+        key: "net",
+        label: t("reports.netEstimate"),
+        current: Number(data.profit.netProfit) || 0,
+        previous: Number(data.comparison.netProfit) || 0,
+      },
+    ];
+    return rows.map((row) => ({
+      ...row,
+      currentDisplay: compactMoney(row.current, symbol),
+      previousDisplay: compactMoney(row.previous, symbol),
+    }));
+  }, [data, symbol, t]);
 
   /**
    * Export the figures currently on screen. The file is built from the same
@@ -516,6 +616,18 @@ export function ReportsView() {
             </div>
           </div>
 
+          {/* ── Profit flow ─────────────────────────────────────────── */}
+          <ChartFrame
+            title={t("reports.chartProfitTitle")}
+            hint={t("reports.chartProfitHint")}
+          >
+            {profitFlow.some((step) => Math.abs(step.start) > 0 || Math.abs(step.end) > 0) ? (
+              <WaterfallChart steps={profitFlow} />
+            ) : (
+              <p className="text-sm text-ink-subtle">{t("reports.chartEmpty")}</p>
+            )}
+          </ChartFrame>
+
           {/* ── Previous period comparison ─────────────────────────────── */}
           <Section
             title={t("reports.comparison")}
@@ -525,6 +637,22 @@ export function ReportsView() {
             })}
             icon={<TrendingUp className="h-4 w-4" />}
           >
+            <div className="mb-3">
+              <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-ink-subtle">
+                <LegendDot colorVar="--brand-600" label={t("reports.thisPeriod")} />
+                <LegendDot colorVar="--ink-faint" label={t("reports.previousPeriod")} hollow />
+              </div>
+              {comparisonRows.some(
+                (row) => Math.abs(row.current) > 0 || Math.abs(row.previous) > 0,
+              ) ? (
+                <DumbbellChart
+                  rows={comparisonRows}
+                  previousLabel={t("reports.previousPeriod")}
+                />
+              ) : (
+                <p className="text-sm text-ink-subtle">{t("reports.chartEmpty")}</p>
+              )}
+            </div>
             <div className="divide-y divide-line">
               {[
                 {
@@ -1050,30 +1178,16 @@ export function ReportsView() {
             {data.expenses.byCategory.length === 0 ? (
               <p className="text-sm text-ink-subtle">{t("reports.noExpensesInRange")}</p>
             ) : (
-              <ul className="space-y-2.5">
-                {data.expenses.byCategory.map((row) => {
-                  const pct =
-                    expenseTotalForBars > 0
-                      ? Math.min(100, Math.round((Number(row.amount) / expenseTotalForBars) * 100))
-                      : 0;
-                  return (
-                    <li key={row.category}>
-                      <div className="flex items-baseline justify-between gap-2">
-                        <span className="text-sm capitalize text-ink-muted">{row.category}</span>
-                        <span className="text-sm font-semibold tabular-nums text-ink">
-                          <Money value={row.amount} symbol={symbol} />
-                        </span>
-                      </div>
-                      <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-surface-2">
-                        <div
-                          className="h-full rounded-full bg-accent-400"
-                          style={{ width: `${Math.max(2, pct)}%` }}
-                        />
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
+              <BarList
+                colorVar="--accent-500"
+                items={data.expenses.byCategory.map((row) => ({
+                  key: row.category,
+                  label: row.category,
+                  value: Number(row.amount) || 0,
+                  display: <Money value={row.amount} symbol={symbol} />,
+                  ariaValue: String(row.amount),
+                }))}
+              />
             )}
           </Section>
 

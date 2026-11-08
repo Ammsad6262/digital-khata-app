@@ -27,6 +27,10 @@ import { ShoppingCart, Wallet, Receipt, Users, Package, TrendingUp } from "lucid
 import type { RecentTransaction } from "@/lib/services/dashboard";
 import type { LowStockProduct } from "@/lib/services/dashboard";
 import type { CustomerSearchResult } from "@/lib/services/customers";
+import { ChartFrame, LegendDot } from "@/components/charts/ChartFrame";
+import { BarList } from "@/components/charts/BarList";
+import { WaterfallChart, type WaterfallStep } from "@/components/charts/WaterfallChart";
+import { DumbbellChart, type DumbbellRow } from "@/components/charts/DumbbellChart";
 
 const MOCK_TX = [
   { id: "t1", type: "sale", amount: "12500", date: new Date().toISOString(), customerName: "Ahmed Traders" },
@@ -45,6 +49,30 @@ const MOCK_CUSTOMERS = [
   { id: "c2", name: "Bilal Store", phone: "0321 7654321", balance: "-3000" },
   { id: "c3", name: "Sana Boutique", phone: "0333 1112223", balance: "0" },
 ] as unknown as CustomerSearchResult[];
+
+const MOCK_WATERFALL: WaterfallStep[] = [
+  { key: "revenue", label: "Sales billed", shortLabel: "Sales", display: "Rs.120k", start: 0, end: 120000, kind: "total" },
+  { key: "cogs", label: "Cost of goods", shortLabel: "Cost", display: "Rs.78k", start: 120000, end: 42000, kind: "minus" },
+  { key: "gross", label: "Gross profit", shortLabel: "Gross", display: "Rs.42k", start: 0, end: 42000, kind: "subtotal" },
+  { key: "expenses", label: "Expenses", shortLabel: "Expenses", display: "Rs.18k", start: 42000, end: 24000, kind: "minus" },
+  { key: "net", label: "Net estimate", shortLabel: "Net", display: "Rs.24k", start: 0, end: 24000, kind: "net" },
+];
+
+const MOCK_DUMBBELL: DumbbellRow[] = [
+  { key: "sales", label: "Sales billed", current: 120000, previous: 98000, currentDisplay: "Rs.120k", previousDisplay: "Rs.98k" },
+  { key: "cash", label: "Cash received", current: 104000, previous: 91000, currentDisplay: "Rs.104k", previousDisplay: "Rs.91k" },
+  { key: "purchases", label: "Purchases", current: 72000, previous: 64000, currentDisplay: "Rs.72k", previousDisplay: "Rs.64k" },
+  { key: "expenses", label: "Expenses", current: 18000, previous: 22000, currentDisplay: "Rs.18k", previousDisplay: "Rs.22k" },
+  { key: "net", label: "Net estimate", current: 24000, previous: -6000, currentDisplay: "Rs.24k", previousDisplay: "−Rs.6k" },
+];
+
+const MOCK_BARS = [
+  { key: "rent", label: "Rent", value: 40000, display: "Rs.40k" },
+  { key: "salary", label: "Salary", value: 30000, display: "Rs.30k" },
+  { key: "transport", label: "Transport", value: 18000, display: "Rs.18k" },
+  { key: "packaging", label: "Packaging", value: 9000, display: "Rs.9k" },
+  { key: "other", label: "Other", value: 4000, display: "Rs.4k" },
+];
 
 const THEME_LABELS: Record<Theme, string> = {
   ink: "Ink",
@@ -164,6 +192,28 @@ export default function PreviewPage() {
             icon={<Users className="h-6 w-6" />}
             action={<Button size="sm">Add customer</Button>}
           />
+
+          <section className="space-y-2">
+            <h2 className="section-title px-1">Charts</h2>
+            <ChartFrame title="How profit is built" hint="Sales minus cost and expenses.">
+              <WaterfallChart steps={MOCK_WATERFALL} />
+            </ChartFrame>
+            <ChartFrame
+              title="This period vs previous"
+              hint="Same-length period immediately before."
+              legend={
+                <>
+                  <LegendDot colorVar="--brand-600" label="This period" />
+                  <LegendDot colorVar="--ink-faint" label="Previous" hollow />
+                </>
+              }
+            >
+              <DumbbellChart rows={MOCK_DUMBBELL} previousLabel="Previous" />
+            </ChartFrame>
+            <ChartFrame title="Expenses by category" hint="Ranked, largest first.">
+              <BarList items={MOCK_BARS} />
+            </ChartFrame>
+          </section>
 
           <section className="space-y-2">
             <h2 className="section-title px-1">Icons</h2>

@@ -11,9 +11,12 @@
  *   - "rose"     — rosewood + gold (confident & warm)
  *
  * The selected theme is:
- *   1. Stored in localStorage (persists across sessions for instant load)
- *   2. Synced to the server-side Setting table (per-user, so User A's theme
- *      doesn't affect User B)
+ *   1. Stored in localStorage and applied instantly on load. A device-local
+ *      choice wins over the server value, so a stale settings response can
+ *      never reset it.
+ *   2. Seeded from the server-side Setting table (per-user) only on a device
+ *      that has no local choice yet; the stored value is cleared on logout so
+ *      the next user to sign in on a shared device gets their own theme.
  *   3. Applied as data-theme attribute on <html> (CSS variables switch)
  *   4. Applied BEFORE first paint via an inline script in <head> to prevent
  *      flash of wrong theme (FOUC)
@@ -59,6 +62,19 @@ type ThemeContextValue = {
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 const STORAGE_KEY = "digital-khata-theme";
+
+/**
+ * Forget the device-local theme choice. Called on logout so a shared device
+ * seeds the next user's own theme from the server instead of inheriting the
+ * previous user's.
+ */
+export function clearStoredTheme(): void {
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+  } catch {
+    // localStorage unavailable — nothing to clear
+  }
+}
 
 /** The default theme for new users / first-time visitors. */
 const DEFAULT_THEME: Theme = "ink";

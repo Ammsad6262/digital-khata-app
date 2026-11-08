@@ -791,6 +791,7 @@ export const translations = {
   "reports.preset.last7": { en: "Last 7 days", ur: "پچھلے 7 دن" },
   "reports.preset.last30": { en: "Last 30 days", ur: "پچھلے 30 دن" },
   "reports.customRange": { en: "Custom dates", ur: "اپنی تاریخیں" },
+  "reports.customHint": { en: "Dates apply as soon as both are set.", ur: "دونوں تاریخیں منتخب ہوتے ہی رپورٹ خود اپ ڈیٹ ہو جاتی ہے۔" },
   "reports.from": { en: "From", ur: "سے" },
   "reports.to": { en: "To", ur: "تک" },
   "reports.apply": { en: "Show", ur: "دکھائیں" },

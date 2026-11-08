@@ -207,7 +207,7 @@ export default function PreviewPage() {
                 </>
               }
             >
-              <WaterfallChart steps={MOCK_WATERFALL} symbol="Rs." />
+              <WaterfallChart steps={MOCK_WATERFALL} symbol="Rs." caption="How profit is built" />
             </ChartFrame>
             <ChartFrame
               title="This period vs previous"
@@ -219,7 +219,12 @@ export default function PreviewPage() {
                 </>
               }
             >
-              <DumbbellChart rows={MOCK_DUMBBELL} previousLabel="Previous" />
+              <DumbbellChart
+                rows={MOCK_DUMBBELL}
+                previousLabel="Previous"
+                currentLabel="This period"
+                caption="This period vs previous"
+              />
             </ChartFrame>
             <ChartFrame title="Expenses by category" hint="Ranked, largest first.">
               <BarList items={MOCK_BARS} />

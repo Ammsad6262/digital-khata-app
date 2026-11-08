@@ -11,7 +11,7 @@
  *      "today", not "for this period".
  */
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   AlertTriangle,
@@ -184,6 +184,10 @@ export function ReportsView() {
   const [draftFrom, setDraftFrom] = useState("");
   const [draftTo, setDraftTo] = useState("");
   const [rangeError, setRangeError] = useState<string | null>(null);
+
+  const rangeA11yId = useId();
+  const rangeErrorId = `${rangeA11yId}-error`;
+  const rangeHintId = `${rangeA11yId}-hint`;
 
   const { data, isLoading, isError, isFetching, refetch } = useReport(query);
 
@@ -498,6 +502,8 @@ export function ReportsView() {
                 type="date"
                 value={draftFrom}
                 onChange={(event) => setDraftFrom(event.target.value)}
+                aria-invalid={rangeError ? true : undefined}
+                aria-describedby={`${rangeHintId}${rangeError ? ` ${rangeErrorId}` : ""}`}
                 className="w-full rounded-lg border border-line bg-surface px-2.5 py-2 text-sm text-ink focus:border-brand-500 focus:outline-none"
               />
             </label>
@@ -507,13 +513,20 @@ export function ReportsView() {
                 type="date"
                 value={draftTo}
                 onChange={(event) => setDraftTo(event.target.value)}
+                aria-invalid={rangeError ? true : undefined}
+                aria-describedby={`${rangeHintId}${rangeError ? ` ${rangeErrorId}` : ""}`}
                 className="w-full rounded-lg border border-line bg-surface px-2.5 py-2 text-sm text-ink focus:border-brand-500 focus:outline-none"
               />
             </label>
           </div>
           {rangeError ? (
-            <p className="mt-1.5 text-xs text-danger-ink">{rangeError}</p>
+            <p id={rangeErrorId} role="alert" className="mt-1.5 text-xs text-danger-ink">
+              {rangeError}
+            </p>
           ) : null}
+          <p id={rangeHintId} className="mt-1.5 text-[11px] text-ink-subtle">
+            {t("reports.customHint")}
+          </p>
         </div>
 
         {data ? (
@@ -627,7 +640,11 @@ export function ReportsView() {
             }
           >
             {profitFlow.some((step) => Math.abs(step.start) > 0 || Math.abs(step.end) > 0) ? (
-              <WaterfallChart steps={profitFlow} symbol={symbol} />
+              <WaterfallChart
+                steps={profitFlow}
+                symbol={symbol}
+                caption={t("reports.chartProfitTitle")}
+              />
             ) : (
               <p className="text-sm text-ink-subtle">{t("reports.chartEmpty")}</p>
             )}
@@ -653,6 +670,8 @@ export function ReportsView() {
                 <DumbbellChart
                   rows={comparisonRows}
                   previousLabel={t("reports.previousPeriod")}
+                  currentLabel={t("reports.thisPeriod")}
+                  caption={t("reports.chartCompareTitle")}
                 />
               ) : (
                 <p className="text-sm text-ink-subtle">{t("reports.chartEmpty")}</p>

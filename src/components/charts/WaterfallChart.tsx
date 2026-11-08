@@ -18,6 +18,7 @@
  */
 
 import { compactMoney } from "./format";
+import { niceCeil } from "./scale";
 
 export type WaterfallStep = {
   key: string;
@@ -33,15 +34,6 @@ export type WaterfallStep = {
 };
 
 const TICKS = 4;
-
-/** Round an axis maximum up to a clean 1/2/2.5/5 × 10ⁿ value. */
-function niceCeil(value: number): number {
-  if (value <= 0) return 1;
-  const exponent = Math.floor(Math.log10(value));
-  const fraction = value / 10 ** exponent;
-  const nice = fraction <= 1 ? 1 : fraction <= 2 ? 2 : fraction <= 2.5 ? 2.5 : fraction <= 5 ? 5 : 10;
-  return nice * 10 ** exponent;
-}
 
 /** Colour by meaning, from the theme tokens (no off-palette hues). */
 function colorFor(step: WaterfallStep): string {
@@ -60,9 +52,12 @@ function colorFor(step: WaterfallStep): string {
 export function WaterfallChart({
   steps,
   symbol = "",
+  caption,
 }: {
   steps: WaterfallStep[];
   symbol?: string;
+  /** Describes the data table for screen readers (usually the chart's title). */
+  caption?: string;
 }) {
   const values = steps.flatMap((step) => [step.start, step.end]);
   const rawMax = Math.max(0, ...values);
@@ -168,6 +163,7 @@ export function WaterfallChart({
       </div>
 
       <table className="sr-only">
+        {caption ? <caption>{caption}</caption> : null}
         <tbody>
           {steps.map((step) => (
             <tr key={step.key}>

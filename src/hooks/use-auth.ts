@@ -12,6 +12,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiGet, apiPatch, apiDelete, apiPost, ApiError } from "@/lib/utils/api-client";
+import { clearStoredTheme } from "@/providers/theme-provider";
 
 export type CurrentUser = {
   id: string;
@@ -66,6 +67,7 @@ export function useDeleteAccount() {
       apiDelete<{ deleted: boolean }>("/api/account", input),
     onSuccess: () => {
       queryClient.clear();
+      clearStoredTheme();
       window.location.href = "/login";
     },
   });
@@ -79,6 +81,7 @@ export function useLogout() {
     mutationFn: () => apiPost<{ loggedOut: boolean }>("/api/auth/logout", {}),
     onSuccess: () => {
       queryClient.clear();
+      clearStoredTheme();
       window.location.href = "/login";
     },
   });

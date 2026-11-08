@@ -21,9 +21,15 @@ export type DumbbellRow = {
 export function DumbbellChart({
   rows,
   previousLabel,
+  currentLabel,
+  caption,
 }: {
   rows: DumbbellRow[];
   previousLabel: string;
+  /** Column header for the current period in the screen-reader table. */
+  currentLabel?: string;
+  /** Describes the data table for screen readers (usually the chart's title). */
+  caption?: string;
 }) {
   const values = rows.flatMap((row) => [row.current, row.previous]);
   let min = Math.min(0, ...values);
@@ -88,6 +94,14 @@ export function DumbbellChart({
       })}
 
       <table className="sr-only">
+        {caption ? <caption>{caption}</caption> : null}
+        <thead>
+          <tr>
+            <th scope="col" />
+            <th scope="col">{currentLabel}</th>
+            <th scope="col">{previousLabel}</th>
+          </tr>
+        </thead>
         <tbody>
           {rows.map((row) => (
             <tr key={row.key}>

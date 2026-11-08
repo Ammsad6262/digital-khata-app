@@ -20,6 +20,7 @@ import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import { Noto_Nastaliq_Urdu } from "next/font/google";
 import "./globals.css";
+import { Analytics } from "@vercel/analytics/next";
 import { Providers } from "./providers";
 
 const inter = Inter({
@@ -112,6 +113,7 @@ export default function RootLayout({
       </head>
       <body>
         <Providers>{children}</Providers>
+        <Analytics />
       </body>
     </html>
   );

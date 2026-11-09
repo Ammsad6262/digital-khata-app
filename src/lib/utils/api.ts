@@ -30,7 +30,9 @@ export interface ApiError {
   error: {
     code: string;
     message: string;
-    /** True if `message` is a translation key the frontend can re-translate. */
+    /** The original translation key, so the client can re-translate. */
+    messageKey?: string;
+    /** True if `message` was resolved from a translation key. */
     translationKey?: boolean;
     /** Translation params for placeholder substitution. */
     params?: Record<string, string | number>;
@@ -55,15 +57,17 @@ export function created<T>(data: T): NextResponse<ApiSuccess<T>> {
  */
 function resolveError(error: AppError): {
   message: string;
+  messageKey?: string;
   translationKey: boolean;
   params?: Record<string, string | number>;
 } {
   const message = error.message || "";
   const looksLikeKey = message.includes(".") && !/\s/.test(message);
   if (looksLikeKey) {
-    // Resolve to English (server-side). The frontend will re-translate to Urdu.
+    // Resolve to English (server-side) and also return the KEY so the client
+    // can re-translate into the user's selected language.
     const english = tServer(message as never, error.params, "en");
-    return { message: english, translationKey: true, params: error.params };
+    return { message: english, messageKey: message, translationKey: true, params: error.params };
   }
   // Plain English message (legacy or dynamic).
   return { message, translationKey: false };
@@ -73,13 +77,14 @@ function resolveError(error: AppError): {
 export function fail(error: unknown): NextResponse<ApiError> {
   // Known application error
   if (error instanceof AppError) {
-    const { message, translationKey, params } = resolveError(error);
+    const { message, messageKey, translationKey, params } = resolveError(error);
     return NextResponse.json(
       {
         ok: false,
         error: {
           code: error.code,
           message,
+          messageKey,
           translationKey,
           params,
           details: error.details,
@@ -91,13 +96,14 @@ export function fail(error: unknown): NextResponse<ApiError> {
   // Zod validation error
   if (error instanceof ZodError) {
     const validationError = new ValidationError(error.issues);
-    const { message, translationKey, params } = resolveError(validationError);
+    const { message, messageKey, translationKey, params } = resolveError(validationError);
     return NextResponse.json(
       {
         ok: false,
         error: {
           code: validationError.code,
           message,
+          messageKey,
           translationKey,
           params,
           details: validationError.details,
@@ -116,6 +122,7 @@ export function fail(error: unknown): NextResponse<ApiError> {
           error: {
             code: ErrorCode.CONFLICT,
             message: tServer("api.errors.conflict"),
+            messageKey: "api.errors.conflict",
             translationKey: true,
           },
         },
@@ -129,6 +136,7 @@ export function fail(error: unknown): NextResponse<ApiError> {
           error: {
             code: ErrorCode.NOT_FOUND,
             message: tServer("api.errors.recordNotFound"),
+            messageKey: "api.errors.recordNotFound",
             translationKey: true,
           },
         },
@@ -144,6 +152,7 @@ export function fail(error: unknown): NextResponse<ApiError> {
       error: {
         code: ErrorCode.INTERNAL,
         message: tServer("api.errors.internal"),
+        messageKey: "api.errors.internal",
         translationKey: true,
       },
     },

@@ -16,7 +16,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, Loader2, Mic, MicOff, RotateCcw, Send, Square, X } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
-import { useVoiceAssistant } from "@/hooks/voice-assistant/use-voice-assistant";
+import { useVoiceAssistant, type VoiceLanguageMode } from "@/hooks/voice-assistant/use-voice-assistant";
 import { PlanCard } from "@/components/assistant/PlanCard";
 import { languageLabel } from "@/lib/assistant/language";
 import { useLanguage } from "@/providers/language-provider";
@@ -51,6 +51,14 @@ const EXAMPLE_KEYS: TranslationKey[] = [
   "assistant.example4",
   "assistant.example5",
   "assistant.example6",
+];
+
+/** Spoken language chips. Endonyms (اردو / پښتو) are shown as-is on purpose. */
+const LANGUAGE_MODES: Array<{ value: VoiceLanguageMode; label: string }> = [
+  { value: "auto", label: "assistant.langAuto" },
+  { value: "en", label: "English" },
+  { value: "ur", label: "اردو" },
+  { value: "ps", label: "پښتو" },
 ];
 
 export function VoiceAssistant() {
@@ -281,6 +289,24 @@ export function VoiceAssistant() {
 
           {/* Mic + typed fallback */}
           <div className="border-t border-line p-3">
+            <div className="mb-3 flex items-center gap-1.5">
+              {LANGUAGE_MODES.map((mode) => (
+                <button
+                  key={mode.value}
+                  type="button"
+                  onClick={() => voice.setLanguageMode(mode.value)}
+                  aria-pressed={voice.languageMode === mode.value}
+                  className={cn(
+                    "rounded-full border px-2.5 py-1 text-xs font-medium transition-colors",
+                    voice.languageMode === mode.value
+                      ? "border-brand-600 bg-brand-50 text-brand-700"
+                      : "border-line text-ink-subtle hover:bg-surface-2",
+                  )}
+                >
+                  {mode.label.startsWith("assistant.") ? t(mode.label as TranslationKey) : mode.label}
+                </button>
+              ))}
+            </div>
             <div className="flex items-center gap-3">
               <button
                 type="button"

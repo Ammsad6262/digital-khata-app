@@ -33,7 +33,7 @@ export const fetchCache = "force-no-store";
 const MAX_AUDIO_BYTES = 5 * 1024 * 1024;
 const MAX_TEXT_CHARS = 500;
 
-const SPEECH_LANGUAGES: SpeechLanguage[] = ["en", "ur", "roman-ur", "mixed"];
+const SPEECH_LANGUAGES: SpeechLanguage[] = ["en", "ur", "ps", "roman-ur", "mixed"];
 
 type Body = {
   text?: unknown;

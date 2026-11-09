@@ -12,8 +12,13 @@
  *   3. Only then does the command go to the shared backend engine.
  *   4. Writes still require an explicit confirmation card.
  *
- * No language dropdown. The microphone locale follows the app's UI language,
- * and the language of the actual transcript is detected after recognition.
+ * Multilingual input:
+ *   - English / Urdu use the browser's on-device recogniser (fast + free) with
+ *     `en-PK` / `ur-PK`.
+ *   - Pashto has no reliable browser recogniser, so the audio is recorded and
+ *     transcribed+understood by the server model (`ps-AF` is attempted first,
+ *     and we fall back automatically if the browser rejects it).
+ *   - "Auto" follows the app UI language.
  */
 
 import { useCallback, useEffect, useState } from "react";
@@ -28,6 +33,23 @@ import {
   type SpeechLocale,
 } from "@/lib/assistant/language";
 
+/** Language the owner wants to speak. "auto" follows the app UI language. */
+export type VoiceLanguageMode = "auto" | "en" | "ur" | "ps";
+
+function localeForMode(mode: VoiceLanguageMode, appLang: "en" | "ur"): SpeechLocale {
+  if (mode === "en") return "en-PK";
+  if (mode === "ur") return "ur-PK";
+  if (mode === "ps") return "ps-AF";
+  return defaultSpeechLocale(appLang);
+}
+
+function hintForMode(mode: VoiceLanguageMode, text: string): SpeechLanguage {
+  if (mode === "en") return "en";
+  if (mode === "ur") return "ur";
+  if (mode === "ps") return "ps";
+  return detectSpeechLanguage(text);
+}
+
 export function useVoiceAssistant() {
   const { lang } = useLanguage();
   const assistant = useAssistant();
@@ -35,21 +57,36 @@ export function useVoiceAssistant() {
 
   const [transcript, setTranscript] = useState("");
   const [detected, setDetected] = useState<SpeechLanguage>("en");
+  const [languageMode, setLanguageMode] = useState<VoiceLanguageMode>("auto");
+
+  const serverTranscribe = useCallback(
+    (language?: SpeechLanguage) => {
+      void recorder.start((blob, mimeType) => {
+        void assistant.send({ audioBlob: blob, audioMimeType: mimeType, language });
+      });
+    },
+    [assistant, recorder],
+  );
 
   const speech = useSpeechRecognition({
-    language: defaultSpeechLocale(lang),
+    language: localeForMode(languageMode, lang),
     onFinal: (text) => {
       const clean = text.trim();
       setTranscript(clean);
-      setDetected(detectSpeechLanguage(clean));
+      setDetected(hintForMode(languageMode, clean));
+    },
+    onUnsupported: () => {
+      // The browser cannot recognise this language (e.g. Pashto). Record the
+      // audio and let the server model transcribe and understand it instead.
+      serverTranscribe(languageMode === "auto" ? undefined : (languageMode as SpeechLanguage));
     },
   });
   const { setLanguage } = speech;
 
-  // Keep the microphone locale aligned with the app language as it loads.
+  // Keep the microphone locale aligned with the chosen mode + app language.
   useEffect(() => {
-    setLanguage(defaultSpeechLocale(lang));
-  }, [lang, setLanguage]);
+    setLanguage(localeForMode(languageMode, lang));
+  }, [lang, languageMode, setLanguage]);
 
   const listening = speech.state === "listening" || recorder.state === "recording";
 
@@ -58,6 +95,12 @@ export function useVoiceAssistant() {
     setTranscript("");
     setDetected(detectSpeechLanguage(""));
 
+    // Pashto: no reliable browser recogniser — always use the server model.
+    if (languageMode === "ps") {
+      serverTranscribe("ps");
+      return;
+    }
+
     if (speech.supported) {
       speech.start();
       return;
@@ -65,10 +108,8 @@ export function useVoiceAssistant() {
 
     // No on-device recognition (e.g. Firefox desktop): record and let the
     // server transcribe. This is the only path that costs an AI request.
-    void recorder.start((blob, mimeType) => {
-      void assistant.send({ audioBlob: blob, audioMimeType: mimeType });
-    });
-  }, [assistant, recorder, speech]);
+    serverTranscribe(languageMode === "auto" ? undefined : (languageMode as SpeechLanguage));
+  }, [assistant.busy, languageMode, serverTranscribe, speech]);
 
   const stop = useCallback(() => {
     if (speech.state === "listening") speech.stop();
@@ -79,21 +120,21 @@ export function useVoiceAssistant() {
     (text?: string) => {
       const value = (text ?? transcript).trim();
       if (!value || assistant.busy) return;
-      const language = detectSpeechLanguage(value);
+      const language = hintForMode(languageMode, value);
       setTranscript("");
       setDetected(language);
       void assistant.send({ text: value, language });
     },
-    [assistant, transcript],
+    [assistant, languageMode, transcript],
   );
 
   const retry = useCallback(
     (text: string) => {
       const value = text.trim();
       if (!value || assistant.busy) return;
-      void assistant.send({ text: value, language: detectSpeechLanguage(value) });
+      void assistant.send({ text: value, language: hintForMode(languageMode, value) });
     },
-    [assistant],
+    [assistant, languageMode],
   );
 
   const reset = useCallback(() => {
@@ -111,7 +152,9 @@ export function useVoiceAssistant() {
     transcript,
     setTranscript,
     detected,
-    locale: (lang === "ur" ? "ur-PK" : "en-PK") as SpeechLocale,
+    languageMode,
+    setLanguageMode,
+    locale: localeForMode(languageMode, lang),
     listening,
     start,
     stop,

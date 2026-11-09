@@ -87,7 +87,7 @@ function bestAlternative(result: SpeechRecognitionResultLike): SpeechAlternative
   return best;
 }
 
-export type SpeechLanguage = "en-PK" | "ur-PK" | "en-IN" | "en-US";
+export type SpeechLanguage = "en-PK" | "ur-PK" | "ps-AF" | "en-IN" | "en-US";
 
 export type SpeechState = "idle" | "listening" | "processing" | "denied" | "error";
 
@@ -101,6 +101,8 @@ type Options = {
   onFinal?: (text: string) => void;
   /** Called on every interim update. */
   onInterim?: (text: string) => void;
+  /** Called when the chosen language/script is not supported by the browser. */
+  onUnsupported?: () => void;
   language?: SpeechLanguage;
 };
 
@@ -124,8 +126,10 @@ export function useSpeechRecognition(options: Options = {}) {
 
   const onFinalRef = useRef(options.onFinal);
   const onInterimRef = useRef(options.onInterim);
+  const onUnsupportedRef = useRef(options.onUnsupported);
   onFinalRef.current = options.onFinal;
   onInterimRef.current = options.onInterim;
+  onUnsupportedRef.current = options.onUnsupported;
 
   useEffect(() => {
     setSupported(getCtor() !== null);
@@ -249,6 +253,11 @@ export function useSpeechRecognition(options: Options = {}) {
         setError({ code, message: "I didn't hear anything." });
       } else if (code === "aborted") {
         setState("idle");
+      } else if (code === "language-not-supported") {
+        // e.g. Pashto on a browser with no ps-AF model — let the caller fall
+        // back to server-side transcription instead of showing an error.
+        setState("idle");
+        onUnsupportedRef.current?.();
       } else {
         setState("error");
         setError({ code, message: event.message || "Speech recognition failed." });

@@ -1957,6 +1957,7 @@ export const translations = {
   // ─── Voice / Khata assistant panels ───
   "assistant.voiceOpen": { en: "Open the Voice Assistant", ur: "وائس اسسٹنٹ کھولیں" },
   "assistant.voiceTitle": { en: "Voice Assistant", ur: "وائس اسسٹنٹ" },
+  "assistant.langAuto": { en: "Auto", ur: "خودکار" },
   "assistant.khataOpen": { en: "Open the Khata Assistant", ur: "کھاتہ اسسٹنٹ کھولیں" },
   "assistant.khataTitle": { en: "Khata Assistant", ur: "کھاتہ اسسٹنٹ" },
   "assistant.khataSubtitle": { en: "Understand your business from your own records", ur: "اپنے ہی ریکارڈ سے اپنا کاروبار سمجھیں" },

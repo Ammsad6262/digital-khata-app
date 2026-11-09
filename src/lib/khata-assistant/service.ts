@@ -42,7 +42,12 @@ function isKhataLanguage(value: unknown): value is KhataLanguage {
 
 function resolveLanguage(input: KhataAskInput, text: string): KhataLanguage {
   // The server is authoritative: detect from the text the owner actually sent.
-  if (text) return detectSpeechLanguage(text);
+  if (text) {
+    const detected = detectSpeechLanguage(text);
+    // The typed Khata assistant's phrase templates are English/Urdu only;
+    // Pashto is fully supported by the Voice Assistant (model-generated).
+    return detected === "ps" ? "ur" : detected;
+  }
   if (isKhataLanguage(input.language)) return input.language;
   return "en";
 }

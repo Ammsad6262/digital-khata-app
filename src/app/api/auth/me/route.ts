@@ -11,18 +11,19 @@ import { ok } from "@/lib/utils/api";
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
+  let user = null;
   try {
     const token = req.cookies.get(AUTH_COOKIE_NAME)?.value;
-    if (!token) return ok({ user: null });
-
-    const payload = await verifyToken(token);
-    if (!payload) return ok({ user: null });
-
-    const user = await getUserById(payload.userId);
-    if (!user) return ok({ user: null });
-
-    return ok({ user });
+    if (token) {
+      const payload = await verifyToken(token);
+      if (payload) user = await getUserById(payload.userId);
+    }
   } catch {
-    return ok({ user: null });
+    user = null;
   }
+
+  // Never let a shared cache store this — it contains the signed-in user's PII.
+  const res = ok({ user });
+  res.headers.set("Cache-Control", "no-store");
+  return res;
 }

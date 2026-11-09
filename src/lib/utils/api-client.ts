@@ -5,22 +5,26 @@
  *   Success: { ok: true,  data: T }
  *   Error:   { ok: false, error: { code, message, details?, translationKey?, params? } }
  *
- * V13 (Urdu i18n): When `translationKey: true`, the message is a translation
- * key (English text resolved from the key on the server). The frontend should
- * re-translate using `t(messageKey, params)` in the user's selected language.
+ * V13 (Urdu i18n): errors carry both the resolved English `message` and the
+ * original `messageKey` (+ params). We translate with the user's stored
+ * language here, so every surface (toast or inline) shows the right language.
  *
  * This wrapper unwraps `data` on success and throws an `ApiError` on failure
  * so React Query's `error` state receives it cleanly.
  */
 
+import { resolveApiError } from "@/lib/i18n/client";
+
 export class ApiError extends Error {
   readonly code: string;
   readonly status: number;
   readonly details?: unknown;
-  /** True if `message` is a translation key the frontend should re-translate. */
+  /** True if `message` was resolved from a translation key. */
   readonly translationKey?: boolean;
   /** Translation params for placeholder substitution. */
   readonly params?: Record<string, string | number>;
+  /** The original translation key, if any. */
+  readonly messageKey?: string;
 
   constructor(
     message: string,
@@ -29,6 +33,7 @@ export class ApiError extends Error {
     details?: unknown,
     translationKey?: boolean,
     params?: Record<string, string | number>,
+    messageKey?: string,
   ) {
     super(message);
     this.name = "ApiError";
@@ -37,6 +42,7 @@ export class ApiError extends Error {
     this.details = details;
     this.translationKey = translationKey;
     this.params = params;
+    this.messageKey = messageKey;
   }
 }
 
@@ -50,6 +56,7 @@ interface ApiFailure {
   error: {
     code: string;
     message: string;
+    messageKey?: string;
     details?: unknown;
     translationKey?: boolean;
     params?: Record<string, string | number>;
@@ -81,11 +88,13 @@ async function fetchWithTimeout(
   } catch (error) {
     if (error instanceof DOMException && error.name === "AbortError") {
       throw new ApiError(
-        "auth.requestTimeout",
+        resolveApiError({ messageKey: "auth.requestTimeout" }),
         "TIMEOUT",
         408,
         undefined,
         true,
+        undefined,
+        "auth.requestTimeout",
       );
     }
     throw error;
@@ -163,7 +172,15 @@ async function unwrap<T>(res: Response, path: string): Promise<T> {
         window.location.href = "/login";
       }
     }
-    throw new ApiError("auth.pleaseLoginContinue", "UNAUTHORIZED", 401, undefined, true);
+    throw new ApiError(
+      resolveApiError({ messageKey: "auth.pleaseLoginContinue" }),
+      "UNAUTHORIZED",
+      401,
+      undefined,
+      true,
+      undefined,
+      "auth.pleaseLoginContinue",
+    );
   }
 
   let json: ApiResponse<T>;
@@ -182,11 +199,12 @@ async function unwrap<T>(res: Response, path: string): Promise<T> {
   }
 
   throw new ApiError(
-    json.error.message,
+    resolveApiError(json.error),
     json.error.code,
     res.status,
     json.error.details,
     json.error.translationKey,
     json.error.params,
+    json.error.messageKey,
   );
 }

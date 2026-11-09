@@ -19,7 +19,7 @@ import { getSettings } from "@/lib/services/settings";
 import { formatMoney } from "@/lib/utils/money";
 import { AIExhaustedError } from "@/lib/ai/model-registry";
 import { AIUnavailableError } from "@/lib/ai/gemini-client";
-import { route, looksLikeBusinessCommand } from "./router";
+import { route, looksLikeBusinessCommand, shouldEscalate } from "./router";
 import { aiUnderstand } from "./ai";
 import { runQuery, NeedsEntityError, type ResolvedEntity } from "./queries";
 import { performAction, buildIdempotencyKey, type ActionResult } from "./actions";
@@ -767,13 +767,18 @@ export async function handleMessage(
   const symbol = settings.currencySymbol || "Rs.";
 
   const ruleStarted = Date.now();
-  let match: RouteMatch | null = text ? route(text, ctx) : null;
+  const ruleMatch: RouteMatch | null = text ? route(text, ctx) : null;
   const ruleMs = Date.now() - ruleStarted;
 
-  const needsAi = !match;
+  // Rules resolve the common, formulaic commands. The model is consulted when
+  // the rules found nothing, when they produced only a PARTIAL action (a
+  // missing product/quantity — the bug that used to show "the product"), or
+  // when the command is written in Urdu/Pashto script the rules cannot read.
+  let match: RouteMatch | null = ruleMatch;
+  const needsAi = !ruleMatch || shouldEscalate(ruleMatch, text);
   if (needsAi) {
     const businessLike = text ? looksLikeBusinessCommand(text) : true;
-    if (text && !businessLike) {
+    if (text && !businessLike && !ruleMatch) {
       return errorReply(
         "NOT_UNDERSTOOD",
         "I didn't catch a business command. Try “Ali paid 5,000” or “who owes me money?”.",
@@ -796,7 +801,7 @@ export async function handleMessage(
       if (ai.match) {
         match = ai.match;
         source = "ai";
-      } else {
+      } else if (!ruleMatch) {
         return {
           kind: "clarify",
           text: ai.clarification ?? "I'm not sure what you want to do. Can you say it differently?",
@@ -806,39 +811,46 @@ export async function handleMessage(
           timings: { totalMs: Date.now() - started, ruleMs, aiMs },
         };
       }
+      // else: keep the rule match and carry on.
     } catch (error) {
-      const timings = { totalMs: Date.now() - started, ruleMs, aiMs };
-      if (error instanceof AIExhaustedError) {
-        // "timeout" means the provider was slow, not out of budget — say so,
-        // because the fix is different (retry now vs. wait until tomorrow).
-        const slow = error.reason === "timeout";
+      // If the rules already produced a usable match, prefer it over an error.
+      if (ruleMatch) {
+        match = ruleMatch;
+        aiMs = undefined;
+      } else {
+        const timings = { totalMs: Date.now() - started, ruleMs, aiMs };
+        if (error instanceof AIExhaustedError) {
+          // "timeout" means the provider was slow, not out of budget — say so,
+          // because the fix is different (retry now vs. wait until tomorrow).
+          const slow = error.reason === "timeout";
+          return errorReply(
+            slow ? "AI_SLOW" : "AI_EXHAUSTED",
+            slow
+              ? "The AI took too long to answer, so I stopped waiting. Your words are saved — tap retry, or use the form below."
+              : "The AI models have reached today's free limit. Your command is saved — try again after the limit resets (or use the buttons below).",
+            text,
+            timings,
+            { retryAt: error.retryAt?.toISOString(), requestsUsed },
+          );
+        }
+        if (error instanceof AIUnavailableError) {
+          return errorReply(
+            "AI_UNAVAILABLE",
+            "The AI is not configured on this server.",
+            text,
+            timings,
+            { requestsUsed },
+          );
+        }
+        console.error("[assistant] AI failure:", error);
         return errorReply(
-          slow ? "AI_SLOW" : "AI_EXHAUSTED",
-          slow
-            ? "The AI took too long to answer, so I stopped waiting. Your words are saved — tap retry, or use the form below."
-            : "The AI models have reached today's free limit. Your command is saved — try again after the limit resets (or use the buttons below).",
-          text,
-          timings,
-          { retryAt: error.retryAt?.toISOString(), requestsUsed },
-        );
-      }
-      if (error instanceof AIUnavailableError) {
-        return errorReply(
-          "AI_UNAVAILABLE",
-          "The AI is not configured on this server.",
+          "SERVER",
+          "Something went wrong understanding that. Your command was kept — try again.",
           text,
           timings,
           { requestsUsed },
         );
       }
-      console.error("[assistant] AI failure:", error);
-      return errorReply(
-        "SERVER",
-        "Something went wrong understanding that. Your command was kept — try again.",
-        text,
-        timings,
-        { requestsUsed },
-      );
     }
   }
 

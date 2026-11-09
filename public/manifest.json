@@ -4,8 +4,8 @@
   "description": "Digital khata & wholesale business management",
   "start_url": "/dashboard",
   "display": "standalone",
-  "background_color": "#f8fafc",
-  "theme_color": "#16a34a",
+  "background_color": "#FAF8F4",
+  "theme_color": "#FAF8F4",
   "orientation": "portrait",
   "icons": [
     {

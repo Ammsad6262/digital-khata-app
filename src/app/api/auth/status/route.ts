@@ -51,15 +51,16 @@ export async function GET(req: NextRequest) {
       },
     );
   } catch (error) {
-    const message = error instanceof Error ? error.message : tServer("api.errors.unknown");
-    console.error("[auth/status] Error:", message);
+    // Log the detail server-side only. This endpoint is PUBLIC, so returning
+    // raw DB/connection errors would leak hosts, ports and credentials.
+    console.error("[auth/status] Error:", error);
 
     return NextResponse.json(
       {
         ok: false,
         error: {
           code: "DATABASE_ERROR",
-          message: tServer("api.auth.status.databaseError", { message }),
+          message: tServer("api.health.dbFailed"),
         },
       },
       { status: 500 },

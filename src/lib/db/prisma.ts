@@ -74,8 +74,9 @@ export const prisma = rawPrisma;
  * For queries that need guaranteed RLS context, use withUserContext().
  */
 export async function setUserContext(userId: string): Promise<void> {
-  const escaped = userId.replace(/'/g, "''");
-  await rawPrisma.$executeRawUnsafe(`SET app.user_id = '${escaped}'`);
+  // Parameterised — never build SQL from strings. set_config(name, value,
+  // is_local=false) behaves like SET.
+  await rawPrisma.$queryRaw`SELECT set_config('app.user_id', ${userId}, false)`;
 }
 
 /**
@@ -84,7 +85,7 @@ export async function setUserContext(userId: string): Promise<void> {
  */
 export async function clearUserContext(): Promise<void> {
   try {
-    await rawPrisma.$executeRawUnsafe(`SET app.user_id = ''`);
+    await rawPrisma.$queryRaw`SELECT set_config('app.user_id', '', false)`;
   } catch {
     // ignore — variable may not be set
   }
@@ -105,8 +106,7 @@ export async function withUserContext<T>(
   fn: (tx: Omit<PrismaClient, "$connect" | "$disconnect" | "$on" | "$transaction" | "$use" | "$extends">) => Promise<T>,
 ): Promise<T> {
   return rawPrisma.$transaction(async (tx) => {
-    const escaped = userId.replace(/'/g, "''");
-    await tx.$executeRawUnsafe(`SET LOCAL app.user_id = '${escaped}'`);
+    await tx.$queryRaw`SELECT set_config('app.user_id', ${userId}, true)`;
     return fn(tx);
   });
 }

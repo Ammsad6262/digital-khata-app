@@ -1133,7 +1133,7 @@ export const translations = {
   "auth.forgotPassword": { en: "Forgot password?", ur: "پاس ورڈ بھول گئے؟" },
   "auth.name": { en: "Name", ur: "نام" },
   "auth.emailPlaceholder": { en: "you@example.com", ur: "you@example.com" },
-  "auth.passwordMinPlaceholder": { en: "At least 6 characters", ur: "کم از کم ۶ حروف" },
+  "auth.passwordMinPlaceholder": { en: "At least 8 characters", ur: "کم از کم ۸ حروف" },
   "auth.yourNamePlaceholder": { en: "Your name", ur: "آپ کا نام" },
   "auth.login": { en: "Log in", ur: "لاگ ان" },
   "auth.logout": { en: "Log out", ur: "لاگ آؤٹ" },
@@ -1149,7 +1149,7 @@ export const translations = {
   "auth.registerFailed": { en: "Registration failed.", ur: "رجسٹریشن ناکام۔" },
   "auth.emailPasswordRequired": { en: "Email and password are required.", ur: "ای میل اور پاس ورڈ درکار ہے۔" },
   "auth.allFieldsRequired": { en: "All fields are required.", ur: "تمام خانے درکار ہیں۔" },
-  "auth.passwordTooShort": { en: "Password must be at least 6 characters.", ur: "پاس ورڈ کم از کم ۶ حروف کا ہو۔" },
+  "auth.passwordTooShort": { en: "Password must be at least 8 characters.", ur: "پاس ورڈ کم از کم ۸ حروف کا ہو۔" },
   "auth.noAccountQuestion": { en: "Don't have an account?", ur: "اکاؤنٹ نہیں ہے؟" },
   "auth.haveAccountQuestion": { en: "Already have an account?", ur: "پہلے سے اکاؤنٹ ہے؟" },
   "auth.serverUnreachable": { en: "Cannot reach server. Check your connection.", ur: "سرور تک رسائی نہیں۔ اپنا کنکشن چیک کریں۔" },
@@ -1266,7 +1266,7 @@ export const translations = {
   "settings.passwordChangeFailed": { en: "Failed to change password.", ur: "پاس ورڈ تبدیلی ناکام۔" },
   "settings.changePassword": { en: "Change password", ur: "پاس ورڈ بدلیں" },
   "settings.currentPassword": { en: "Current password", ur: "موجودہ پاس ورڈ" },
-  "settings.newPasswordPlaceholder": { en: "New password (min 6 chars)", ur: "نیا پاس ورڈ (کم از کم ۶ حروف)" },
+  "settings.newPasswordPlaceholder": { en: "New password (min 8 chars)", ur: "نیا پاس ورڈ (کم از کم ۸ حروف)" },
   "settings.confirmPasswordPlaceholder": { en: "Confirm new password", ur: "نیا پاس ورڈ دوبارہ" },
   "settings.changingPassword": { en: "Changing...", ur: "بدلا جا رہا ہے..." },
   "settings.change": { en: "Change", ur: "بدلیں" },
@@ -1710,7 +1710,7 @@ export const translations = {
   "api.auth.required": { en: "Authentication required.", ur: "تصدیق درکار ہے۔" },
   "api.auth.nameRequired": { en: "Name is required.", ur: "نام درکار ہے۔" },
   "api.auth.emailRequired": { en: "A valid email is required.", ur: "درست ای میل درکار ہے۔" },
-  "api.auth.passwordTooShort": { en: "Password must be at least 6 characters.", ur: "پاس ورڈ کم از کم ۶ حروف کا ہو۔" },
+  "api.auth.passwordTooShort": { en: "Password must be at least 8 characters.", ur: "پاس ورڈ کم از کم ۸ حروف کا ہو۔" },
   "api.auth.emailInUse": { en: "An account with this email already exists.", ur: "اس ای میل کا اکاؤنٹ پہلے موجود ہے۔" },
   "api.auth.credentialsRequired": { en: "Email and password are required.", ur: "ای میل اور پاس ورڈ درکار ہے۔" },
   "api.auth.invalidCredentials": { en: "Invalid email or password.", ur: "غلط ای میل یا پاس ورڈ۔" },
@@ -1729,7 +1729,7 @@ export const translations = {
 
   // Password
   "api.password.currentRequired": { en: "Current password is required.", ur: "موجودہ پاس ورڈ درکار ہے۔" },
-  "api.password.tooShort": { en: "New password must be at least 6 characters.", ur: "نیا پاس ورڈ کم از کم ۶ حروف کا ہو۔" },
+  "api.password.tooShort": { en: "New password must be at least 8 characters.", ur: "نیا پاس ورڈ کم از کم ۸ حروف کا ہو۔" },
   "api.password.incorrectCurrent": { en: "Current password is incorrect.", ur: "موجودہ پاس ورڈ غلط ہے۔" },
   "api.password.resetEmailRequired": { en: "Enter a valid email address.", ur: "درست ای میل درج کریں۔" },
   "api.password.resetCodeRequired": { en: "Enter the reset code.", ur: "ری سیٹ کوڈ درج کریں۔" },
@@ -2066,6 +2066,10 @@ export const translations = {
   // ─── Follow-up candidate evidence (generated in the service) ───
   "followUps.reason.reorder": { en: "Bought this {count} times — usually every {avg} days, last one {since} days ago.", ur: "یہ {count} بار خریدا — عام طور پر ہر {avg} دن، آخری بار {since} دن پہلے۔" },
   "followUps.reason.inactive": { en: "Used to buy about every {avg} days — nothing recorded for {since} days.", ur: "عام طور پر ہر {avg} دن خریدتے تھے — {since} دن سے کچھ درج نہیں۔" },
+
+  // ─── Auth brute-force responses ───
+  "api.auth.login.rateLimited": { en: "Too many login attempts. Try again in {seconds} seconds.", ur: "بہت زیادہ لاگ ان کوششیں۔ {seconds} سیکنڈ بعد دوبارہ کوشش کریں۔" },
+  "api.auth.register.rateLimited": { en: "Too many sign-up attempts. Try again in {seconds} seconds.", ur: "بہت زیادہ اکاؤنٹ بنانے کی کوششیں۔ {seconds} سیکنڈ بعد دوبارہ کوشش کریں۔" },
 } as const;
 
 export type TranslationKey = keyof typeof translations;

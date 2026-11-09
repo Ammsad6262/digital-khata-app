@@ -11,13 +11,15 @@
  * Returns the count of deleted records per table.
  */
 
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { clearAllData, getOwnerPinHash } from "@/lib/services/settings";
 import { verifyPin } from "@/lib/auth/pin";
 import { BadRequestError, UnauthorizedError } from "@/lib/errors";
 import { ok, fail, parseJsonBody } from "@/lib/utils/api";
 import { requireUserId } from "@/lib/auth/get-current-user";
+import { checkRateLimit, recordFailure, recordSuccess, getClientIp } from "@/lib/auth/rate-limiter";
+import { tServer } from "@/lib/i18n/server";
 
 export const dynamic = "force-dynamic";
 
@@ -29,7 +31,26 @@ const clearSchema = z.object({
 });
 
 export async function DELETE(req: NextRequest) {
+  const ip = getClientIp(req);
+  const rateKey = `pin:${ip}`;
+
   try {
+    const { locked, retryAfter } = checkRateLimit(rateKey);
+    if (locked) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: {
+            code: "RATE_LIMITED",
+            message: tServer("api.auth.unlock.rateLimited", { seconds: retryAfter }),
+            translationKey: true,
+            params: { seconds: retryAfter },
+          },
+        },
+        { status: 429, headers: { "Retry-After": String(retryAfter) } },
+      );
+    }
+
     const userId = await requireUserId(req);
     const { data, error } = await parseJsonBody<unknown>(req);
     if (error) return fail(new Error(error));
@@ -44,8 +65,10 @@ export async function DELETE(req: NextRequest) {
       }
       const valid = await verifyPin(parsed.currentPin, existingHash);
       if (!valid) {
+        recordFailure(rateKey);
         throw new BadRequestError("api.clearAll.pinIncorrect");
       }
+      recordSuccess(rateKey);
     }
 
     const result = await clearAllData(userId);

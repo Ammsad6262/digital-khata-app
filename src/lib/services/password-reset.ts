@@ -161,7 +161,7 @@ export async function resetPasswordWithCode(input: {
   if (!code) {
     throw new BadRequestError("api.password.resetCodeRequired");
   }
-  if (!input.newPassword || input.newPassword.length < 6) {
+  if (!input.newPassword || input.newPassword.length < 8) {
     throw new BadRequestError("api.password.tooShort");
   }
 

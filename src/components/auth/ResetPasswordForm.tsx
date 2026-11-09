@@ -39,7 +39,7 @@ export function ResetPasswordForm({ initialEmail = "" }: { initialEmail?: string
       setError(t("reset.allFieldsRequired"));
       return;
     }
-    if (newPassword.length < 6) {
+    if (newPassword.length < 8) {
       setError(t("auth.passwordTooShort"));
       return;
     }

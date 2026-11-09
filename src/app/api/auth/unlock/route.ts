@@ -33,9 +33,10 @@ export async function POST(req: NextRequest) {
   try {
     const userId = await requireUserId(req);
     const ip = getClientIp(req);
+    const rateKey = `pin:${ip}`;
 
     // Check rate limit
-    const { locked, retryAfter } = checkRateLimit(ip);
+    const { locked, retryAfter } = checkRateLimit(rateKey);
     if (locked) {
       return NextResponse.json(
         {
@@ -78,7 +79,7 @@ export async function POST(req: NextRequest) {
 
     const valid = await verifyPin(parsed.pin, currentPinHash);
     if (!valid) {
-      recordFailure(ip);
+      recordFailure(rateKey);
       return NextResponse.json(
         {
           ok: false,
@@ -93,7 +94,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Success — create session
-    recordSuccess(ip);
+    recordSuccess(rateKey);
     const { cookie } = await createSession();
     const res = NextResponse.json({ ok: true, data: { unlocked: true } });
     res.headers.set("Set-Cookie", cookie);

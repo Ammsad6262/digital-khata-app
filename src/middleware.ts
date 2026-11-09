@@ -111,7 +111,9 @@ async function verifyJwt(token: string): Promise<{ userId: string } | null> {
     const body = JSON.parse(atob(bodyB64));
     if (body.exp && Math.floor(Date.now() / 1000) > body.exp) return null;
 
-    return body.userId ? { userId: body.userId as string } : null;
+    return typeof body.userId === "string" && body.userId
+      ? { userId: body.userId }
+      : null;
   } catch {
     return null;
   }

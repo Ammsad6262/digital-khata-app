@@ -97,13 +97,18 @@ export function recordSuccess(ip: string): void {
 
 /** Get the client IP from a Next.js request. Falls back to "unknown". */
 export function getClientIp(req: Request): string {
-  // Standard headers (in order of trust for common proxies)
-  const forwarded = req.headers.get("x-forwarded-for");
-  if (forwarded) {
-    // x-forwarded-for can be "client, proxy1, proxy2" — take the first
-    return forwarded.split(",")[0]!.trim();
-  }
+  // On Vercel, x-real-ip is set by the platform and cannot be spoofed by the
+  // client. Prefer it over x-forwarded-for, whose left-most entry is
+  // client-controlled — trusting it lets an attacker rotate fake IPs and
+  // bypass every rate limit.
   const realIp = req.headers.get("x-real-ip");
   if (realIp) return realIp.trim();
+
+  const forwarded = req.headers.get("x-forwarded-for");
+  if (forwarded) {
+    // The right-most entry is the one appended by the nearest trusted proxy.
+    const parts = forwarded.split(",").map((s) => s.trim()).filter(Boolean);
+    return parts[parts.length - 1] ?? "unknown";
+  }
   return "unknown";
 }

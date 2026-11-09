@@ -31,6 +31,10 @@ export function HeroCard({
 }) {
   const { t } = useLanguage();
   const hasDebtors = customersWithBalance > 0;
+  const oweLabel =
+    customersWithBalance === 1
+      ? t("dashboard.customerOwes")
+      : t("dashboard.customersOwe");
 
   const inner = (
     <>
@@ -65,9 +69,7 @@ export function HeroCard({
             <Users className="h-3 w-3" />
             <span className="font-bold text-white">{customersWithBalance}</span>
             <span className="truncate">
-              {customersWithBalance === 1
-                ? t("dashboard.customerOwes")
-                : t("dashboard.customersOwe")}
+              {oweLabel}
             </span>
           </div>
         </div>
@@ -97,7 +99,6 @@ export function HeroCard({
     return (
       <Link
         href="/khata/outstanding"
-        aria-label={`${customersWithBalance} ${customersWithBalance === 1 ? t("dashboard.customerOwes") : t("dashboard.customersOwe")} ${t("outstanding.totalOwed").toLowerCase()}: ${totalReceivables}`}
         className={cn(
           shell,
           "transition-all duration-200 hover:shadow-lift active:scale-[0.99]",

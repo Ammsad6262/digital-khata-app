@@ -74,8 +74,8 @@
     /* Text */
     --ink: 28 25 23;
     --ink-muted: 87 83 78;
-    --ink-subtle: 120 113 108;
-    --ink-faint: 168 162 156;
+    --ink-subtle: 102 96 92;
+    --ink-faint: 116 112 108;
 
     /* Shadow base */
     --shadow-rgb: 28 25 23;
@@ -129,8 +129,8 @@
 
     --ink: 6 46 35;
     --ink-muted: 45 84 68;
-    --ink-subtle: 74 110 94;
-    --ink-faint: 130 158 145;
+    --ink-subtle: 70 105 89;
+    --ink-faint: 97 118 109;
 
     --shadow-rgb: 6 46 35;
   }
@@ -169,8 +169,8 @@
 
     --ink: 58 36 14;
     --ink-muted: 105 74 42;
-    --ink-subtle: 138 105 70;
-    --ink-faint: 183 156 126;
+    --ink-subtle: 121 92 62;
+    --ink-faint: 128 109 88;
 
     --shadow-rgb: 58 36 14;
   }
@@ -209,8 +209,8 @@
 
     --ink: 26 25 58;
     --ink-muted: 70 68 110;
-    --ink-subtle: 104 102 143;
-    --ink-faint: 150 149 183;
+    --ink-subtle: 95 93 130;
+    --ink-faint: 111 110 135;
 
     --shadow-rgb: 26 25 58;
   }
@@ -249,8 +249,8 @@
 
     --ink: 55 20 33;
     --ink-muted: 100 55 72;
-    --ink-subtle: 137 93 109;
-    --ink-faint: 183 150 163;
+    --ink-subtle: 127 86 101;
+    --ink-faint: 130 106 116;
 
     --shadow-rgb: 55 20 33;
   }

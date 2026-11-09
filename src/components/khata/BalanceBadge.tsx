@@ -64,7 +64,7 @@ export function BalanceBadge({
       title={title}
     >
       {formatMoney(d.abs())}
-      {size !== "lg" ? <span className="opacity-65">· {label}</span> : null}
+      {size !== "lg" ? <span className="font-normal">· {label}</span> : null}
     </span>
   );
 }

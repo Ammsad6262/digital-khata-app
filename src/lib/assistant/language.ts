@@ -30,7 +30,7 @@ const LATIN_LETTER = /[a-zA-Z]/;
  * Letters and words that exist in Pashto but not Urdu. Pashto and Urdu share
  * most of the Arabic script, so these are the reliable discriminators.
  */
-const PASHTO_MARKERS = /[ګځڅښډړږڼېۍ]|واخيستل|واخيست|ورکړل|ورکول|څو|ډېر|لږ|پښتو|raakṛ|وښودل/;
+const PASHTO_MARKERS = /[ګځڅښډړږڼېۍ]|واخيستل|واخيست|ورکړل|ورکول|څو|ډېر|لږ|پښتو|وښودل/;
 
 /**
  * High-signal Roman-Urdu words only. English words that Roman Urdu also uses

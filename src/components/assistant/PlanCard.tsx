@@ -40,6 +40,41 @@ function labelFor(key: string, t: (k: TranslationKey) => string): string {
   return k ? t(k) : key;
 }
 
+/**
+ * Server-supplied field labels are English. Map the known ones to translation
+ * keys so the confirmation card reads in the owner's language.
+ */
+const DISPLAY_LABEL: Record<string, TranslationKey> = {
+  Customer: "plan.label.customer",
+  Product: "plan.label.product",
+  Supplier: "plan.label.supplier",
+  Quantity: "plan.label.quantity",
+  Unit: "plan.label.unit",
+  "Unit price": "plan.label.unitPrice",
+  Discount: "plan.label.discount",
+  Total: "plan.label.total",
+  "Paid now": "plan.label.paidNow",
+  Amount: "plan.label.amount",
+  Method: "plan.label.method",
+  Expense: "plan.label.expense",
+  Category: "plan.label.category",
+  "Cost per unit": "plan.label.costPerUnit",
+  Name: "plan.label.name",
+  Phone: "plan.label.phone",
+  "Selling price": "plan.label.sellingPrice",
+  "Purchase price": "plan.label.purchasePrice",
+  "Opening stock": "plan.label.openingStock",
+  Reminder: "plan.label.reminder",
+  Due: "plan.label.due",
+  Priority: "plan.label.priority",
+  Target: "plan.label.target",
+};
+
+function displayLabel(label: string, t: (k: TranslationKey) => string): string {
+  const k = DISPLAY_LABEL[label];
+  return k ? t(k) : label;
+}
+
 export function PlanCard({
   plan,
   busy,
@@ -80,7 +115,7 @@ export function PlanCard({
       <dl className="mt-2 space-y-1">
         {plan.fields.map((field) => (
           <div key={field.label} className="flex justify-between gap-3">
-            <dt className="text-ink-subtle">{field.label}</dt>
+            <dt className="text-ink-subtle">{displayLabel(field.label, t)}</dt>
             <dd className="text-right font-medium text-ink">{field.value}</dd>
           </div>
         ))}

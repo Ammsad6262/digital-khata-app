@@ -1,13 +1,14 @@
 /**
- * Middleware — server-side auth enforcement.
+ * Proxy — server-side auth enforcement (renamed from middleware in Next 16).
  *
  * Verifies the JWT auth token (dk_auth_token cookie) on ALL /api/* routes
  * EXCEPT public endpoints (auth/register, auth/login, auth/status, auth/me,
  * auth/unlock, health). If no valid token, returns 401.
  *
- * Uses the Edge runtime (crypto.subtle is available there).
+ * Uses the Node.js runtime (Next 16 default for proxy); crypto.subtle is
+ * available there.
  *
- * NOTE: This middleware enforces ACCOUNT-level auth (email/password login).
+ * NOTE: This proxy enforces ACCOUNT-level auth (email/password login).
  * The PIN system (dk_session cookie) is a SEPARATE client-side lock that
  * remains in AuthGate for device-level protection. Both can coexist.
  */
@@ -31,11 +32,11 @@ const PUBLIC_ROUTES = [
 ];
 
 export const config = {
-  // Run middleware on all API routes
+  // Run the proxy on all API routes
   matcher: "/api/:path*",
 };
 
-export async function middleware(req: NextRequest) {
+export async function proxy(req: NextRequest) {
   const path = req.nextUrl.pathname;
 
   // Check if this is a public route

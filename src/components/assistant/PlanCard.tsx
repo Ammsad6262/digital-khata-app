@@ -12,6 +12,7 @@ import { useState } from "react";
 import { Check } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { useLanguage } from "@/providers/language-provider";
+import { useCurrencySymbol } from "@/hooks/use-currency-symbol";
 import type { TranslationKey } from "@/lib/i18n/translations";
 import type { AssistantPlan, Candidate, PlanPayload } from "@/lib/assistant/types";
 
@@ -87,6 +88,7 @@ export function PlanCard({
   onCancel: (actionId: string) => void;
 }) {
   const { t, tParams } = useLanguage();
+  const symbol = useCurrencySymbol();
   const [patch, setPatch] = useState<Partial<PlanPayload>>({});
   const [customAmount, setCustomAmount] = useState("");
 
@@ -174,7 +176,7 @@ export function PlanCard({
                 onClick={() => setPatch((p) => ({ ...p, paidAmount: plan.suggested!.paidAmount }))}
                 className="rounded-full border border-brand-600 bg-brand-600 px-2.5 py-1 text-xs font-medium text-white"
               >
-                {tParams("plan.fullPayment", { amount: money(plan.suggested.paidAmount) })}
+                {tParams("plan.fullPayment", { amount: money(plan.suggested.paidAmount, symbol) })}
               </button>
             ) : null}
             <button

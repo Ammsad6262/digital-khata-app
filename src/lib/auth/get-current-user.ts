@@ -5,9 +5,9 @@
  * in the `dk_auth_token` HttpOnly cookie. NEVER from request headers, query
  * parameters, JSON body, or any client-controllable input.
  *
- * The middleware (src/middleware.ts) verifies the JWT cookie on every /api/*
+ * The proxy (src/proxy.ts) verifies the JWT cookie on every /api/*
  * request (except a small allowlist of public auth endpoints). When valid,
- * the middleware OVERWRITES any client-sent `x-user-id` header with the
+ * the proxy OVERWRITES any client-sent `x-user-id` header with the
  * JWT-derived value — so a malicious client cannot spoof the header.
  *
  * PERFORMANCE: We verify the JWT cryptographically but do NOT query the

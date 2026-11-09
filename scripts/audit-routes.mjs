@@ -12,11 +12,12 @@
  * Usage: node scripts/audit-routes.mjs
  */
 
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join, sep } from "node:path";
 
 const ROOT = "src/app/api";
-const MIDDLEWARE = readFileSync("src/middleware.ts", "utf8");
+const GUARD_FILE = existsSync("src/proxy.ts") ? "src/proxy.ts" : "src/middleware.ts";
+const MIDDLEWARE = readFileSync(GUARD_FILE, "utf8");
 
 const PUBLIC = [
   "/api/auth/register",

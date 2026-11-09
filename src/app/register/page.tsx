@@ -15,6 +15,7 @@ import { TextField } from "@/components/ui/TextField";
 import { Button } from "@/components/ui/Button";
 import { useToast } from "@/providers/toast-provider";
 import { useLanguage } from "@/providers/language-provider";
+import { resolveApiError } from "@/lib/i18n/client";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -50,7 +51,7 @@ export default function RegisterPage() {
       const json = await res.json();
 
       if (!res.ok || !json.ok) {
-        throw new Error(json.error?.message || t("auth.registerFailed"));
+        throw new Error(resolveApiError(json.error) || t("auth.registerFailed"));
       }
 
       toast.success(t("auth.accountCreated"));

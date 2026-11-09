@@ -18,6 +18,7 @@
 import { useState, useEffect } from "react";
 import { Delete, Lock, Loader2, AlertCircle } from "lucide-react";
 import { useLanguage } from "@/providers/language-provider";
+import { resolveApiError } from "@/lib/i18n/client";
 
 export function PinUnlockScreen({
   hasPin,
@@ -69,12 +70,11 @@ export function PinUnlockScreen({
 
       // Error
       if (json.error?.code === "RATE_LIMITED") {
-        const match = json.error.message.match(/(\d+) seconds/);
-        const seconds = match ? parseInt(match[1], 10) : 300;
+        const seconds = Number(json.error?.params?.seconds) || 300;
         setRetryAfter(seconds);
         setError(`${t("common.lockedOut")} ${seconds}s.`);
       } else {
-        setError(json.error?.message || t("common.incorrectPin"));
+        setError(resolveApiError(json.error) || t("common.incorrectPin"));
       }
       setPin("");
     } catch {

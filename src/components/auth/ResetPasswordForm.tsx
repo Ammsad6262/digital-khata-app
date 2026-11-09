@@ -20,6 +20,7 @@ import {
   Mail,
 } from "lucide-react";
 import { useLanguage } from "@/providers/language-provider";
+import { resolveApiError } from "@/lib/i18n/client";
 
 export function ResetPasswordForm({ initialEmail = "" }: { initialEmail?: string }) {
   const { t } = useLanguage();
@@ -57,7 +58,7 @@ export function ResetPasswordForm({ initialEmail = "" }: { initialEmail?: string
       });
       const json = await res.json();
       if (!res.ok || !json.ok) {
-        throw new Error(json.error?.message || t("reset.failed"));
+        throw new Error(resolveApiError(json.error) || t("reset.failed"));
       }
       setDone(true);
     } catch (e) {

@@ -50,6 +50,7 @@ import { formatMoney } from "@/lib/utils/money";
 import { cn } from "@/lib/utils/cn";
 import Link from "next/link";
 import { useLanguage } from "@/providers/language-provider";
+import { resolveApiError } from "@/lib/i18n/client";
 import { useCurrencySymbol } from "@/hooks/use-currency-symbol";
 import { useSettings } from "@/hooks/use-settings";
 
@@ -1620,7 +1621,7 @@ function NewCustomerForm({
       });
       const json = await res.json();
       if (!json.ok) {
-        setError(json.error?.message ?? t("smartentry.error.createCustomerFailed"));
+        setError(resolveApiError(json.error) || t("smartentry.error.createCustomerFailed"));
         return;
       }
       // Success — call onCreated with the new customer
@@ -1860,7 +1861,7 @@ function AddProductWizard({
       });
       const json = await res.json();
       if (!json.ok) {
-        setCustomUnitError(json.error?.message ?? t("smartentry.error.addUnitFailed"));
+        setCustomUnitError(resolveApiError(json.error) || t("smartentry.error.addUnitFailed"));
         return;
       }
       setCustomUnits(json.data.customUnits ?? []);
@@ -1901,7 +1902,7 @@ function AddProductWizard({
       });
       const json = await res.json();
       if (!json.ok) {
-        setError(json.error?.message ?? t("smartentry.error.createProductFailed"));
+        setError(resolveApiError(json.error) || t("smartentry.error.createProductFailed"));
         return;
       }
       onCreated({

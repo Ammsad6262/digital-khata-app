@@ -32,6 +32,7 @@ export async function POST(req: NextRequest) {
           error: {
             code: "RATE_LIMITED",
             message: tServer("api.auth.register.rateLimited", { seconds: retryAfter }),
+            messageKey: "api.auth.register.rateLimited",
             translationKey: true,
             params: { seconds: retryAfter },
           },

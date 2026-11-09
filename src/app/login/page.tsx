@@ -17,6 +17,7 @@ import { TextField } from "@/components/ui/TextField";
 import { Button } from "@/components/ui/Button";
 import { useToast } from "@/providers/toast-provider";
 import { useLanguage } from "@/providers/language-provider";
+import { resolveApiError } from "@/lib/i18n/client";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -46,7 +47,7 @@ export default function LoginPage() {
       const json = await res.json();
 
       if (!res.ok || !json.ok) {
-        throw new Error(json.error?.message || t("auth.loginFailed"));
+        throw new Error(resolveApiError(json.error) || t("auth.loginFailed"));
       }
 
       toast.success(t("auth.welcomeBack"));

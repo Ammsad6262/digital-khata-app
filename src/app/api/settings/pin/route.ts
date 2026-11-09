@@ -42,6 +42,7 @@ export async function POST(req: NextRequest) {
           error: {
             code: "RATE_LIMITED",
             message: tServer("api.auth.unlock.rateLimited", { seconds: retryAfter }),
+            messageKey: "api.auth.unlock.rateLimited",
             translationKey: true,
             params: { seconds: retryAfter },
           },
@@ -98,6 +99,7 @@ export async function DELETE(req: NextRequest) {
           error: {
             code: "RATE_LIMITED",
             message: tServer("api.auth.unlock.rateLimited", { seconds: retryAfter }),
+            messageKey: "api.auth.unlock.rateLimited",
             translationKey: true,
             params: { seconds: retryAfter },
           },

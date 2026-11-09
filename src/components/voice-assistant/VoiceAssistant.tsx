@@ -203,7 +203,9 @@ export function VoiceAssistant() {
               turn.role === "user" ? (
                 <div key={turn.id} className="flex justify-end">
                   <div className="max-w-[85%] rounded-2xl rounded-ee-sm bg-brand-600 px-3 py-2 text-sm text-white">
-                    {turn.text}
+                    {turn.text.startsWith("@key:")
+                      ? t(turn.text.slice(5) as TranslationKey)
+                      : turn.text}
                   </div>
                 </div>
               ) : (
@@ -400,11 +402,13 @@ function VoiceReply({
   onEdit: (text: string) => void;
 }) {
   const { t, tParams } = useLanguage();
+  const renderText = (value: string) =>
+    value.startsWith("@key:") ? t(value.slice(5) as TranslationKey) : value;
 
   if (reply.kind === "answer") {
     return (
       <div className="rounded-2xl rounded-es-sm bg-surface-2 px-3 py-2 text-sm text-ink">
-        <p>{reply.text}</p>
+        <p>{renderText(reply.text)}</p>
         {reply.items && reply.items.length > 0 ? (
           <ul className="mt-2 space-y-1">
             {reply.items.slice(0, 8).map((item, index) => (
@@ -482,7 +486,7 @@ function VoiceReply({
                   onClick={() => onEdit(reply.preservedText)}
                   className="rounded-full border border-danger px-2.5 py-1 text-xs font-medium"
                 >
-                  Edit
+                  {t("common.edit")}
                 </button>
               </div>
             ) : null}

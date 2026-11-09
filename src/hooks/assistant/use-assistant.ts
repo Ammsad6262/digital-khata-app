@@ -83,7 +83,7 @@ export function useAssistant() {
 
       const userLabel = input.text
         ? input.text
-        : "🎤 (voice message)";
+        : "@key:assistant.voiceMessage";
       append({ id: nextId(), role: "user", text: userLabel });
 
       try {
@@ -197,7 +197,7 @@ export function useAssistant() {
       setTurns((prev) =>
         prev.map((t) =>
           t.role === "assistant" && t.reply.kind === "plan" && t.reply.actionId === actionId
-            ? { ...t, reply: { ...t.reply, kind: "answer", text: "Cancelled.", source: "database", requestsUsed: 0, timings: { totalMs: 0 } } as AssistantReply }
+            ? { ...t, reply: { ...t.reply, kind: "answer", text: "@key:assistant.cancelled", source: "database", requestsUsed: 0, timings: { totalMs: 0 } } as AssistantReply }
             : t,
         ),
       );

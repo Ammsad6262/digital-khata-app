@@ -121,7 +121,7 @@ function startOfPeriodInTz(
     timeZone: timezone,
     year: "numeric", month: "2-digit", day: "2-digit",
     hour: "2-digit", minute: "2-digit",
-    hour12: false,
+    hourCycle: "h23",
   }).formatToParts(midnightUtc);
 
   const tzHour = parseInt(tzAtMidnightUtc.find(p => p.type === "hour")?.value ?? "0", 10);
@@ -224,7 +224,7 @@ export function startOfDayInTz(
     day: "2-digit",
     hour: "2-digit",
     minute: "2-digit",
-    hour12: false,
+    hourCycle: "h23",
   }).formatToParts(asUtc);
 
   const get = (type: string): number =>

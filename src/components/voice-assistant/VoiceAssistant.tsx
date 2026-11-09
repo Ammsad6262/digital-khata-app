@@ -115,7 +115,11 @@ export function VoiceAssistant() {
     voice.submit(text);
   }, [busy, typed, voice]);
 
-  const micError = speech.error?.message ?? recorder.error ?? null;
+  const micErrorRaw = speech.error?.message ?? recorder.error ?? null;
+  const micError =
+    micErrorRaw && /^[a-z][\w]*(\.[\w]+)+$/i.test(micErrorRaw)
+      ? t(micErrorRaw as TranslationKey)
+      : micErrorRaw;
   const hasConversation = assistant.turns.length > 0;
 
   return (
@@ -336,9 +340,11 @@ export function VoiceAssistant() {
                       : t("assistant.tapToSpeak")}
                 </p>
                 <p className="mt-0.5 text-xs text-ink-subtle">
-                  {speech.supported
-                    ? t("assistant.wordsFirst")
-                    : t("assistant.browserRecording")}
+                  {voice.languageMode === "ps"
+                    ? t("assistant.serverTranscribeHint")
+                    : speech.supported
+                      ? t("assistant.wordsFirst")
+                      : t("assistant.browserRecording")}
                 </p>
               </div>
             </div>

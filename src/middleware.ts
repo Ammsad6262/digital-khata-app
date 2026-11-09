@@ -28,6 +28,7 @@ const PUBLIC_ROUTES = [
   "/api/admin/codes",
   "/api/admin/password-reset",
   "/api/admin/diagnostics",
+  "/api/admin/licensing",
 ];
 
 export const config = {

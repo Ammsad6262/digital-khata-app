@@ -628,6 +628,28 @@ model UserSubscription {
   trialExpiresAt  DateTime
   accessStartedAt  DateTime?
   accessExpiresAt  DateTime?
+
+  // ── Commercial licensing (category-based entitlement) ──────────────────
+  // One row per user is the single source of truth for commercial access.
+  //   core      → permanent once a product code is redeemed
+  //   premium   → time-bound, renewable; permanent for owners/affiliates
+  //   owner     → permanent full access (max two accounts)
+  //   affiliate → permanent full access (max ten codes)
+  // Revocation is recorded separately so the reason/history survives.
+  coreActivatedAt      DateTime?
+  // NULL = permanent paid core. A date = trial core (legacy 30-day trial).
+  coreExpiresAt        DateTime?
+  coreRevokedAt        DateTime?
+  premiumStartedAt     DateTime?
+  premiumExpiresAt     DateTime?
+  premiumRevokedAt     DateTime?
+  affiliateGrantedAt   DateTime?
+  affiliateRevokedAt   DateTime?
+  ownerGrantedAt       DateTime?
+  ownerRevokedAt       DateTime?
+  accessRevokedAt      DateTime?
+  accessRevokedReason  String?
+
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
@@ -638,11 +660,17 @@ model UserSubscription {
 model RedeemCode {
   id              String   @id @default(cuid())
   codeHash        String   @unique
+  // PRODUCT | PREMIUM | AFFILIATE. Existing duration-based codes default to
+  // PREMIUM so they keep granting time-bound access after the migration.
+  kind            String   @default("PREMIUM")
+  label           String?
   durationDays    Int
   maxRedemptions  Int      @default(1)
   redemptionCount Int      @default(0)
   active          Boolean  @default(true)
   expiresAt       DateTime?
+  revokedAt       DateTime?
+  revokedBy       String?
   createdBy       String   @default("admin")
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -650,6 +678,7 @@ model RedeemCode {
 
   @@index([codeHash])
   @@index([active])
+  @@index([kind])
 }
 
 model RedeemCodeRedemption {
@@ -658,6 +687,7 @@ model RedeemCodeRedemption {
   redeemCode      RedeemCode @relation(fields: [redeemCodeId], references: [id], onDelete: Cascade)
   userId          String
   user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind            String   @default("PREMIUM")
   durationDays    Int
   previousAccessExpiresAt  DateTime?
   newAccessExpiresAt       DateTime

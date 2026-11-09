@@ -164,6 +164,10 @@ export async function registerUser(input: {
         status: "TRIAL_ACTIVE",
         trialStartedAt: now,
         trialExpiresAt: trialExpires,
+        // Preserve the 30-day trial as a core-only trial. A paid product
+        // redemption clears coreExpiresAt and makes core access permanent.
+        coreActivatedAt: now,
+        coreExpiresAt: trialExpires,
       },
     });
 

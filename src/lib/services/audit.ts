@@ -42,7 +42,14 @@ export type AuditAction =
   | "recovery.contact"
   | "followUp.update"
   | "password.reset_code_issued"
-  | "password.reset";
+  | "password.reset"
+  | "licensing.owner_grant"
+  | "licensing.owner_revoke"
+  | "licensing.premium_revoke"
+  | "licensing.access_revoke"
+  | "licensing.access_restore"
+  | "licensing.affiliate_revoke"
+  | "licensing.core_revoke";
 
 export type AuditInput = {
   action: AuditAction;

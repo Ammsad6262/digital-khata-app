@@ -3,9 +3,15 @@
  * and admin code generation.
  */
 
-import { prisma } from "@/lib/db/prisma";
-import { BadRequestError, NotFoundError, UnauthorizedError } from "@/lib/errors";
+import { prisma, withUserRls } from "@/lib/db/prisma";
 import { createHash, randomBytes } from "crypto";
+import {
+  PREMIUM_PERIOD_DAYS,
+  computeEntitlement,
+  hasCoreAccess,
+  redeemLicenseCode,
+  type Entitlement,
+} from "@/lib/services/entitlement";
 
 const TRIAL_DURATION_DAYS = 30;
 const CODE_CHARS = "ABCDEFGHJKLMNPQRTUVWXYZ2346789";
@@ -19,6 +25,14 @@ const CODE_SEGMENTS = 3;
  * BILLING_ENABLED=true only after the provider is configured and tested.
  */
 export const BILLING_ENABLED = process.env.BILLING_ENABLED === "true";
+
+/**
+ * Commercial licensing enforcement. Off by default so existing installs keep
+ * working exactly as before; set LICENSING_ENFORCED=true to require an
+ * activated core licence for the business APIs. Either way, the entitlement
+ * service (`lib/services/entitlement.ts`) is the source of truth for access.
+ */
+export const LICENSING_ENFORCED = process.env.LICENSING_ENFORCED === "true";
 
 export type SubscriptionStatus =
   | "TRIAL_ACTIVE"
@@ -40,6 +54,10 @@ export type SubscriptionView = {
   effectiveExpiresAt: Date | null;
   remainingDays: number | null;
   canRedeem: boolean;
+  /** True when business APIs require an activated core licence. */
+  licensingEnforced: boolean;
+  /** Authoritative commercial entitlement (category-based licensing). */
+  licensing: Entitlement;
 };
 
 export type RedeemResult = {
@@ -51,6 +69,7 @@ export type RedeemResult = {
 
 export type RedemptionHistoryEntry = {
   id: string;
+  kind: string;
   durationDays: number;
   previousAccessExpiresAt: Date | null;
   newAccessExpiresAt: Date;
@@ -93,16 +112,28 @@ export async function createTrial(userId: string): Promise<void> {
   const trialExpires = new Date(now.getTime() + TRIAL_DURATION_DAYS * 24 * 60 * 60 * 1000);
   await prisma.userSubscription.upsert({
     where: { userId },
-    create: { userId, status: "TRIAL_ACTIVE", trialStartedAt: now, trialExpiresAt: trialExpires },
+    create: {
+      userId,
+      status: "TRIAL_ACTIVE",
+      trialStartedAt: now,
+      trialExpiresAt: trialExpires,
+      // Preserve the existing 30-day trial as a core-only trial.
+      coreActivatedAt: now,
+      coreExpiresAt: trialExpires,
+    },
     update: {},
   });
 }
 
 export async function getSubscriptionStatus(userId: string): Promise<SubscriptionView> {
-  let sub = await prisma.userSubscription.findUnique({ where: { userId } });
+  let sub = await withUserRls(userId, (tx) =>
+    tx.userSubscription.findUnique({ where: { userId } }),
+  );
   if (!sub) {
     await createTrial(userId);
-    sub = await prisma.userSubscription.findUniqueOrThrow({ where: { userId } });
+    sub = await withUserRls(userId, (tx) =>
+      tx.userSubscription.findUniqueOrThrow({ where: { userId } }),
+    );
   }
 
   // No payment provider is connected. Report that plainly instead of showing
@@ -121,6 +152,8 @@ export async function getSubscriptionStatus(userId: string): Promise<Subscriptio
       effectiveExpiresAt: null,
       remainingDays: null,
       canRedeem: true,
+      licensingEnforced: LICENSING_ENFORCED,
+      licensing: computeEntitlement(userId, sub),
     };
   }
 
@@ -145,63 +178,35 @@ export async function getSubscriptionStatus(userId: string): Promise<Subscriptio
     accessStartedAt: sub.accessStartedAt, accessExpiresAt: sub.accessExpiresAt,
     effectiveExpiresAt: effectiveExpiry,
     remainingDays: isExpired ? 0 : remainingDays, canRedeem: true,
+    licensingEnforced: LICENSING_ENFORCED,
+    licensing: computeEntitlement(userId, sub),
   };
 }
 
 export async function hasActiveAccess(userId: string): Promise<boolean> {
-  // No billing provider is configured yet. Do not lock the owner out of the
-  // product they already use: all features stay available until a real,
-  // server-verified subscription is connected.
+  // Commercial licensing enforcement takes precedence when enabled: core
+  // access comes from the entitlement service (the single source of truth).
+  if (LICENSING_ENFORCED) return hasCoreAccess(userId);
+  // Otherwise preserve the pre-licensing behaviour exactly: with billing off
+  // every feature stays open; with billing on the legacy trial/access expiry
+  // still gates the app.
   if (!BILLING_ENABLED) return true;
-  const status = await getSubscriptionStatus(userId);
-  return status.isActive;
+  return (await getSubscriptionStatus(userId)).isActive;
 }
 
 export async function redeemCode(userId: string, code: string): Promise<RedeemResult> {
-  const normalizedCode = code.toUpperCase().trim();
-  if (!normalizedCode) throw new BadRequestError("api.subscription.codeRequired");
-  const codeHash = hashCode(normalizedCode);
-
-  const result = await prisma.$transaction(async (tx) => {
-    const redeemCode = await tx.redeemCode.findUnique({ where: { codeHash } });
-    if (!redeemCode) throw new BadRequestError("api.subscription.codeInvalid");
-    if (!redeemCode.active) throw new BadRequestError("api.subscription.codeInactive");
-    if (redeemCode.expiresAt && redeemCode.expiresAt <= new Date()) throw new BadRequestError("api.subscription.codeExpired");
-    if (redeemCode.maxRedemptions > 0 && redeemCode.redemptionCount >= redeemCode.maxRedemptions) throw new BadRequestError("api.subscription.codeExhausted");
-
-    let subscription = await tx.userSubscription.findUnique({ where: { userId } });
-    if (!subscription) {
-      const now = new Date();
-      await tx.userSubscription.create({ data: { userId, status: "TRIAL_ACTIVE", trialStartedAt: now, trialExpiresAt: new Date(now.getTime() + TRIAL_DURATION_DAYS * 24 * 60 * 60 * 1000) } });
-      subscription = await tx.userSubscription.findUniqueOrThrow({ where: { userId } });
-    }
-
-    const now = new Date();
-    const currentEffectiveExpiry = getEffectiveExpiry(subscription);
-    const isCurrentlyActive = currentEffectiveExpiry > now;
-    const baseDate = isCurrentlyActive ? currentEffectiveExpiry : now;
-    const newAccessExpiresAt = new Date(baseDate.getTime() + redeemCode.durationDays * 24 * 60 * 60 * 1000);
-    const previousAccessExpiresAt = subscription.accessExpiresAt;
-
-    const updateResult = await tx.redeemCode.updateMany({
-      where: { id: redeemCode.id, ...(redeemCode.maxRedemptions > 0 ? { redemptionCount: { lt: redeemCode.maxRedemptions } } : {}) },
-      data: { redemptionCount: { increment: 1 } },
-    });
-    if (updateResult.count === 0) throw new BadRequestError("api.subscription.codeExhausted");
-
-    await tx.redeemCodeRedemption.create({ data: { redeemCodeId: redeemCode.id, userId, durationDays: redeemCode.durationDays, previousAccessExpiresAt, newAccessExpiresAt } });
-    await tx.userSubscription.update({ where: { userId }, data: { status: "ACTIVE", accessStartedAt: subscription.accessStartedAt ?? now, accessExpiresAt: newAccessExpiresAt } });
-
-    return { success: true as const, durationDays: redeemCode.durationDays, newAccessExpiresAt, previousAccessExpiresAt };
-  });
-  return result;
+  // Delegate to the category-aware entitlement service so there is exactly one
+  // redemption path. Legacy duration-based codes are treated as PREMIUM codes.
+  return redeemLicenseCode(userId, code);
 }
 
 export async function getRedemptionHistory(userId: string): Promise<RedemptionHistoryEntry[]> {
-  const redemptions = await prisma.redeemCodeRedemption.findMany({
-    where: { userId }, orderBy: { redeemedAt: "desc" },
-    select: { id: true, durationDays: true, previousAccessExpiresAt: true, newAccessExpiresAt: true, redeemedAt: true },
-  });
+  const redemptions = await withUserRls(userId, (tx) =>
+    tx.redeemCodeRedemption.findMany({
+      where: { userId }, orderBy: { redeemedAt: "desc" },
+      select: { id: true, kind: true, durationDays: true, previousAccessExpiresAt: true, newAccessExpiresAt: true, redeemedAt: true },
+    }),
+  );
   return redemptions;
 }
 
@@ -209,8 +214,11 @@ export type GeneratedCode = { code: string; durationDays: number; maxRedemptions
 export type AdminCodeInput = { durationDays: number; maxRedemptions?: number; expiresAt?: Date | null; count?: number; };
 
 export async function generateCodes(input: AdminCodeInput): Promise<GeneratedCode[]> {
-  const { durationDays, maxRedemptions = 1, expiresAt = null, count = 1 } = input;
-  if (durationDays <= 0 || durationDays > 3650) throw new BadRequestError("api.subscription.invalidDuration");
+  const { maxRedemptions = 1, expiresAt = null, count = 1 } = input;
+  // Commercial rule: a premium code is always a 30-day period. The legacy
+  // /admin/codes page must not mint arbitrary-duration codes that bypass the
+  // licensing business rule.
+  const durationDays = PREMIUM_PERIOD_DAYS;
   const numCodes = Math.min(Math.max(count, 1), 100);
   const results: GeneratedCode[] = [];
   for (let i = 0; i < numCodes; i++) {

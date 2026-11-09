@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { Crown, Check, ChevronRight, AlertCircle, RefreshCw, CheckCircle2, MessageCircle, KeyRound } from "lucide-react";
 import { useSubscription, useRedemptionHistory } from "@/hooks/use-subscription";
+import type { Entitlement } from "@/lib/services/entitlement";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { getWhatsAppLink, getDefaultWhatsAppMessage, WHATSAPP_NUMBER_DISPLAY } from "@/lib/utils/whatsapp";
@@ -38,6 +39,91 @@ export default function SubscriptionPage() {
   );
 }
 
+function LicensingCard({ entitlement }: { entitlement: Entitlement }) {
+  const { t, tParams } = useLanguage();
+  const e = entitlement;
+  const category = e.isOwner
+    ? t("licensing.owner")
+    : e.isAffiliate
+      ? t("licensing.affiliate")
+      : e.category === "PREMIUM"
+        ? t("licensing.premium")
+        : e.category === "TRIAL"
+          ? t("licensing.trial")
+          : e.category === "REGULAR"
+            ? t("licensing.regular")
+            : t("licensing.unactivated");
+
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white p-4">
+      <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
+        {t("licensing.currentAccess")}
+      </p>
+      <p className="mt-0.5 text-lg font-bold text-slate-900">{category}</p>
+      <div className="mt-2 space-y-1.5">
+        <div className="flex items-center justify-between text-sm">
+          <span className="text-slate-500">{t("licensing.product")}</span>
+          <span
+            className={cn(
+              "font-semibold",
+              e.core.active ? "text-brand-600" : "text-slate-400",
+            )}
+          >
+            {e.core.trial
+              ? e.core.active && e.core.expiresAt
+                ? tParams("licensing.trialUntil", {
+                    date: formatDate(new Date(e.core.expiresAt)),
+                  })
+                : t("licensing.trialEnded")
+              : e.core.active
+                ? t("licensing.permanent")
+                : t("licensing.inactive")}
+          </span>
+        </div>
+        <div className="flex items-center justify-between text-sm">
+          <span className="text-slate-500">{t("licensing.premium")}</span>
+          <span
+            className={cn(
+              "font-semibold",
+              e.premium.active ? "text-brand-600" : "text-slate-400",
+            )}
+          >
+            {e.premium.active
+              ? e.premium.permanent
+                ? t("licensing.permanent")
+                : tParams("licensing.daysLeft", {
+                    days: e.premium.remainingDays ?? 0,
+                  })
+              : t("licensing.inactive")}
+          </span>
+        </div>
+        {e.premium.active && !e.premium.permanent && e.premium.expiresAt ? (
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-slate-500">{t("licensing.expiresOn")}</span>
+            <span className="font-medium text-slate-900">
+              {formatDate(new Date(e.premium.expiresAt))}
+            </span>
+          </div>
+        ) : null}
+        {e.accessRevoked ? (
+          <p className="rounded-lg bg-red-50 p-2 text-xs text-red-700">
+            {e.accessRevokedReason || t("licensing.inactive")}
+          </p>
+        ) : null}
+        {!e.isOwner && !e.isAffiliate && !e.accessRevoked ? (
+          <Link
+            href="/more/redeem"
+            className="mt-3 flex items-center justify-center gap-2 rounded-lg bg-brand-600 px-3 py-2 text-xs font-semibold text-white"
+          >
+            <KeyRound className="h-3.5 w-3.5" />
+            {t("licensing.redeemNow")}
+          </Link>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 function SubscriptionContent() {
   const { data: subscription, isLoading, isError, error, refetch } = useSubscription();
   const { data: history } = useRedemptionHistory();
@@ -52,21 +138,40 @@ function SubscriptionContent() {
   if (!subscription.billingEnabled) {
     return (
       <div className="space-y-4">
-        <div className="rounded-2xl border border-brand-200 bg-white p-5 shadow-sm">
-          <div className="flex items-start gap-3">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-brand-600 text-white">
-              <CheckCircle2 className="h-6 w-6" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-sm font-semibold text-slate-900">
-                {t("subscription.billingOffTitle")}
-              </p>
-              <p className="mt-1 text-xs leading-relaxed text-slate-600">
-                {t("subscription.billingOffDesc")}
-              </p>
+        <LicensingCard entitlement={subscription.licensing} />
+        {subscription.licensingEnforced ? (
+          <div className="rounded-2xl border border-amber-200 bg-white p-5 shadow-sm">
+            <div className="flex items-start gap-3">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-amber-500 text-white">
+                <KeyRound className="h-6 w-6" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-slate-900">
+                  {t("subscription.licensingEnforcedTitle")}
+                </p>
+                <p className="mt-1 text-xs leading-relaxed text-slate-600">
+                  {t("subscription.licensingEnforcedDesc")}
+                </p>
+              </div>
             </div>
           </div>
-        </div>
+        ) : (
+          <div className="rounded-2xl border border-brand-200 bg-white p-5 shadow-sm">
+            <div className="flex items-start gap-3">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-brand-600 text-white">
+                <CheckCircle2 className="h-6 w-6" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-slate-900">
+                  {t("subscription.billingOffTitle")}
+                </p>
+                <p className="mt-1 text-xs leading-relaxed text-slate-600">
+                  {t("subscription.billingOffDesc")}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
         <div className="rounded-xl border border-slate-200 bg-white p-4">
           <h3 className="mb-3 text-sm font-semibold text-slate-900">
             {t("subscription.whatsIncluded")}
@@ -80,9 +185,11 @@ function SubscriptionContent() {
             ))}
           </div>
         </div>
-        <p className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] leading-relaxed text-slate-500">
-          {t("subscription.billingOffNote")}
-        </p>
+        {!subscription.licensingEnforced ? (
+          <p className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] leading-relaxed text-slate-500">
+            {t("subscription.billingOffNote")}
+          </p>
+        ) : null}
       </div>
     );
   }
@@ -101,6 +208,7 @@ function SubscriptionContent() {
 
   return (
     <div className="space-y-4">
+      <LicensingCard entitlement={subscription.licensing} />
       <div className={cn("overflow-hidden rounded-2xl border shadow-sm", isExpired ? "border-slate-200 bg-white" : isActive ? "border-brand-200 bg-white" : "border-amber-200 bg-white")}>
         <div className={cn("flex items-center gap-3 p-4", isExpired ? "bg-slate-50" : isActive ? "bg-brand-50" : "bg-amber-50")}>
           <div className={cn("flex h-12 w-12 shrink-0 items-center justify-center rounded-full", isExpired ? "bg-slate-200 text-slate-600" : isActive ? "bg-brand-600 text-white" : "bg-amber-500 text-white")}>
@@ -136,7 +244,7 @@ function SubscriptionContent() {
       {history && history.length > 0 ? (
         <div className="rounded-xl border border-slate-200 bg-white p-4">
           <h3 className="mb-3 text-sm font-semibold text-slate-900">{t("subscription.activationHistory")}</h3>
-          <div className="space-y-3">{history.map((entry) => (<div key={entry.id} className="border-t border-slate-100 pt-3 first:border-0 first:pt-0"><div className="flex items-center justify-between text-sm"><span className="font-medium text-slate-900">{entry.durationDays} days</span><span className="text-xs text-slate-500">{formatDate(new Date(entry.redeemedAt))}</span></div><div className="mt-1 flex items-center justify-between text-xs text-slate-500"><span>→ {formatDate(new Date(entry.newAccessExpiresAt))}</span></div></div>))}</div>
+          <div className="space-y-3">{history.map((entry) => (<div key={entry.id} className="border-t border-slate-100 pt-3 first:border-0 first:pt-0"><div className="flex items-center justify-between text-sm"><span className="font-medium text-slate-900">{entry.kind === "PREMIUM" ? `${entry.durationDays} days` : entry.kind === "PRODUCT" ? t("licensing.product") : t("licensing.affiliate")}</span><span className="text-xs text-slate-500">{formatDate(new Date(entry.redeemedAt))}</span></div><div className="mt-1 flex items-center justify-between text-xs text-slate-500"><span>→ {formatDate(new Date(entry.newAccessExpiresAt))}</span></div></div>))}</div>
         </div>
       ) : null}
     </div>

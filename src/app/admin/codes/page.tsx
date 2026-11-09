@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import {
   AlertCircle,
   Ban,
@@ -33,7 +34,6 @@ export default function AdminCodesPage() {
   const [adminSecret, setAdminSecret] = useState("");
   const [authenticated, setAuthenticated] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
-  const [duration, setDuration] = useState(30);
   const [maxRedemptions, setMaxRedemptions] = useState(1);
   const [count, setCount] = useState(1);
   const [generated, setGenerated] = useState<GeneratedCode[]>([]);
@@ -86,7 +86,9 @@ export default function AdminCodesPage() {
           "Content-Type": "application/json",
           "x-admin-secret": adminSecret,
         },
-        body: JSON.stringify({ durationDays: duration, maxRedemptions, count }),
+        // Licensing rule: a premium code is always a 30-day period. The
+        // duration is fixed server-side too; sending it here is for clarity.
+        body: JSON.stringify({ durationDays: 30, maxRedemptions, count }),
       });
       const json = await res.json();
       if (json.ok) {
@@ -183,40 +185,36 @@ export default function AdminCodesPage() {
             <h1 className="text-lg font-bold text-slate-900">{t("admin.title")}</h1>
             <p className="mt-0.5 text-xs text-slate-500">{t("admin.subtitle")}</p>
           </div>
-          <button
-            type="button"
-            onClick={lockAdmin}
-            className="flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-slate-600 hover:bg-slate-50"
-          >
-            <LogOut className="h-3.5 w-3.5" />
-            {t("admin.lock")}
-          </button>
+          <div className="flex shrink-0 items-center gap-2">
+            <Link
+              href="/admin/licensing"
+              className="flex items-center gap-1.5 rounded-lg border border-brand-200 bg-brand-50 px-2.5 py-1.5 text-[11px] font-semibold text-brand-700 hover:bg-brand-100"
+            >
+              {t("licensing.adminTitle")}
+            </Link>
+            <button
+              type="button"
+              onClick={lockAdmin}
+              className="flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-slate-600 hover:bg-slate-50"
+            >
+              <LogOut className="h-3.5 w-3.5" />
+              {t("admin.lock")}
+            </button>
+          </div>
         </div>
 
         <div className="rounded-xl border border-slate-200 bg-white p-4">
           <h2 className="mb-3 text-sm font-semibold text-slate-900">
             {t("admin.generateNew")}
           </h2>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 gap-2">
             <div>
-              <label
-                htmlFor="admin-duration"
-                className="mb-1 block text-xs text-slate-500"
-              >
+              <span className="mb-1 block text-xs text-slate-500">
                 {t("admin.duration")}
-              </label>
-              <select
-                id="admin-duration"
-                value={duration}
-                onChange={(event) => setDuration(Number(event.target.value))}
-                className="w-full rounded-lg border border-slate-300 bg-white px-2 py-2 text-sm"
-              >
-                {[7, 15, 30, 60, 90, 180, 365].map((days) => (
-                  <option key={days} value={days}>
-                    {days} {t("admin.days")}
-                  </option>
-                ))}
-              </select>
+              </span>
+              <div className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-2 text-sm text-slate-700">
+                {t("admin.premium30")}
+              </div>
             </div>
             <div>
               <label

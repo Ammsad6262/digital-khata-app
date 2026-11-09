@@ -13,20 +13,27 @@
  * because React never hydrates.
  *
  * RLS CONTEXT:
- *   PostgreSQL RLS is enabled with FORCE on every user-owned business table
- *   (Customer, Product, Sale, SaleItem, Payment, CustomerAdjustment,
- *   StockMove, Expense, Transaction, Setting, UserSubscription,
- *   RedeemCodeRedemption). Each query is filtered by the `app.user_id`
- *   session variable.
+ *   PostgreSQL row-level security is enforced on the user-owned licensing
+ *   tables (`UserSubscription`, `RedeemCodeRedemption`) by the
+ *   `20261109170000_enforce_licensing_rls` migration, which creates a
+ *   restricted role (`khata_app`) and per-user policies keyed on `app.user_id`.
  *
- *   The application MUST set `app.user_id` before any user-scoped query.
- *   The `requireUserId()` and `requireActiveAccess()` helpers in
- *   get-current-user.ts call `setUserContext()` automatically after deriving
- *   the userId from the JWT cookie.
+ *   User-scoped queries go through `withUserRls(userId, fn)`, which runs a
+ *   single transaction as the restricted role:
+ *       SET LOCAL ROLE khata_app;
+ *       SELECT set_config('app.user_id', <userId>, true);
+ *   so the policy (`"userId" = current_setting('app.user_id', true)`) only ever
+ *   returns the caller's own rows. The context is transaction-local, so it is
+ *   safe under connection pooling.
  *
- *   For admin-only operations (e.g. generating redeem codes), the admin
- *   endpoint does NOT set app.user_id — those operations use the rawPrisma
- *   client directly (the postgres role has BYPASSRLS for admin tables).
+ *   Admin/privileged operations use `rawPrisma` (the database owner) and
+ *   intentionally bypass RLS. `setUserContext()` / `withUserContext()` remain
+ *   for backwards compatibility but are no longer the enforcement mechanism.
+ *
+ *   Enforcement requires `LICENSING_RLS_ROLE` to be set (e.g. `khata_app`) AND
+ *   the migration to have created the role; with the variable unset the query
+ *   still runs (on the owner) but is not filtered — matching pre-hardening
+ *   behaviour for installs that have not provisioned the role yet.
  */
 
 import { PrismaClient } from "@prisma/client";
@@ -54,6 +61,19 @@ export { rawPrisma };
 // Export the protected client (wrapped with circuit breaker for read operations)
 // For mutations, use rawPrisma directly inside $transaction
 export const prisma = rawPrisma;
+
+type TxClient = Omit<
+  PrismaClient,
+  "$connect" | "$disconnect" | "$on" | "$transaction" | "$use" | "$extends"
+>;
+
+/**
+ * Restricted role used for user-scoped queries. When set, `withUserRls` enters
+ * this role (`SET LOCAL ROLE`) inside the transaction so RLS applies. When
+ * unset, queries still run but are not RLS-filtered (pre-hardening behaviour).
+ */
+const RLS_ROLE = (process.env.LICENSING_RLS_ROLE ?? "").trim();
+const RLS_ROLE_RE = /^[a-z_][a-z0-9_]*$/i;
 
 /**
  * Set `app.user_id` on the current Prisma connection (session-level).
@@ -107,6 +127,36 @@ export async function withUserContext<T>(
   return rawPrisma.$transaction(async (tx) => {
     const escaped = userId.replace(/'/g, "''");
     await tx.$executeRawUnsafe(`SET LOCAL app.user_id = '${escaped}'`);
+    return fn(tx);
+  });
+}
+
+/**
+ * Run a user-scoped query inside a transaction that is subject to row-level
+ * security, using the transaction-local `app.user_id` context.
+ *
+ * This is the enforcement path for the licensing tables. It is safe under
+ * connection pooling (the SET ROLE / context are scoped to the transaction)
+ * and fails closed: an unset or mismatched context returns no rows.
+ *
+ * Usage:
+ *   const sub = await withUserRls(userId, (tx) =>
+ *     tx.userSubscription.findUnique({ where: { userId } }),
+ *   );
+ */
+export async function withUserRls<T>(
+  userId: string,
+  fn: (tx: TxClient) => Promise<T>,
+): Promise<T> {
+  return rawPrisma.$transaction(async (tx) => {
+    if (RLS_ROLE && RLS_ROLE_RE.test(RLS_ROLE)) {
+      await tx.$executeRawUnsafe(`SET LOCAL ROLE "${RLS_ROLE}"`);
+      await tx.$executeRawUnsafe(`SET LOCAL search_path TO public`);
+    }
+    await tx.$queryRawUnsafe(
+      `SELECT set_config('app.user_id', $1, true)`,
+      userId,
+    );
     return fn(tx);
   });
 }

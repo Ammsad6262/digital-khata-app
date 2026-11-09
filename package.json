@@ -22,7 +22,9 @@
     "test:voice": "tsx scripts/test-voice-assistant.ts",
     "test:voice-recording": "tsx scripts/test-voice-recording.tsx",
     "test:voice-recording:browser": "node scripts/test-voice-recording-browser.mjs",
-    "test:khata": "tsx scripts/test-khata-assistant.ts"
+    "test:khata": "tsx scripts/test-khata-assistant.ts",
+    "test:licensing": "tsx scripts/test-licensing.ts",
+    "test:licensing-rls": "tsx scripts/test-licensing-rls.ts"
   },
   "dependencies": {
     "@google/genai": "^2.28.0",

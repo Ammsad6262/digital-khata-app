@@ -72,10 +72,10 @@ export function GrowthCard() {
       <div className="mt-2.5">
         <p className="flex items-start gap-1.5 text-[13px] font-semibold text-ink">
           <Icon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-brand-600" />
-          <span>{top.title}</span>
+          <span>{top.titleKey ? tParams(top.titleKey, top.titleParams ?? {}) : top.title}</span>
         </p>
         <p className="mt-1 text-[11px] leading-relaxed text-ink-muted">
-          {top.reason}
+          {top.reasonKey ? tParams(top.reasonKey, top.reasonParams ?? {}) : top.reason}
         </p>
         {top.amount ? (
           <p className="mt-1.5 text-[13px] font-semibold text-ink">

@@ -334,7 +334,7 @@ function TransactionRow({
   tx: CustomerTransaction;
   isFirst: boolean;
 }) {
-  const { t } = useLanguage();
+  const { t, tParams } = useLanguage();
   const config = TX_TYPE_CONFIG[tx.type];
   const Icon = config.icon;
 
@@ -356,7 +356,12 @@ function TransactionRow({
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline justify-between gap-2">
           <p className="truncate text-sm font-medium text-ink">
-            {tx.description}
+            {tx.descriptionKey
+              ? tParams(tx.descriptionKey, {
+                  ...(tx.descriptionParams ?? {}),
+                  ...(tx.methodKey ? { method: t(tx.methodKey) } : {}),
+                })
+              : tx.description}
           </p>
           <p className={cn("text-sm font-bold tabular-nums", amountColor)}>
             {amountSign}

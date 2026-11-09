@@ -17,6 +17,7 @@ import { getBusinessInsights } from "@/lib/services/insights";
 import { listOutstandingCustomers } from "@/lib/services/customers";
 import { listProductsWithStock } from "@/lib/services/products";
 import { listSuppliersWithBalance } from "@/lib/services/suppliers";
+import type { TranslationKey } from "@/lib/i18n/translations";
 
 const RANGE_DAYS = 30;
 
@@ -58,12 +59,20 @@ export type GrowthRecommendation = {
   reorder: { productName: string; quantity: string; unit: string } | null;
   /** i18n key for the main button when it is not just "Open". */
   actionLabelKey: string | null;
+  /** i18n key + params for the title (preferred by the UI over `title`). */
+  titleKey?: TranslationKey;
+  titleParams?: Record<string, string | number>;
+  /** i18n key + params for the reason (preferred by the UI over `reason`). */
+  reasonKey?: TranslationKey;
+  reasonParams?: Record<string, string | number>;
 };
 
 export type GrowthPlan = {
   generatedAt: string;
   rangeDays: number;
   summary: string;
+  summaryKey?: TranslationKey;
+  summaryParams?: Record<string, string | number>;
   recommendations: GrowthRecommendation[];
   totals: {
     receivables: string;
@@ -114,10 +123,21 @@ export async function getGrowthPlan(userId: string): Promise<GrowthPlan> {
       type: "collect_receivables",
       priority: isHigh ? "high" : "medium",
       title: `Collect payment from ${customer.name}`,
+      titleKey: "growth.rec.collectTitle",
+      titleParams: { name: customer.name },
       reason:
         share > 0
           ? `${share}% of all receivables${idleDays !== null ? ` · no activity for ${idleDays} days` : ""}.`
           : `Outstanding balance${idleDays !== null ? ` · no activity for ${idleDays} days` : ""}.`,
+      reasonKey:
+        share > 0
+          ? idleDays !== null
+            ? "growth.rec.collectReasonShareIdle"
+            : "growth.rec.collectReasonShare"
+          : idleDays !== null
+            ? "growth.rec.collectReasonOutstandingIdle"
+            : "growth.rec.collectReasonOutstanding",
+      reasonParams: idleDays !== null ? { share, days: idleDays } : { share },
       amount: balance.toString(),
       amountLabel: "growth.amount.outstanding",
       href: `/khata/${customer.id}`,
@@ -137,10 +157,17 @@ export async function getGrowthPlan(userId: string): Promise<GrowthPlan> {
       type: "reengage_customer",
       priority: "medium",
       title: `Re-engage ${customer.name}`,
+      titleKey: "growth.rec.reengageTitle",
+      titleParams: { name: customer.name },
       reason:
         customer.daysInactive === null
           ? "Has a balance but no recorded activity yet."
           : `No purchases for ${customer.daysInactive} days and still owes money.`,
+      reasonKey:
+        customer.daysInactive === null
+          ? "growth.rec.reengageNoActivity"
+          : "growth.rec.reengageInactive",
+      reasonParams: customer.daysInactive === null ? {} : { days: customer.daysInactive },
       amount: customer.balance,
       amountLabel: "growth.amount.outstanding",
       href: `/khata/${customer.id}`,
@@ -208,7 +235,16 @@ export async function getGrowthPlan(userId: string): Promise<GrowthPlan> {
         type: "restock",
         priority: Number(sold) >= 10 ? "high" : "medium",
         title: `Restock ${product.name}`,
+        titleKey: "growth.rec.restockTitle",
+        titleParams: { name: product.name },
         reason: `${sold.toString()} ${product.unit} sold in ${RANGE_DAYS} days · only ${product.currentStock} ${product.unit} left.`,
+        reasonKey: "growth.rec.restockReason",
+        reasonParams: {
+          sold: sold.toString(),
+          unit: product.unit,
+          days: RANGE_DAYS,
+          stock: product.currentStock,
+        },
         amount: null,
         amountLabel: null,
         href: `/stock/add?productId=${product.id}`,
@@ -235,7 +271,11 @@ export async function getGrowthPlan(userId: string): Promise<GrowthPlan> {
       type: "clear_dead_stock",
       priority: value.greaterThanOrEqualTo(5000) ? "medium" : "low",
       title: `Clear dead stock: ${mover.name}`,
+      titleKey: "growth.rec.deadTitle",
+      titleParams: { name: mover.name },
       reason: `No sales in ${RANGE_DAYS} days · ${mover.currentStock} ${mover.unit} sitting in stock.`,
+      reasonKey: "growth.rec.deadReason",
+      reasonParams: { days: RANGE_DAYS, stock: mover.currentStock, unit: mover.unit },
       amount: value.toString(),
       amountLabel: "growth.amount.stockValue",
       href: `/more/products/${mover.id}`,
@@ -257,7 +297,11 @@ export async function getGrowthPlan(userId: string): Promise<GrowthPlan> {
       type: "promote_product",
       priority: "low",
       title: `Push ${product.name} to more customers`,
+      titleKey: "growth.rec.promoteTitle",
+      titleParams: { name: product.name },
       reason: `Top seller: ${product.quantity} ${product.unit} sold in ${RANGE_DAYS} days.`,
+      reasonKey: "growth.rec.promoteReason",
+      reasonParams: { qty: product.quantity, unit: product.unit, days: RANGE_DAYS },
       amount: revenue.toString(),
       amountLabel: "growth.amount.revenue30d",
       href: `/more/products/${product.id}`,
@@ -281,7 +325,13 @@ export async function getGrowthPlan(userId: string): Promise<GrowthPlan> {
       type: "supplier_payment",
       priority: "low",
       title: `Plan a payment to ${topPayable.name}`,
+      titleKey: "growth.rec.supplierPayTitle",
+      titleParams: { name: topPayable.name },
       reason: `Largest supplier balance${payablesTotal.greaterThan(0) ? " on record" : ""}.`,
+      reasonKey: payablesTotal.greaterThan(0)
+        ? "growth.rec.supplierPayReasonRecord"
+        : "growth.rec.supplierPayReason",
+      reasonParams: {},
       amount: topPayable.balance,
       amountLabel: "growth.amount.payable",
       href: `/more/suppliers/${topPayable.id}`,
@@ -308,10 +358,25 @@ export async function getGrowthPlan(userId: string): Promise<GrowthPlan> {
         ? `${highCount} high-priority action${highCount === 1 ? "" : "s"} across ${recommendations.length} total. Start with collections, then restock what is selling.`
         : `${recommendations.length} improvement${recommendations.length === 1 ? "" : "s"} found in the last ${RANGE_DAYS} days.`;
 
+  const summaryKey: TranslationKey =
+    recommendations.length === 0
+      ? "growth.summaryEmpty"
+      : highCount > 0
+        ? "growth.summaryHigh"
+        : "growth.summarySome";
+  const summaryParams: Record<string, string | number> =
+    recommendations.length === 0
+      ? {}
+      : highCount > 0
+        ? { high: highCount, total: recommendations.length }
+        : { count: recommendations.length, days: RANGE_DAYS };
+
   return {
     generatedAt: new Date().toISOString(),
     rangeDays: RANGE_DAYS,
     summary,
+    summaryKey,
+    summaryParams,
     recommendations,
     totals: {
       receivables: receivablesTotal.toString(),

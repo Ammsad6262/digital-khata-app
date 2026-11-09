@@ -2034,6 +2034,38 @@ export const translations = {
   "backup.count.expenses": { en: "Expenses", ur: "اخراجات" },
   "backup.count.transactions": { en: "Transactions", ur: "لین دین" },
   "backup.count.adjustments": { en: "Adjustments", ur: "ایڈجسٹمنٹ" },
+
+  // ─── Growth recommendations (generated in the service) ───
+  "growth.rec.collectTitle": { en: "Collect payment from {name}", ur: "{name} سے ادائیگی وصول کریں" },
+  "growth.rec.collectReasonShare": { en: "{share}% of all receivables.", ur: "کل وصولیوں کا {share}%۔" },
+  "growth.rec.collectReasonShareIdle": { en: "{share}% of all receivables · no activity for {days} days.", ur: "کل وصولیوں کا {share}% · {days} دن سے کوئی سرگرمی نہیں۔" },
+  "growth.rec.collectReasonOutstanding": { en: "Outstanding balance.", ur: "بقایا رقم۔" },
+  "growth.rec.collectReasonOutstandingIdle": { en: "Outstanding balance · no activity for {days} days.", ur: "بقایا رقم · {days} دن سے کوئی سرگرمی نہیں۔" },
+  "growth.rec.reengageTitle": { en: "Re-engage {name}", ur: "{name} سے دوبارہ رابطہ کریں" },
+  "growth.rec.reengageNoActivity": { en: "Has a balance but no recorded activity yet.", ur: "بقایا ہے مگر ابھی کوئی سرگرمی درج نہیں۔" },
+  "growth.rec.reengageInactive": { en: "No purchases for {days} days and still owes money.", ur: "{days} دن سے کوئی خریداری نہیں اور بقایا اب بھی ہے۔" },
+  "growth.rec.restockTitle": { en: "Restock {name}", ur: "{name} کا اسٹاک بھریں" },
+  "growth.rec.restockReason": { en: "{sold} {unit} sold in {days} days · only {stock} {unit} left.", ur: "{days} دن میں {sold} {unit} بکے · صرف {stock} {unit} باقی ہیں۔" },
+  "growth.rec.deadTitle": { en: "Clear dead stock: {name}", ur: "باسی اسٹاک ختم کریں: {name}" },
+  "growth.rec.deadReason": { en: "No sales in {days} days · {stock} {unit} sitting in stock.", ur: "{days} دن میں کوئی فروخت نہیں · {stock} {unit} اسٹاک میں پڑا ہے۔" },
+  "growth.rec.promoteTitle": { en: "Push {name} to more customers", ur: "{name} مزید گاہکوں تک پہنچائیں" },
+  "growth.rec.promoteReason": { en: "Top seller: {qty} {unit} sold in {days} days.", ur: "سب سے زیادہ بکنے والا: {days} دن میں {qty} {unit} بکے۔" },
+  "growth.rec.supplierPayTitle": { en: "Plan a payment to {name}", ur: "{name} کو ادائیگی کا منصوبہ بنائیں" },
+  "growth.rec.supplierPayReason": { en: "Largest supplier balance.", ur: "سب سے بڑا سپلائر بقایا۔" },
+  "growth.rec.supplierPayReasonRecord": { en: "Largest supplier balance on record.", ur: "ریکارڈ میں سب سے بڑا سپلائر بقایا۔" },
+  "growth.summaryEmpty": { en: "No actions yet — record a few sales, purchases and payments first. Recommendations only appear when your own records support them.", ur: "ابھی کوئی تجویز نہیں — پہلے کچھ فروخت، خریداری اور ادائیگیاں درج کریں۔ تجاویز صرف اُس وقت آتی ہیں جب آپ کے اپنے ریکارڈ سے ثابت ہوں۔" },
+  "growth.summaryHigh": { en: "{high} high-priority actions across {total} total. Start with collections, then restock what is selling.", ur: "{total} میں سے {high} اعلیٰ ترجیحی اقدامات۔ پہلے وصولیاں، پھر جو بک رہا ہے اُس کا اسٹاک بھریں۔" },
+  "growth.summarySome": { en: "{count} improvements found in the last {days} days.", ur: "پچھلے {days} دن میں {count} بہتری کے مواقع ملے۔" },
+
+  // ─── Customer ledger descriptions ───
+  "ledger.sale": { en: "Sale of {amount}", ur: "{amount} کی فروخت" },
+  "ledger.paymentForSale": { en: "Payment for sale", ur: "فروخت کی ادائیگی" },
+  "ledger.paymentReceived": { en: "Payment received ({method})", ur: "ادائیگی موصول ({method})" },
+  "ledger.opening": { en: "Opening balance", ur: "ابتدائی بقایا" },
+
+  // ─── Follow-up candidate evidence (generated in the service) ───
+  "followUps.reason.reorder": { en: "Bought this {count} times — usually every {avg} days, last one {since} days ago.", ur: "یہ {count} بار خریدا — عام طور پر ہر {avg} دن، آخری بار {since} دن پہلے۔" },
+  "followUps.reason.inactive": { en: "Used to buy about every {avg} days — nothing recorded for {since} days.", ur: "عام طور پر ہر {avg} دن خریدتے تھے — {since} دن سے کچھ درج نہیں۔" },
 } as const;
 
 export type TranslationKey = keyof typeof translations;

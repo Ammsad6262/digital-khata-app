@@ -162,7 +162,7 @@ function CandidateCard({ candidate }: { candidate: FollowUpCandidate }) {
         )}
       </div>
 
-      <p className="mt-2 text-xs leading-relaxed text-ink-muted">{candidate.reason}</p>
+      <p className="mt-2 text-xs leading-relaxed text-ink-muted">{candidate.reasonKey ? tParams(candidate.reasonKey, candidate.reasonParams ?? {}) : candidate.reason}</p>
 
       {candidate.averageIntervalDays ? (
         <p className="mt-0.5 text-[11px] text-ink-faint">

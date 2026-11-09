@@ -109,11 +109,16 @@ export default function RootLayout({
   return (
     <html
       lang="en"
+      translate="no"
       data-theme="ink"
       className={`${jakarta.variable} ${urduFont.variable}`}
       suppressHydrationWarning
     >
       <head>
+        {/* Never let the browser machine-translate the interface. The app
+            ships its own Urdu; auto-translation mangles it back into bad
+            English (e.g. the brand "دکھاتہ" becomes "Show"). */}
+        <meta name="google" content="notranslate" />
         <script dangerouslySetInnerHTML={{ __html: initScript }} />
       </head>
       <body>

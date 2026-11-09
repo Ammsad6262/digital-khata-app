@@ -73,7 +73,7 @@ function RecommendationCard({ item }: { item: GrowthRecommendation }) {
         <div className="min-w-0 flex-1">
           <Link href={item.href} className="block">
             <div className="flex items-start justify-between gap-2">
-              <p className="text-sm font-semibold text-ink">{item.title}</p>
+              <p className="text-sm font-semibold text-ink">{item.titleKey ? tParams(item.titleKey, item.titleParams ?? {}) : item.title}</p>
               <span
                 className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${PRIORITY_STYLE[item.priority]}`}
               >
@@ -81,7 +81,7 @@ function RecommendationCard({ item }: { item: GrowthRecommendation }) {
               </span>
             </div>
 
-            <p className="mt-0.5 text-xs text-ink-subtle">{item.reason}</p>
+            <p className="mt-0.5 text-xs text-ink-subtle">{item.reasonKey ? tParams(item.reasonKey, item.reasonParams ?? {}) : item.reason}</p>
 
             {item.amount ? (
               <p className="mt-1.5 text-sm font-semibold text-ink">
@@ -124,7 +124,7 @@ function RecommendationCard({ item }: { item: GrowthRecommendation }) {
 }
 
 export function GrowthView() {
-  const { t } = useLanguage();
+  const { t, tParams } = useLanguage();
   const { data, isLoading, isError, refetch } = useGrowthPlan();
 
   const narration = useMutation<Narration>({
@@ -174,7 +174,7 @@ export function GrowthView() {
           </span>
           <div className="min-w-0">
             <h2 className="text-sm font-semibold text-ink">{t("growth.subtitle")}</h2>
-            <p className="mt-1 text-sm leading-relaxed text-ink-muted">{data.summary}</p>
+            <p className="mt-1 text-sm leading-relaxed text-ink-muted">{data.summaryKey ? tParams(data.summaryKey, data.summaryParams ?? {}) : data.summary}</p>
           </div>
         </div>
 

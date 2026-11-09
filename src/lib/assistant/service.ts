@@ -760,6 +760,7 @@ export async function handleMessage(
   let requestsUsed = 0;
   let model: string | undefined;
   let aiMs: number | undefined;
+  let aiSummary: string | null = null;
   let source: "rules" | "ai" = "rules";
 
   const ctx = await loadRouterContext(userId);
@@ -797,6 +798,7 @@ export async function handleMessage(
       requestsUsed += ai.requestsUsed;
       model = ai.model;
       aiMs = ai.ms;
+      aiSummary = ai.summary;
       if (ai.transcript && !transcript) transcript = ai.transcript;
       if (ai.match) {
         match = ai.match;
@@ -915,6 +917,10 @@ export async function handleMessage(
   if (finalMatch.type === "action") {
     const build = await buildPlanFor(userId, finalMatch, ctx, symbol);
     if ("kind" in build) return build;
+
+    // When the model understood the command, use its localized one-line
+    // summary so an Urdu/Pashto owner sees the confirmation in their language.
+    if (source === "ai" && aiSummary) build.summary = aiSummary;
 
     const stored = await storePlan(userId, build, text || transcript || "");
     if (build.usedContext || stored.payload.customerId || stored.payload.supplierId || stored.payload.productId) {

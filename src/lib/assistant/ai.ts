@@ -78,6 +78,7 @@ const assistantSchema = z.object({
 
   entity: text(200),
   clarificationQuestion: text(300),
+  summary: text(400),
   transcript: text(2000),
   confidence: z.number().min(0).max(1).catch(0.6).default(0.6),
 });
@@ -86,6 +87,8 @@ export type AssistantAiResult = {
   match: RouteMatch | null;
   transcript: string | null;
   clarification: string | null;
+  /** A short one-line confirmation of the action, in the user's language. */
+  summary: string | null;
   model: string;
   requestsUsed: number;
   ms: number;
@@ -142,6 +145,7 @@ Rules:
 - Pashto: "احمد ۵۰۰۰ روپۍ راکړل" → RECORD_PAYMENT, customerName احمد, paidAmount 5000.
 - Pashto: "د وريجو ذخيره څو ده؟" → query STOCK_LEVEL, entity وريجې.
 - Prefer returning a complete action over "clarify": only ask a clarification when a genuinely required entity (customer, product, or amount) cannot be found anywhere in the sentence.
+- summary: for an action, a short one-line confirmation written in the SAME language and script as the user (Urdu → "احمد کو ۲۵ کلو چاول فروخت", Pashto → "احمد ته ۲۵ کيلو وريجې وپلورلې", English → "Sell 25 kg rice to Ahmed"). For a query, null.
 - Reply language: write clarificationQuestion in the SAME language and script the user used — Urdu script for Urdu, Pashto script for Pashto, Roman Urdu for Roman Urdu, English for English. If the language hint says "ps" or the text contains Pashto letters (ګ ځ څ ښ ډ ړ ږ ڼ ې ۍ), reply in Pashto. Never translate names, products, or amounts into another language.
 ${language ? `- The client detected the spoken language as: ${language}. Use it only to choose the reply language; if the text clearly says otherwise, trust the text.` : ""}
 
@@ -173,6 +177,7 @@ const RESPONSE_SCHEMA = {
     reminderInDays: { type: "number", nullable: true },
     entity: { type: "string", nullable: true },
     clarificationQuestion: { type: "string", nullable: true },
+    summary: { type: "string", nullable: true },
     transcript: { type: "string", nullable: true },
     confidence: { type: "number" },
   },
@@ -265,6 +270,7 @@ export async function aiUnderstand(
     match: toMatch(value),
     transcript: value.transcript ?? null,
     clarification: value.clarificationQuestion ?? null,
+    summary: value.summary ?? null,
     model,
     requestsUsed: attempts,
     ms,

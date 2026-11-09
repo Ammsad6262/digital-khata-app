@@ -13,19 +13,12 @@ import { z } from "zod";
 export const phoneSchema = z
   .string()
   .trim()
-  .nullable()
+  .min(7, "Phone must be at least 7 digits.")
+  .max(20, "Phone must be at most 20 characters.")
+  .regex(/^[0-9+\-\s]+$/, "Phone can only contain digits, +, -, and spaces.")
   .optional()
-  // Treat an empty / whitespace-only field as "no phone" BEFORE the length and
-  // format checks, so the field labelled optional really is optional.
-  .transform((v) => (v === null || v === undefined || v.length === 0 ? null : v))
-  .pipe(
-    z
-      .string()
-      .min(7, "Phone must be at least 7 digits.")
-      .max(20, "Phone must be at most 20 characters.")
-      .regex(/^[0-9+\-\s]+$/, "Phone can only contain digits, +, -, and spaces.")
-      .nullable(),
-  );
+  .nullable()
+  .transform((v) => (v && v.trim().length > 0 ? v.trim() : null));
 
 export const createCustomerSchema = z.object({
   name: z.string().trim().min(1, "Name is required.").max(100),

@@ -19,6 +19,7 @@ import { invalidateCache } from "@/lib/utils/cache";
 import { Decimal, toDecimalOrZero } from "@/lib/utils/decimal";
 import { listOutstandingCustomers } from "@/lib/services/customers";
 import { recordAudit } from "@/lib/services/audit";
+import type { TranslationKey } from "@/lib/i18n/translations";
 
 export const FOLLOW_UP_OUTCOMES = [
   "pending",
@@ -67,6 +68,9 @@ export type FollowUpCandidate = {
   averageIntervalDays: number | null;
   /** One line of evidence, in plain words. */
   reason: string;
+  /** i18n key + params for the evidence line (preferred by the UI). */
+  reasonKey?: TranslationKey;
+  reasonParams?: Record<string, string | number>;
   /** An open follow-up already exists for this customer/product. */
   existingFollowUpId: string | null;
 };
@@ -266,6 +270,8 @@ export async function getFollowUpCandidates(userId: string): Promise<FollowUpCan
       daysSinceLastPurchase: sinceLast,
       averageIntervalDays: Math.round(average),
       reason: `Bought this ${dates.length} time${dates.length === 1 ? "" : "s"} — usually every ${Math.round(average)} days, last one ${sinceLast} days ago.`,
+      reasonKey: "followUps.reason.reorder",
+      reasonParams: { count: dates.length, avg: Math.round(average), since: sinceLast },
       existingFollowUpId: openKey.get(key) ?? null,
     });
   }
@@ -306,6 +312,8 @@ export async function getFollowUpCandidates(userId: string): Promise<FollowUpCan
       daysSinceLastPurchase: sinceLast,
       averageIntervalDays: Math.round(average),
       reason: `Used to buy about every ${Math.round(average)} days — nothing recorded for ${sinceLast} days.`,
+      reasonKey: "followUps.reason.inactive",
+      reasonParams: { avg: Math.round(average), since: sinceLast },
       existingFollowUpId: openKey.get(`${customerId}:*`) ?? null,
     });
   }

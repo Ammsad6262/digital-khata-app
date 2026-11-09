@@ -41,9 +41,9 @@ export function ShareReceipt({
   }
 
   return (
-    <section className="rounded-xl border border-slate-200 bg-white p-3.5">
-      <p className="text-sm font-semibold text-slate-900">{t("receipt.shareTitle")}</p>
-      <p className="mt-0.5 text-xs text-slate-500">
+    <section className="rounded-card border border-line bg-surface shadow-card p-3.5">
+      <p className="text-sm font-semibold text-ink">{t("receipt.shareTitle")}</p>
+      <p className="mt-0.5 text-xs text-ink-subtle">
         {waHref ? t("receipt.shareHint") : t("statement.needsPhone")}
       </p>
 
@@ -53,7 +53,7 @@ export function ShareReceipt({
             href={waHref}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 active:scale-[0.97]"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-success/20 bg-success-soft px-3 py-2 text-xs font-semibold text-success-ink hover:bg-success-soft active:scale-[0.97]"
           >
             <MessageCircle className="h-3.5 w-3.5" />
             {t("statement.sendWhatsApp")}
@@ -63,7 +63,7 @@ export function ShareReceipt({
         <button
           type="button"
           onClick={copy}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 active:scale-[0.97]"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-surface px-3 py-2 text-xs font-semibold text-ink-muted hover:bg-app active:scale-[0.97]"
         >
           {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
           {copied ? t("statement.copied") : t("statement.copy")}
@@ -72,7 +72,7 @@ export function ShareReceipt({
         {printHref ? (
           <Link
             href={printHref}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 active:scale-[0.97]"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-surface px-3 py-2 text-xs font-semibold text-ink-muted hover:bg-app active:scale-[0.97]"
           >
             <Printer className="h-3.5 w-3.5" />
             {t("receipt.print")}

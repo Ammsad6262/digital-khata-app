@@ -30,16 +30,12 @@ export interface ApiError {
   error: {
     code: string;
     message: string;
-    /** True if `message` is a translation key the frontend can re-translate. */
+    /** The original translation key, so the client can re-translate. */
+    messageKey?: string;
+    /** True if `message` was resolved from a translation key. */
     translationKey?: boolean;
     /** Translation params for placeholder substitution. */
     params?: Record<string, string | number>;
-    /**
-     * The original translation key, when the message came from one. `message`
-     * is the English text (already interpolated for plain-English consumers);
-     * this lets the client re-translate parameterised messages to Urdu.
-     */
-    messageKey?: string;
     details?: unknown;
   };
 }
@@ -61,23 +57,17 @@ export function created<T>(data: T): NextResponse<ApiSuccess<T>> {
  */
 function resolveError(error: AppError): {
   message: string;
+  messageKey?: string;
   translationKey: boolean;
   params?: Record<string, string | number>;
-  messageKey?: string;
 } {
   const message = error.message || "";
   const looksLikeKey = message.includes(".") && !/\s/.test(message);
   if (looksLikeKey) {
-    // Resolve to English (server-side) for any consumer that reads
-    // `message` directly, but also send the key so the client can
-    // re-translate parameterised messages correctly.
+    // Resolve to English (server-side) and also return the KEY so the client
+    // can re-translate into the user's selected language.
     const english = tServer(message as never, error.params, "en");
-    return {
-      message: english,
-      translationKey: true,
-      params: error.params,
-      messageKey: message,
-    };
+    return { message: english, messageKey: message, translationKey: true, params: error.params };
   }
   // Plain English message (legacy or dynamic).
   return { message, translationKey: false };
@@ -87,16 +77,16 @@ function resolveError(error: AppError): {
 export function fail(error: unknown): NextResponse<ApiError> {
   // Known application error
   if (error instanceof AppError) {
-    const { message, translationKey, params, messageKey } = resolveError(error);
+    const { message, messageKey, translationKey, params } = resolveError(error);
     return NextResponse.json(
       {
         ok: false,
         error: {
           code: error.code,
           message,
+          messageKey,
           translationKey,
           params,
-          messageKey,
           details: error.details,
         },
       },
@@ -106,16 +96,16 @@ export function fail(error: unknown): NextResponse<ApiError> {
   // Zod validation error
   if (error instanceof ZodError) {
     const validationError = new ValidationError(error.issues);
-    const { message, translationKey, params, messageKey } = resolveError(validationError);
+    const { message, messageKey, translationKey, params } = resolveError(validationError);
     return NextResponse.json(
       {
         ok: false,
         error: {
           code: validationError.code,
           message,
+          messageKey,
           translationKey,
           params,
-          messageKey,
           details: validationError.details,
         },
       },
@@ -132,8 +122,8 @@ export function fail(error: unknown): NextResponse<ApiError> {
           error: {
             code: ErrorCode.CONFLICT,
             message: tServer("api.errors.conflict"),
-            translationKey: true,
             messageKey: "api.errors.conflict",
+            translationKey: true,
           },
         },
         { status: 409 },
@@ -146,8 +136,8 @@ export function fail(error: unknown): NextResponse<ApiError> {
           error: {
             code: ErrorCode.NOT_FOUND,
             message: tServer("api.errors.recordNotFound"),
-            translationKey: true,
             messageKey: "api.errors.recordNotFound",
+            translationKey: true,
           },
         },
         { status: 404 },
@@ -162,8 +152,8 @@ export function fail(error: unknown): NextResponse<ApiError> {
       error: {
         code: ErrorCode.INTERNAL,
         message: tServer("api.errors.internal"),
-        translationKey: true,
         messageKey: "api.errors.internal",
+        translationKey: true,
       },
     },
     { status: 500 },

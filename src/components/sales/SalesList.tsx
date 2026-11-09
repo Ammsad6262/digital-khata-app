@@ -13,7 +13,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { AlertCircle, ShoppingCart, Receipt, Plus, Sparkles, ArrowRight, Calendar, CalendarDays, CalendarRange, LayoutGrid, Search, X } from "lucide-react";
+import { AlertCircle, ShoppingCart, Receipt, Plus, ArrowRight, Calendar, CalendarDays, CalendarRange, LayoutGrid, Search, X } from "lucide-react";
 import { useSalesList } from "@/hooks/use-sales";
 import type { SaleFilter } from "@/lib/services/sales";
 import { EmptyState } from "@/components/shared/EmptyState";
@@ -25,7 +25,6 @@ import { formatDate, formatTime } from "@/lib/utils/date";
 import { formatMoney } from "@/lib/utils/money";
 import { cn } from "@/lib/utils/cn";
 import { useLanguage } from "@/providers/language-provider";
-import { useCurrencySymbol } from "@/hooks/use-currency-symbol";
 import type { TranslationKey } from "@/lib/i18n/translations";
 
 const FILTERS: Array<{
@@ -107,7 +106,7 @@ export function SalesList() {
                   "flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
                   filter === f.value
                     ? "bg-brand-600 text-white"
-                    : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50",
+                    : "bg-surface text-ink-muted border border-line hover:bg-app",
                 )}
               >
                 <Icon className="h-3.5 w-3.5" />
@@ -119,21 +118,21 @@ export function SalesList() {
 
         {/* Search by customer, phone, or sale ID */}
         <div className="relative">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-faint" />
           <input
             type="search"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder={t("sale.searchListPlaceholder")}
             aria-label={t("sale.searchListPlaceholder")}
-            className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-9 pr-9 text-sm text-slate-900 placeholder:text-slate-400 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
+            className="w-full rounded-lg border border-line bg-surface py-2 pl-9 pr-9 text-sm text-ink placeholder:text-ink-faint focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
           />
           {search ? (
             <button
               type="button"
               onClick={() => setSearch("")}
               aria-label={t("common.clearSearchAria")}
-              className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+              className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-ink-faint hover:bg-surface-2 hover:text-ink-muted"
             >
               <X className="h-4 w-4" />
             </button>
@@ -153,8 +152,8 @@ export function SalesList() {
                 className={cn(
                   "shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
                   active
-                    ? "border-slate-900 bg-slate-900 text-white"
-                    : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50",
+                    ? "border-brand-700 bg-brand-700 text-white"
+                    : "border-line bg-surface text-ink-muted hover:bg-app",
                 )}
               >
                 {t(item.labelKey)}
@@ -165,19 +164,19 @@ export function SalesList() {
 
       {/* Summary */}
       {filtered.length > 0 ? (
-        <div className="rounded-xl border border-slate-200 bg-white p-3">
+        <div className="rounded-card border border-line bg-surface shadow-card p-3">
           <div className="flex items-center justify-between text-xs">
-            <span className="text-slate-500">
+            <span className="text-ink-subtle">
               {summary.count} {t("transactions.sales")}
             </span>
-            <span className="font-medium text-slate-700">
+            <span className="font-medium text-ink-muted">
               {t("expense.total")} <Money value={summary.total.toString()} />
             </span>
           </div>
           {summary.outstanding.gt(0) ? (
-            <div className="mt-1 flex items-center justify-between border-t border-slate-100 pt-1 text-xs">
-              <span className="text-slate-500">{t("customer.outstandingBalance")}</span>
-              <span className="font-medium text-red-600">
+            <div className="mt-1 flex items-center justify-between border-t border-line pt-1 text-xs">
+              <span className="text-ink-subtle">{t("customer.outstandingBalance")}</span>
+              <span className="font-medium text-danger-ink">
                 <Money value={summary.outstanding.toString()} />
               </span>
             </div>
@@ -220,7 +219,7 @@ export function SalesList() {
           }
         />
       ) : (
-        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+        <div className="overflow-hidden rounded-card border border-line bg-surface shadow-card">
           {filtered.map((sale, idx) => (
             <SaleRow key={sale.id} sale={sale} isFirst={idx === 0} />
           ))}
@@ -249,7 +248,6 @@ function SaleRow({
   isFirst: boolean;
 }) {
   const { t } = useLanguage();
-  const symbol = useCurrencySymbol();
   const outstanding = new Decimal(sale.outstanding);
   const hasOutstanding = outstanding.gt(0);
 
@@ -257,8 +255,8 @@ function SaleRow({
     <Link
       href={`/sales/${sale.id}`}
       className={cn(
-        "flex items-center gap-3 px-3 py-3 hover:bg-slate-50 active:bg-slate-100",
-        !isFirst && "border-t border-slate-100",
+        "flex items-center gap-3 px-3 py-3 hover:bg-app active:bg-surface-2",
+        !isFirst && "border-t border-line",
       )}
     >
       <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-50">
@@ -266,26 +264,26 @@ function SaleRow({
       </div>
 
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium text-slate-900">
+        <p className="truncate text-sm font-medium text-ink">
           {sale.customerName}
         </p>
-        <p className="text-[11px] text-slate-500">
+        <p className="text-[11px] text-ink-subtle">
           {formatDate(new Date(sale.date))} · {formatTime(new Date(sale.date))} ·{" "}
-          <span className="font-mono text-[10px] text-slate-400">
+          <span className="font-mono text-[10px] text-ink-faint">
             #{sale.id.slice(-6).toUpperCase()}
           </span>
         </p>
       </div>
 
       <div className="shrink-0 text-right">
-        <p className="text-sm font-bold tabular-nums text-slate-900">
-          {formatMoney(sale.totalAmount, symbol)}
+        <p className="text-sm font-bold tabular-nums text-ink">
+          {formatMoney(sale.totalAmount)}
         </p>
         {hasOutstanding ? (
           <p
             className={cn(
               "text-[11px] font-medium",
-              sale.isOverdue ? "text-red-700" : "text-red-600",
+              sale.isOverdue ? "text-danger-ink" : "text-danger-ink",
             )}
           >
             <Money value={outstanding.toString()} />{" "}
@@ -302,22 +300,22 @@ function SaleRow({
 function SalesListSkeleton() {
   return (
     <div className="space-y-2">
-      <div className="h-16 animate-pulse rounded-xl bg-slate-200" />
-      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+      <div className="h-16 animate-pulse rounded-xl bg-surface-2" />
+      <div className="overflow-hidden rounded-card border border-line bg-surface shadow-card">
         {[0, 1, 2, 3, 4].map((i) => (
           <div
             key={i}
             className={cn(
               "flex items-center gap-3 px-3 py-3",
-              i > 0 && "border-t border-slate-100",
+              i > 0 && "border-t border-line",
             )}
           >
-            <div className="h-10 w-10 animate-pulse rounded-lg bg-slate-200" />
+            <div className="h-10 w-10 animate-pulse rounded-lg bg-surface-2" />
             <div className="flex-1 space-y-1.5">
-              <div className="h-3.5 w-32 animate-pulse rounded bg-slate-200" />
-              <div className="h-2.5 w-24 animate-pulse rounded bg-slate-100" />
+              <div className="h-3.5 w-32 animate-pulse rounded bg-surface-2" />
+              <div className="h-2.5 w-24 animate-pulse rounded bg-surface-2" />
             </div>
-            <div className="h-3 w-16 animate-pulse rounded bg-slate-200" />
+            <div className="h-3 w-16 animate-pulse rounded bg-surface-2" />
           </div>
         ))}
       </div>
@@ -343,13 +341,13 @@ function EmptySalesState({ filter }: { filter: SaleFilter }) {
   const isAllFilter = filter === "all";
 
   return (
-    <div className="flex flex-col items-center justify-center rounded-2xl border border-slate-100 bg-white px-6 py-12 text-center shadow-sm">
+    <div className="flex flex-col items-center justify-center rounded-2xl border border-line bg-surface px-6 py-12 text-center shadow-card">
       {/* Receipt illustration with green circle + badge + sparkles */}
       <div className="relative mb-5">
         {/* Sparkle accents around the illustration */}
-        <Sparkles className="absolute -left-4 -top-2 h-4 w-4 text-brand-300" aria-hidden />
-        <Sparkles className="absolute -right-3 top-1 h-3 w-3 text-brand-200" aria-hidden />
-        <Sparkles className="absolute -right-5 top-6 h-2.5 w-2.5 text-brand-200" aria-hidden />
+       
+       
+       
 
         {/* Main icon container — light green circle with a receipt icon */}
         <div className="flex h-20 w-20 items-center justify-center rounded-full bg-brand-50">
@@ -357,16 +355,16 @@ function EmptySalesState({ filter }: { filter: SaleFilter }) {
         </div>
 
         {/* Solid green circle + white "+" badge at bottom-right of the icon */}
-        <div className="absolute bottom-1 right-1 flex h-7 w-7 items-center justify-center rounded-full border-2 border-white bg-brand-600 text-white shadow-sm">
+        <div className="absolute bottom-1 end-1 flex h-7 w-7 items-center justify-center rounded-full border-2 border-surface bg-brand-600 text-white shadow-card">
           <Plus className="h-4 w-4" strokeWidth={3} />
         </div>
       </div>
 
       {/* Heading + description */}
-      <h3 className="text-base font-semibold text-slate-900">
+      <h3 className="text-base font-semibold text-ink">
         {isAllFilter ? t("sale.noSales") : t("sale.noSalesPeriod")}
       </h3>
-      <p className="mt-1.5 max-w-xs text-sm text-slate-500">
+      <p className="mt-1.5 max-w-xs text-sm text-ink-subtle">
         {isAllFilter ? t("sale.noSalesDesc") : t("sale.noSalesPeriodDesc")}
       </p>
 

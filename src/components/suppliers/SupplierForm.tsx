@@ -13,7 +13,6 @@ import { Button } from "@/components/ui/Button";
 import { TextField } from "@/components/ui/TextField";
 import { useToast } from "@/providers/toast-provider";
 import { useLanguage } from "@/providers/language-provider";
-import { userMessage } from "@/lib/i18n/message";
 import { useCreateSupplier, useSupplier, useUpdateSupplier } from "@/hooks/use-suppliers";
 
 export function SupplierForm({
@@ -25,7 +24,7 @@ export function SupplierForm({
 }) {
   const router = useRouter();
   const toast = useToast();
-  const { t, tParams } = useLanguage();
+  const { t } = useLanguage();
 
   const { data: existing, isLoading } = useSupplier(mode === "edit" ? supplierId : null);
   const createMutation = useCreateSupplier();
@@ -54,13 +53,13 @@ export function SupplierForm({
 
   function validate(): boolean {
     const next: Record<string, string> = {};
-    if (!name.trim()) next.name = t("supplier.nameRequired");
+    if (!name.trim()) next.name = t("common.required");
     if (mode === "create") {
       const n = Number(openingBalance);
-      if (!Number.isFinite(n)) next.openingBalance = t("supplier.openingBalanceInvalid");
+      if (!Number.isFinite(n)) next.openingBalance = t("common.error");
     }
     if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
-      next.email = t("supplier.emailInvalid");
+      next.email = t("common.error");
     }
     setErrors(next);
     return Object.keys(next).length === 0;
@@ -92,12 +91,12 @@ export function SupplierForm({
       router.push("/more/suppliers");
       router.refresh();
     } catch (err) {
-      toast.error(userMessage(err, t, tParams));
+      toast.error(err instanceof Error ? err.message : t("common.failed"));
     }
   }
 
   if (mode === "edit" && isLoading) {
-    return <p className="py-8 text-center text-sm text-slate-500">{t("common.loading")}</p>;
+    return <p className="py-8 text-center text-sm text-ink-subtle">{t("common.loading")}</p>;
   }
 
   return (
@@ -145,7 +144,7 @@ export function SupplierForm({
         />
       ) : null}
       <div className="space-y-1">
-        <label htmlFor="supplier-notes" className="block text-sm font-medium text-slate-700">
+        <label htmlFor="supplier-notes" className="block text-sm font-medium text-ink-muted">
           {t("common.notes")}
         </label>
         <textarea
@@ -153,7 +152,7 @@ export function SupplierForm({
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           rows={3}
-          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/40"
+          className="w-full rounded-lg border border-line-strong bg-surface px-3 py-2.5 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/40"
         />
       </div>
 

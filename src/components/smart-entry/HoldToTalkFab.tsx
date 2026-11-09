@@ -294,12 +294,12 @@ export function HoldToTalkFab({
       {/* ── Compact recording pill (appears above the FAB) ──────────────────── */}
       {(isActive || isProcessing || isError) && (
         <div
-          className="fixed bottom-[9rem] z-[35] flex items-center gap-2 rounded-full bg-slate-900 px-4 py-2 shadow-lg"
+          className="fixed bottom-[9rem] z-[35] flex items-center gap-2 rounded-full bg-brand-700 px-4 py-2 shadow-lg"
           style={{ right: "max(1rem, calc((100vw - 1024px) / 2 + 1rem))" }}
         >
           {isError ? (
             <>
-              <AlertCircle className="h-4 w-4 text-red-400" />
+              <AlertCircle className="h-4 w-4 text-danger" />
               <span className="text-xs font-medium text-white">
                 {recorder.state === "denied" ? t("smartentry.recording.micDeniedShort") : t("smartentry.recording.error")}
               </span>
@@ -316,7 +316,7 @@ export function HoldToTalkFab({
               <button
                 type="button"
                 onClick={doCancelRecording}
-                className="ml-2 flex items-center gap-1 rounded-full bg-white/20 px-2.5 py-1 text-xs font-semibold text-white hover:bg-white/30"
+                className="ml-2 flex items-center gap-1 rounded-full bg-surface/20 px-2.5 py-1 text-xs font-semibold text-white hover:bg-surface/30"
               >{t("smartentry.action.cancel")}</button>
               <button
                 type="button"
@@ -326,7 +326,7 @@ export function HoldToTalkFab({
             </>
           ) : (
             <>
-              <span className="h-2.5 w-2.5 rounded-full bg-red-500" style={{ animation: "rec-blink 1s infinite" }} />
+              <span className="h-2.5 w-2.5 rounded-full bg-danger" style={{ animation: "rec-blink 1s infinite" }} />
               <span className="font-mono text-sm font-bold text-white">{fmt(duration)}</span>
               <span className="text-xs text-white/60 flex items-center gap-0.5">
                 <ArrowUp className="h-3 w-3" /> {t("smartentry.recording.lockHintShort")}
@@ -348,12 +348,12 @@ export function HoldToTalkFab({
         className={cn(
           "fixed bottom-[5.5rem] z-30 flex h-16 w-16 touch-none select-none items-center justify-center rounded-full text-white shadow-xl transition-transform",
           isRecording
-            ? "bg-red-500 shadow-red-500/40 scale-110"
+            ? "bg-danger shadow-danger/40 scale-110"
             : isLocked
-            ? "bg-amber-600 shadow-amber-600/40"
+            ? "bg-warning shadow-warning/40"
             : isHolding
             ? "bg-brand-700 shadow-brand-700/40 scale-95"
-            : "bg-gradient-to-br from-brand-600 via-brand-700 to-purple-700 shadow-brand-600/40 hover:scale-110 active:scale-95",
+            : "bg-gradient-to-br from-brand-600 via-brand-700 to-accent-700 shadow-brand-600/40 hover:scale-110 active:scale-95",
         )}
         style={{
           right: "max(1rem, calc((100vw - 1024px) / 2 + 1rem))",
@@ -369,7 +369,7 @@ export function HoldToTalkFab({
         {/* Pulse ring */}
         {isRecording ? (
           <span
-            className="absolute inset-0 rounded-full bg-red-500/40"
+            className="absolute inset-0 rounded-full bg-danger/40"
             style={{ animation: "smart-mic-pulse 1.5s ease-out infinite" }}
             aria-hidden
           />
@@ -383,7 +383,7 @@ export function HoldToTalkFab({
 
         {/* Sparkles badge (only when idle) */}
         {!isActive && !isProcessing && !isError ? (
-          <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-amber-400 text-white shadow-sm ring-2 ring-white">
+          <span className="absolute -end-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-warning text-white shadow-card ring-2 ring-white">
             <Sparkles className="h-3 w-3" />
           </span>
         ) : null}

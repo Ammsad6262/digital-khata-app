@@ -15,7 +15,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { Search, X, Package, AlertTriangle, Plus, PackageCheck, PackageX, Sparkles } from "lucide-react";
+import { Search, X, Package, AlertTriangle, Plus, PackageCheck, PackageX } from "lucide-react";
 import { useProductsWithStock, useProductSearch } from "@/hooks/use-products";
 import type { ProductWithStock } from "@/lib/services/products";
 import { EmptyState } from "@/components/shared/EmptyState";
@@ -86,24 +86,24 @@ export function StockOverview() {
     <div className="space-y-3">
       {/* Stock valuation — same method as the reports page */}
       {allProducts && allProducts.length > 0 ? (
-        <div className="rounded-xl border border-slate-200 bg-white p-3.5">
+        <div className="rounded-card border border-line bg-surface shadow-card p-3.5">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <p className="text-xs font-medium text-slate-500">{t("stock.stockValue")}</p>
-              <p className="mt-0.5 text-xl font-bold tabular-nums text-slate-900">
+              <p className="text-xs font-medium text-ink-subtle">{t("stock.stockValue")}</p>
+              <p className="mt-0.5 text-xl font-bold tabular-nums text-ink">
                 <Money value={valuation.value} symbol={symbol} />
               </p>
-              <p className="mt-0.5 text-[11px] text-slate-500">{t("stock.stockValueHint")}</p>
+              <p className="mt-0.5 text-[11px] text-ink-subtle">{t("stock.stockValueHint")}</p>
             </div>
             <Link
               href="/more/reports"
-              className="shrink-0 rounded-lg border border-slate-200 px-2.5 py-1.5 text-[11px] font-semibold text-slate-600 hover:bg-slate-50"
+              className="shrink-0 rounded-lg border border-line px-2.5 py-1.5 text-[11px] font-semibold text-ink-muted hover:bg-app"
             >
               {t("stock.viewReport")}
             </Link>
           </div>
           {valuation.unvaluedProducts > 0 ? (
-            <p className="mt-2 rounded-lg bg-amber-50 px-2.5 py-1.5 text-[11px] leading-relaxed text-amber-800">
+            <p className="mt-2 rounded-lg bg-warning-soft px-2.5 py-1.5 text-[11px] leading-relaxed text-warning-ink">
               {tParams(
                 valuation.unvaluedProducts === 1 ? "stock.notValuedOne" : "stock.notValued",
                 { count: valuation.unvaluedProducts },
@@ -116,7 +116,7 @@ export function StockOverview() {
       {/* Search bar */}
       <div className="relative">
         <Search
-          className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+          className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-faint"
           aria-hidden
         />
         <input
@@ -125,14 +125,14 @@ export function StockOverview() {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder={t("stock.searchPlaceholder")}
-          className="w-full rounded-lg border border-slate-300 bg-white py-2.5 pl-9 pr-9 text-sm text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+          className="w-full rounded-lg border border-line-strong bg-surface py-2.5 pl-9 pr-9 text-sm text-ink placeholder:text-ink-faint focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
           aria-label={t("common.searchProductsAria")}
         />
         {query ? (
           <button
             type="button"
             onClick={() => setQuery("")}
-            className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-slate-400 hover:text-slate-700"
+            className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-ink-faint hover:text-ink-muted"
             aria-label={t("common.clearSearchAria")}
           >
             <X className="h-4 w-4" />
@@ -157,7 +157,7 @@ export function StockOverview() {
                 "flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
                 stockFilter === f.value
                   ? "bg-brand-600 text-white"
-                  : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50",
+                  : "bg-surface text-ink-muted border border-line hover:bg-app",
               )}
             >
               <Icon className="h-3.5 w-3.5" />
@@ -165,7 +165,7 @@ export function StockOverview() {
               {count > 0 ? (
                 <span className={cn(
                   "rounded-full px-1.5 text-[10px] font-bold",
-                  stockFilter === f.value ? "bg-white/20" : "bg-slate-100 text-slate-600",
+                  stockFilter === f.value ? "bg-surface/20" : "bg-surface-2 text-ink-muted",
                 )}>
                   {count}
                 </span>
@@ -204,14 +204,14 @@ export function StockOverview() {
         <>
           {/* Count header */}
           <div className="flex items-center gap-1.5 px-1">
-            <Package className="h-4 w-4 text-slate-400" />
-            <p className="text-xs text-slate-500">
+            <Package className="h-4 w-4 text-ink-faint" />
+            <p className="text-xs text-ink-subtle">
               {filtered.length} {filtered.length === 1 ? t("stock.item") : t("stock.items")}
             </p>
           </div>
 
           {/* Product list */}
-          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+          <div className="overflow-hidden rounded-card border border-line bg-surface shadow-card">
             {filtered.map((product, idx) => (
               <ProductStockRow key={product.id} product={product} isFirst={idx === 0} />
             ))}
@@ -239,34 +239,34 @@ function ProductStockRow({
     <Link
       href={`/more/products/${product.id}`}
       className={cn(
-        "flex items-center gap-3 px-3 py-3 hover:bg-slate-50 active:bg-slate-100",
-        !isFirst && "border-t border-slate-100",
+        "flex items-center gap-3 px-3 py-3 hover:bg-app active:bg-surface-2",
+        !isFirst && "border-t border-line",
       )}
     >
       <div
         className={cn(
           "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg",
           isNegative || isOut
-            ? "bg-red-100"
+            ? "bg-danger-soft"
             : isLow
-              ? "bg-amber-100"
-              : "bg-slate-100",
+              ? "bg-warning-soft"
+              : "bg-surface-2",
         )}
       >
         {isNegative || isOut ? (
-          <PackageX className={cn("h-5 w-5", isNegative ? "text-red-600" : "text-red-500")} />
+          <PackageX className={cn("h-5 w-5", isNegative ? "text-danger-ink" : "text-danger")} />
         ) : isLow ? (
-          <AlertTriangle className="h-5 w-5 text-amber-600" />
+          <AlertTriangle className="h-5 w-5 text-warning-ink" />
         ) : (
-          <Package className="h-5 w-5 text-slate-500" />
+          <Package className="h-5 w-5 text-ink-subtle" />
         )}
       </div>
 
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium text-slate-900">
+        <p className="truncate text-sm font-medium text-ink">
           {product.name}
         </p>
-        <p className="text-[11px] text-slate-500">
+        <p className="text-[11px] text-ink-subtle">
           {product.category ?? t("stock.uncategorized")} · {product.unit}
           {product.sku ? ` · ${t("product.skuLabel")} ${product.sku}` : ""}
         </p>
@@ -277,16 +277,16 @@ function ProductStockRow({
           className={cn(
             "text-sm font-bold tabular-nums",
             isNegative || isOut
-              ? "text-red-600"
+              ? "text-danger-ink"
               : isLow
-                ? "text-amber-700"
-                : "text-slate-900",
+                ? "text-warning-ink"
+                : "text-ink",
           )}
         >
           {formatQuantity(stock, product.unit)}
         </p>
         {isLow || isOut ? (
-          <p className="text-[10px] font-medium text-amber-600">
+          <p className="text-[10px] font-medium text-warning-ink">
             {isNegative ? t("stock.belowZero") : isOut ? t("stock.outOfStock") : t("stock.low")}
           </p>
         ) : (
@@ -303,25 +303,25 @@ function ProductStockRow({
 function EmptyStockState() {
   const { t } = useLanguage();
   return (
-    <div className="flex flex-col items-center justify-center rounded-2xl border border-slate-100 bg-white px-6 py-12 text-center shadow-sm">
+    <div className="flex flex-col items-center justify-center rounded-2xl border border-line bg-surface px-6 py-12 text-center shadow-card">
       {/* Icon with badge + sparkles */}
       <div className="relative mb-5">
-        <Sparkles className="absolute -left-4 -top-2 h-4 w-4 text-brand-300" aria-hidden />
-        <Sparkles className="absolute -right-3 top-1 h-3 w-3 text-brand-200" aria-hidden />
+       
+       
 
         <div className="flex h-20 w-20 items-center justify-center rounded-full bg-brand-50">
           <Package className="h-9 w-9 text-brand-600" strokeWidth={1.75} />
         </div>
 
-        <div className="absolute bottom-1 right-1 flex h-7 w-7 items-center justify-center rounded-full border-2 border-white bg-brand-600 text-white shadow-sm">
+        <div className="absolute bottom-1 end-1 flex h-7 w-7 items-center justify-center rounded-full border-2 border-surface bg-brand-600 text-white shadow-card">
           <Plus className="h-4 w-4" strokeWidth={3} />
         </div>
       </div>
 
-      <h3 className="text-base font-semibold text-slate-900">
+      <h3 className="text-base font-semibold text-ink">
         {t("stock.noProducts")}
       </h3>
-      <p className="mt-1.5 max-w-xs text-sm text-slate-500">
+      <p className="mt-1.5 max-w-xs text-sm text-ink-subtle">
         {t("stock.noProductsDesc")}
       </p>
 
@@ -339,21 +339,21 @@ function EmptyStockState() {
 function StockListSkeleton() {
   return (
     <div className="space-y-2">
-      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+      <div className="overflow-hidden rounded-card border border-line bg-surface shadow-card">
         {[0, 1, 2, 3, 4].map((i) => (
           <div
             key={i}
             className={cn(
               "flex items-center gap-3 px-3 py-3",
-              i > 0 && "border-t border-slate-100",
+              i > 0 && "border-t border-line",
             )}
           >
-            <div className="h-10 w-10 animate-pulse rounded-lg bg-slate-200" />
+            <div className="h-10 w-10 animate-pulse rounded-lg bg-surface-2" />
             <div className="flex-1 space-y-1.5">
-              <div className="h-3.5 w-32 animate-pulse rounded bg-slate-200" />
-              <div className="h-2.5 w-20 animate-pulse rounded bg-slate-100" />
+              <div className="h-3.5 w-32 animate-pulse rounded bg-surface-2" />
+              <div className="h-2.5 w-20 animate-pulse rounded bg-surface-2" />
             </div>
-            <div className="h-3 w-12 animate-pulse rounded bg-slate-200" />
+            <div className="h-3 w-12 animate-pulse rounded bg-surface-2" />
           </div>
         ))}
       </div>

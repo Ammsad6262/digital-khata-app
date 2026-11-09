@@ -3,8 +3,9 @@
 /**
  * Hero card — Total Receivables.
  *
- * The most important number on the dashboard. Big, green, prominent.
- * Shows the total amount customers owe + how many customers have balances.
+ * The most important number on the dashboard. A deep, layered panel with a
+ * warm accent glow, a dotted "ledger paper" texture and a compact debtor
+ * count pill.
  *
  * The card is CLICKABLE when at least one customer owes money — tapping it
  * navigates to /khata/outstanding, which lists every customer who owes
@@ -30,57 +31,77 @@ export function HeroCard({
 }) {
   const { t } = useLanguage();
   const hasDebtors = customersWithBalance > 0;
+  const oweLabel =
+    customersWithBalance === 1
+      ? t("dashboard.customerOwes")
+      : t("dashboard.customersOwe");
 
-  // The inner content — same whether the card is a link or a plain div.
   const inner = (
     <>
-      <div className="flex items-start justify-between">
+      {/* warm accent glow */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -right-12 -top-20 h-48 w-48 rounded-full bg-accent-500/30 blur-3xl"
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -bottom-24 -left-12 h-44 w-44 rounded-full bg-surface/10 blur-3xl"
+      />
+      {/* dotted ledger texture */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 opacity-[0.07]"
+        style={{
+          backgroundImage: "radial-gradient(circle at 1px 1px, white 1px, transparent 0)",
+          backgroundSize: "16px 16px",
+        }}
+      />
+
+      <div className="relative flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-sm font-semibold text-brand-50">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/55">
             {t("dashboard.totalReceivables")}
           </p>
-          <p className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">
+          <p className="mt-2.5 text-[2.15rem] font-extrabold leading-none tracking-[-0.035em] text-white">
             <Money value={totalReceivables} />
           </p>
-          <p className="mt-3 text-sm text-brand-50">
-            <span className="font-semibold text-white">
-              {customersWithBalance}
-            </span>{" "}
-            {customersWithBalance === 1
-              ? t("dashboard.customerOwes")
-              : t("dashboard.customersOwe")}
-          </p>
-        </div>
-        <div className="flex shrink-0 items-center gap-2">
-          <div className="rounded-xl bg-white/15 p-2 backdrop-blur-sm">
-            {hasDebtors ? (
-              <Users className="h-5 w-5" />
-            ) : (
-              <CheckCircle2 className="h-5 w-5" />
-            )}
+          <div className="mt-3.5 inline-flex items-center gap-1.5 rounded-full bg-surface/10 px-2.5 py-1 text-[11px] font-medium text-white/75 ring-1 ring-white/10">
+            <Users className="h-3 w-3" />
+            <span className="font-bold text-white">{customersWithBalance}</span>
+            <span className="truncate">
+              {oweLabel}
+            </span>
           </div>
         </div>
+
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-surface/10 text-white ring-1 ring-white/15 backdrop-blur-sm">
+          {hasDebtors ? (
+            <Users className="h-5 w-5" />
+          ) : (
+            <CheckCircle2 className="h-5 w-5" />
+          )}
+        </div>
       </div>
-      {/* Tap hint — only shown when there's something to drill into */}
+
       {hasDebtors ? (
-        <div className="mt-3 flex items-center gap-1 border-t border-white/15 pt-2 text-xs font-medium text-brand-50/90">
+        <div className="relative mt-4 flex items-center justify-between border-t border-white/10 pt-3 text-[11px] font-medium text-white/65">
           <span>{t("dashboard.tapToSeeDetails")}</span>
-          <ChevronRight className="h-3.5 w-3.5" />
+          <ChevronRight className="h-4 w-4 rtl-flip" />
         </div>
       ) : null}
     </>
   );
 
-  // Clickable card → /khata/outstanding when there's at least one debtor.
-  // Plain (non-interactive) card otherwise.
+  const shell =
+    "relative block overflow-hidden rounded-[1.5rem] bg-gradient-to-br from-brand-700 via-brand-800 to-brand-950 p-5 text-white shadow-brand";
+
   if (hasDebtors) {
     return (
       <Link
         href="/khata/outstanding"
-        aria-label={`${customersWithBalance} ${customersWithBalance === 1 ? t("dashboard.customerOwes") : t("dashboard.customersOwe")} ${t("outstanding.totalOwed").toLowerCase()}: ${totalReceivables}`}
         className={cn(
-          "block overflow-hidden rounded-2xl bg-gradient-to-br from-brand-600 to-brand-700 p-5 text-white shadow-lg shadow-brand-600/20",
-          "transition-all hover:shadow-xl hover:shadow-brand-600/30 active:scale-[0.99]",
+          shell,
+          "transition-all duration-200 hover:shadow-lift active:scale-[0.99]",
         )}
       >
         {inner}
@@ -88,9 +109,5 @@ export function HeroCard({
     );
   }
 
-  return (
-    <div className="overflow-hidden rounded-2xl bg-gradient-to-br from-brand-600 to-brand-700 p-5 text-white shadow-lg shadow-brand-600/20">
-      {inner}
-    </div>
-  );
+  return <div className={shell}>{inner}</div>;
 }

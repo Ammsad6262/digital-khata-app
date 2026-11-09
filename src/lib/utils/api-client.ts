@@ -5,33 +5,25 @@
  *   Success: { ok: true,  data: T }
  *   Error:   { ok: false, error: { code, message, details?, translationKey?, params? } }
  *
- * V13 (Urdu i18n): When `translationKey: true`, the message is a translation
- * key (English text resolved from the key on the server). The frontend should
- * re-translate using `t(messageKey, params)` in the user's selected language.
+ * V13 (Urdu i18n): errors carry both the resolved English `message` and the
+ * original `messageKey` (+ params). We translate with the user's stored
+ * language here, so every surface (toast or inline) shows the right language.
  *
  * This wrapper unwraps `data` on success and throws an `ApiError` on failure
  * so React Query's `error` state receives it cleanly.
- *
- * Messages are always safe to show to a shopkeeper. The browser's raw network
- * text ("Failed to fetch") and technical parse errors are replaced with
- * friendly, translatable messages; technical diagnostics stay in `details`.
  */
 
-import { translations } from "@/lib/i18n/translations";
+import { resolveApiError } from "@/lib/i18n/client";
 
 export class ApiError extends Error {
   readonly code: string;
   readonly status: number;
   readonly details?: unknown;
-  /** True if `message` is a translation key the frontend should re-translate. */
+  /** True if `message` was resolved from a translation key. */
   readonly translationKey?: boolean;
   /** Translation params for placeholder substitution. */
   readonly params?: Record<string, string | number>;
-  /**
-   * The original translation key (when the server had one). Lets the client
-   * re-translate parameterised messages that were already interpolated to
-   * English server-side.
-   */
+  /** The original translation key, if any. */
   readonly messageKey?: string;
 
   constructor(
@@ -64,10 +56,10 @@ interface ApiFailure {
   error: {
     code: string;
     message: string;
+    messageKey?: string;
     details?: unknown;
     translationKey?: boolean;
     params?: Record<string, string | number>;
-    messageKey?: string;
   };
 }
 
@@ -96,23 +88,16 @@ async function fetchWithTimeout(
   } catch (error) {
     if (error instanceof DOMException && error.name === "AbortError") {
       throw new ApiError(
-        "auth.requestTimeout",
+        resolveApiError({ messageKey: "auth.requestTimeout" }),
         "TIMEOUT",
         408,
         undefined,
         true,
+        undefined,
+        "auth.requestTimeout",
       );
     }
-    // Network failure (offline, DNS, connection reset, server unreachable).
-    // Never surface the browser's raw technical text to the shopkeeper.
-    // The original message is kept in `details` for developers.
-    throw new ApiError(
-      translations["common.networkError"].en,
-      "NETWORK_ERROR",
-      0,
-      error instanceof Error ? { cause: error.message } : undefined,
-      true,
-    );
+    throw error;
   } finally {
     clearTimeout(timeoutId);
   }
@@ -187,22 +172,25 @@ async function unwrap<T>(res: Response, path: string): Promise<T> {
         window.location.href = "/login";
       }
     }
-    throw new ApiError("auth.pleaseLoginContinue", "UNAUTHORIZED", 401, undefined, true);
+    throw new ApiError(
+      resolveApiError({ messageKey: "auth.pleaseLoginContinue" }),
+      "UNAUTHORIZED",
+      401,
+      undefined,
+      true,
+      undefined,
+      "auth.pleaseLoginContinue",
+    );
   }
 
   let json: ApiResponse<T>;
   try {
     json = (await res.json()) as ApiResponse<T>;
-  } catch (error) {
-    // The server returned something that is not our JSON envelope (for
-    // example a proxy error page). Keep the path for diagnostics, but show
-    // the user a plain, translatable message.
+  } catch {
     throw new ApiError(
-      translations["api.errors.internal"].en,
+      `Failed to parse response from ${path}`,
       "PARSE_ERROR",
       res.status,
-      { path, cause: error instanceof Error ? error.message : String(error) },
-      true,
     );
   }
 
@@ -211,7 +199,7 @@ async function unwrap<T>(res: Response, path: string): Promise<T> {
   }
 
   throw new ApiError(
-    json.error.message,
+    resolveApiError(json.error),
     json.error.code,
     res.status,
     json.error.details,

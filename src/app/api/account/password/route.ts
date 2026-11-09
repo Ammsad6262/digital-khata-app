@@ -16,7 +16,7 @@ export const dynamic = "force-dynamic";
 
 const changePasswordSchema = z.object({
   currentPassword: z.string().min(1, "api.password.currentRequired"),
-  newPassword: z.string().min(6, "api.password.tooShort"),
+  newPassword: z.string().min(8, "api.password.tooShort"),
 });
 
 export async function PATCH(req: NextRequest) {

@@ -6,12 +6,6 @@
  * Searches BOTH customers (by name/phone) AND products (by name/SKU)
  * simultaneously, showing a unified results dropdown.
  *
- * Why this matters:
- *   The owner opens the app → needs to find a customer or product FAST.
- *   Without global search, they have to navigate to Khata tab → search, or
- *   More → Products → search. This puts search front-and-center on the
- *   dashboard — one tap, type 2 chars, see results, tap to navigate.
- *
  * Behavior:
  *   - Debounced 200ms
  *   - Min 2 chars to trigger search
@@ -32,7 +26,6 @@ import { apiGet } from "@/lib/utils/api-client";
 import { Decimal } from "@/lib/utils/decimal";
 import { formatMoney, formatQuantity } from "@/lib/utils/money";
 import { useLanguage } from "@/providers/language-provider";
-import { useCurrencySymbol } from "@/hooks/use-currency-symbol";
 
 type CustomerHit = {
   id: string;
@@ -58,7 +51,6 @@ type SearchResult = {
 export function GlobalSearch() {
   const router = useRouter();
   const { t, tParams } = useLanguage();
-  const symbol = useCurrencySymbol();
   const [query, setQuery] = useState("");
   const [isOpen, setIsOpen] = useState(false);
   const [results, setResults] = useState<SearchResult | null>(null);
@@ -119,7 +111,7 @@ export function GlobalSearch() {
       {/* Search input */}
       <div className="relative">
         <Search
-          className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+          className="pointer-events-none absolute start-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-faint"
           aria-hidden
         />
         <input
@@ -138,7 +130,7 @@ export function GlobalSearch() {
             }
           }}
           placeholder={t("dashboard.searchPlaceholder")}
-          className="w-full rounded-xl border border-slate-300 bg-white py-3 pl-10 pr-9 text-sm text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+          className="w-full rounded-control border border-line-strong bg-surface py-3 ps-10 pe-10 text-[13px] text-ink shadow-soft placeholder:text-ink-faint transition-shadow focus:border-brand-500 focus:outline-none focus:ring-4 focus:ring-brand-500/15"
           aria-label={t("common.globalSearchAria")}
           aria-expanded={isOpen}
           aria-controls="global-search-results"
@@ -151,7 +143,7 @@ export function GlobalSearch() {
               setResults(null);
               setIsOpen(false);
             }}
-            className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-slate-400 hover:text-slate-700"
+            className="absolute end-2.5 top-1/2 -translate-y-1/2 rounded-full p-1 text-ink-faint transition-colors hover:bg-surface-2 hover:text-ink"
             aria-label={t("common.clearSearchAria")}
           >
             <X className="h-4 w-4" />
@@ -163,20 +155,22 @@ export function GlobalSearch() {
       {isOpen && q.length >= 2 ? (
         <div
           id="global-search-results"
-          className="absolute inset-x-0 top-full z-30 mt-1 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg shadow-slate-900/10"
+          className="absolute inset-x-0 top-full z-30 mt-1.5 overflow-hidden rounded-card border border-line bg-surface shadow-card shadow-lift animate-pop-in"
         >
           {isLoading ? (
-            <p className="px-3 py-4 text-center text-xs text-slate-400">{t("common.searching")}</p>
+            <p className="px-3 py-4 text-center text-xs text-ink-faint">
+              {t("common.searching")}
+            </p>
           ) : !hasResults ? (
             <div className="p-3">
-              <p className="mb-2 text-xs text-slate-500">
+              <p className="mb-2 text-xs text-ink-subtle">
                 {tParams("search.noMatches", { query: q })}
               </p>
               <div className="flex gap-2">
                 <Link
                   href={`/more/customers/new`}
                   onClick={() => setIsOpen(false)}
-                  className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-brand-50 px-2 py-2 text-xs font-medium text-brand-700 hover:bg-brand-100"
+                  className="flex flex-1 items-center justify-center gap-1.5 rounded-control bg-brand-50 px-2 py-2 text-xs font-semibold text-brand-700 transition-colors hover:bg-brand-100"
                 >
                   <UserPlus className="h-3.5 w-3.5" />
                   {t("action.addCustomer")}
@@ -184,7 +178,7 @@ export function GlobalSearch() {
                 <Link
                   href={`/more/products/new`}
                   onClick={() => setIsOpen(false)}
-                  className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-blue-50 px-2 py-2 text-xs font-medium text-blue-700 hover:bg-blue-100"
+                  className="flex flex-1 items-center justify-center gap-1.5 rounded-control bg-info-soft px-2 py-2 text-xs font-semibold text-info-ink transition-colors hover:brightness-95"
                 >
                   <PackagePlus className="h-3.5 w-3.5" />
                   {t("stock.addProduct")}
@@ -192,11 +186,11 @@ export function GlobalSearch() {
               </div>
             </div>
           ) : (
-            <div className="max-h-[60vh] overflow-y-auto">
+            <div className="max-h-[60vh] overflow-y-auto scroll-slim">
               {/* Customers section */}
               {results!.customers.length > 0 ? (
                 <div>
-                  <p className="border-b border-slate-100 bg-slate-50 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                  <p className="border-b border-line bg-surface-2 px-3.5 py-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-faint">
                     {t("dashboard.customers")} ({results!.customers.length})
                   </p>
                   {results!.customers.map((c) => {
@@ -207,25 +201,25 @@ export function GlobalSearch() {
                         key={c.id}
                         type="button"
                         onClick={() => handleNavigate(`/khata/${c.id}`)}
-                        className="flex w-full items-center gap-3 px-3 py-2.5 text-left hover:bg-slate-50"
+                        className="flex w-full items-center gap-3 px-3.5 py-2.5 text-left transition-colors hover:bg-surface-2"
                       >
-                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-100 text-xs font-semibold text-brand-700">
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[0.65rem] bg-brand-50 text-[11px] font-bold text-brand-700">
                           {c.name.charAt(0).toUpperCase()}
                         </div>
                         <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-medium text-slate-900">
+                          <p className="truncate text-[13px] font-semibold text-ink">
                             {c.name}
                           </p>
-                          <p className="truncate text-[11px] text-slate-500">
+                          <p className="truncate text-[10px] text-ink-subtle">
                             {c.phone}
                           </p>
                         </div>
                         {owes ? (
-                          <span className="shrink-0 text-xs font-semibold text-red-600">
-                            {formatMoney(balance, symbol)}
+                          <span className="shrink-0 text-[11px] font-bold tabular-nums text-danger-ink">
+                            {formatMoney(balance)}
                           </span>
                         ) : null}
-                        <ChevronRight className="h-4 w-4 shrink-0 text-slate-300" />
+                        <ChevronRight className="h-4 w-4 shrink-0 text-ink-faint rtl-flip" />
                       </button>
                     );
                   })}
@@ -234,8 +228,8 @@ export function GlobalSearch() {
 
               {/* Products section */}
               {results!.products.length > 0 ? (
-                <div className={results!.customers.length > 0 ? "border-t border-slate-100" : ""}>
-                  <p className="border-b border-slate-100 bg-slate-50 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                <div className={results!.customers.length > 0 ? "border-t border-line" : ""}>
+                  <p className="border-b border-line bg-surface-2 px-3.5 py-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-faint">
                     {t("more.products")} ({results!.products.length})
                   </p>
                   {results!.products.map((p) => {
@@ -245,20 +239,20 @@ export function GlobalSearch() {
                         key={p.id}
                         type="button"
                         onClick={() => handleNavigate(`/more/products/${p.id}`)}
-                        className="flex w-full items-center gap-3 px-3 py-2.5 text-left hover:bg-slate-50"
+                        className="flex w-full items-center gap-3 px-3.5 py-2.5 text-left transition-colors hover:bg-surface-2"
                       >
-                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100">
-                          <Package className="h-4 w-4 text-slate-500" />
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[0.65rem] bg-surface-2">
+                          <Package className="h-4 w-4 text-ink-subtle" />
                         </div>
                         <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-medium text-slate-900">
+                          <p className="truncate text-[13px] font-semibold text-ink">
                             {p.name}
                           </p>
-                          <p className="truncate text-[11px] text-slate-500">
-                            {formatQuantity(stock, p.unit)} · {formatMoney(p.sellingPrice, symbol)}
+                          <p className="truncate text-[10px] text-ink-subtle">
+                            {formatQuantity(stock, p.unit)} · {formatMoney(p.sellingPrice)}
                           </p>
                         </div>
-                        <ChevronRight className="h-4 w-4 shrink-0 text-slate-300" />
+                        <ChevronRight className="h-4 w-4 shrink-0 text-ink-faint rtl-flip" />
                       </button>
                     );
                   })}

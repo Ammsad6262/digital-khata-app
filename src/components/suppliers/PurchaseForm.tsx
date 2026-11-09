@@ -16,8 +16,6 @@ import { TextField } from "@/components/ui/TextField";
 import { Money } from "@/components/shared/Money";
 import { useToast } from "@/providers/toast-provider";
 import { useLanguage } from "@/providers/language-provider";
-import { userMessage } from "@/lib/i18n/message";
-import { formatMoney } from "@/lib/utils/money";
 import { useCurrencySymbol } from "@/hooks/use-currency-symbol";
 import { useProducts } from "@/hooks/use-products";
 import { useCreatePurchase } from "@/hooks/use-purchases";
@@ -39,7 +37,7 @@ function newRow(): Row {
 export function PurchaseForm({ supplierId }: { supplierId: string }) {
   const router = useRouter();
   const toast = useToast();
-  const { t, tParams } = useLanguage();
+  const { t } = useLanguage();
   const symbol = useCurrencySymbol();
   const { data: products, isLoading: productsLoading } = useProducts();
   const createMutation = useCreatePurchase(supplierId);
@@ -67,10 +65,6 @@ export function PurchaseForm({ supplierId }: { supplierId: string }) {
     [rows],
   );
 
-  // Amount still to be paid to the supplier (total minus what is paid now).
-  const paidValue = Number.isFinite(Number(paidAmount)) ? Math.max(0, Number(paidAmount)) : 0;
-  const remaining = Math.max(0, total - paidValue);
-
   function updateRow(key: number, patch: Partial<Row>) {
     setRows((prev) => prev.map((r) => (r.key === key ? { ...r, ...patch } : r)));
   }
@@ -86,28 +80,16 @@ export function PurchaseForm({ supplierId }: { supplierId: string }) {
   function validate(): boolean {
     const next: Record<string, string> = {};
     const validRows = rows.filter((r) => r.productId);
-    if (validRows.length === 0) {
-      next.items = t("purchase.errNoItems");
-    } else {
-      for (const r of validRows) {
-        if (!(Number(r.quantity) > 0)) {
-          next.items = t("purchase.errQuantity");
-          break;
-        }
-      }
-      for (const r of validRows) {
-        if (Number(r.unitCost) < 0 || !Number.isFinite(Number(r.unitCost))) {
-          next.items = t("purchase.errUnitCost");
-          break;
-        }
+    if (validRows.length === 0) next.items = t("purchase.addItem");
+    for (const r of validRows) {
+      if (!(Number(r.quantity) > 0)) next.items = t("purchase.quantity");
+      if (Number(r.unitCost) < 0 || !Number.isFinite(Number(r.unitCost))) {
+        next.items = t("purchase.unitCost");
       }
     }
     const paid = Number(paidAmount);
-    if (!Number.isFinite(paid) || paid < 0) {
-      next.paidAmount = t("purchase.errPaid");
-    } else if (paid > total + 0.001) {
-      next.paidAmount = t("purchase.errPaid");
-    }
+    if (!Number.isFinite(paid) || paid < 0) next.paidAmount = t("common.error");
+    if (Number.isFinite(paid) && paid > total + 0.001) next.paidAmount = t("common.error");
     setErrors(next);
     return Object.keys(next).length === 0;
   }
@@ -131,24 +113,22 @@ export function PurchaseForm({ supplierId }: { supplierId: string }) {
         date,
         dueDate: dueDate || null,
       });
-      toast.success("purchase.savedAmount", {
-        amount: formatMoney(total, symbol),
-      });
+      toast.success(t("purchase.recorded"));
       router.push(`/more/suppliers/${supplierId}`);
       router.refresh();
     } catch (err) {
-      toast.error(userMessage(err, t, tParams));
+      toast.error(err instanceof Error ? err.message : t("common.failed"));
     }
   }
 
   if (productsLoading) {
-    return <p className="py-8 text-center text-sm text-slate-500">{t("common.loading")}</p>;
+    return <p className="py-8 text-center text-sm text-ink-subtle">{t("common.loading")}</p>;
   }
 
   return (
     <form onSubmit={onSubmit} className="space-y-4 pb-6">
       {errors.items ? (
-        <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{errors.items}</p>
+        <p className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger-ink">{errors.items}</p>
       ) : null}
 
       <div className="space-y-3">
@@ -158,16 +138,16 @@ export function PurchaseForm({ supplierId }: { supplierId: string }) {
             (Number(row.quantity) || 0) * (Number(row.unitCost) || 0);
 
           return (
-            <div key={row.key} className="rounded-xl border border-slate-200 bg-white p-3 space-y-3">
+            <div key={row.key} className="rounded-card border border-line bg-surface shadow-card p-3 space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                <span className="text-xs font-semibold uppercase tracking-wide text-ink-subtle">
                   {t("purchase.items")} {index + 1}
                 </span>
                 {rows.length > 1 ? (
                   <button
                     type="button"
                     onClick={() => setRows((prev) => prev.filter((r) => r.key !== row.key))}
-                    className="rounded-lg p-1 text-red-600 hover:bg-red-50"
+                    className="rounded-lg p-1 text-danger-ink hover:bg-danger-soft"
                     aria-label={t("purchase.removeItem")}
                   >
                     <Trash2 className="h-4 w-4" />
@@ -178,16 +158,15 @@ export function PurchaseForm({ supplierId }: { supplierId: string }) {
               <div className="space-y-1">
                 <label
                   htmlFor={`product-${row.key}`}
-                  className="block text-sm font-medium text-slate-700"
+                  className="block text-sm font-medium text-ink-muted"
                 >
                   {t("purchase.product")}
-                  <span className="text-red-500" aria-hidden> *</span>
                 </label>
                 <select
                   id={`product-${row.key}`}
                   value={row.productId}
                   onChange={(e) => onPickProduct(row.key, e.target.value)}
-                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/40"
+                  className="w-full rounded-lg border border-line-strong bg-surface px-3 py-2.5 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/40"
                 >
                   <option value="">{t("purchase.pickProduct")}</option>
                   {(products ?? []).map((p) => (
@@ -206,7 +185,6 @@ export function PurchaseForm({ supplierId }: { supplierId: string }) {
                   inputMode="decimal"
                   step="0.001"
                   min="0"
-                  showRequired
                   value={row.quantity}
                   onChange={(e) => updateRow(row.key, { quantity: e.target.value })}
                 />
@@ -231,8 +209,8 @@ export function PurchaseForm({ supplierId }: { supplierId: string }) {
               />
 
               <div className="flex items-center justify-between text-sm">
-                <span className="text-slate-500">{t("purchase.lineTotal")}</span>
-                <span className="font-semibold text-slate-900">
+                <span className="text-ink-subtle">{t("purchase.lineTotal")}</span>
+                <span className="font-semibold text-ink">
                   <Money value={lineTotal} symbol={symbol} />
                 </span>
               </div>
@@ -251,10 +229,10 @@ export function PurchaseForm({ supplierId }: { supplierId: string }) {
         {t("purchase.addItem")}
       </Button>
 
-      <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
+      <div className="rounded-card border border-line bg-surface shadow-card p-4 space-y-3">
         <div className="flex items-center justify-between">
-          <span className="text-sm font-medium text-slate-700">{t("purchase.total")}</span>
-          <span className="text-lg font-bold text-slate-900">
+          <span className="text-sm font-medium text-ink-muted">{t("purchase.total")}</span>
+          <span className="text-lg font-bold text-ink">
             <Money value={total} symbol={symbol} />
           </span>
         </div>
@@ -270,30 +248,6 @@ export function PurchaseForm({ supplierId }: { supplierId: string }) {
           error={errors.paidAmount}
           hint={t("purchase.paidNowHint")}
         />
-        {/* Quick-fill so the shopkeeper doesn't retype the total in cash purchases. */}
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={() => setPaidAmount(total > 0 ? String(total) : "0")}
-            className="flex-1 rounded-lg bg-brand-50 px-3 py-2 text-xs font-medium text-brand-700 hover:bg-brand-100"
-          >
-            {t("purchase.payFull")}
-          </button>
-          <button
-            type="button"
-            onClick={() => setPaidAmount("0")}
-            className="flex-1 rounded-lg bg-slate-100 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-200"
-          >
-            {t("purchase.payNone")}
-          </button>
-        </div>
-        {/* Clear summary of what will still be owed to the supplier. */}
-        <div className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2 text-sm">
-          <span className="text-slate-500">{t("purchase.remaining")}</span>
-          <span className={remaining > 0 ? "font-semibold text-red-600" : "font-semibold text-slate-900"}>
-            <Money value={remaining} symbol={symbol} />
-          </span>
-        </div>
         <TextField
           label={t("purchase.date")}
           name="date"
@@ -310,7 +264,7 @@ export function PurchaseForm({ supplierId }: { supplierId: string }) {
           hint={t("purchase.dueDateHint")}
         />
         <div className="space-y-1">
-          <label htmlFor="purchase-notes" className="block text-sm font-medium text-slate-700">
+          <label htmlFor="purchase-notes" className="block text-sm font-medium text-ink-muted">
             {t("common.notes")}
           </label>
           <textarea
@@ -318,7 +272,7 @@ export function PurchaseForm({ supplierId }: { supplierId: string }) {
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             rows={2}
-            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/40"
+            className="w-full rounded-lg border border-line-strong bg-surface px-3 py-2.5 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/40"
           />
         </div>
       </div>

@@ -14,8 +14,6 @@ import { TextField } from "@/components/ui/TextField";
 import { Money } from "@/components/shared/Money";
 import { useToast } from "@/providers/toast-provider";
 import { useLanguage } from "@/providers/language-provider";
-import { userMessage } from "@/lib/i18n/message";
-import { formatMoney } from "@/lib/utils/money";
 import { useCurrencySymbol } from "@/hooks/use-currency-symbol";
 import { useCreateSupplierPayment } from "@/hooks/use-supplier-payments";
 import { usePurchasesBySupplier } from "@/hooks/use-purchases";
@@ -40,7 +38,7 @@ export function SupplierPaymentForm({
 }) {
   const router = useRouter();
   const toast = useToast();
-  const { t, tParams, lang } = useLanguage();
+  const { t } = useLanguage();
   const symbol = useCurrencySymbol();
   const createMutation = useCreateSupplierPayment(supplierId);
   const { data: purchases } = usePurchasesBySupplier(supplierId);
@@ -84,56 +82,42 @@ export function SupplierPaymentForm({
         notes: notes.trim() || null,
         date,
       });
-      toast.success("supplierPayment.savedAmount", {
-        amount: formatMoney(value, symbol),
-      });
+      toast.success(t("supplierPayment.recorded"));
       router.push(`/more/suppliers/${supplierId}`);
       router.refresh();
     } catch (err) {
-      toast.error(userMessage(err, t, tParams));
+      toast.error(err instanceof Error ? err.message : t("common.failed"));
     }
   }
 
   return (
     <form onSubmit={onSubmit} className="space-y-4 pb-6">
       {error ? (
-        <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
+        <p className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger-ink">{error}</p>
       ) : null}
 
-      <div className="space-y-1.5">
-        <TextField
-          label={`${t("supplierPayment.amount")} (${symbol})`}
-          name="amount"
-          type="number"
-          inputMode="decimal"
-          step="0.01"
-          min="0"
-          value={amount}
-          onChange={(e) => setAmount(e.target.value)}
-          required
-        />
-        {/* Quick-fill the whole remaining amount of the chosen invoice. */}
-        {selectedInvoice && Number(selectedInvoice.remaining) > 0 ? (
-          <button
-            type="button"
-            onClick={() => setAmount(String(selectedInvoice.remaining))}
-            className="rounded-lg bg-brand-50 px-3 py-2 text-xs font-medium text-brand-700 hover:bg-brand-100"
-          >
-            {t("supplierPayment.payFull")}:{" "}
-            <Money value={selectedInvoice.remaining} symbol={symbol} />
-          </button>
-        ) : null}
-      </div>
+      <TextField
+        label={`${t("supplierPayment.amount")} (${symbol})`}
+        name="amount"
+        type="number"
+        inputMode="decimal"
+        step="0.01"
+        min="0"
+        value={amount}
+        onChange={(e) => setAmount(e.target.value)}
+        error={!error ? undefined : error}
+        required
+      />
 
       <div className="space-y-1">
-        <label htmlFor="payment-method" className="block text-sm font-medium text-slate-700">
+        <label htmlFor="payment-method" className="block text-sm font-medium text-ink-muted">
           {t("supplierPayment.method")}
         </label>
         <select
           id="payment-method"
           value={method}
           onChange={(e) => setMethod(e.target.value)}
-          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/40"
+          className="w-full rounded-lg border border-line-strong bg-surface px-3 py-2.5 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/40"
         >
           {METHODS.map((m) => (
             <option key={m} value={m}>
@@ -144,19 +128,19 @@ export function SupplierPaymentForm({
       </div>
 
       <div className="space-y-1">
-        <label htmlFor="payment-invoice" className="block text-sm font-medium text-slate-700">
+        <label htmlFor="payment-invoice" className="block text-sm font-medium text-ink-muted">
           {t("supplierPayment.forInvoice")}
         </label>
         <select
           id="payment-invoice"
           value={purchaseId}
           onChange={(e) => setPurchaseId(e.target.value)}
-          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/40"
+          className="w-full rounded-lg border border-line-strong bg-surface px-3 py-2.5 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/40"
         >
           <option value="">{t("supplierPayment.general")}</option>
           {openInvoices.map((p) => (
             <option key={p.id} value={p.id}>
-              {new Date(p.date).toLocaleDateString(lang === "ur" ? "ur-PK-u-nu-latn" : "en-GB")} — {t("supplier.remaining")}:{" "}
+              {new Date(p.date).toLocaleDateString()} — {t("supplier.remaining")}:{" "}
               {p.remaining} ({formatPlain(Number(p.remaining), symbol)})
             </option>
           ))}
@@ -172,7 +156,7 @@ export function SupplierPaymentForm({
       />
 
       <div className="space-y-1">
-        <label htmlFor="payment-notes" className="block text-sm font-medium text-slate-700">
+        <label htmlFor="payment-notes" className="block text-sm font-medium text-ink-muted">
           {t("common.notes")}
         </label>
         <textarea
@@ -180,14 +164,14 @@ export function SupplierPaymentForm({
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           rows={2}
-          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/40"
+          className="w-full rounded-lg border border-line-strong bg-surface px-3 py-2.5 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/40"
         />
       </div>
 
       {selectedInvoice ? (
-        <div className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2 text-sm">
-          <span className="text-slate-500">{t("supplier.remaining")}</span>
-          <span className="font-semibold text-slate-900">
+        <div className="flex items-center justify-between rounded-lg bg-app px-3 py-2 text-sm">
+          <span className="text-ink-subtle">{t("supplier.remaining")}</span>
+          <span className="font-semibold text-ink">
             <Money value={selectedInvoice.remaining} symbol={symbol} />
           </span>
         </div>

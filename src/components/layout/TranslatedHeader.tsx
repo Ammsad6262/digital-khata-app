@@ -36,7 +36,7 @@ export function TranslatedHeader({
   return (
     <header
       className={cn(
-        "sticky top-0 z-20 flex h-14 items-center justify-between border-b border-slate-200 bg-white px-4",
+        "sticky top-0 z-20 flex h-14 items-center justify-between border-b border-line bg-surface px-4",
         className,
       )}
     >
@@ -44,13 +44,13 @@ export function TranslatedHeader({
         {backHref ? (
           <Link
             href={backHref}
-            className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100"
+            className="rounded-lg p-1.5 text-ink-subtle hover:bg-surface-2"
             aria-label={t("common.back")}
           >
             <ArrowLeft className="h-5 w-5 rtl-flip" />
           </Link>
         ) : null}
-        <h1 className="truncate text-base font-semibold text-slate-900">
+        <h1 className="truncate text-base font-semibold text-ink">
           {t(titleKey)}
         </h1>
       </div>

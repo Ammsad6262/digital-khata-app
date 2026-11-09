@@ -27,17 +27,15 @@
 import { Loader2, Save, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils/cn";
-import { useLanguage } from "@/providers/language-provider";
 
 export function StickyFormActions({
   onCancel,
   onSave,
-  saveLabel,
-  cancelLabel,
+  saveLabel = "Save",
+  cancelLabel = "Cancel",
   saveDisabled = false,
   isPending = false,
   saveVariant = "primary",
-  /** When true, the cancel button takes the full width if save is hidden. */
   className,
 }: {
   onCancel: () => void;
@@ -49,15 +47,11 @@ export function StickyFormActions({
   saveVariant?: "primary" | "secondary" | "danger";
   className?: string;
 }) {
-  const { t } = useLanguage();
-  // Defaults follow the selected language when the caller does not pass a label.
-  const resolvedSaveLabel = saveLabel ?? t("common.save");
-  const resolvedCancelLabel = cancelLabel ?? t("common.cancel");
   return (
     <div
       className={cn(
-        // Sticky bar above the bottom nav (h-16). Add safe-area padding for iOS notch.
-        "sticky bottom-16 z-20 -mx-4 mt-4 border-t border-slate-200 bg-white/95 px-4 py-3 backdrop-blur",
+        // Sticky bar above the floating bottom nav.
+        "sticky bottom-[5.5rem] z-20 -mx-4 mt-4 border-t border-line bg-surface/90 px-4 py-3 backdrop-blur-xl",
         className,
       )}
       style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom))" }}
@@ -72,7 +66,7 @@ export function StickyFormActions({
           disabled={isPending}
         >
           <X className="h-4 w-4" />
-          {resolvedCancelLabel}
+          {cancelLabel}
         </Button>
         <Button
           type="button"
@@ -85,12 +79,12 @@ export function StickyFormActions({
           {isPending ? (
             <>
               <Loader2 className="h-4 w-4 animate-spin" />
-              {t("common.saving")}
+              Saving...
             </>
           ) : (
             <>
               <Save className="h-4 w-4" />
-              {resolvedSaveLabel}
+              {saveLabel}
             </>
           )}
         </Button>

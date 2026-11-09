@@ -5,9 +5,9 @@
  * in the `dk_auth_token` HttpOnly cookie. NEVER from request headers, query
  * parameters, JSON body, or any client-controllable input.
  *
- * The middleware (src/middleware.ts) verifies the JWT cookie on every /api/*
+ * The proxy (src/proxy.ts) verifies the JWT cookie on every /api/*
  * request (except a small allowlist of public auth endpoints). When valid,
- * the middleware OVERWRITES any client-sent `x-user-id` header with the
+ * the proxy OVERWRITES any client-sent `x-user-id` header with the
  * JWT-derived value — so a malicious client cannot spoof the header.
  *
  * PERFORMANCE: We verify the JWT cryptographically but do NOT query the
@@ -25,7 +25,6 @@ import { verifyToken, AUTH_COOKIE_NAME } from "@/lib/services/auth";
 import { UnauthorizedError, ForbiddenError } from "@/lib/errors";
 import { hasActiveAccess } from "@/lib/services/subscription";
 import { setUserContext } from "@/lib/db/prisma";
-import { getDevAutoLoginUser } from "@/lib/auth/dev-auto-login";
 
 /**
  * Cryptographically derive the authenticated user's ID from the JWT cookie.
@@ -34,23 +33,17 @@ import { getDevAutoLoginUser } from "@/lib/auth/dev-auto-login";
  * PERFORMANCE: Does NOT query the DB — JWT verification is sufficient.
  */
 export async function getCurrentUserId(req: NextRequest): Promise<string | null> {
-  let cookieUserId: string | null = null;
   try {
     const token = req.cookies.get(AUTH_COOKIE_NAME)?.value;
-    if (token) {
-      const payload = await verifyToken(token);
-      if (payload) cookieUserId = payload.userId;
-    }
+    if (!token) return null;
+
+    const payload = await verifyToken(token);
+    if (!payload) return null;
+
+    return payload.userId;
   } catch {
-    cookieUserId = null;
+    return null;
   }
-
-  if (cookieUserId) return cookieUserId;
-
-  // LOCAL DEV ONLY: act as the auto-login account so the app works without a
-  // login. getDevAutoLoginUser() always returns null in production builds.
-  const devUser = await getDevAutoLoginUser();
-  return devUser?.id ?? null;
 }
 
 /**

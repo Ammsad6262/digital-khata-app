@@ -6,31 +6,21 @@
  * The original speech-first experience, restored and extended to every module.
  * It is a SEPARATE product from the typed Khata Assistant:
  *
- *   Tap the mic → speak naturally → see the transcript → correct it if needed
- *   → the shared engine answers or prepares a plan → confirm to save.
+ * Tap the mic → speak naturally → see the transcript → correct it if needed
+ * → the shared engine answers or prepares a plan → confirm to save.
  *
  * It never shows Gemini model names, per-model counters, or provider details.
  * The microphone language is detected automatically; there is no dropdown.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  AlertTriangle,
-  Loader2,
-  Mic,
-  MicOff,
-  RotateCcw,
-  Send,
-  Square,
-  X,
-} from "lucide-react";
+import { AlertTriangle, Loader2, Mic, MicOff, RotateCcw, Send, Square, X } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
-import { useAssistantText } from "@/hooks/assistant/use-assistant-text";
-import { useVoiceAssistant } from "@/hooks/voice-assistant/use-voice-assistant";
+import { useVoiceAssistant, type VoiceLanguageMode } from "@/hooks/voice-assistant/use-voice-assistant";
 import { PlanCard } from "@/components/assistant/PlanCard";
 import { languageLabel } from "@/lib/assistant/language";
-import { formatRecordingDuration } from "@/lib/voice/recording-config";
-import type { VoicePhraseKey } from "@/lib/assistant/phrases";
+import { useLanguage } from "@/providers/language-provider";
+import type { TranslationKey } from "@/lib/i18n/translations";
 import type { AssistantReply, PlanPayload } from "@/lib/assistant/types";
 
 type Phase =
@@ -43,19 +33,36 @@ type Phase =
   | "failed"
   | "completed";
 
-const PHASE_KEYS: Record<Phase, VoicePhraseKey> = {
-  idle: "phaseIdle",
-  listening: "phaseListening",
-  understanding: "phaseUnderstanding",
-  executing: "phaseExecuting",
-  confirm: "phaseConfirm",
-  clarify: "phaseClarify",
-  failed: "phaseFailed",
-  completed: "phaseCompleted",
+const PHASE_KEY: Record<Phase, TranslationKey> = {
+  idle: "assistant.phase.ready",
+  listening: "assistant.phase.listening",
+  understanding: "assistant.phase.understanding",
+  executing: "assistant.phase.executing",
+  confirm: "assistant.phase.confirm",
+  clarify: "assistant.phase.clarify",
+  failed: "assistant.phase.failed",
+  completed: "assistant.phase.completed",
 };
 
+const EXAMPLE_KEYS: TranslationKey[] = [
+  "assistant.example1",
+  "assistant.example2",
+  "assistant.example3",
+  "assistant.example4",
+  "assistant.example5",
+  "assistant.example6",
+];
+
+/** Spoken language chips. Endonyms (اردو / پښتو) are shown as-is on purpose. */
+const LANGUAGE_MODES: Array<{ value: VoiceLanguageMode; label: string }> = [
+  { value: "auto", label: "assistant.langAuto" },
+  { value: "en", label: "English" },
+  { value: "ur", label: "اردو" },
+  { value: "ps", label: "پښتو" },
+];
+
 export function VoiceAssistant() {
-  const { lang, vt } = useAssistantText();
+  const { t } = useLanguage();
   const voice = useVoiceAssistant();
   const { assistant, speech, recorder } = voice;
   const [open, setOpen] = useState(false);
@@ -108,21 +115,11 @@ export function VoiceAssistant() {
     voice.submit(text);
   }, [busy, typed, voice]);
 
-  // Recorder errors are stored as smartentry.* translation keys (or a raw
-  // browser message). Never show either to the owner: map them to the same
-  // plain-language voice phrases used by the recognition path.
-  const recorderError = recorder.error;
-  const recorderMessage =
-    recorderError === "smartentry.micError.deniedWithSettings"
-      ? vt("microphoneDenied")
-      : recorderError === "smartentry.micError.unsupportedLong"
-        ? vt("speechUnsupported")
-        : recorderError === "smartentry.recording.failedRetry"
-          ? vt("speechFailed")
-          : recorderError
-            ? vt("micErrorGeneric")
-            : null;
-  const micError = speech.error?.message ?? recorderMessage;
+  const micErrorRaw = speech.error?.message ?? recorder.error ?? null;
+  const micError =
+    micErrorRaw && /^[a-z][\w]*(\.[\w]+)+$/i.test(micErrorRaw)
+      ? t(micErrorRaw as TranslationKey)
+      : micErrorRaw;
   const hasConversation = assistant.turns.length > 0;
 
   return (
@@ -131,18 +128,18 @@ export function VoiceAssistant() {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        aria-label={vt("openAssistant")}
+        aria-label={t("assistant.voiceOpen")}
         className={cn(
-          "relative pointer-events-auto flex h-14 w-14 items-center justify-center rounded-full",
+          "fixed bottom-24 end-4 z-40 flex h-14 w-14 items-center justify-center rounded-full",
           "bg-gradient-to-br from-brand-500 to-brand-700 text-white shadow-lg",
           "transition-transform hover:scale-105 active:scale-95",
         )}
       >
         {open ? <X className="h-6 w-6" /> : <Mic className="h-6 w-6" />}
         {voice.listening ? (
-          <span className="absolute -right-0.5 -top-0.5 flex h-3.5 w-3.5">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75" />
-            <span className="relative inline-flex h-3.5 w-3.5 rounded-full bg-red-500" />
+          <span className="absolute -end-0.5 -top-0.5 flex h-3.5 w-3.5">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-danger opacity-75" />
+            <span className="relative inline-flex h-3.5 w-3.5 rounded-full bg-danger" />
           </span>
         ) : null}
       </button>
@@ -150,45 +147,39 @@ export function VoiceAssistant() {
       {open ? (
         <div
           role="dialog"
-          aria-label={vt("voiceAssistant")}
+          aria-label={t("assistant.voiceTitle")}
           className={cn(
-            "pointer-events-auto fixed inset-x-0 bottom-0 z-50 flex max-h-[92vh] flex-col overflow-hidden rounded-t-3xl border border-neutral-200 bg-white shadow-2xl",
-            "sm:inset-x-auto sm:right-4 sm:bottom-4 sm:w-[440px] sm:rounded-3xl",
-            "dark:border-neutral-800 dark:bg-neutral-900",
+            "fixed inset-x-0 bottom-0 z-50 flex max-h-[92vh] flex-col overflow-hidden rounded-t-3xl border border-line bg-surface shadow-2xl",
+            "sm:inset-x-auto sm:end-4 sm:bottom-4 sm:w-[440px] sm:rounded-3xl",
           )}
         >
           {/* Header */}
-          <div className="flex items-center gap-2 border-b border-neutral-200 px-4 py-3 dark:border-neutral-800">
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-100 text-brand-700 dark:bg-brand-900/40 dark:text-brand-300">
+          <div className="flex items-center gap-2 border-b border-line px-4 py-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-100 text-brand-700">
               <Mic className="h-5 w-5" />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">
-                {vt("voiceAssistant")}
-              </p>
-              <p
-                className="truncate text-xs text-neutral-500"
-                aria-live="polite"
-              >
-                {vt(PHASE_KEYS[phase])}
+              <p className="text-sm font-semibold text-ink">{t("assistant.voiceTitle")}</p>
+              <p className="truncate text-xs text-ink-subtle" aria-live="polite">
+                {t(PHASE_KEY[phase])}
                 {voice.detected !== "en" || voice.transcript
-                  ? ` · ${languageLabel(voice.detected, lang)}`
+                  ? ` · ${languageLabel(voice.detected)}`
                   : ""}
               </p>
             </div>
             <button
               type="button"
               onClick={() => voice.reset()}
-              aria-label={vt("clearConversation")}
-              className="rounded-lg p-1.5 text-neutral-500 hover:bg-neutral-100 dark:hover:bg-neutral-800"
+              aria-label={t("assistant.clearChat")}
+              className="rounded-lg p-1.5 text-ink-subtle hover:bg-surface-2"
             >
               <RotateCcw className="h-4 w-4" />
             </button>
             <button
               type="button"
               onClick={() => setOpen(false)}
-              aria-label={vt("close")}
-              className="rounded-lg p-1.5 text-neutral-500 hover:bg-neutral-100 dark:hover:bg-neutral-800"
+              aria-label={t("common.close")}
+              className="rounded-lg p-1.5 text-ink-subtle hover:bg-surface-2"
             >
               <X className="h-4 w-4" />
             </button>
@@ -197,27 +188,24 @@ export function VoiceAssistant() {
           {/* Conversation */}
           <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto px-4 py-3">
             {!hasConversation ? (
-              <div className="space-y-2 text-sm text-neutral-500">
-                <p className="font-medium text-neutral-700 dark:text-neutral-200">
-                  {vt("emptyTitle")}
-                </p>
+              <div className="space-y-2 text-sm text-ink-subtle">
+                <p className="font-medium text-ink-muted">{t("assistant.introSpeak")}</p>
                 <ul className="space-y-1 text-xs">
-                  <li>{vt("emptyExample1")}</li>
-                  <li>{vt("emptyExample2")}</li>
-                  <li>{vt("emptyExample3")}</li>
-                  <li>{vt("emptyExample4")}</li>
-                  <li>{vt("emptyExample5")}</li>
-                  <li>{vt("emptyExample6")}</li>
+                  {EXAMPLE_KEYS.map((key) => (
+                    <li key={key}>{t(key)}</li>
+                  ))}
                 </ul>
-                <p className="pt-1 text-xs">{vt("emptyLanguageNote")}</p>
+                <p className="pt-1 text-xs">{t("assistant.introLangs")}</p>
               </div>
             ) : null}
 
             {assistant.turns.map((turn) =>
               turn.role === "user" ? (
                 <div key={turn.id} className="flex justify-end">
-                  <div className="max-w-[85%] rounded-2xl rounded-br-sm bg-brand-600 px-3 py-2 text-sm text-white">
-                    {turn.text}
+                  <div className="max-w-[85%] rounded-2xl rounded-ee-sm bg-brand-600 px-3 py-2 text-sm text-white">
+                    {turn.text.startsWith("@key:")
+                      ? t(turn.text.slice(5) as TranslationKey)
+                      : turn.text}
                   </div>
                 </div>
               ) : (
@@ -237,67 +225,45 @@ export function VoiceAssistant() {
             )}
 
             {busy ? (
-              <div className="flex items-center gap-2 text-sm text-neutral-500">
+              <div className="flex items-center gap-2 text-sm text-ink-subtle">
                 <Loader2 className="h-4 w-4 animate-spin" />
-                {vt(PHASE_KEYS[phase])}
+                {t(PHASE_KEY[phase])}
               </div>
             ) : null}
           </div>
 
           {/* Live transcript while listening */}
           {voice.listening ? (
-            <div className="border-t border-neutral-200 px-4 py-2 text-sm dark:border-neutral-800">
-              <div className="flex items-baseline justify-between gap-2">
-                <div className="min-w-0">
-                  <span className="text-neutral-400">{vt("youSaid")} </span>
-                  <span className="text-neutral-800 dark:text-neutral-100">
-                    {speech.interim || speech.transcript || "…"}
-                  </span>
-                </div>
-                <span
-                  aria-hidden="true"
-                  className="shrink-0 text-[11px] tabular-nums text-neutral-400"
-                >
-                  {formatRecordingDuration(voice.recordingElapsedMs)} /{" "}
-                  {formatRecordingDuration(voice.recordingMaxMs)}
-                </span>
-              </div>
+            <div className="border-t border-line px-4 py-2 text-sm">
+              <span className="text-ink-faint">{t("assistant.youSaid")}{" "}</span>
+              <span className="text-ink">{speech.interim || speech.transcript || "…"}</span>
             </div>
           ) : null}
 
           {/* Correctable transcript */}
           {voice.transcript && !voice.listening && !busy ? (
-            <div className="border-t border-neutral-200 px-3 py-2 dark:border-neutral-800">
+            <div className="border-t border-line px-3 py-2">
               <div className="flex items-center justify-between">
-                <p className="text-xs font-medium text-neutral-500">
-                  {vt("iHeard", { language: languageLabel(voice.detected, lang) })}
+                <p className="text-xs font-medium text-ink-subtle">
+                  {t("assistant.iHeard")} · {languageLabel(voice.detected)}
                 </p>
                 <p
                   className={cn(
                     "text-[11px]",
-                    speech.lowConfidence ? "text-amber-600" : "text-neutral-400",
+                    speech.lowConfidence ? "text-warning-ink" : "text-ink-faint",
                   )}
                 >
-                  {speech.lowConfidence ? vt("lowConfidence") : vt("correctIfNeeded")}
+                  {speech.lowConfidence
+                    ? t("assistant.lowConfidence")
+                    : t("assistant.correctIfNeeded")}
                 </p>
               </div>
-              {voice.endedReason === "max-duration" ? (
-                <p className="mt-1 flex items-center gap-1 text-[11px] text-amber-600">
-                  <AlertTriangle className="h-3 w-3 shrink-0" />
-                  {vt("recordingLimitReached")}
-                </p>
-              ) : null}
-              {voice.endedReason === "silence" ? (
-                <p className="mt-1 text-[11px] text-neutral-400">
-                  {vt("recordingStoppedPause")}
-                </p>
-              ) : null}
               <textarea
                 value={voice.transcript}
                 onChange={(e) => voice.setTranscript(e.target.value)}
                 rows={2}
-                className="mt-1 w-full resize-none rounded-xl border border-neutral-300 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 dark:border-neutral-700 dark:bg-neutral-800"
-                aria-label={vt("speechTranscript")}
+                className="mt-1 w-full resize-none rounded-xl border border-line-strong bg-surface px-3 py-2 text-sm outline-none focus:border-brand-500"
+                aria-label={t("assistant.transcript")}
               />
               <div className="mt-1.5 flex gap-2">
                 <button
@@ -306,38 +272,56 @@ export function VoiceAssistant() {
                   className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-brand-600 px-3 py-2 text-sm font-semibold text-white"
                 >
                   <Send className="h-4 w-4" />
-                  {vt("send")}
+                  {t("assistant.send")}
                 </button>
                 <button
                   type="button"
                   onClick={() => voice.start()}
-                  className="flex items-center justify-center gap-1.5 rounded-xl border border-neutral-300 px-3 py-2 text-sm font-medium dark:border-neutral-600"
+                  className="flex items-center justify-center gap-1.5 rounded-xl border border-line-strong px-3 py-2 text-sm font-medium"
                 >
                   <Mic className="h-4 w-4" />
-                  {vt("reRecord")}
+                  {t("assistant.rerecord")}
                 </button>
               </div>
             </div>
           ) : null}
 
           {micError && !voice.listening ? (
-            <div className="flex items-center gap-2 border-t border-neutral-200 px-4 py-2 text-xs text-amber-600 dark:border-neutral-800">
+            <div className="flex items-center gap-2 border-t border-line px-4 py-2 text-xs text-warning-ink">
               <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
               {micError}
             </div>
           ) : null}
 
           {/* Mic + typed fallback */}
-          <div className="border-t border-neutral-200 p-3 dark:border-neutral-800">
+          <div className="border-t border-line p-3">
+            <div className="mb-3 flex items-center gap-1.5">
+              {LANGUAGE_MODES.map((mode) => (
+                <button
+                  key={mode.value}
+                  type="button"
+                  onClick={() => voice.setLanguageMode(mode.value)}
+                  aria-pressed={voice.languageMode === mode.value}
+                  className={cn(
+                    "rounded-full border px-2.5 py-1 text-xs font-medium transition-colors",
+                    voice.languageMode === mode.value
+                      ? "border-brand-600 bg-brand-50 text-brand-700"
+                      : "border-line text-ink-subtle hover:bg-surface-2",
+                  )}
+                >
+                  {mode.label.startsWith("assistant.") ? t(mode.label as TranslationKey) : mode.label}
+                </button>
+              ))}
+            </div>
             <div className="flex items-center gap-3">
               <button
                 type="button"
                 onClick={handleMic}
                 disabled={busy}
-                aria-label={voice.listening ? vt("stopListening") : vt("startListening")}
+                aria-label={voice.listening ? t("assistant.stopListening") : t("assistant.startListening")}
                 className={cn(
                   "relative flex h-16 w-16 shrink-0 items-center justify-center rounded-full text-white transition-colors",
-                  voice.listening ? "bg-red-600" : "bg-brand-600 hover:bg-brand-700",
+                  voice.listening ? "bg-danger" : "bg-brand-600 hover:bg-brand-700",
                   busy && "opacity-50",
                 )}
               >
@@ -350,32 +334,21 @@ export function VoiceAssistant() {
                 )}
               </button>
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
+                <p className="text-sm font-medium text-ink">
                   {voice.listening
-                    ? vt("listeningTakeYourTime")
+                    ? t("assistant.listeningTapStop")
                     : busy
-                      ? vt(PHASE_KEYS[phase])
-                      : vt("tapToSpeak")}
+                      ? t(PHASE_KEY[phase])
+                      : t("assistant.tapToSpeak")}
                 </p>
-                <p className="mt-0.5 text-xs text-neutral-500">
-                  {voice.listening
-                    ? vt("recordingMaxHint")
+                <p className="mt-0.5 text-xs text-ink-subtle">
+                  {voice.languageMode === "ps"
+                    ? t("assistant.serverTranscribeHint")
                     : speech.supported
-                      ? vt("localTranscriptHint")
-                      : vt("recordingFallbackHint")}
+                      ? t("assistant.wordsFirst")
+                      : t("assistant.browserRecording")}
                 </p>
               </div>
-              {voice.listening ? (
-                <button
-                  type="button"
-                  onClick={() => voice.cancel()}
-                  aria-label={vt("cancelRecording")}
-                  title={vt("cancelRecording")}
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-neutral-300 text-neutral-600 hover:bg-neutral-100 dark:border-neutral-600 dark:text-neutral-300 dark:hover:bg-neutral-800"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              ) : null}
             </div>
 
             <div className="mt-3 flex items-end gap-2">
@@ -388,16 +361,16 @@ export function VoiceAssistant() {
                     handleTyped();
                   }
                 }}
-                placeholder={vt("orTypeCommand")}
-                className="min-h-11 flex-1 rounded-2xl border border-neutral-300 bg-white px-3 py-2.5 text-sm outline-none focus:border-brand-500 dark:border-neutral-700 dark:bg-neutral-800"
+                placeholder={t("assistant.typeCommand")}
+                className="min-h-11 flex-1 rounded-2xl border border-line-strong bg-surface px-3 py-2.5 text-sm outline-none focus:border-brand-500"
               />
               <button
                 type="button"
                 onClick={handleTyped}
                 disabled={busy || typed.trim().length === 0}
-                aria-label={vt("sendTypedCommand")}
+                aria-label={t("assistant.sendTyped")}
                 className={cn(
-                  "flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-neutral-900 text-white dark:bg-white dark:text-neutral-900",
+                  "flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-ink text-white",
                   (busy || typed.trim().length === 0) && "opacity-40",
                 )}
               >
@@ -428,12 +401,14 @@ function VoiceReply({
   onRetry: (text: string) => void;
   onEdit: (text: string) => void;
 }) {
-  const { vt } = useAssistantText();
+  const { t, tParams } = useLanguage();
+  const renderText = (value: string) =>
+    value.startsWith("@key:") ? t(value.slice(5) as TranslationKey) : value;
 
   if (reply.kind === "answer") {
     return (
-      <div className="rounded-2xl rounded-bl-sm bg-neutral-100 px-3 py-2 text-sm text-neutral-800 dark:bg-neutral-800 dark:text-neutral-100">
-        <p>{reply.text}</p>
+      <div className="rounded-2xl rounded-es-sm bg-surface-2 px-3 py-2 text-sm text-ink">
+        <p>{renderText(reply.text)}</p>
         {reply.items && reply.items.length > 0 ? (
           <ul className="mt-2 space-y-1">
             {reply.items.slice(0, 8).map((item, index) => (
@@ -441,14 +416,14 @@ function VoiceReply({
                 {item.href ? (
                   <a
                     href={item.href}
-                    className="truncate font-medium text-brand-700 hover:underline dark:text-brand-400"
+                    className="truncate font-medium text-brand-700 hover:underline"
                   >
                     {item.label}
                   </a>
                 ) : (
                   <span className="truncate font-medium">{item.label}</span>
                 )}
-                <span className="shrink-0 text-neutral-500">
+                <span className="shrink-0 text-ink-subtle">
                   {item.value}
                   {item.meta ? ` · ${item.meta}` : ""}
                 </span>
@@ -462,7 +437,7 @@ function VoiceReply({
 
   if (reply.kind === "clarify") {
     return (
-      <div className="rounded-2xl rounded-bl-sm bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:bg-amber-950/40 dark:text-amber-100">
+      <div className="rounded-2xl rounded-es-sm bg-warning-soft px-3 py-2 text-sm text-warning-ink">
         <p>{reply.text}</p>
         {reply.options && reply.options.length > 0 ? (
           <div className="mt-2 flex flex-wrap gap-1.5">
@@ -471,28 +446,30 @@ function VoiceReply({
                 key={option.id}
                 type="button"
                 onClick={() => onEdit(option.name)}
-                className="rounded-full border border-amber-300 bg-white px-2.5 py-1 text-xs font-medium dark:border-amber-800 dark:bg-amber-900/30"
+                className="rounded-full border border-warning bg-surface px-2.5 py-1 text-xs font-medium"
               >
                 {option.name}
               </button>
             ))}
           </div>
         ) : null}
-        <p className="mt-1.5 text-[11px] opacity-80">{vt("tapNameHint")}</p>
+        <p className="mt-1.5 text-[11px] opacity-80">{t("assistant.tapNameHint")}</p>
       </div>
     );
   }
 
   if (reply.kind === "error") {
     return (
-      <div className="rounded-2xl rounded-bl-sm bg-red-50 px-3 py-2 text-sm text-red-800 dark:bg-red-950/40 dark:text-red-100">
+      <div className="rounded-2xl rounded-es-sm bg-danger-soft px-3 py-2 text-sm text-danger-ink">
         <div className="flex items-start gap-2">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
           <div className="flex-1">
             <p>{reply.text}</p>
             {reply.retryAt ? (
               <p className="mt-1 text-xs opacity-80">
-                {vt("tryAgainAfter", { time: new Date(reply.retryAt).toLocaleTimeString() })}
+                {tParams("assistant.tryAgainAfter", {
+                  time: new Date(reply.retryAt).toLocaleTimeString(),
+                })}
               </p>
             ) : null}
             {reply.preservedText ? (
@@ -500,16 +477,16 @@ function VoiceReply({
                 <button
                   type="button"
                   onClick={() => onRetry(reply.preservedText)}
-                  className="rounded-full bg-red-600 px-2.5 py-1 text-xs font-semibold text-white"
+                  className="rounded-full bg-danger px-2.5 py-1 text-xs font-semibold text-white"
                 >
-                  {vt("retry")}
+                  {t("assistant.retry")}
                 </button>
                 <button
                   type="button"
                   onClick={() => onEdit(reply.preservedText)}
-                  className="rounded-full border border-red-300 px-2.5 py-1 text-xs font-medium"
+                  className="rounded-full border border-danger px-2.5 py-1 text-xs font-medium"
                 >
-                  {vt("edit")}
+                  {t("common.edit")}
                 </button>
               </div>
             ) : null}

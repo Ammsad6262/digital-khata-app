@@ -1,13 +1,14 @@
 /**
- * Middleware — server-side auth enforcement.
+ * Proxy — server-side auth enforcement (renamed from middleware in Next 16).
  *
  * Verifies the JWT auth token (dk_auth_token cookie) on ALL /api/* routes
  * EXCEPT public endpoints (auth/register, auth/login, auth/status, auth/me,
  * auth/unlock, health). If no valid token, returns 401.
  *
- * Uses the Edge runtime (crypto.subtle is available there).
+ * Uses the Node.js runtime (Next 16 default for proxy); crypto.subtle is
+ * available there.
  *
- * NOTE: This middleware enforces ACCOUNT-level auth (email/password login).
+ * NOTE: This proxy enforces ACCOUNT-level auth (email/password login).
  * The PIN system (dk_session cookie) is a SEPARATE client-side lock that
  * remains in AuthGate for device-level protection. Both can coexist.
  */
@@ -32,30 +33,12 @@ const PUBLIC_ROUTES = [
 ];
 
 export const config = {
-  // Run middleware on all API routes, plus the sign-in pages so the
-  // development bypass below can redirect them to the app.
-  matcher: ["/api/:path*", "/login", "/register"],
+  // Run the proxy on all API routes
+  matcher: "/api/:path*",
 };
 
-export async function middleware(req: NextRequest) {
+export async function proxy(req: NextRequest) {
   const path = req.nextUrl.pathname;
-
-  // ── LOCAL DEVELOPMENT ONLY ────────────────────────────────────────────
-  // Skip auth entirely and send the sign-in / sign-up pages straight into the
-  // app, so local UI work needs no login. Next.js statically replaces
-  // process.env.NODE_ENV, so this branch is dead code in a production build.
-  // Set DEV_AUTH_BYPASS=0 to restore normal auth locally.
-  if (process.env.NODE_ENV !== "production" && process.env.DEV_AUTH_BYPASS !== "0") {
-    if (path === "/login" || path === "/register") {
-      return NextResponse.redirect(new URL("/dashboard", req.url));
-    }
-    return NextResponse.next();
-  }
-
-  // Only /api/* is auth-enforced below.
-  if (!path.startsWith("/api/")) {
-    return NextResponse.next();
-  }
 
   // Check if this is a public route
   if (PUBLIC_ROUTES.some((route) => path === route || path.startsWith(route + "/"))) {
@@ -130,7 +113,9 @@ async function verifyJwt(token: string): Promise<{ userId: string } | null> {
     const body = JSON.parse(atob(bodyB64));
     if (body.exp && Math.floor(Date.now() / 1000) > body.exp) return null;
 
-    return body.userId ? { userId: body.userId as string } : null;
+    return typeof body.userId === "string" && body.userId
+      ? { userId: body.userId }
+      : null;
   } catch {
     return null;
   }

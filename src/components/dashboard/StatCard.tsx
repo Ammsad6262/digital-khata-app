@@ -1,9 +1,9 @@
 "use client";
 
 /**
- * Stat card — small stat box for the 2×2 grid.
+ * Stat card — small stat box for the dashboard's 2×2 grid.
  *
- * Each card shows: label, value (big), and an optional icon + tint.
+ * Each card shows a calm label, a large tabular value and a tinted icon chip.
  * Value accepts string OR ReactNode so callers can pass <Money /> for
  * currency-formatted values.
  */
@@ -12,14 +12,15 @@ import { type ReactNode } from "react";
 import { type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 
-type StatTone = "green" | "blue" | "amber" | "red" | "slate";
+type StatTone = "brand" | "green" | "blue" | "amber" | "red" | "slate";
 
-const TONE_CLASSES: Record<StatTone, { iconBg: string; iconText: string; value: string }> = {
-  green: { iconBg: "bg-brand-100", iconText: "text-brand-700", value: "text-slate-900" },
-  blue:  { iconBg: "bg-blue-100",  iconText: "text-blue-700",  value: "text-slate-900" },
-  amber: { iconBg: "bg-amber-100", iconText: "text-amber-700", value: "text-slate-900" },
-  red:   { iconBg: "bg-red-100",   iconText: "text-red-700",   value: "text-red-700" },
-  slate: { iconBg: "bg-slate-100", iconText: "text-slate-700", value: "text-slate-900" },
+const TONE_CLASSES: Record<StatTone, { chip: string; dot: string }> = {
+  brand: { chip: "bg-brand-50 text-brand-700", dot: "bg-brand-500" },
+  green: { chip: "bg-success-soft text-success-ink", dot: "bg-success" },
+  blue: { chip: "bg-info-soft text-info-ink", dot: "bg-info" },
+  amber: { chip: "bg-warning-soft text-warning-ink", dot: "bg-warning" },
+  red: { chip: "bg-danger-soft text-danger-ink", dot: "bg-danger" },
+  slate: { chip: "bg-surface-2 text-ink-muted", dot: "bg-ink-faint" },
 };
 
 export function StatCard({
@@ -35,18 +36,26 @@ export function StatCard({
 }) {
   const tones = TONE_CLASSES[tone];
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-3.5 shadow-sm">
+    <div className="group relative overflow-hidden rounded-card border border-line bg-surface p-3.5 shadow-card transition-shadow duration-200 hover:shadow-lift">
       <div className="flex items-start justify-between gap-2">
-        <p className="text-xs font-semibold leading-snug text-slate-600">
-          {label}
-        </p>
+        <div className="flex items-center gap-1.5">
+          <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", tones.dot)} />
+          <p className="text-[11px] font-medium leading-tight text-ink-subtle">
+            {label}
+          </p>
+        </div>
         {Icon ? (
-          <div className={cn("shrink-0 rounded-lg p-2", tones.iconBg)}>
-            <Icon className={cn("h-4 w-4", tones.iconText)} />
-          </div>
+          <span
+            className={cn(
+              "flex h-7 w-7 shrink-0 items-center justify-center rounded-[0.6rem]",
+              tones.chip,
+            )}
+          >
+            <Icon className="h-3.5 w-3.5" />
+          </span>
         ) : null}
       </div>
-      <p className={cn("mt-2 text-lg font-bold tracking-tight tabular-nums sm:text-xl", tones.value)}>
+      <p className="mt-2 truncate text-[17px] font-bold tracking-[-0.02em] tabular-nums text-ink">
         {value}
       </p>
     </div>

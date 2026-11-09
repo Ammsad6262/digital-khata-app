@@ -33,7 +33,7 @@ export function StockProductPicker({
         <>
           <div className="relative">
             <Search
-              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-faint"
               aria-hidden
             />
             <input
@@ -42,7 +42,7 @@ export function StockProductPicker({
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder={t("stock.searchPlaceholder")}
-              className="w-full rounded-lg border border-slate-300 bg-white py-2.5 pl-9 pr-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+              className="w-full rounded-lg border border-line-strong bg-surface py-2.5 pl-9 pr-3 text-sm text-ink placeholder:text-ink-faint focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
               aria-label={t("common.searchProductAria")}
               autoFocus
             />
@@ -50,21 +50,21 @@ export function StockProductPicker({
 
           <div className="space-y-1">
             {isLoading ? (
-              <p className="px-2 py-3 text-xs text-slate-400">{t("common.loading")}</p>
+              <p className="px-2 py-3 text-xs text-ink-faint">{t("common.loading")}</p>
             ) : isError ? (
-              <p className="px-2 py-3 text-xs text-red-600">{t("common.couldntLoad")}</p>
+              <p className="px-2 py-3 text-xs text-danger-ink">{t("common.couldntLoad")}</p>
             ) : !data || data.length === 0 ? (
               query.trim() ? (
-                <p className="px-2 py-3 text-xs text-slate-400">
+                <p className="px-2 py-3 text-xs text-ink-faint">
                   {t("product.noProductsMatch")} &ldquo;{query.trim()}&rdquo;.
                 </p>
               ) : (
-                <p className="px-2 py-3 text-xs text-slate-400">
+                <p className="px-2 py-3 text-xs text-ink-faint">
                   {t("sale.startTypingProduct")}
                 </p>
               )
             ) : (
-              <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
+              <div className="overflow-hidden rounded-lg border border-line bg-surface">
                 {data.slice(0, 8).map((product, idx) => {
                   const stock = new Decimal(product.currentStock);
                   const isLow = stock.lte(product.lowStockThreshold);
@@ -77,34 +77,34 @@ export function StockProductPicker({
                       onClick={() => onSelect(product)}
                       className={cn(
                         "flex w-full items-center gap-3 px-3 py-2.5 text-left",
-                        idx > 0 ? "border-t border-slate-100" : "",
-                        "hover:bg-slate-50",
+                        idx > 0 ? "border-t border-line" : "",
+                        "hover:bg-app",
                       )}
                     >
                       <div
                         className={cn(
                           "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg",
                           isNegative
-                            ? "bg-red-100"
+                            ? "bg-danger-soft"
                             : isLow
-                              ? "bg-amber-100"
-                              : "bg-slate-100",
+                              ? "bg-warning-soft"
+                              : "bg-surface-2",
                         )}
                       >
                         {isNegative || isLow ? (
                           <AlertTriangle className={cn(
                             "h-4 w-4",
-                            isNegative ? "text-red-600" : "text-amber-600",
+                            isNegative ? "text-danger-ink" : "text-warning-ink",
                           )} />
                         ) : (
-                          <Package className="h-4 w-4 text-slate-500" />
+                          <Package className="h-4 w-4 text-ink-subtle" />
                         )}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium text-slate-900">
+                        <p className="truncate text-sm font-medium text-ink">
                           {product.name}
                         </p>
-                        <p className="text-[11px] text-slate-500">
+                        <p className="text-[11px] text-ink-subtle">
                           {product.category ?? t("stock.uncategorized")} · {product.unit}
                           {product.sku ? ` · ${product.sku}` : ""}
                         </p>
@@ -114,10 +114,10 @@ export function StockProductPicker({
                           className={cn(
                             "text-xs font-bold tabular-nums",
                             isNegative
-                              ? "text-red-600"
+                              ? "text-danger-ink"
                               : isLow
-                                ? "text-amber-700"
-                                : "text-slate-700",
+                                ? "text-warning-ink"
+                                : "text-ink-muted",
                           )}
                         >
                           {formatQuantity(stock, product.unit)}

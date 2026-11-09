@@ -8,13 +8,15 @@
  * The PIN is hashed with bcrypt before storage. Never stored or returned in plaintext.
  */
 
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getOwnerPinHash, setOwnerPinHash, clearOwnerPinHash } from "@/lib/services/settings";
 import { hashPin, verifyPin, isValidPinFormat } from "@/lib/auth/pin";
 import { BadRequestError, UnauthorizedError } from "@/lib/errors";
 import { ok, fail, parseJsonBody } from "@/lib/utils/api";
 import { requireUserId } from "@/lib/auth/get-current-user";
+import { checkRateLimit, recordFailure, recordSuccess, getClientIp } from "@/lib/auth/rate-limiter";
+import { tServer } from "@/lib/i18n/server";
 
 export const dynamic = "force-dynamic";
 
@@ -28,7 +30,27 @@ const removePinSchema = z.object({
 });
 
 export async function POST(req: NextRequest) {
+  const ip = getClientIp(req);
+  const rateKey = `pin:${ip}`;
+
   try {
+    const { locked, retryAfter } = checkRateLimit(rateKey);
+    if (locked) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: {
+            code: "RATE_LIMITED",
+            message: tServer("api.auth.unlock.rateLimited", { seconds: retryAfter }),
+            messageKey: "api.auth.unlock.rateLimited",
+            translationKey: true,
+            params: { seconds: retryAfter },
+          },
+        },
+        { status: 429, headers: { "Retry-After": String(retryAfter) } },
+      );
+    }
+
     const userId = await requireUserId(req);
     const { data, error } = await parseJsonBody<unknown>(req);
     if (error) return fail(new Error(error));
@@ -48,8 +70,10 @@ export async function POST(req: NextRequest) {
       }
       const valid = await verifyPin(parsed.currentPin, existingHash);
       if (!valid) {
+        recordFailure(rateKey);
         throw new UnauthorizedError("api.pin.incorrectCurrent");
       }
+      recordSuccess(rateKey);
     }
 
     // Hash + store the new PIN
@@ -63,7 +87,27 @@ export async function POST(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
+  const ip = getClientIp(req);
+  const rateKey = `pin:${ip}`;
+
   try {
+    const { locked, retryAfter } = checkRateLimit(rateKey);
+    if (locked) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: {
+            code: "RATE_LIMITED",
+            message: tServer("api.auth.unlock.rateLimited", { seconds: retryAfter }),
+            messageKey: "api.auth.unlock.rateLimited",
+            translationKey: true,
+            params: { seconds: retryAfter },
+          },
+        },
+        { status: 429, headers: { "Retry-After": String(retryAfter) } },
+      );
+    }
+
     const userId = await requireUserId(req);
     const { data, error } = await parseJsonBody<unknown>(req);
     if (error) return fail(new Error(error));
@@ -78,8 +122,10 @@ export async function DELETE(req: NextRequest) {
 
     const valid = await verifyPin(parsed.currentPin, existingHash);
     if (!valid) {
+      recordFailure(rateKey);
       throw new UnauthorizedError("api.pin.incorrectCurrent");
     }
+    recordSuccess(rateKey);
 
     await clearOwnerPinHash(userId);
 

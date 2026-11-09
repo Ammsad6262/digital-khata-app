@@ -121,7 +121,7 @@ function startOfPeriodInTz(
     timeZone: timezone,
     year: "numeric", month: "2-digit", day: "2-digit",
     hour: "2-digit", minute: "2-digit",
-    hour12: false,
+    hourCycle: "h23",
   }).formatToParts(midnightUtc);
 
   const tzHour = parseInt(tzAtMidnightUtc.find(p => p.type === "hour")?.value ?? "0", 10);
@@ -224,7 +224,7 @@ export function startOfDayInTz(
     day: "2-digit",
     hour: "2-digit",
     minute: "2-digit",
-    hour12: false,
+    hourCycle: "h23",
   }).formatToParts(asUtc);
 
   const get = (type: string): number =>
@@ -293,30 +293,13 @@ export function getDateRangeForFilter(
 
 // ────────────────────────────────────────────────────────────────────────────
 // Display formatters
-//
-// All display formatters accept an optional `lang` ("en" | "ur"). When it is
-// omitted they behave exactly as before (English), so existing callers keep
-// working. Passing "ur" localises month names and relative-time phrases while
-// keeping Latin digits (common in Pakistani business software) so numbers stay
-// unambiguous and never disturb the RTL layout.
 // ────────────────────────────────────────────────────────────────────────────
-
-export type DisplayLang = "en" | "ur";
-
-/** Intl locale tag for a display language. `-u-nu-latn` keeps Latin digits. */
-function intlLocale(lang: DisplayLang = "en"): string {
-  return lang === "ur" ? "ur-PK-u-nu-latn" : "en-GB";
-}
 
 /** Format a Date for display in the business TZ: "16 Sep 2026, 2:30 PM".
  *  Accepts Date, string (ISO), or number (epoch). Normalizes to Date first. */
-export function formatDateTime(
-  date: Date | string | number,
-  timezone: string = "Asia/Karachi",
-  lang: DisplayLang = "en",
-): string {
+export function formatDateTime(date: Date | string | number, timezone: string = "Asia/Karachi"): string {
   const d = typeof date === "string" || typeof date === "number" ? new Date(date) : date;
-  return new Intl.DateTimeFormat(intlLocale(lang), {
+  return new Intl.DateTimeFormat("en-GB", {
     timeZone: timezone,
     day: "2-digit",
     month: "short",
@@ -329,13 +312,9 @@ export function formatDateTime(
 
 /** Format a Date for display: "16 Sep 2026" (no time).
  *  Accepts Date, string (ISO), or number (epoch). */
-export function formatDate(
-  date: Date | string | number,
-  timezone: string = "Asia/Karachi",
-  lang: DisplayLang = "en",
-): string {
+export function formatDate(date: Date | string | number, timezone: string = "Asia/Karachi"): string {
   const d = typeof date === "string" || typeof date === "number" ? new Date(date) : date;
-  return new Intl.DateTimeFormat(intlLocale(lang), {
+  return new Intl.DateTimeFormat("en-GB", {
     timeZone: timezone,
     day: "2-digit",
     month: "short",
@@ -345,13 +324,9 @@ export function formatDate(
 
 /** Format a Date for display: "2:30 PM" (no date).
  *  Accepts Date, string (ISO), or number (epoch). */
-export function formatTime(
-  date: Date | string | number,
-  timezone: string = "Asia/Karachi",
-  lang: DisplayLang = "en",
-): string {
+export function formatTime(date: Date | string | number, timezone: string = "Asia/Karachi"): string {
   const d = typeof date === "string" || typeof date === "number" ? new Date(date) : date;
-  return new Intl.DateTimeFormat(intlLocale(lang), {
+  return new Intl.DateTimeFormat("en-GB", {
     timeZone: timezone,
     hour: "numeric",
     minute: "2-digit",
@@ -359,36 +334,9 @@ export function formatTime(
   }).format(d);
 }
 
-const RELATIVE_PHRASES: Record<DisplayLang, {
-  justNow: string;
-  minAgo: (n: number) => string;
-  hrAgo: (n: number) => string;
-  yesterday: string;
-  daysAgo: (n: number) => string;
-}> = {
-  en: {
-    justNow: "just now",
-    minAgo: (n) => `${n} min ago`,
-    hrAgo: (n) => `${n} hr ago`,
-    yesterday: "yesterday",
-    daysAgo: (n) => `${n} days ago`,
-  },
-  ur: {
-    justNow: "ابھی",
-    minAgo: (n) => `${n} منٹ پہلے`,
-    hrAgo: (n) => `${n} گھنٹے پہلے`,
-    yesterday: "کل",
-    daysAgo: (n) => `${n} دن پہلے`,
-  },
-};
-
 /** Relative time: "5 min ago", "2 hours ago", "Yesterday", or absolute date.
- *  Accepts Date, string (ISO), or number (epoch). Pass `lang` to localise. */
-export function formatRelative(
-  date: Date | string | number,
-  timezone: string = "Asia/Karachi",
-  lang: DisplayLang = "en",
-): string {
+ *  Accepts Date, string (ISO), or number (epoch). */
+export function formatRelative(date: Date | string | number, timezone: string = "Asia/Karachi"): string {
   const d = typeof date === "string" || typeof date === "number" ? new Date(date) : date;
   const now = Date.now();
   const diffMs = now - d.getTime();
@@ -396,11 +344,10 @@ export function formatRelative(
   const diffHr = Math.floor(diffMin / 60);
   const diffDay = Math.floor(diffHr / 24);
 
-  const p = RELATIVE_PHRASES[lang] ?? RELATIVE_PHRASES.en;
-  if (diffMin < 1) return p.justNow;
-  if (diffMin < 60) return p.minAgo(diffMin);
-  if (diffHr < 24) return p.hrAgo(diffHr);
-  if (diffDay === 1) return p.yesterday;
-  if (diffDay < 7) return p.daysAgo(diffDay);
-  return formatDate(d, timezone, lang);
+  if (diffMin < 1) return "just now";
+  if (diffMin < 60) return `${diffMin} min ago`;
+  if (diffHr < 24) return `${diffHr} hr ago`;
+  if (diffDay === 1) return "yesterday";
+  if (diffDay < 7) return `${diffDay} days ago`;
+  return formatDate(d, timezone);
 }

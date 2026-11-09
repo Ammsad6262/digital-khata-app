@@ -85,28 +85,28 @@ export function OutstandingCustomersList() {
   return (
     <div className="space-y-3">
       {/* Summary banner — total owed + customer count + refresh spinner */}
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-gradient-to-br from-red-50 to-orange-50 p-4">
+      <div className="overflow-hidden rounded-2xl border border-line bg-gradient-to-br from-danger-soft to-warning-soft p-4">
         <div className="flex items-start justify-between">
           <div>
-            <p className="text-xs font-medium uppercase tracking-wider text-red-700/80">
+            <p className="text-xs font-medium uppercase tracking-wider text-danger-ink/80">
               {t("outstanding.totalOwed")}
             </p>
-            <p className="mt-1 text-3xl font-bold tracking-tight text-red-700">
+            <p className="mt-1 text-3xl font-bold tracking-tight text-danger-ink">
               <Money value={totalOwed.toString()} />
             </p>
-            <p className="mt-1.5 text-xs text-red-700/70">
-              <span className="font-semibold text-red-700">{data.length}</span>{" "}
+            <p className="mt-1.5 text-xs text-danger-ink/70">
+              <span className="font-semibold text-danger-ink">{data.length}</span>{" "}
               {data.length === 1
                 ? t("outstanding.customerCountOne")
                 : t("outstanding.customerCount")}
             </p>
           </div>
-          <div className="rounded-xl bg-white/60 p-2 text-red-700">
+          <div className="rounded-xl bg-surface/60 p-2 text-danger-ink">
             <Users className="h-5 w-5" />
           </div>
         </div>
         {isFetching ? (
-          <p className="mt-2 flex items-center gap-1 text-[11px] text-red-700/60">
+          <p className="mt-2 flex items-center gap-1 text-[11px] text-danger-ink/60">
             <RefreshCw className="h-3 w-3 animate-spin" />
             {t("dashboard.updating")}
           </p>
@@ -115,10 +115,10 @@ export function OutstandingCustomersList() {
 
       {/* Section header */}
       <div className="flex items-center justify-between px-1">
-        <h2 className="text-sm font-semibold text-slate-700">
+        <h2 className="text-sm font-semibold text-ink-muted">
           {t("outstanding.title")}
         </h2>
-        <span className="text-[11px] text-slate-400">
+        <span className="text-[11px] text-ink-faint">
           {t("outstanding.subtitle")}
         </span>
       </div>
@@ -127,50 +127,50 @@ export function OutstandingCustomersList() {
       <div className="space-y-2.5">
         {data.map((c, idx) => {
           const lastActivity = c.lastActivityAt
-            ? formatRelative(new Date(c.lastActivityAt), "Asia/Karachi", lang)
+            ? formatRelative(new Date(c.lastActivityAt))
             : "—";
-          const since = formatDate(new Date(c.createdAt), "Asia/Karachi", lang);
+          const since = formatDate(new Date(c.createdAt));
 
           return (
             <Link
               key={c.id}
               href={`/khata/${c.id}`}
-              className="block overflow-hidden rounded-xl border border-slate-200 bg-white transition-colors hover:border-brand-300 hover:bg-brand-50/30 active:bg-brand-50/60"
+              className="block overflow-hidden rounded-card border border-line bg-surface shadow-card transition-colors hover:border-brand-300 hover:bg-brand-50/30 active:bg-brand-50/60"
             >
               {/* Top row: avatar + name + phone + balance */}
               <div className="flex items-center gap-3 px-3 py-3">
                 <div
-                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-red-100 text-sm font-bold text-red-700"
+                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-danger-soft text-sm font-bold text-danger-ink"
                   aria-hidden
                 >
                   {c.name.charAt(0).toUpperCase()}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold text-slate-900">
-                    <span className="mr-1.5 text-slate-400">#{idx + 1}</span>
+                  <p className="truncate text-sm font-semibold text-ink">
+                    <span className="mr-1.5 text-ink-faint">#{idx + 1}</span>
                     {c.name}
                   </p>
                   {c.phone ? (
-                    <p className="flex items-center gap-1 text-xs text-slate-500">
+                    <p className="flex items-center gap-1 text-xs text-ink-subtle">
                       <Phone className="h-3 w-3" />
                       {c.phone}
                     </p>
                   ) : (
-                    <p className="text-xs text-slate-300">{t("customer.noPhone")}</p>
+                    <p className="text-xs text-ink-faint">{t("customer.noPhone")}</p>
                   )}
                 </div>
                 <div className="shrink-0 text-right">
-                  <p className="text-base font-bold tabular-nums text-red-600">
+                  <p className="text-base font-bold tabular-nums text-danger-ink">
                     <Money value={c.balance} />
                   </p>
-                  <p className="text-[10px] font-medium uppercase tracking-wider text-red-500/80">
+                  <p className="text-[10px] font-medium uppercase tracking-wider text-danger/80">
                     {t("customer.owes")}
                   </p>
                 </div>
               </div>
 
               {/* Bottom row: stats grid — opening / sales / payments / last activity */}
-              <div className="grid grid-cols-4 gap-1 border-t border-slate-100 bg-slate-50/60 px-3 py-2 text-center">
+              <div className="grid grid-cols-4 gap-1 border-t border-line bg-app/60 px-3 py-2 text-center">
                 <Stat
                   label={t("customer.opening")}
                   value={<Money value={c.openingBalance} />}
@@ -191,7 +191,7 @@ export function OutstandingCustomersList() {
                 <Stat
                   label={t("outstanding.lastActivity")}
                   value={
-                    <span className="text-[11px] font-medium text-slate-700">
+                    <span className="text-[11px] font-medium text-ink-muted">
                       {lastActivity}
                     </span>
                   }
@@ -199,7 +199,7 @@ export function OutstandingCustomersList() {
               </div>
 
               {/* Footer: customer since + CTA */}
-              <div className="flex items-center justify-between px-3 py-1.5 text-[11px] text-slate-400">
+              <div className="flex items-center justify-between px-3 py-1.5 text-[11px] text-ink-faint">
                 <span>
                   {t("outstanding.openedOn")}: {since}
                 </span>
@@ -231,14 +231,14 @@ function Stat({
   tone?: "slate" | "green" | "blue";
 }) {
   const toneClass = {
-    slate: "text-slate-700",
-    green: "text-green-700",
-    blue: "text-blue-700",
+    slate: "text-ink-muted",
+    green: "text-success-ink",
+    blue: "text-info-ink",
   }[tone];
 
   return (
     <div className="px-1">
-      <p className="flex items-center justify-center gap-0.5 text-[9px] font-medium uppercase tracking-wider text-slate-400">
+      <p className="flex items-center justify-center gap-0.5 text-[9px] font-medium uppercase tracking-wider text-ink-faint">
         {icon}
         {label}
       </p>
@@ -256,13 +256,13 @@ function Stat({
 function OutstandingSkeleton() {
   return (
     <div className="space-y-3">
-      <div className="h-24 animate-pulse rounded-2xl bg-slate-200" />
-      <div className="h-4 w-1/2 animate-pulse rounded bg-slate-200" />
+      <div className="h-24 animate-pulse rounded-2xl bg-surface-2" />
+      <div className="h-4 w-1/2 animate-pulse rounded bg-surface-2" />
       <div className="space-y-2.5">
         {[0, 1, 2, 3].map((i) => (
           <div
             key={i}
-            className="h-32 animate-pulse rounded-xl border border-slate-200 bg-slate-100"
+            className="h-32 animate-pulse rounded-card border border-line bg-surface-2"
           />
         ))}
       </div>

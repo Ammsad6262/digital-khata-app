@@ -41,14 +41,13 @@ function isKhataLanguage(value: unknown): value is KhataLanguage {
 }
 
 function resolveLanguage(input: KhataAskInput, text: string): KhataLanguage {
-  // The app's selected language is authoritative: when the owner is using the
-  // Urdu interface, typed questions (English, Urdu or Roman Urdu) are answered
-  // in Urdu. The client always sends "en" or "ur".
-  if (input.language === "ur" || input.language === "en") {
-    return input.language;
+  // The server is authoritative: detect from the text the owner actually sent.
+  if (text) {
+    const detected = detectSpeechLanguage(text);
+    // The typed Khata assistant's phrase templates are English/Urdu only;
+    // Pashto is fully supported by the Voice Assistant (model-generated).
+    return detected === "ps" ? "ur" : detected;
   }
-  // Fallback for direct API callers that did not send a language.
-  if (text) return detectSpeechLanguage(text);
   if (isKhataLanguage(input.language)) return input.language;
   return "en";
 }

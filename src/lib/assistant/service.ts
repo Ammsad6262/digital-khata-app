@@ -19,22 +19,12 @@ import { getSettings } from "@/lib/services/settings";
 import { formatMoney } from "@/lib/utils/money";
 import { AIExhaustedError } from "@/lib/ai/model-registry";
 import { AIUnavailableError } from "@/lib/ai/gemini-client";
-import { route, looksLikeBusinessCommand } from "./router";
+import { route, looksLikeBusinessCommand, shouldEscalate } from "./router";
 import { aiUnderstand } from "./ai";
 import { runQuery, NeedsEntityError, type ResolvedEntity } from "./queries";
 import { performAction, buildIdempotencyKey, type ActionResult } from "./actions";
 import { loadThread, saveThread } from "./context";
 import { getRotationStatus } from "@/lib/ai/model-registry";
-import {
-  categoryLabel,
-  methodLabel,
-  normalizeVoiceLang,
-  pickVoice,
-  priorityLabel,
-  unitLabel,
-  type VoiceLang,
-  type VoicePhraseKey,
-} from "./phrases";
 import type { SpeechLanguage } from "./language";
 import type {
   ActionKind,
@@ -236,11 +226,8 @@ async function buildPlanFor(
   match: RouteAction,
   ctx: RouterContext,
   symbol: string,
-  lang: VoiceLang = "en",
 ): Promise<PlanBuild | AssistantReply> {
   const money = (v: number | string | null | undefined) => formatMoney(v ?? 0, symbol);
-  const v = (key: VoicePhraseKey, params?: Record<string, string | number>) =>
-    pickVoice(lang, key, params);
   const f = match.fields;
   const requires: PlanRequirement[] = [];
   const warnings: string[] = [];
@@ -263,8 +250,8 @@ async function buildPlanFor(
         requires.push("customer");
         warnings.push(
           f.customerName
-            ? v("warnNoCustomerNamed", { name: f.customerName })
-            : v("warnNoCustomer"),
+            ? `No customer named “${f.customerName}” yet. Pick a customer or add them.`
+            : "No customer was mentioned.",
         );
       }
       payload.customerId = customer.entity?.id;
@@ -280,9 +267,7 @@ async function buildPlanFor(
       if (!product.entity && product.candidates.length === 0) {
         requires.push("product");
         warnings.push(
-          f.productName
-            ? v("warnNoProductNamed", { name: f.productName })
-            : v("warnNoProduct"),
+          f.productName ? `No product named “${f.productName}” yet.` : "No product was mentioned.",
         );
       }
       payload.productId = product.entity?.id;
@@ -313,10 +298,7 @@ async function buildPlanFor(
 
       if (total !== null && payload.paidAmount !== null && payload.paidAmount > total) {
         warnings.push(
-          v("warnPaidMoreThanTotal", {
-            paid: money(payload.paidAmount),
-            total: money(total),
-          }),
+          `Paid ${money(payload.paidAmount)} is more than the sale total ${money(total)}.`,
         );
       }
       if (payload.productId && quantity) {
@@ -333,38 +315,27 @@ async function buildPlanFor(
             Number(stock.openingStock) + Number(moves._sum.quantity ?? 0);
           if (quantity > current) {
             warnings.push(
-              v("warnOversell", {
-                current,
-                unit: stock.unit,
-                name: stock.name,
-              }),
+              `Only ${current} ${stock.unit} of ${stock.name} in stock — this sale will oversell.`,
             );
           }
         }
       }
 
-      const custName = customer.entity?.name ?? f.customerName ?? v("theCustomer");
-      const prodName = product.entity?.name ?? f.productName ?? v("theProduct");
+      const custName = customer.entity?.name ?? f.customerName ?? "the customer";
+      const prodName = product.entity?.name ?? f.productName ?? "the product";
       return {
         payload,
-        summary: v("summarySell", {
-          quantity: quantity ?? "?",
-          unit: payload.unit ?? "",
-          product: prodName,
-          customer: custName,
-        })
-          .replace(/\s+/g, " ")
-          .trim(),
+        summary: `Sell ${quantity ?? "?"} ${payload.unit ?? ""} ${prodName} to ${custName}`.replace(/\s+/g, " ").trim(),
         fields: [
-          { label: v("labelCustomer"), value: custName },
-          { label: v("labelProduct"), value: prodName },
-          { label: v("labelQuantity"), value: `${quantity ?? "?"} ${payload.unit ?? ""}`.trim() },
-          { label: v("labelUnitPrice"), value: money(unitPrice) },
-          ...(discount ? [{ label: v("labelDiscount"), value: money(discount) }] : []),
-          { label: v("labelTotal"), value: total === null ? "—" : money(total) },
+          { label: "Customer", value: custName },
+          { label: "Product", value: prodName },
+          { label: "Quantity", value: `${quantity ?? "?"} ${payload.unit ?? ""}`.trim() },
+          { label: "Unit price", value: money(unitPrice) },
+          ...(discount ? [{ label: "Discount", value: money(discount) }] : []),
+          { label: "Total", value: total === null ? "—" : money(total) },
           {
-            label: v("labelPaidNow"),
-            value: payload.paidAmount === null ? v("notStated") : money(payload.paidAmount),
+            label: "Paid now",
+            value: payload.paidAmount === null ? "Not stated" : money(payload.paidAmount),
           },
         ],
         warnings,
@@ -398,17 +369,14 @@ async function buildPlanFor(
       payload.method = f.method;
       payload.date = f.date;
 
-      const name = customer.entity?.name ?? f.customerName ?? v("theCustomer");
+      const name = customer.entity?.name ?? f.customerName ?? "the customer";
       return {
         payload,
-        summary: v("summaryPaymentReceived", {
-          amount: money(payload.amount),
-          name,
-        }),
+        summary: `Record ${money(payload.amount)} received from ${name}`,
         fields: [
-          { label: v("labelCustomer"), value: name },
-          { label: v("labelAmount"), value: money(payload.amount) },
-          { label: v("labelMethod"), value: methodLabel(lang, payload.method ?? "cash") },
+          { label: "Customer", value: name },
+          { label: "Amount", value: money(payload.amount) },
+          { label: "Method", value: payload.method ?? "cash" },
         ],
         warnings,
         requires,
@@ -435,17 +403,14 @@ async function buildPlanFor(
       payload.method = f.method;
       payload.date = f.date;
 
-      const name = supplier.entity?.name ?? f.supplierName ?? v("theSupplier");
+      const name = supplier.entity?.name ?? f.supplierName ?? "the supplier";
       return {
         payload,
-        summary: v("summaryPaySupplier", {
-          amount: money(payload.amount),
-          name,
-        }),
+        summary: `Pay ${money(payload.amount)} to ${name}`,
         fields: [
-          { label: v("labelSupplier"), value: name },
-          { label: v("labelAmount"), value: money(payload.amount) },
-          { label: v("labelMethod"), value: methodLabel(lang, payload.method ?? "cash") },
+          { label: "Supplier", value: name },
+          { label: "Amount", value: money(payload.amount) },
+          { label: "Method", value: payload.method ?? "cash" },
         ],
         warnings,
         requires,
@@ -464,14 +429,11 @@ async function buildPlanFor(
 
       return {
         payload,
-        summary: v("summaryExpense", {
-          amount: money(payload.amount),
-          name: payload.expenseName ?? "?",
-        }),
+        summary: `Record expense ${money(payload.amount)} — ${payload.expenseName ?? "?"}`,
         fields: [
-          { label: v("labelExpense"), value: payload.expenseName ?? "—" },
-          { label: v("labelAmount"), value: money(payload.amount) },
-          { label: v("labelCategory"), value: categoryLabel(lang, payload.category ?? "other") },
+          { label: "Expense", value: payload.expenseName ?? "—" },
+          { label: "Amount", value: money(payload.amount) },
+          { label: "Category", value: payload.category ?? "other" },
         ],
         warnings,
         requires,
@@ -490,11 +452,7 @@ async function buildPlanFor(
         requires.push("product");
       } else if (!product.entity) {
         requires.push("product");
-        warnings.push(
-          f.productName
-            ? v("warnNoProductNamed", { name: f.productName })
-            : v("warnNoProduct"),
-        );
+        warnings.push(f.productName ? `No product named “${f.productName}” yet.` : "No product was mentioned.");
       }
       payload.productId = product.entity?.id;
       payload.quantity = f.quantity ?? undefined;
@@ -511,23 +469,14 @@ async function buildPlanFor(
       payload.date = f.date;
       payload.notes = "Added by assistant";
 
-      const prodName = product.entity?.name ?? f.productName ?? v("theProduct");
+      const prodName = product.entity?.name ?? f.productName ?? "the product";
       return {
         payload,
-        summary: v("summaryAddStock", {
-          quantity: payload.quantity ?? "?",
-          unit: payload.unit ?? "",
-          product: prodName,
-        })
-          .replace(/\s+/g, " ")
-          .trim(),
+        summary: `Add ${payload.quantity ?? "?"} ${payload.unit ?? ""} of ${prodName} to stock`.replace(/\s+/g, " ").trim(),
         fields: [
-          { label: v("labelProduct"), value: prodName },
-          { label: v("labelQuantity"), value: `${payload.quantity ?? "?"} ${payload.unit ?? ""}`.trim() },
-          {
-            label: v("labelCostPerUnit"),
-            value: payload.unitCost == null ? v("productCost") : money(payload.unitCost),
-          },
+          { label: "Product", value: prodName },
+          { label: "Quantity", value: `${payload.quantity ?? "?"} ${payload.unit ?? ""}`.trim() },
+          { label: "Cost per unit", value: payload.unitCost == null ? "product cost" : money(payload.unitCost) },
         ],
         warnings,
         requires,
@@ -547,9 +496,7 @@ async function buildPlanFor(
       } else if (!supplier.entity) {
         requires.push("supplier");
         warnings.push(
-          f.supplierName
-            ? v("warnNoSupplierNamed", { name: f.supplierName })
-            : v("warnNoSupplier"),
+          f.supplierName ? `No supplier named “${f.supplierName}” yet.` : "No supplier was mentioned.",
         );
       }
       payload.supplierId = supplier.entity?.id;
@@ -580,25 +527,18 @@ async function buildPlanFor(
       payload.date = f.date;
 
       const total = payload.quantity && payload.unitCost ? payload.quantity * payload.unitCost : null;
-      const supplierName = supplier.entity?.name ?? f.supplierName ?? v("theSupplier");
-      const prodName = product.entity?.name ?? f.productName ?? v("theProduct");
+      const supplierName = supplier.entity?.name ?? f.supplierName ?? "the supplier";
+      const prodName = product.entity?.name ?? f.productName ?? "the product";
       return {
         payload,
-        summary: v("summaryBuy", {
-          quantity: payload.quantity ?? "?",
-          unit: payload.unit ?? "",
-          product: prodName,
-          supplier: supplierName,
-        })
-          .replace(/\s+/g, " ")
-          .trim(),
+        summary: `Buy ${payload.quantity ?? "?"} ${payload.unit ?? ""} ${prodName} from ${supplierName}`.replace(/\s+/g, " ").trim(),
         fields: [
-          { label: v("labelSupplier"), value: supplierName },
-          { label: v("labelProduct"), value: prodName },
-          { label: v("labelQuantity"), value: `${payload.quantity ?? "?"} ${payload.unit ?? ""}`.trim() },
-          { label: v("labelCostPerUnit"), value: money(payload.unitCost) },
-          { label: v("labelTotal"), value: total === null ? "—" : money(total) },
-          { label: v("labelPaidNow"), value: money(payload.paidAmount) },
+          { label: "Supplier", value: supplierName },
+          { label: "Product", value: prodName },
+          { label: "Quantity", value: `${payload.quantity ?? "?"} ${payload.unit ?? ""}`.trim() },
+          { label: "Cost per unit", value: money(payload.unitCost) },
+          { label: "Total", value: total === null ? "—" : money(total) },
+          { label: "Paid now", value: money(payload.paidAmount) },
         ],
         warnings,
         requires,
@@ -612,10 +552,10 @@ async function buildPlanFor(
       if (!payload.name) requires.push("name");
       return {
         payload,
-        summary: v("summaryAddCustomer", { name: payload.name ?? "?" }),
+        summary: `Add customer ${payload.name ?? "?"}`,
         fields: [
-          { label: v("labelName"), value: payload.name ?? "—" },
-          { label: v("labelPhone"), value: f.phone ?? "—" },
+          { label: "Name", value: payload.name ?? "—" },
+          { label: "Phone", value: f.phone ?? "—" },
         ],
         warnings,
         requires,
@@ -629,8 +569,8 @@ async function buildPlanFor(
       if (!payload.name) requires.push("name");
       return {
         payload,
-        summary: v("summaryAddSupplier", { name: payload.name ?? "?" }),
-        fields: [{ label: v("labelName"), value: payload.name ?? "—" }],
+        summary: `Add supplier ${payload.name ?? "?"}`,
+        fields: [{ label: "Name", value: payload.name ?? "—" }],
         warnings,
         requires,
         candidates,
@@ -649,19 +589,14 @@ async function buildPlanFor(
       if (f.quantity) payload.openingStock = f.quantity;
       return {
         payload,
-        summary: v("summaryAddProduct", { name: payload.name ?? "?" }),
+        summary: `Add product ${payload.name ?? "?"}`,
         fields: [
-          { label: v("labelName"), value: payload.name ?? "—" },
-          { label: v("labelUnit"), value: unitLabel(lang, payload.unit ?? "piece") },
-          { label: v("labelSellingPrice"), value: money(payload.sellingPrice) },
-          { label: v("labelPurchasePrice"), value: money(payload.purchasePrice) },
+          { label: "Name", value: payload.name ?? "—" },
+          { label: "Unit", value: payload.unit ?? "piece" },
+          { label: "Selling price", value: money(payload.sellingPrice) },
+          { label: "Purchase price", value: money(payload.purchasePrice) },
           ...(payload.openingStock
-            ? [
-                {
-                  label: v("labelOpeningStock"),
-                  value: `${payload.openingStock} ${unitLabel(lang, payload.unit)}`,
-                },
-              ]
+            ? [{ label: "Opening stock", value: `${payload.openingStock} ${payload.unit}` }]
             : []),
         ],
         warnings,
@@ -672,7 +607,7 @@ async function buildPlanFor(
     }
 
     case "CREATE_REMINDER": {
-      payload.reminderTitle = f.reminderTitle ?? f.name ?? v("followUp");
+      payload.reminderTitle = f.reminderTitle ?? f.name ?? "Follow up";
       payload.reminderDueAt = f.reminderDueAt ?? new Date(Date.now() + 86_400_000).toISOString();
       payload.reminderPriority = f.reminderPriority ?? "normal";
       payload.reminderType = f.reminderType ?? "custom";
@@ -680,14 +615,11 @@ async function buildPlanFor(
       payload.supplierId = f.supplierId;
       return {
         payload,
-        summary: v("summaryReminder", { title: payload.reminderTitle }),
+        summary: `Reminder: ${payload.reminderTitle}`,
         fields: [
-          { label: v("labelReminder"), value: payload.reminderTitle },
-          { label: v("labelDue"), value: payload.reminderDueAt!.slice(0, 10) },
-          {
-            label: v("labelPriority"),
-            value: priorityLabel(lang, payload.reminderPriority ?? "normal"),
-          },
+          { label: "Reminder", value: payload.reminderTitle },
+          { label: "Due", value: payload.reminderDueAt!.slice(0, 10) },
+          { label: "Priority", value: payload.reminderPriority ?? "normal" },
         ],
         warnings,
         requires,
@@ -704,19 +636,19 @@ async function buildPlanFor(
       if (!payload.targetId) requires.push("targetId");
       const label =
         match.action === "COMPLETE_REMINDER"
-          ? v("summaryCompleteReminder")
+          ? "Complete reminder"
           : match.action === "VOID_SALE"
-            ? v("summaryVoidSale")
+            ? "Void sale"
             : match.action === "VOID_EXPENSE"
-              ? v("summaryVoidExpense")
-              : v("summaryVoidPayment");
+              ? "Void expense"
+              : "Void payment";
       if (match.action.startsWith("VOID")) {
-        warnings.push(v("warnReverse"));
+        warnings.push("This reverses money and inventory. Confirm only if you are sure.");
       }
       return {
         payload,
         summary: label,
-        fields: [{ label: v("labelTarget"), value: payload.targetId ?? "—" }],
+        fields: [{ label: "Target", value: payload.targetId ?? "—" }],
         warnings,
         requires,
         candidates,
@@ -727,7 +659,7 @@ async function buildPlanFor(
     default:
       return errorReply(
         "NOT_UNDERSTOOD",
-        v("errCantDoThat"),
+        "I can't do that yet.",
         "",
         emptyTimings(),
       );
@@ -814,9 +746,7 @@ async function storePlan(
 export type AssistantInput = {
   text?: string;
   audio?: { base64: string; mimeType: string };
-  /** Selected app language: controls the language of every reply. */
-  lang?: VoiceLang;
-  /** Spoken-language hint from the client, used only for recognition. */
+  /** Spoken-language hint from the client, used only to shape the reply language. */
   language?: SpeechLanguage;
 };
 
@@ -825,14 +755,12 @@ export async function handleMessage(
   input: AssistantInput,
 ): Promise<AssistantReply> {
   const started = Date.now();
-  const lang = normalizeVoiceLang(input.lang);
-  const v = (key: VoicePhraseKey, params?: Record<string, string | number>) =>
-    pickVoice(lang, key, params);
   const text = (input.text ?? "").trim();
   let transcript: string | null = text || null;
   let requestsUsed = 0;
   let model: string | undefined;
   let aiMs: number | undefined;
+  let aiSummary: string | null = null;
   let source: "rules" | "ai" = "rules";
 
   const ctx = await loadRouterContext(userId);
@@ -840,16 +768,21 @@ export async function handleMessage(
   const symbol = settings.currencySymbol || "Rs.";
 
   const ruleStarted = Date.now();
-  let match: RouteMatch | null = text ? route(text, ctx, lang) : null;
+  const ruleMatch: RouteMatch | null = text ? route(text, ctx) : null;
   const ruleMs = Date.now() - ruleStarted;
 
-  const needsAi = !match;
+  // Rules resolve the common, formulaic commands. The model is consulted when
+  // the rules found nothing, when they produced only a PARTIAL action (a
+  // missing product/quantity — the bug that used to show "the product"), or
+  // when the command is written in Urdu/Pashto script the rules cannot read.
+  let match: RouteMatch | null = ruleMatch;
+  const needsAi = !ruleMatch || shouldEscalate(ruleMatch, text);
   if (needsAi) {
     const businessLike = text ? looksLikeBusinessCommand(text) : true;
-    if (text && !businessLike) {
+    if (text && !businessLike && !ruleMatch) {
       return errorReply(
         "NOT_UNDERSTOOD",
-        v("errNotBusinessCommand"),
+        "I didn't catch a business command. Try “Ali paid 5,000” or “who owes me money?”.",
         text,
         { totalMs: Date.now() - started, ruleMs },
       );
@@ -859,57 +792,67 @@ export async function handleMessage(
       const ai = await aiUnderstand(
         ctx,
         input.audio
-          ? { audio: input.audio, language: input.language, lang }
-          : { text, language: input.language, lang },
+          ? { audio: input.audio, language: input.language }
+          : { text, language: input.language },
       );
       requestsUsed += ai.requestsUsed;
       model = ai.model;
       aiMs = ai.ms;
+      aiSummary = ai.summary;
       if (ai.transcript && !transcript) transcript = ai.transcript;
       if (ai.match) {
         match = ai.match;
         source = "ai";
-      } else {
+      } else if (!ruleMatch) {
         return {
           kind: "clarify",
-          text: ai.clarification ?? v("errAiNotSure"),
+          text: ai.clarification ?? "I'm not sure what you want to do. Can you say it differently?",
           source: "ai",
           model,
           requestsUsed,
           timings: { totalMs: Date.now() - started, ruleMs, aiMs },
         };
       }
+      // else: keep the rule match and carry on.
     } catch (error) {
-      const timings = { totalMs: Date.now() - started, ruleMs, aiMs };
-      if (error instanceof AIExhaustedError) {
-        // "timeout" means the provider was slow, not out of budget — say so,
-        // because the fix is different (retry now vs. wait until tomorrow).
-        const slow = error.reason === "timeout";
+      // If the rules already produced a usable match, prefer it over an error.
+      if (ruleMatch) {
+        match = ruleMatch;
+        aiMs = undefined;
+      } else {
+        const timings = { totalMs: Date.now() - started, ruleMs, aiMs };
+        if (error instanceof AIExhaustedError) {
+          // "timeout" means the provider was slow, not out of budget — say so,
+          // because the fix is different (retry now vs. wait until tomorrow).
+          const slow = error.reason === "timeout";
+          return errorReply(
+            slow ? "AI_SLOW" : "AI_EXHAUSTED",
+            slow
+              ? "The AI took too long to answer, so I stopped waiting. Your words are saved — tap retry, or use the form below."
+              : "The AI models have reached today's free limit. Your command is saved — try again after the limit resets (or use the buttons below).",
+            text,
+            timings,
+            { retryAt: error.retryAt?.toISOString(), requestsUsed },
+          );
+        }
+        if (error instanceof AIUnavailableError) {
+          return errorReply(
+            "AI_UNAVAILABLE",
+            "The AI is not configured on this server.",
+            text,
+            timings,
+            { requestsUsed },
+          );
+        }
+        console.error("[assistant] AI failure:", error);
         return errorReply(
-          slow ? "AI_SLOW" : "AI_EXHAUSTED",
-          slow ? v("errAiSlow") : v("errAiExhausted"),
-          text,
-          timings,
-          { retryAt: error.retryAt?.toISOString(), requestsUsed },
-        );
-      }
-      if (error instanceof AIUnavailableError) {
-        return errorReply(
-          "AI_UNAVAILABLE",
-          v("errAiNotConfigured"),
+          "SERVER",
+          "Something went wrong understanding that. Your command was kept — try again.",
           text,
           timings,
           { requestsUsed },
         );
       }
-      console.error("[assistant] AI failure:", error);
-      return errorReply(
-        "SERVER",
-        v("errServerUnderstanding"),
-        text,
-        timings,
-        { requestsUsed },
-      );
     }
   }
 
@@ -918,7 +861,7 @@ export async function handleMessage(
   if (!finalMatch) {
     return errorReply(
       "NOT_UNDERSTOOD",
-      v("errCouldNotUnderstand"),
+      "I couldn't understand that one.",
       text,
       { totalMs: Date.now() - started, ruleMs, aiMs },
       { requestsUsed },
@@ -928,7 +871,7 @@ export async function handleMessage(
   if (finalMatch.type === "query") {
     const resolved = await resolveQueryEntity(userId, finalMatch, ctx);
     try {
-      const result = await runQuery(userId, finalMatch, resolved, lang);
+      const result = await runQuery(userId, finalMatch, resolved);
       if (resolved) {
         await saveThread(userId, {
           lastCustomerId: resolved.type === "customer" ? resolved.id : undefined,
@@ -972,8 +915,12 @@ export async function handleMessage(
 
   // ── Action ─────────────────────────────────────────────────────────────
   if (finalMatch.type === "action") {
-    const build = await buildPlanFor(userId, finalMatch, ctx, symbol, lang);
+    const build = await buildPlanFor(userId, finalMatch, ctx, symbol);
     if ("kind" in build) return build;
+
+    // When the model understood the command, use its localized one-line
+    // summary so an Urdu/Pashto owner sees the confirmation in their language.
+    if (source === "ai" && aiSummary) build.summary = aiSummary;
 
     const stored = await storePlan(userId, build, text || transcript || "");
     if (build.usedContext || stored.payload.customerId || stored.payload.supplierId || stored.payload.productId) {
@@ -994,7 +941,7 @@ export async function handleMessage(
 
   return errorReply(
     "NOT_UNDERSTOOD",
-    v("errCouldNotUnderstand"),
+    "I couldn't understand that one.",
     text,
     { totalMs: Date.now() - started, ruleMs, aiMs },
     { requestsUsed },
@@ -1072,25 +1019,19 @@ export async function confirmAction(
   userId: string,
   actionId: string,
   patch: Partial<PlanPayload> = {},
-  lang: VoiceLang = "en",
 ): Promise<AssistantReply> {
   const started = Date.now();
-  const v = (key: VoicePhraseKey, params?: Record<string, string | number>) =>
-    pickVoice(lang, key, params);
 
   const row = await prisma.assistantAction.findFirst({ where: { id: actionId, userId } });
   if (!row) {
-    return errorReply("INVALID_INPUT", v("errActionNoLongerExists"), "", emptyTimings());
+    return errorReply("INVALID_INPUT", "That action no longer exists.", "", emptyTimings());
   }
 
   if (row.status === "DONE") {
     const result = row.result as unknown as ActionResult | null;
     return {
       kind: "answer",
-      text:
-        result && result.ok
-          ? v("alreadySaved", { message: result.message })
-          : v("alreadyDone"),
+      text: result && result.ok ? `Already saved: ${result.message}` : "Already done.",
       data: result ?? undefined,
       source: "database",
       requestsUsed: 0,
@@ -1098,7 +1039,7 @@ export async function confirmAction(
     };
   }
   if (row.status === "CANCELLED") {
-    return errorReply("INVALID_INPUT", v("errActionCancelled"), "", emptyTimings());
+    return errorReply("INVALID_INPUT", "That action was cancelled.", "", emptyTimings());
   }
 
   const stored = row.payload as unknown as PlanPayload;
@@ -1117,22 +1058,17 @@ export async function confirmAction(
       const result = latest.result as unknown as ActionResult | null;
       return {
         kind: "answer",
-        text:
-          result && result.ok && lang === "en"
-            ? result.message
-            : result && result.ok
-              ? v("alreadySaved", { message: result.message })
-              : v("alreadyDone"),
+        text: result && result.ok ? result.message : "Already done.",
         source: "database",
         requestsUsed: 0,
         timings: { totalMs: Date.now() - started },
       };
     }
-    return errorReply("INVALID_INPUT", v("errActionProcessing"), "", emptyTimings());
+    return errorReply("INVALID_INPUT", "That action is already being processed.", "", emptyTimings());
   }
 
   try {
-    const result = await performAction(userId, payload, lang);
+    const result = await performAction(userId, payload);
 
     await prisma.assistantAction.update({
       where: { id: actionId },
@@ -1160,30 +1096,23 @@ export async function confirmAction(
 
     return {
       kind: "answer",
-      text: result.verified
-        ? result.message
-        : v("pleaseDoubleCheck", { message: result.message }),
+      text: result.verified ? result.message : `${result.message} (Please double-check this one.)`,
       data: result,
       source: "database",
       requestsUsed: 0,
       timings: { totalMs: Date.now() - started, executeMs: Date.now() - started },
     };
   } catch (error) {
-    const raw = error instanceof Error ? error.message : "";
-    const message = lang === "en" && raw ? raw : v("errActionFailed");
+    const message = error instanceof Error ? error.message : "The action failed.";
     await prisma.assistantAction.update({
       where: { id: actionId },
-      data: { status: "FAILED", error: raw || message },
+      data: { status: "FAILED", error: message },
     });
     return errorReply("SERVER", message, "", emptyTimings());
   }
 }
 
-export async function cancelAction(
-  userId: string,
-  actionId: string,
-  _lang: VoiceLang = "en",
-): Promise<boolean> {
+export async function cancelAction(userId: string, actionId: string): Promise<boolean> {
   const result = await prisma.assistantAction.updateMany({
     where: { id: actionId, userId, status: "PENDING" },
     data: { status: "CANCELLED" },

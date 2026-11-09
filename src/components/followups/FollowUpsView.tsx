@@ -49,17 +49,17 @@ import type {
 const CLOSED: FollowUpOutcome[] = ["contacted", "interested", "order_placed", "not_interested", "no_response"];
 
 const OUTCOME_STYLE: Record<FollowUpOutcome, string> = {
-  pending: "border-slate-200 bg-slate-100 text-slate-600",
-  contacted: "border-sky-200 bg-sky-50 text-sky-700",
-  interested: "border-amber-200 bg-amber-50 text-amber-700",
-  order_placed: "border-emerald-200 bg-emerald-50 text-emerald-700",
-  not_interested: "border-slate-200 bg-slate-100 text-slate-500",
-  no_response: "border-slate-200 bg-slate-100 text-slate-500",
+  pending: "border-line bg-surface-2 text-ink-muted",
+  contacted: "border-info/30 bg-info-soft text-info-ink",
+  interested: "border-warning/25 bg-warning-soft text-warning-ink",
+  order_placed: "border-success/20 bg-success-soft text-success-ink",
+  not_interested: "border-line bg-surface-2 text-ink-subtle",
+  no_response: "border-line bg-surface-2 text-ink-subtle",
 };
 
-function shortDate(iso: string | null, lang: "en" | "ur" = "en"): string {
+function shortDate(iso: string | null): string {
   if (!iso) return "";
-  return new Intl.DateTimeFormat(lang === "ur" ? "ur-PK-u-nu-latn" : "en-GB", {
+  return new Intl.DateTimeFormat("en-GB", {
     day: "numeric",
     month: "short",
     timeZone: "Asia/Karachi",
@@ -127,7 +127,7 @@ function CandidateCard({ candidate }: { candidate: FollowUpCandidate }) {
   const alreadyOpen = Boolean(candidate.existingFollowUpId);
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-3.5">
+    <div className="rounded-card border border-line bg-surface shadow-card p-3.5">
       <div className="flex items-start justify-between gap-2">
         <div className="flex min-w-0 items-start gap-2.5">
           <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-700">
@@ -136,13 +136,13 @@ function CandidateCard({ candidate }: { candidate: FollowUpCandidate }) {
           <div className="min-w-0">
             <Link
               href={`/khata/${candidate.customerId}`}
-              className="block truncate text-sm font-semibold text-slate-900"
+              className="block truncate text-sm font-semibold text-ink"
             >
               {candidate.customerName}
             </Link>
-            <p className="mt-0.5 text-xs text-slate-500">
+            <p className="mt-0.5 text-xs text-ink-subtle">
               {candidate.productName ? (
-                <span className="font-medium text-slate-700">{candidate.productName}</span>
+                <span className="font-medium text-ink-muted">{candidate.productName}</span>
               ) : (
                 t("followUps.candidates")
               )}
@@ -153,19 +153,19 @@ function CandidateCard({ candidate }: { candidate: FollowUpCandidate }) {
         </div>
 
         {candidate.balance && candidate.balance !== "0" ? (
-          <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
+          <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-warning-soft px-2 py-0.5 text-[10px] font-semibold text-warning-ink">
             <Wallet className="h-3 w-3" />
             <Money value={candidate.balance} />
           </span>
         ) : (
-          <span className="shrink-0 text-[10px] text-slate-400">{t("followUps.noBalance")}</span>
+          <span className="shrink-0 text-[10px] text-ink-faint">{t("followUps.noBalance")}</span>
         )}
       </div>
 
-      <p className="mt-2 text-xs leading-relaxed text-slate-600">{candidate.reason}</p>
+      <p className="mt-2 text-xs leading-relaxed text-ink-muted">{candidate.reasonKey ? tParams(candidate.reasonKey, candidate.reasonParams ?? {}) : candidate.reason}</p>
 
       {candidate.averageIntervalDays ? (
-        <p className="mt-0.5 text-[11px] text-slate-400">
+        <p className="mt-0.5 text-[11px] text-ink-faint">
           {tParams("followUps.usualInterval", { days: candidate.averageIntervalDays })}
         </p>
       ) : null}
@@ -182,7 +182,7 @@ function CandidateCard({ candidate }: { candidate: FollowUpCandidate }) {
       <div className="mt-2.5 flex flex-wrap items-center gap-2">
         <ContactActions phone={candidate.customerPhone} whatsappMessage={message} compact />
         {alreadyOpen ? (
-          <span className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-500">
+          <span className="inline-flex items-center gap-1 text-[11px] font-medium text-ink-subtle">
             <Check className="h-3 w-3" />
             {t("followUps.existing")}
           </span>
@@ -232,23 +232,23 @@ function FollowUpCard({ followUp }: { followUp: FollowUpView }) {
   };
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-3.5">
+    <div className="rounded-card border border-line bg-surface shadow-card p-3.5">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <Link
             href={`/khata/${followUp.customerId}`}
-            className="block truncate text-sm font-semibold text-slate-900"
+            className="block truncate text-sm font-semibold text-ink"
           >
             {followUp.customerName}
           </Link>
           {followUp.productName ? (
-            <p className="mt-0.5 truncate text-xs text-slate-500">{followUp.productName}</p>
+            <p className="mt-0.5 truncate text-xs text-ink-subtle">{followUp.productName}</p>
           ) : null}
         </div>
         <OutcomeChip outcome={followUp.outcome} />
       </div>
 
-      <p className="mt-1.5 text-xs leading-relaxed text-slate-600">{followUp.reason}</p>
+      <p className="mt-1.5 text-xs leading-relaxed text-ink-muted">{followUp.reason}</p>
 
       <TextArea
         label={t("followUps.message")}
@@ -267,8 +267,8 @@ function FollowUpCard({ followUp }: { followUp: FollowUpView }) {
         ) : null}
       </div>
 
-      <div className="mt-3 border-t border-slate-100 pt-2.5">
-        <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+      <div className="mt-3 border-t border-line pt-2.5">
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-faint">
           {t("followUps.mark")}
         </p>
         <div className="mt-1.5 flex flex-wrap gap-1.5">
@@ -281,7 +281,7 @@ function FollowUpCard({ followUp }: { followUp: FollowUpView }) {
               className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold transition disabled:opacity-60 ${
                 followUp.outcome === outcome
                   ? OUTCOME_STYLE[outcome]
-                  : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                  : "border-line bg-surface text-ink-muted hover:bg-app"
               }`}
             >
               {t(`followUps.outcome.${outcome}` as never)}
@@ -290,11 +290,11 @@ function FollowUpCard({ followUp }: { followUp: FollowUpView }) {
         </div>
 
         {followUp.outcome === "order_placed" ? (
-          <div className="mt-2.5 rounded-lg bg-emerald-50 p-2.5">
-            <p className="text-[11px] text-emerald-800">{t("followUps.orderHint")}</p>
+          <div className="mt-2.5 rounded-lg bg-success-soft p-2.5">
+            <p className="text-[11px] text-success-ink">{t("followUps.orderHint")}</p>
             <Link
               href={`/sales/new?customerId=${followUp.customerId}`}
-              className="mt-1.5 inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-800 underline"
+              className="mt-1.5 inline-flex items-center gap-1 text-[11px] font-semibold text-success-ink underline"
             >
               {t("followUps.recordSale")}
               <ArrowRight className="h-3 w-3 rtl-flip" />
@@ -311,25 +311,25 @@ function FollowUpCard({ followUp }: { followUp: FollowUpView }) {
 // ────────────────────────────────────────────────────────────────────────────
 
 function ResolvedRow({ followUp }: { followUp: FollowUpView }) {
-  const { t, lang } = useLanguage();
+  const { t } = useLanguage();
   const toast = useToast();
   const update = useUpdateFollowUp(followUp.id);
 
   return (
-    <div className="flex items-start justify-between gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2">
+    <div className="flex items-start justify-between gap-2 rounded-lg border border-line bg-surface px-3 py-2">
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-1.5">
           <Link
             href={`/khata/${followUp.customerId}`}
-            className="truncate text-xs font-semibold text-slate-900"
+            className="truncate text-xs font-semibold text-ink"
           >
             {followUp.customerName}
           </Link>
           <OutcomeChip outcome={followUp.outcome} />
         </div>
-        <p className="mt-0.5 truncate text-[11px] text-slate-500">
+        <p className="mt-0.5 truncate text-[11px] text-ink-subtle">
           {followUp.productName ? `${followUp.productName} · ` : ""}
-          {shortDate(followUp.resolvedAt ?? followUp.updatedAt, lang)}
+          {shortDate(followUp.resolvedAt ?? followUp.updatedAt)}
         </p>
       </div>
       <button
@@ -345,7 +345,7 @@ function ResolvedRow({ followUp }: { followUp: FollowUpView }) {
         }
         disabled={update.isPending}
         aria-label={t("followUps.open")}
-        className="shrink-0 rounded-lg border border-slate-200 p-1.5 text-slate-500 hover:bg-slate-50 disabled:opacity-50"
+        className="shrink-0 rounded-lg border border-line p-1.5 text-ink-subtle hover:bg-app disabled:opacity-50"
       >
         <RotateCcw className="h-3.5 w-3.5" />
       </button>
@@ -359,30 +359,30 @@ function StatsStrip({ stats }: { stats: FollowUpStats }) {
   const { t, tParams } = useLanguage();
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-3.5">
+    <div className="rounded-card border border-line bg-surface shadow-card p-3.5">
       <div className="grid grid-cols-3 gap-2">
-        <div className="rounded-lg bg-slate-50 px-2.5 py-2">
-          <p className="text-[10px] font-medium uppercase tracking-wide text-slate-500">
+        <div className="rounded-lg bg-app px-2.5 py-2">
+          <p className="text-[10px] font-medium uppercase tracking-wide text-ink-subtle">
             {t("followUps.stats.worked")}
           </p>
-          <p className="mt-0.5 text-sm font-semibold text-slate-900">{stats.worked}</p>
+          <p className="mt-0.5 text-sm font-semibold text-ink">{stats.worked}</p>
         </div>
-        <div className="rounded-lg bg-slate-50 px-2.5 py-2">
-          <p className="text-[10px] font-medium uppercase tracking-wide text-slate-500">
+        <div className="rounded-lg bg-app px-2.5 py-2">
+          <p className="text-[10px] font-medium uppercase tracking-wide text-ink-subtle">
             {t("followUps.stats.orders")}
           </p>
-          <p className="mt-0.5 text-sm font-semibold text-slate-900">{stats.orderPlaced}</p>
+          <p className="mt-0.5 text-sm font-semibold text-ink">{stats.orderPlaced}</p>
         </div>
-        <div className="rounded-lg bg-slate-50 px-2.5 py-2">
-          <p className="text-[10px] font-medium uppercase tracking-wide text-slate-500">
+        <div className="rounded-lg bg-app px-2.5 py-2">
+          <p className="text-[10px] font-medium uppercase tracking-wide text-ink-subtle">
             {t("followUps.stats.conversion")}
           </p>
-          <p className="mt-0.5 text-sm font-semibold text-slate-900">
+          <p className="mt-0.5 text-sm font-semibold text-ink">
             {stats.conversionPct === null ? "—" : `${stats.conversionPct}%`}
           </p>
         </div>
       </div>
-      <p className="mt-2 text-[11px] text-slate-500">
+      <p className="mt-2 text-[11px] text-ink-subtle">
         {tParams("followUps.stats.conversionHint", {
           orders: stats.orderPlaced,
           worked: stats.worked,
@@ -403,7 +403,7 @@ export function FollowUpsView() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-16 text-slate-400">
+      <div className="flex items-center justify-center py-16 text-ink-faint">
         <Loader2 className="h-5 w-5 animate-spin" />
       </div>
     );
@@ -411,7 +411,7 @@ export function FollowUpsView() {
 
   if (isError) {
     return (
-      <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+      <div className="rounded-xl border border-danger/20 bg-danger-soft p-4 text-sm text-danger-ink">
         {t("followUps.error")}
         <button
           type="button"
@@ -451,8 +451,8 @@ export function FollowUpsView() {
             <MessageSquare className="h-4 w-4" />
           </span>
           <div>
-            <h2 className="text-sm font-semibold text-slate-900">{t("followUps.subtitle")}</h2>
-            <p className="mt-0.5 text-[11px] text-slate-500">{t("followUps.candidatesHint")}</p>
+            <h2 className="text-sm font-semibold text-ink">{t("followUps.subtitle")}</h2>
+            <p className="mt-0.5 text-[11px] text-ink-subtle">{t("followUps.candidatesHint")}</p>
           </div>
         </div>
 
@@ -474,9 +474,9 @@ export function FollowUpsView() {
       <StatsStrip stats={stats} />
 
       <section>
-        <h2 className="mb-2 text-sm font-semibold text-slate-900">{t("followUps.open")}</h2>
+        <h2 className="mb-2 text-sm font-semibold text-ink">{t("followUps.open")}</h2>
         {openItems.length === 0 ? (
-          <p className="rounded-xl border border-dashed border-slate-300 bg-white/50 p-4 text-center text-xs text-slate-500">
+          <p className="rounded-xl border border-dashed border-line-strong bg-surface/50 p-4 text-center text-xs text-ink-subtle">
             {t("followUps.noOpen")}
           </p>
         ) : (
@@ -491,15 +491,15 @@ export function FollowUpsView() {
       {resolvedItems.length > 0 ? (
         <section>
           <div className="mb-2 flex items-baseline justify-between gap-2">
-            <h2 className="text-sm font-semibold text-slate-900">{t("followUps.resolved")}</h2>
-            <span className="text-[11px] text-slate-400">{resolvedItems.length}</span>
+            <h2 className="text-sm font-semibold text-ink">{t("followUps.resolved")}</h2>
+            <span className="text-[11px] text-ink-faint">{resolvedItems.length}</span>
           </div>
           <div className="space-y-1.5">
             {resolvedItems.slice(0, 20).map((item) => (
               <ResolvedRow key={item.id} followUp={item} />
             ))}
           </div>
-          <p className="mt-2 text-[11px] text-slate-400">{t("followUps.closedHint")}</p>
+          <p className="mt-2 text-[11px] text-ink-faint">{t("followUps.closedHint")}</p>
         </section>
       ) : null}
     </div>

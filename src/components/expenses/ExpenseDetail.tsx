@@ -92,7 +92,7 @@ export function ExpenseDetail({ expenseId }: { expenseId: string }) {
       {/* Amount hero */}
       <div
         className={cn(
-          "rounded-2xl border border-slate-200 bg-white p-4 shadow-sm",
+          "rounded-2xl border border-line bg-surface p-4 shadow-card",
           isVoided && "opacity-75",
         )}
       >
@@ -103,39 +103,39 @@ export function ExpenseDetail({ expenseId }: { expenseId: string }) {
                 className={cn(
                   "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-semibold",
                   isVoided
-                    ? "border-slate-200 bg-slate-100 text-slate-600"
-                    : "border-red-200 bg-red-50 text-red-700",
+                    ? "border-line bg-surface-2 text-ink-muted"
+                    : "border-danger/20 bg-danger-soft text-danger-ink",
                 )}
               >
                 {isVoided ? <Ban className="h-3 w-3" /> : <CheckCircle2 className="h-3 w-3" />}
                 {isVoided ? t("sale.voided") : t("sale.recorded")}
               </span>
-              <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-medium text-slate-600">
+              <span className="rounded-full border border-line bg-app px-2 py-0.5 text-[11px] font-medium text-ink-muted">
                 {categoryInfo.icon} {t(categoryInfo.labelKey)}
               </span>
             </div>
-            <p className="mt-2 text-3xl font-bold tabular-nums text-red-600">
+            <p className="mt-2 text-3xl font-bold tabular-nums text-danger-ink">
               -<Money value={expense.amount} />
             </p>
-            <p className="mt-0.5 text-xs text-slate-500">
+            <p className="mt-0.5 text-xs text-ink-subtle">
               {formatDateTime(new Date(expense.date))}
             </p>
           </div>
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-red-50">
-            <Receipt className="h-6 w-6 text-red-600" />
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-danger-soft">
+            <Receipt className="h-6 w-6 text-danger-ink" />
           </div>
         </div>
       </div>
 
       {/* Name + notes */}
-      <div className="rounded-xl border border-slate-200 bg-white p-3">
-        <p className="text-xs font-medium text-slate-500">{t("expense.expenseName")}</p>
-        <p className="mt-1 text-sm font-semibold text-slate-900">{expense.name}</p>
+      <div className="rounded-card border border-line bg-surface shadow-card p-3">
+        <p className="text-xs font-medium text-ink-subtle">{t("expense.expenseName")}</p>
+        <p className="mt-1 text-sm font-semibold text-ink">{expense.name}</p>
 
         {expense.notes ? (
-          <div className="mt-3 border-t border-slate-100 pt-3">
-            <p className="text-xs font-medium text-slate-500">{t("customer.notes")}</p>
-            <p className="mt-1 text-sm text-slate-900">{expense.notes}</p>
+          <div className="mt-3 border-t border-line pt-3">
+            <p className="text-xs font-medium text-ink-subtle">{t("customer.notes")}</p>
+            <p className="mt-1 text-sm text-ink">{expense.notes}</p>
           </div>
         ) : null}
       </div>
@@ -152,16 +152,16 @@ export function ExpenseDetail({ expenseId }: { expenseId: string }) {
 
       {/* Void section */}
       {isVoided ? (
-        <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-center">
-          <p className="text-xs text-slate-500">
+        <div className="rounded-card border border-line bg-app p-3 text-center">
+          <p className="text-xs text-ink-subtle">
             {t("expense.voidedOnPrefix")}{expense.voidedAt ? ` ${formatDateTime(new Date(expense.voidedAt))}` : ""}. {t("expense.voidedOnSuffix")}
           </p>
         </div>
       ) : confirmVoid ? (
-        <div className="rounded-xl border border-red-200 bg-red-50 p-3 space-y-3">
+        <div className="rounded-xl border border-danger/20 bg-danger-soft p-3 space-y-3">
           <div>
-            <p className="text-sm font-semibold text-red-900">{t("expense.voidConfirm")}</p>
-            <p className="mt-1 text-xs text-red-700">
+            <p className="text-sm font-semibold text-danger-ink">{t("expense.voidConfirm")}</p>
+            <p className="mt-1 text-xs text-danger-ink">
               {t("expense.voidDesc")}
               {t("expense.voidUseCases")}
             </p>
@@ -210,7 +210,7 @@ export function ExpenseDetail({ expenseId }: { expenseId: string }) {
         <button
           type="button"
           onClick={() => setConfirmVoid(true)}
-          className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-medium text-red-600 hover:bg-red-50"
+          className="w-full rounded-card border border-line bg-surface shadow-card px-3 py-2.5 text-xs font-medium text-danger-ink hover:bg-danger-soft"
         >
           {t("expense.voidExpense")}
         </button>
@@ -222,9 +222,9 @@ export function ExpenseDetail({ expenseId }: { expenseId: string }) {
 function ExpenseDetailSkeleton() {
   return (
     <div className="space-y-4">
-      <div className="h-32 animate-pulse rounded-2xl bg-slate-200" />
-      <div className="h-24 animate-pulse rounded-xl bg-slate-200" />
-      <div className="h-12 animate-pulse rounded-xl bg-slate-200" />
+      <div className="h-32 animate-pulse rounded-2xl bg-surface-2" />
+      <div className="h-24 animate-pulse rounded-xl bg-surface-2" />
+      <div className="h-12 animate-pulse rounded-xl bg-surface-2" />
     </div>
   );
 }

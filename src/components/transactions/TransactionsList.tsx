@@ -83,36 +83,36 @@ const TX_TYPE_INFO: Record<string, TxTypeInfo> = {
   payment: {
     labelKey: "transactions.payments",
     icon: Wallet,
-    iconBg: "bg-blue-50",
-    iconColor: "text-blue-700",
+    iconBg: "bg-info-soft",
+    iconColor: "text-info-ink",
     href: (tx) => `/payments/${tx.refId}`,
   },
   expense: {
     labelKey: "transactions.expenses",
     icon: Receipt,
-    iconBg: "bg-amber-50",
-    iconColor: "text-amber-700",
+    iconBg: "bg-warning-soft",
+    iconColor: "text-warning-ink",
     href: (tx) => `/more/expenses/${tx.refId}`,
   },
   stock_move: {
     labelKey: "transactions.stock",
     icon: Package,
-    iconBg: "bg-purple-50",
-    iconColor: "text-purple-700",
+    iconBg: "bg-accent-50",
+    iconColor: "text-accent-700",
     href: (tx) => tx.productId ? `/more/products/${tx.productId}` : "/stock",
   },
   supplier_payment: {
     labelKey: "transactions.supplierPayments",
     icon: Truck,
-    iconBg: "bg-orange-50",
-    iconColor: "text-orange-700",
+    iconBg: "bg-warning-soft",
+    iconColor: "text-warning-ink",
     href: (tx) => tx.supplierId ? `/more/suppliers/${tx.supplierId}` : "/more/suppliers",
   },
   balance_adjustment: {
     labelKey: "transactions.adjustments",
     icon: Scale,
-    iconBg: "bg-slate-100",
-    iconColor: "text-slate-700",
+    iconBg: "bg-surface-2",
+    iconColor: "text-ink-muted",
     href: (tx) => tx.customerId ? `/khata/${tx.customerId}` : "/khata",
   },
 };
@@ -137,7 +137,7 @@ export function TransactionsList() {
   const [typeFilter, setTypeFilter] = useState<TransactionType | "all">("all");
   const [from, setFrom] = useState<string>(daysAgoIsoLocal(7));
   const [to, setTo] = useState<string>(todayIsoLocal());
-  const { t, tParams, lang } = useLanguage();
+  const { t } = useLanguage();
 
   // Only enable custom range inputs when filter='custom'
   const showCustomRange = filter === "custom";
@@ -167,7 +167,7 @@ export function TransactionsList() {
               "shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
               filter === f.value
                 ? "bg-brand-600 text-white"
-                : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50",
+                : "bg-surface text-ink-muted border border-line hover:bg-app",
             )}
           >
             {t(f.labelKey)}
@@ -177,14 +177,14 @@ export function TransactionsList() {
 
       {/* Custom date range picker */}
       {showCustomRange ? (
-        <div className="rounded-xl border border-slate-200 bg-white p-3 space-y-2">
-          <div className="flex items-center gap-1.5 text-xs font-medium text-slate-600">
+        <div className="rounded-card border border-line bg-surface shadow-card p-3 space-y-2">
+          <div className="flex items-center gap-1.5 text-xs font-medium text-ink-muted">
             <Calendar className="h-3.5 w-3.5" />
             {t("transactions.customDateRange")}
           </div>
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className="mb-0.5 block text-[10px] uppercase tracking-wide text-slate-500">
+              <label className="mb-0.5 block text-[10px] uppercase tracking-wide text-ink-subtle">
                 {t("transactions.from")}
               </label>
               <input
@@ -192,11 +192,11 @@ export function TransactionsList() {
                 value={from}
                 onChange={(e) => setFrom(e.target.value)}
                 max={to}
-                className="w-full rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+                className="w-full rounded-lg border border-line-strong bg-surface px-2 py-1.5 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
               />
             </div>
             <div>
-              <label className="mb-0.5 block text-[10px] uppercase tracking-wide text-slate-500">
+              <label className="mb-0.5 block text-[10px] uppercase tracking-wide text-ink-subtle">
                 {t("transactions.to")}
               </label>
               <input
@@ -205,7 +205,7 @@ export function TransactionsList() {
                 onChange={(e) => setTo(e.target.value)}
                 min={from}
                 max={todayIsoLocal()}
-                className="w-full rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+                className="w-full rounded-lg border border-line-strong bg-surface px-2 py-1.5 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
               />
             </div>
           </div>
@@ -222,8 +222,8 @@ export function TransactionsList() {
             className={cn(
               "shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors",
               typeFilter === tf.value
-                ? "bg-slate-900 text-white"
-                : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50",
+                ? "bg-brand-700 text-white"
+                : "bg-surface text-ink-muted border border-line hover:bg-app",
             )}
           >
             {t(tf.labelKey)}
@@ -233,9 +233,9 @@ export function TransactionsList() {
 
       {/* Summary card */}
       {summary && summary.count > 0 ? (
-        <div className="rounded-xl border border-slate-200 bg-white p-3">
+        <div className="rounded-card border border-line bg-surface shadow-card p-3">
           <div className="flex items-center justify-between text-xs">
-            <span className="text-slate-500">
+            <span className="text-ink-subtle">
               {summary.count} {summary.count === 1 ? t("transactions.transaction") : t("transactions.transactions")}
             </span>
           </div>
@@ -246,9 +246,9 @@ export function TransactionsList() {
                 <Money value={summary.totalIn} />
               </p>
             </div>
-            <div className="rounded-lg bg-red-50 px-2 py-1.5">
-              <p className="text-[10px] uppercase tracking-wide text-red-700">{t("transactions.moneyOut")}</p>
-              <p className="text-sm font-bold tabular-nums text-red-700">
+            <div className="rounded-lg bg-danger-soft px-2 py-1.5">
+              <p className="text-[10px] uppercase tracking-wide text-danger-ink">{t("transactions.moneyOut")}</p>
+              <p className="text-sm font-bold tabular-nums text-danger-ink">
                 <Money value={summary.totalOut} />
               </p>
             </div>
@@ -275,16 +275,13 @@ export function TransactionsList() {
           title={t("transactions.noTransactions")}
           description={
             filter === "custom"
-              ? tParams("transactions.emptyRange", {
-                  from: formatDate(new Date(from), "Asia/Karachi", lang),
-                  to: formatDate(new Date(to), "Asia/Karachi", lang),
-                })
-              : t("transactions.emptyFilterHint")
+              ? `No transactions between ${formatDate(new Date(from))} and ${formatDate(new Date(to))}.`
+              : "Try a different time range or type filter."
           }
           icon={<Receipt className="h-6 w-6" />}
         />
       ) : (
-        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+        <div className="overflow-hidden rounded-card border border-line bg-surface shadow-card">
           {transactions.map((tx, idx) => (
             <TransactionRow key={tx.id} tx={tx} isFirst={idx === 0} />
           ))}
@@ -301,12 +298,12 @@ function TransactionRow({
   tx: TransactionListItem;
   isFirst: boolean;
 }) {
-  const { t, lang } = useLanguage();
+  const { t } = useLanguage();
   const fallbackInfo: TxTypeInfo = {
     labelKey: "transactions.adjustments",
     icon: Scale,
-    iconBg: "bg-slate-100",
-    iconColor: "text-slate-700",
+    iconBg: "bg-surface-2",
+    iconColor: "text-ink-muted",
     href: () => "/more/transactions" as string,
   };
   const info = TX_TYPE_INFO[tx.type] ?? TX_TYPE_INFO.balance_adjustment ?? fallbackInfo;
@@ -324,16 +321,16 @@ function TransactionRow({
 
   const amountDisplay = (() => {
     if (isMoneyIn) return { text: `+${tx.amount}`, color: "text-brand-700" };
-    if (isMoneyOut) return { text: `-${tx.amount}`, color: "text-red-600" };
+    if (isMoneyOut) return { text: `-${tx.amount}`, color: "text-danger-ink" };
     if (isAdjustment) {
       const isDebit = tx.direction === "debit";
       return {
         text: `${isDebit ? "+" : "−"}${tx.amount}`,
-        color: isDebit ? "text-red-600" : "text-brand-700",
+        color: isDebit ? "text-danger-ink" : "text-brand-700",
       };
     }
     // Sale + stock_move
-    return { text: tx.amount, color: "text-slate-900" };
+    return { text: tx.amount, color: "text-ink" };
   })();
 
   // Description (most relevant context for the user)
@@ -343,8 +340,8 @@ function TransactionRow({
     <Link
       href={info.href(tx)}
       className={cn(
-        "flex items-center gap-3 px-3 py-2.5 hover:bg-slate-50 active:bg-slate-100",
-        !isFirst && "border-t border-slate-100",
+        "flex items-center gap-3 px-3 py-2.5 hover:bg-app active:bg-surface-2",
+        !isFirst && "border-t border-line",
       )}
     >
       <div className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-lg", info.iconBg)}>
@@ -353,7 +350,7 @@ function TransactionRow({
 
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline justify-between gap-2">
-          <p className="truncate text-sm font-medium text-slate-900">
+          <p className="truncate text-sm font-medium text-ink">
             {description}
           </p>
           <p className={cn("shrink-0 text-sm font-bold tabular-nums", amountDisplay.color)}>
@@ -361,12 +358,12 @@ function TransactionRow({
           </p>
         </div>
         <div className="flex items-center justify-between gap-2">
-          <p className="truncate text-[11px] text-slate-500">
-            <span className="font-medium text-slate-600">{t(info.labelKey)}</span>
+          <p className="truncate text-[11px] text-ink-subtle">
+            <span className="font-medium text-ink-muted">{t(info.labelKey)}</span>
             {tx.productName ? <span> · {tx.productName}</span> : null}
           </p>
-          <p className="shrink-0 text-[11px] text-slate-400">
-            {formatRelative(new Date(tx.date), "Asia/Karachi", lang)}
+          <p className="shrink-0 text-[11px] text-ink-faint">
+            {formatRelative(new Date(tx.date))}
           </p>
         </div>
       </div>
@@ -377,22 +374,22 @@ function TransactionRow({
 function TransactionsListSkeleton() {
   return (
     <div className="space-y-2">
-      <div className="h-20 animate-pulse rounded-xl bg-slate-200" />
-      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+      <div className="h-20 animate-pulse rounded-xl bg-surface-2" />
+      <div className="overflow-hidden rounded-card border border-line bg-surface shadow-card">
         {[0, 1, 2, 3, 4, 5, 6].map((i) => (
           <div
             key={i}
             className={cn(
               "flex items-center gap-3 px-3 py-2.5",
-              i > 0 && "border-t border-slate-100",
+              i > 0 && "border-t border-line",
             )}
           >
-            <div className="h-9 w-9 animate-pulse rounded-lg bg-slate-200" />
+            <div className="h-9 w-9 animate-pulse rounded-lg bg-surface-2" />
             <div className="flex-1 space-y-1.5">
-              <div className="h-3.5 w-32 animate-pulse rounded bg-slate-200" />
-              <div className="h-2.5 w-20 animate-pulse rounded bg-slate-100" />
+              <div className="h-3.5 w-32 animate-pulse rounded bg-surface-2" />
+              <div className="h-2.5 w-20 animate-pulse rounded bg-surface-2" />
             </div>
-            <div className="h-3 w-14 animate-pulse rounded bg-slate-200" />
+            <div className="h-3 w-14 animate-pulse rounded bg-surface-2" />
           </div>
         ))}
       </div>

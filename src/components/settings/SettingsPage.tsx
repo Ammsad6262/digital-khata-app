@@ -45,7 +45,10 @@ import {
   useSetPin,
   useRemovePin,
   useClearAllData,
+  settingsKeys,
 } from "@/hooks/use-settings";
+import { useQueryClient } from "@tanstack/react-query";
+import type { SettingView } from "@/lib/services/settings";
 import { useToast } from "@/providers/toast-provider";
 import { ApiError } from "@/lib/utils/api-client";
 import { cn } from "@/lib/utils/cn";
@@ -62,27 +65,49 @@ const CURRENCIES = [
 
 const THEMES: Array<{
   id: Theme;
-  nameKey: "settings.monochrome" | "settings.defaultGreen" | "settings.brightLeaf";
-  descriptionKey: "settings.monochromeDesc" | "settings.defaultGreenDesc" | "settings.brightLeafDesc";
+  nameKey:
+    | "settings.themeInk"
+    | "settings.themeEmerald"
+    | "settings.themeSaffron"
+    | "settings.themeIndigo"
+    | "settings.themeRose";
+  descriptionKey:
+    | "settings.themeInkDesc"
+    | "settings.themeEmeraldDesc"
+    | "settings.themeSaffronDesc"
+    | "settings.themeIndigoDesc"
+    | "settings.themeRoseDesc";
   preview: { bg: string; accent: string; dark: string };
 }> = [
   {
-    id: "monochrome",
-    nameKey: "settings.monochrome",
-    descriptionKey: "settings.monochromeDesc",
-    preview: { bg: "#f9fafb", accent: "#111827", dark: "#000000" },
+    id: "ink",
+    nameKey: "settings.themeInk",
+    descriptionKey: "settings.themeInkDesc",
+    preview: { bg: "#FAF8F4", accent: "#F97316", dark: "#1C1917" },
   },
   {
-    id: "default",
-    nameKey: "settings.defaultGreen",
-    descriptionKey: "settings.defaultGreenDesc",
-    preview: { bg: "#f0fdf4", accent: "#16a34a", dark: "#14532d" },
+    id: "emerald",
+    nameKey: "settings.themeEmerald",
+    descriptionKey: "settings.themeEmeraldDesc",
+    preview: { bg: "#F6FBF8", accent: "#059669", dark: "#065F46" },
   },
   {
-    id: "leaf",
-    nameKey: "settings.brightLeaf",
-    descriptionKey: "settings.brightLeafDesc",
-    preview: { bg: "#f7ffee", accent: "#CDFF9B", dark: "#203D43" },
+    id: "saffron",
+    nameKey: "settings.themeSaffron",
+    descriptionKey: "settings.themeSaffronDesc",
+    preview: { bg: "#FFF9F0", accent: "#D97706", dark: "#B45309" },
+  },
+  {
+    id: "indigo",
+    nameKey: "settings.themeIndigo",
+    descriptionKey: "settings.themeIndigoDesc",
+    preview: { bg: "#F7F7FF", accent: "#4F46E5", dark: "#312E81" },
+  },
+  {
+    id: "rose",
+    nameKey: "settings.themeRose",
+    descriptionKey: "settings.themeRoseDesc",
+    preview: { bg: "#FFF7F9", accent: "#E11D48", dark: "#9F1239" },
   },
 ];
 
@@ -94,7 +119,7 @@ export function SettingsPage() {
     return (
       <div className="space-y-3">
         {[0, 1, 2, 3].map((i) => (
-          <div key={i} className="h-20 animate-pulse rounded-xl bg-slate-200" />
+          <div key={i} className="h-20 animate-pulse rounded-xl bg-surface-2" />
         ))}
       </div>
     );
@@ -151,20 +176,20 @@ function AccountSection() {
 
   if (isLoading) {
     return (
-      <section className="rounded-xl border border-slate-200 bg-white p-4">
-        <div className="h-20 animate-pulse rounded-lg bg-slate-200" />
+      <section className="rounded-card border border-line bg-surface shadow-card p-4">
+        <div className="h-20 animate-pulse rounded-lg bg-surface-2" />
       </section>
     );
   }
 
   if (isError || !user) {
     return (
-      <section className="rounded-xl border border-slate-200 bg-white p-4">
+      <section className="rounded-card border border-line bg-surface shadow-card p-4">
         <div className="flex items-center gap-2 mb-2">
-          <UserCircle className="h-4 w-4 text-slate-500" />
-          <h2 className="text-sm font-semibold text-slate-900">{t("settings.account")}</h2>
+          <UserCircle className="h-4 w-4 text-ink-subtle" />
+          <h2 className="text-sm font-semibold text-ink">{t("settings.account")}</h2>
         </div>
-        <p className="text-sm text-slate-500 mb-3">{t("settings.accountLoadFailed")}</p>
+        <p className="text-sm text-ink-subtle mb-3">{t("settings.accountLoadFailed")}</p>
         <Button onClick={() => refetch()} variant="outline" size="sm">
           {t("common.retry")}
         </Button>
@@ -227,10 +252,10 @@ function AccountSection() {
   };
 
   return (
-    <section className="rounded-xl border border-slate-200 bg-white p-4">
+    <section className="rounded-card border border-line bg-surface shadow-card p-4">
       <div className="flex items-center gap-2 mb-3">
-        <UserCircle className="h-4 w-4 text-slate-500" />
-        <h2 className="text-sm font-semibold text-slate-900">{t("settings.account")}</h2>
+        <UserCircle className="h-4 w-4 text-ink-subtle" />
+        <h2 className="text-sm font-semibold text-ink">{t("settings.account")}</h2>
       </div>
 
       {/* Profile display / edit */}
@@ -240,8 +265,8 @@ function AccountSection() {
             {user.name.charAt(0).toUpperCase()}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium text-slate-900">{user.name}</p>
-            <p className="truncate text-xs text-slate-500">{user.email}</p>
+            <p className="truncate text-sm font-medium text-ink">{user.name}</p>
+            <p className="truncate text-xs text-ink-subtle">{user.email}</p>
           </div>
           <button
             type="button"
@@ -262,17 +287,17 @@ function AccountSection() {
             value={editName}
             onChange={(e) => setEditName(e.target.value)}
             placeholder={t("settings.namePlaceholder")}
-            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+            className="w-full rounded-lg border border-line-strong bg-surface px-3 py-2 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
           />
           <input
             type="email"
             value={editEmail}
             onChange={(e) => setEditEmail(e.target.value)}
             placeholder={t("settings.emailPlaceholder")}
-            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+            className="w-full rounded-lg border border-line-strong bg-surface px-3 py-2 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
           />
           <div className="flex gap-2">
-            <button type="button" onClick={() => setEditingProfile(false)} className="flex-1 rounded-lg border border-slate-300 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50">
+            <button type="button" onClick={() => setEditingProfile(false)} className="flex-1 rounded-lg border border-line-strong py-2 text-xs font-medium text-ink-muted hover:bg-app">
               {t("common.cancel")}
             </button>
             <button type="button" onClick={handleSaveProfile} disabled={updateProfile.isPending} className="flex-1 rounded-lg bg-brand-600 py-2 text-xs font-medium text-white hover:bg-brand-700 disabled:bg-brand-300">
@@ -284,18 +309,18 @@ function AccountSection() {
 
       {/* Change password */}
       {!showChangePassword ? (
-        <button type="button" onClick={() => setShowChangePassword(true)} className="flex w-full items-center justify-between rounded-lg border border-slate-200 px-3 py-2.5 text-sm text-slate-700 hover:bg-slate-50">
+        <button type="button" onClick={() => setShowChangePassword(true)} className="flex w-full items-center justify-between rounded-lg border border-line px-3 py-2.5 text-sm text-ink-muted hover:bg-app">
           <span>{t("settings.changePassword")}</span>
-          <ChevronRight className="h-4 w-4 text-slate-300" />
+          <ChevronRight className="h-4 w-4 text-ink-faint" />
         </button>
       ) : (
-        <div className="space-y-2 mb-3 rounded-lg border border-slate-200 p-3">
-          <p className="text-xs font-medium text-slate-600">{t("settings.changePassword")}</p>
-          <input type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} placeholder={t("settings.currentPassword")} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30" />
-          <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder={t("settings.newPasswordPlaceholder")} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30" />
-          <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder={t("settings.confirmPasswordPlaceholder")} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30" />
+        <div className="space-y-2 mb-3 rounded-lg border border-line p-3">
+          <p className="text-xs font-medium text-ink-muted">{t("settings.changePassword")}</p>
+          <input type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} placeholder={t("settings.currentPassword")} className="w-full rounded-lg border border-line-strong px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30" />
+          <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder={t("settings.newPasswordPlaceholder")} className="w-full rounded-lg border border-line-strong px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30" />
+          <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder={t("settings.confirmPasswordPlaceholder")} className="w-full rounded-lg border border-line-strong px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30" />
           <div className="flex gap-2">
-            <button type="button" onClick={() => { setShowChangePassword(false); setCurrentPassword(""); setNewPassword(""); setConfirmPassword(""); }} className="flex-1 rounded-lg border border-slate-300 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50">
+            <button type="button" onClick={() => { setShowChangePassword(false); setCurrentPassword(""); setNewPassword(""); setConfirmPassword(""); }} className="flex-1 rounded-lg border border-line-strong py-2 text-xs font-medium text-ink-muted hover:bg-app">
               {t("common.cancel")}
             </button>
             <button type="button" onClick={handleChangePassword} disabled={changePassword.isPending || !currentPassword || !newPassword} className="flex-1 rounded-lg bg-brand-600 py-2 text-xs font-medium text-white hover:bg-brand-700 disabled:bg-brand-300">
@@ -306,26 +331,26 @@ function AccountSection() {
       )}
 
       {/* Logout */}
-      <button type="button" onClick={() => logout.mutate()} disabled={logout.isPending} className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg border border-slate-200 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50">
+      <button type="button" onClick={() => logout.mutate()} disabled={logout.isPending} className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg border border-line py-2.5 text-sm font-medium text-ink-muted hover:bg-app">
         <LogOut className="h-4 w-4" />
         {logout.isPending ? t("auth.loggingOut") : t("auth.logout")}
       </button>
 
       {/* Delete account */}
       {!showDeleteConfirm ? (
-        <button type="button" onClick={() => setShowDeleteConfirm(true)} className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg border border-red-200 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50">
+        <button type="button" onClick={() => setShowDeleteConfirm(true)} className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg border border-danger/20 py-2.5 text-sm font-medium text-danger-ink hover:bg-danger-soft">
           <Trash2 className="h-4 w-4" />
           {t("settings.deleteAccount")}
         </button>
       ) : (
-        <div className="mt-2 space-y-2 rounded-lg border border-red-200 bg-red-50/30 p-3">
-          <p className="text-xs font-medium text-red-900">{t("settings.deleteAccountWarning")}</p>
-          <input type="password" value={deletePassword} onChange={(e) => setDeletePassword(e.target.value)} placeholder={t("settings.deleteAccountPasswordPlaceholder")} className="w-full rounded-lg border border-red-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/30" />
+        <div className="mt-2 space-y-2 rounded-lg border border-danger/20 bg-danger-soft/30 p-3">
+          <p className="text-xs font-medium text-danger-ink">{t("settings.deleteAccountWarning")}</p>
+          <input type="password" value={deletePassword} onChange={(e) => setDeletePassword(e.target.value)} placeholder={t("settings.deleteAccountPasswordPlaceholder")} className="w-full rounded-lg border border-danger/40 px-3 py-2 text-sm focus:border-danger focus:outline-none focus:ring-2 focus:ring-danger/30" />
           <div className="flex gap-2">
-            <button type="button" onClick={() => { setShowDeleteConfirm(false); setDeletePassword(""); }} className="flex-1 rounded-lg border border-slate-300 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50">
+            <button type="button" onClick={() => { setShowDeleteConfirm(false); setDeletePassword(""); }} className="flex-1 rounded-lg border border-line-strong py-2 text-xs font-medium text-ink-muted hover:bg-app">
               {t("common.cancel")}
             </button>
-            <button type="button" onClick={handleDeleteAccount} disabled={deleteAccount.isPending || !deletePassword} className="flex-1 rounded-lg bg-red-600 py-2 text-xs font-medium text-white hover:bg-red-700 disabled:bg-red-300">
+            <button type="button" onClick={handleDeleteAccount} disabled={deleteAccount.isPending || !deletePassword} className="flex-1 rounded-lg bg-danger py-2 text-xs font-medium text-white hover:bg-danger/90 disabled:bg-danger/40">
               {deleteAccount.isPending ? t("common.deleting") : t("settings.deleteForever")}
             </button>
           </div>
@@ -364,19 +389,19 @@ function BusinessInfoSection({
   };
 
   return (
-    <section className="rounded-xl border border-slate-200 bg-white p-4">
+    <section className="rounded-card border border-line bg-surface shadow-card p-4">
       <div className="flex items-center gap-2 mb-3">
-        <Building2 className="h-4 w-4 text-slate-500" />
-        <h2 className="text-sm font-semibold text-slate-900">{t("settings.businessInfo")}</h2>
+        <Building2 className="h-4 w-4 text-ink-subtle" />
+        <h2 className="text-sm font-semibold text-ink">{t("settings.businessInfo")}</h2>
       </div>
 
       {!editing ? (
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm font-medium text-slate-900">
+            <p className="text-sm font-medium text-ink">
               {initial.businessName || t("settings.notSet")}
             </p>
-            <p className="text-xs text-slate-500">{t("settings.businessName")}</p>
+            <p className="text-xs text-ink-subtle">{t("settings.businessName")}</p>
           </div>
           <Button variant="outline" size="sm" onClick={() => setEditing(true)}>
             {t("common.edit")}
@@ -466,10 +491,10 @@ function CurrencySection({
   };
 
   return (
-    <section className="rounded-xl border border-slate-200 bg-white p-4">
+    <section className="rounded-card border border-line bg-surface shadow-card p-4">
       <div className="flex items-center gap-2 mb-3">
-        <Globe className="h-4 w-4 text-slate-500" />
-        <h2 className="text-sm font-semibold text-slate-900">{t("settings.currency")}</h2>
+        <Globe className="h-4 w-4 text-ink-subtle" />
+        <h2 className="text-sm font-semibold text-ink">{t("settings.currency")}</h2>
       </div>
 
       <div className="grid grid-cols-2 gap-2">
@@ -482,15 +507,13 @@ function CurrencySection({
               "flex items-center gap-2 rounded-lg border px-3 py-2 text-left text-sm transition-colors",
               selectedCurrency === cur.code
                 ? "border-brand-500 bg-brand-50 text-brand-700"
-                : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50",
+                : "border-line bg-surface text-ink-muted hover:bg-app",
             )}
           >
             <span className="text-base font-bold w-6 text-center">{cur.symbol}</span>
             <div className="min-w-0">
               <p className="truncate text-xs font-medium">{cur.code}</p>
-              <p className="truncate text-[10px] text-slate-500">
-                {t(`settings.currency.${cur.code.toLowerCase()}` as never)}
-              </p>
+              <p className="truncate text-[10px] text-ink-subtle">{cur.label}</p>
             </div>
             {selectedCurrency === cur.code ? (
               <Check className="ml-auto h-3.5 w-3.5 shrink-0 text-brand-600" />
@@ -499,8 +522,8 @@ function CurrencySection({
         ))}
       </div>
 
-      <div className="mt-3 border-t border-slate-100 pt-3">
-        <label className="mb-1 block text-xs font-medium text-slate-600">
+      <div className="mt-3 border-t border-line pt-3">
+        <label className="mb-1 block text-xs font-medium text-ink-muted">
           {t("settings.customSymbol")}
         </label>
         <div className="flex gap-2">
@@ -509,7 +532,7 @@ function CurrencySection({
             value={customSymbol}
             onChange={(e) => setCustomSymbol(e.target.value)}
             maxLength={5}
-            className="flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+            className="flex-1 rounded-lg border border-line-strong bg-surface px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
           />
           <Button
             size="sm"
@@ -519,7 +542,7 @@ function CurrencySection({
             {updateSettings.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : t("common.save")}
           </Button>
         </div>
-        <p className="mt-1 text-[11px] text-slate-500">
+        <p className="mt-1 text-[11px] text-ink-subtle">
           {t("settings.currencySymbolHint")}
         </p>
       </div>
@@ -535,10 +558,10 @@ function LanguageSection() {
   const { lang, setLang, t } = useLanguage();
 
   return (
-    <section className="rounded-xl border border-slate-200 bg-white p-4">
+    <section className="rounded-card border border-line bg-surface shadow-card p-4">
       <div className="flex items-center gap-2 mb-3">
-        <Languages className="h-4 w-4 text-slate-500" />
-        <h2 className="text-sm font-semibold text-slate-900">{t("settings.language")}</h2>
+        <Languages className="h-4 w-4 text-ink-subtle" />
+        <h2 className="text-sm font-semibold text-ink">{t("settings.language")}</h2>
       </div>
 
       <div className="space-y-2">
@@ -549,15 +572,15 @@ function LanguageSection() {
             "flex items-center gap-3 rounded-xl border-2 p-3 text-left transition-all w-full",
             lang === "en"
               ? "border-brand-500 bg-brand-50"
-              : "border-slate-200 bg-white hover:bg-slate-50",
+              : "border-line bg-surface hover:bg-app",
           )}
         >
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-100 text-sm font-bold text-blue-700">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-info-soft text-sm font-bold text-info-ink">
             EN
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium text-slate-900">{t("settings.english")}</p>
-            <p className="text-[11px] text-slate-500">{t("settings.ltrLayout")}</p>
+            <p className="text-sm font-medium text-ink">{t("settings.english")}</p>
+            <p className="text-[11px] text-ink-subtle">{t("settings.ltrLayout")}</p>
           </div>
           {lang === "en" ? (
             <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand-600">
@@ -573,15 +596,15 @@ function LanguageSection() {
             "flex items-center gap-3 rounded-xl border-2 p-3 text-left transition-all w-full",
             lang === "ur"
               ? "border-brand-500 bg-brand-50"
-              : "border-slate-200 bg-white hover:bg-slate-50",
+              : "border-line bg-surface hover:bg-app",
           )}
         >
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-green-100 text-sm font-bold text-green-700">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-success-soft text-sm font-bold text-success-ink">
             اردو
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium text-slate-900">اردو</p>
-            <p className="text-[11px] text-slate-500">نستعلیق خط، دائیں سے بائیں</p>
+            <p className="text-sm font-medium text-ink">اردو</p>
+            <p className="text-[11px] text-ink-subtle">نستعلیق خط، دائیں سے بائیں</p>
           </div>
           {lang === "ur" ? (
             <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand-600">
@@ -591,7 +614,7 @@ function LanguageSection() {
         </button>
       </div>
 
-      <p className="mt-2 text-[11px] text-slate-500">
+      <p className="mt-2 text-[11px] text-ink-subtle">
         {t("settings.languageHint")}
       </p>
     </section>
@@ -607,6 +630,7 @@ function ThemeSection() {
   const { t } = useLanguage();
   const updateSettings = useUpdateSettings();
   const { data: settings } = useSettings();
+  const queryClient = useQueryClient();
 
   // Sync theme from server-side settings when they load (after login).
   // This ensures the theme is per-user — User A's theme doesn't affect User B.
@@ -619,64 +643,81 @@ function ThemeSection() {
   const handleSetTheme = (newTheme: Theme) => {
     // 1. Apply locally (localStorage + CSS variables) — instant feedback
     setTheme(newTheme);
-    // 2. Persist to server (per-user, survives device switch)
+    // 2. Update the settings cache immediately so a remount (e.g. navigating
+    //    to the dashboard and back) never reads the stale theme and syncs it
+    //    back over the user's choice.
+    queryClient.setQueryData<SettingView>(settingsKeys.detail(), (old) =>
+      old ? { ...old, theme: newTheme } : old,
+    );
+    // 3. Persist to server (per-user, survives device switch)
     updateSettings.mutate({ theme: newTheme });
   };
 
   return (
-    <section className="rounded-xl border border-slate-200 bg-white p-4">
-      <div className="flex items-center gap-2 mb-1">
-        <Palette className="h-4 w-4 text-slate-500" />
-        <h2 className="text-sm font-semibold text-slate-900">{t("settings.theme")}</h2>
+    <section className="rounded-card border border-line bg-surface shadow-card p-4 shadow-card">
+      <div className="mb-1 flex items-center gap-2">
+        <span className="flex h-7 w-7 items-center justify-center rounded-[0.6rem] bg-brand-50 text-brand-700">
+          <Palette className="h-3.5 w-3.5" />
+        </span>
+        <h2 className="text-[13px] font-semibold text-ink">{t("settings.theme")}</h2>
       </div>
-      <p className="mb-3 text-xs text-slate-500">{t("settings.themeDesc")}</p>
+      <p className="mb-3 text-[11px] text-ink-subtle">{t("settings.themeDesc")}</p>
 
-      <div className="space-y-2">
-        {THEMES.map((themeOpt) => (
-          <button
-            key={themeOpt.id}
-            type="button"
-            onClick={() => handleSetTheme(themeOpt.id)}
-            className={cn(
-              "flex items-center gap-3 rounded-xl border-2 p-3 text-left transition-all w-full",
-              theme === themeOpt.id
-                ? "border-brand-500 bg-brand-50"
-                : "border-slate-200 bg-white hover:bg-slate-50",
-            )}
-          >
-            <div className="flex shrink-0 gap-1">
-              <div
-                className="h-8 w-8 rounded-lg border border-slate-200"
-                style={{ backgroundColor: themeOpt.preview.bg }}
-                title={t("settings.themeBackground")}
-              />
-              <div
-                className="h-8 w-8 rounded-lg border border-slate-200"
-                style={{ backgroundColor: themeOpt.preview.accent }}
-                title={t("settings.themeAccent")}
-              />
-              <div
-                className="h-8 w-8 rounded-lg border border-slate-200"
-                style={{ backgroundColor: themeOpt.preview.dark }}
-                title={t("settings.themeDark")}
-              />
-            </div>
-
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium text-slate-900">{t(themeOpt.nameKey)}</p>
-              <p className="text-[11px] text-slate-500">{t(themeOpt.descriptionKey)}</p>
-            </div>
-
-            {theme === themeOpt.id ? (
-              <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand-600">
-                <Check className="h-3.5 w-3.5 text-white" />
+      <div className="grid grid-cols-2 gap-2.5">
+        {THEMES.map((themeOpt) => {
+          const selected = theme === themeOpt.id;
+          return (
+            <button
+              key={themeOpt.id}
+              type="button"
+              onClick={() => handleSetTheme(themeOpt.id)}
+              className={cn(
+                "relative overflow-hidden rounded-control border text-left transition-all",
+                selected
+                  ? "border-brand-500 ring-2 ring-brand-500/25"
+                  : "border-line hover:border-line-strong hover:shadow-soft",
+              )}
+            >
+              {/* palette preview strip */}
+              <div className="flex h-12 w-full">
+                <span
+                  className="flex-1"
+                  style={{ backgroundColor: themeOpt.preview.bg }}
+                  title={t("settings.themeBackground")}
+                />
+                <span
+                  className="flex-1"
+                  style={{ backgroundColor: themeOpt.preview.accent }}
+                  title={t("settings.themeAccent")}
+                />
+                <span
+                  className="flex-1"
+                  style={{ backgroundColor: themeOpt.preview.dark }}
+                  title={t("settings.themeDark")}
+                />
               </div>
-            ) : null}
-          </button>
-        ))}
+
+              <div className="flex items-start justify-between gap-1 bg-surface p-2.5">
+                <div className="min-w-0">
+                  <p className="truncate text-[12px] font-semibold text-ink">
+                    {t(themeOpt.nameKey)}
+                  </p>
+                  <p className="mt-0.5 line-clamp-2 text-[10px] leading-snug text-ink-subtle">
+                    {t(themeOpt.descriptionKey)}
+                  </p>
+                </div>
+                {selected ? (
+                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-brand-600 text-white">
+                    <Check className="h-3 w-3" />
+                  </span>
+                ) : null}
+              </div>
+            </button>
+          );
+        })}
       </div>
 
-      <p className="mt-2 text-[11px] text-slate-500">
+      <p className="mt-2.5 text-[10px] text-ink-faint">
         {t("settings.themeSaved")}
       </p>
     </section>
@@ -734,30 +775,30 @@ function UnitsSection({ initial }: { initial: { customUnits: string[] } }) {
   };
 
   return (
-    <section className="rounded-xl border border-slate-200 bg-white p-4">
+    <section className="rounded-card border border-line bg-surface shadow-card p-4">
       <div className="flex items-center gap-2 mb-3">
-        <Ruler className="h-4 w-4 text-slate-500" />
-        <h2 className="text-sm font-semibold text-slate-900">{t("stock.manageUnits")}</h2>
+        <Ruler className="h-4 w-4 text-ink-subtle" />
+        <h2 className="text-sm font-semibold text-ink">{t("stock.manageUnits")}</h2>
       </div>
-      <p className="text-xs text-slate-500 mb-3">{t("stock.manageUnitsDesc")}</p>
+      <p className="text-xs text-ink-subtle mb-3">{t("stock.manageUnitsDesc")}</p>
       <div className="mb-3">
-        <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400 mb-1.5">{t("stock.builtinUnits")}</p>
+        <p className="text-[11px] font-medium uppercase tracking-wide text-ink-faint mb-1.5">{t("stock.builtinUnits")}</p>
         <div className="flex flex-wrap gap-1.5">
           {BUILTIN_UNITS.map((u) => (
-            <span key={u} className="rounded-md bg-slate-100 px-2 py-1 text-xs font-medium text-slate-600">{u}</span>
+            <span key={u} className="rounded-md bg-surface-2 px-2 py-1 text-xs font-medium text-ink-muted">{u}</span>
           ))}
         </div>
       </div>
       <div className="mb-3">
-        <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400 mb-1.5">{t("stock.customUnits")}</p>
+        <p className="text-[11px] font-medium uppercase tracking-wide text-ink-faint mb-1.5">{t("stock.customUnits")}</p>
         {customUnits.length === 0 ? (
-          <p className="text-xs text-slate-400">{t("stock.noCustomUnits")}</p>
+          <p className="text-xs text-ink-faint">{t("stock.noCustomUnits")}</p>
         ) : (
           <div className="flex flex-wrap gap-1.5">
             {customUnits.map((u) => (
               <span key={u} className="inline-flex items-center gap-1 rounded-md bg-brand-50 px-2 py-1 text-xs font-medium text-brand-700">
                 {u}
-                <button type="button" onClick={() => handleRemoveUnit(u)} className="text-brand-400 hover:text-red-600" aria-label={`${t("settings.remove")} ${u}`}>
+                <button type="button" onClick={() => handleRemoveUnit(u)} className="text-brand-400 hover:text-danger-ink" aria-label={`${t("settings.remove")} ${u}`}>
                   <X className="h-3 w-3" />
                 </button>
               </span>
@@ -772,7 +813,7 @@ function UnitsSection({ initial }: { initial: { customUnits: string[] } }) {
           onChange={(e) => setNewUnit(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleAddUnit(); } }}
           placeholder={t("stock.unitName")}
-          className="flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+          className="flex-1 rounded-lg border border-line-strong bg-surface px-3 py-2 text-sm text-ink placeholder:text-ink-faint focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
         />
         <Button type="button" variant="primary" size="md" onClick={handleAddUnit} disabled={!newUnit.trim() || updateSettings.isPending}>
           <Plus className="h-4 w-4" />
@@ -839,18 +880,18 @@ function SecuritySection({ hasPin }: { hasPin: boolean }) {
   };
 
   return (
-    <section className="rounded-xl border border-slate-200 bg-white p-4">
+    <section className="rounded-card border border-line bg-surface shadow-card p-4">
       <div className="flex items-center gap-2 mb-3">
-        <Lock className="h-4 w-4 text-slate-500" />
-        <h2 className="text-sm font-semibold text-slate-900">{t("settings.security")}</h2>
+        <Lock className="h-4 w-4 text-ink-subtle" />
+        <h2 className="text-sm font-semibold text-ink">{t("settings.security")}</h2>
       </div>
 
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-sm font-medium text-slate-900">
+          <p className="text-sm font-medium text-ink">
             {t("settings.pinEnabled")} {hasPin ? "✓" : ""}
           </p>
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-ink-subtle">
             {hasPin ? t("settings.pinDesc") : t("settings.pinDescOff")}
           </p>
         </div>
@@ -866,7 +907,7 @@ function SecuritySection({ hasPin }: { hasPin: boolean }) {
       </div>
 
       {showPinForm ? (
-        <div className="mt-3 space-y-3 border-t border-slate-100 pt-3">
+        <div className="mt-3 space-y-3 border-t border-line pt-3">
           {hasPin ? (
             <TextField
               label={t("settings.currentPin")}
@@ -918,12 +959,12 @@ function SecuritySection({ hasPin }: { hasPin: boolean }) {
       ) : null}
 
       {hasPin && !showPinForm ? (
-        <div className="mt-3 border-t border-slate-100 pt-3">
+        <div className="mt-3 border-t border-line pt-3">
           {!showRemoveConfirm ? (
             <button
               type="button"
               onClick={() => setShowRemoveConfirm(true)}
-              className="text-xs font-medium text-red-600 hover:text-red-700"
+              className="text-xs font-medium text-danger-ink hover:text-danger-ink"
             >
               {t("settings.removePin")}
             </button>
@@ -1002,13 +1043,13 @@ function DataManagementSection({ hasPin }: { hasPin: boolean }) {
   };
 
   return (
-    <section className="rounded-xl border border-red-200 bg-red-50/30 p-4">
+    <section className="rounded-xl border border-danger/20 bg-danger-soft/30 p-4">
       <div className="flex items-center gap-2 mb-3">
-        <AlertTriangle className="h-4 w-4 text-red-600" />
-        <h2 className="text-sm font-semibold text-red-900">{t("settings.dangerZone")}</h2>
+        <AlertTriangle className="h-4 w-4 text-danger-ink" />
+        <h2 className="text-sm font-semibold text-danger-ink">{t("settings.dangerZone")}</h2>
       </div>
 
-      <p className="text-xs text-red-700 mb-3">
+      <p className="text-xs text-danger-ink mb-3">
         {t("settings.clearAllDesc")}
       </p>
 
@@ -1022,10 +1063,10 @@ function DataManagementSection({ hasPin }: { hasPin: boolean }) {
           {t("settings.clearAllData")}
         </Button>
       ) : (
-        <div className="space-y-3 rounded-lg border-2 border-red-300 bg-white p-3">
+        <div className="space-y-3 rounded-lg border-2 border-danger/40 bg-surface p-3">
           <div className="flex items-start gap-2">
-            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-red-600" />
-            <p className="text-xs text-red-800">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-danger-ink" />
+            <p className="text-xs text-danger-ink">
               {t("settings.clearConfirm")}
             </p>
           </div>
@@ -1092,19 +1133,19 @@ function BackupSection() {
   return (
     <Link
       href="/more/backup"
-      className="block rounded-xl border border-slate-200 bg-white p-4 hover:bg-slate-50 active:bg-slate-100"
+      className="block rounded-card border border-line bg-surface shadow-card p-4 hover:bg-app active:bg-surface-2"
     >
       <div className="flex items-center gap-3">
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-50">
           <Database className="h-5 w-5 text-brand-700" />
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-medium text-slate-900">{t("settings.backupExport")}</p>
-          <p className="text-[11px] text-slate-500">
+          <p className="text-sm font-medium text-ink">{t("settings.backupExport")}</p>
+          <p className="text-[11px] text-ink-subtle">
             {t("settings.backupDesc")}
           </p>
         </div>
-        <ChevronRight className="h-4 w-4 shrink-0 text-slate-300" />
+        <ChevronRight className="h-4 w-4 shrink-0 text-ink-faint" />
       </div>
     </Link>
   );
@@ -1119,17 +1160,17 @@ function SubscriptionCard() {
   return (
     <Link
       href="/more/subscription"
-      className="block rounded-xl border border-slate-200 bg-white p-4 transition-colors hover:bg-slate-50 active:bg-slate-100"
+      className="block rounded-card border border-line bg-surface shadow-card p-4 transition-colors hover:bg-app active:bg-surface-2"
     >
       <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-50 text-amber-600">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-warning-soft text-warning-ink">
           <Crown className="h-5 w-5" />
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold text-slate-900">{t("subscription.title")}</p>
-          <p className="text-[11px] text-slate-500">{t("subscription.subtitle")}</p>
+          <p className="text-sm font-semibold text-ink">{t("subscription.title")}</p>
+          <p className="text-[11px] text-ink-subtle">{t("subscription.subtitle")}</p>
         </div>
-        <ChevronRight className="h-4 w-4 shrink-0 text-slate-300" />
+        <ChevronRight className="h-4 w-4 shrink-0 text-ink-faint" />
       </div>
     </Link>
   );

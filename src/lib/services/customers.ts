@@ -23,6 +23,16 @@ import { cached, invalidateCache } from "@/lib/utils/cache";
 import { recordAudit } from "@/lib/services/audit";
 import { createCustomerSchema, updateCustomerSchema } from "@/lib/schemas/customer";
 import type { Prisma } from "@prisma/client";
+import type { TranslationKey } from "@/lib/i18n/translations";
+
+const METHOD_KEY: Record<string, TranslationKey> = {
+  cash: "method.cash",
+  bank: "method.bank",
+  cheque: "method.cheque",
+  jazzcash: "method.jazzcash",
+  easypaisa: "method.easypaisa",
+  other: "method.other",
+};
 
 /** Public-facing shape — never leak isDeleted, internal timestamps. */
 export type CustomerView = {
@@ -522,6 +532,11 @@ export type CustomerTransaction = {
   amount: string; // always positive
   direction: "debit" | "credit"; // debit = customer owes more, credit = customer paid
   description: string;
+  /** i18n key + params for the description (preferred by the UI over `description`). */
+  descriptionKey?: TranslationKey;
+  descriptionParams?: Record<string, string | number>;
+  /** For a payment: i18n key for the payment method shown inside parens. */
+  methodKey?: TranslationKey | null;
   refId: string; // ID of source record (Sale.id, Payment.id, etc.)
   refType: string;
   runningBalance: string; // signed Decimal — customer's balance AFTER this transaction
@@ -595,6 +610,9 @@ export async function getCustomerHistory(customerId: string, userId?: string | n
     amount: Decimal;
     direction: CustomerTransaction["direction"];
     description: string;
+    descriptionKey?: TranslationKey;
+    descriptionParams?: Record<string, string | number>;
+    methodKey?: TranslationKey | null;
     refId: string;
     refType: string;
   };
@@ -609,6 +627,8 @@ export async function getCustomerHistory(customerId: string, userId?: string | n
       amount: toDecimalOrZero(s.totalAmount),
       direction: "debit",
       description: `Sale of ${toDecimalOrZero(s.totalAmount).toFixed(2)}`,
+      descriptionKey: "ledger.sale",
+      descriptionParams: { amount: toDecimalOrZero(s.totalAmount).toFixed(2) },
       refId: s.id,
       refType: "Sale",
     });
@@ -622,6 +642,8 @@ export async function getCustomerHistory(customerId: string, userId?: string | n
       amount: toDecimalOrZero(p.amount),
       direction: "credit",
       description: p.saleId ? `Payment for sale` : `Payment received (${p.method})`,
+      descriptionKey: p.saleId ? "ledger.paymentForSale" : "ledger.paymentReceived",
+      methodKey: p.saleId ? null : (METHOD_KEY[p.method] ?? "method.other"),
       refId: p.id,
       refType: "Payment",
     });
@@ -673,6 +695,7 @@ export async function getCustomerHistory(customerId: string, userId?: string | n
       amount: openingBalance.abs().toString(),
       direction: openingBalance.gte(0) ? "debit" : "credit",
       description: "Opening balance",
+      descriptionKey: "ledger.opening",
       refId: customer.id,
       refType: "Customer",
       runningBalance: running.toString(),
@@ -692,6 +715,9 @@ export async function getCustomerHistory(customerId: string, userId?: string | n
       amount: tx.amount.toString(),
       direction: tx.direction,
       description: tx.description,
+      descriptionKey: tx.descriptionKey,
+      descriptionParams: tx.descriptionParams,
+      methodKey: tx.methodKey,
       refId: tx.refId,
       refType: tx.refType,
       runningBalance: running.toString(),

@@ -31,6 +31,8 @@ const PUBLIC_PAGES = ["/login", "/register", "/reset-password", "/admin"];
 const DASHBOARD_PATH = "/dashboard";
 // Printable receipts render without the app chrome, so the paper is the page.
 const RECEIPT_PATH = /^\/sales\/[^/]+\/receipt$/;
+// Developer style guide — renders the real components with mock data.
+const PREVIEW_PATH = "/preview";
 
 export function Providers({ children }: { children: ReactNode }) {
   const pathname = usePathname();
@@ -38,6 +40,7 @@ export function Providers({ children }: { children: ReactNode }) {
     (p) => pathname === p || pathname.startsWith(p + "/"),
   );
   const isReceiptPage = RECEIPT_PATH.test(pathname);
+  const isPreviewPage = pathname === PREVIEW_PATH;
 
   const showQuickAdd = !isPublicPage && pathname === DASHBOARD_PATH;
 
@@ -46,7 +49,12 @@ export function Providers({ children }: { children: ReactNode }) {
       <LanguageProvider>
         <QueryProvider>
           <ToastProvider>
-            {isPublicPage ? (
+            {isPreviewPage ? (
+              <Screen>
+                {children}
+                <BottomNav />
+              </Screen>
+            ) : isPublicPage ? (
               <Screen>{children}</Screen>
             ) : (
               <AuthGate>
@@ -57,13 +65,9 @@ export function Providers({ children }: { children: ReactNode }) {
                     {children}
                     <BottomNav />
                     {showQuickAdd ? <QuickAddMenu /> : null}
-                    {/* Two separate products (voice actions + business intelligence)
-                        share ONE fixed dock, so their launchers always sit side by
-                        side with a constant gap — in every language and direction. */}
-                    <div className="assistant-dock">
-                      <KhataAssistant />
-                      <VoiceAssistant />
-                    </div>
+                    {/* Two separate products: voice actions + business intelligence. */}
+                    <VoiceAssistant />
+                    <KhataAssistant />
                   </Screen>
                 )}
               </AuthGate>

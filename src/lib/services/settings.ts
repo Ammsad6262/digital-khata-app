@@ -27,7 +27,7 @@ function toView(s: Prisma.SettingGetPayload<{}>): SettingView {
     timezone: s.timezone,
     hasPin: s.ownerPinHash !== null && s.ownerPinHash !== "",
     customUnits: s.customUnits ?? [],
-    theme: s.theme ?? "monochrome",
+    theme: s.theme ?? "ink",
   };
 }
 
@@ -164,7 +164,7 @@ export async function updateSettings(
       currencySymbol: input.currencySymbol ?? "Rs.",
       timezone: input.timezone ?? "Asia/Karachi",
       customUnits: input.customUnits ?? [],
-      theme: input.theme ?? "monochrome",
+      theme: input.theme ?? "ink",
     },
     update: {
       ...(input.businessName !== undefined && { businessName: input.businessName }),

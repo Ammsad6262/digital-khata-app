@@ -18,6 +18,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { PinUnlockScreen } from "@/components/auth/PinUnlockScreen";
 import { ExpiredAccessScreen } from "@/components/subscription/ExpiredAccessScreen";
 import { useLanguage } from "@/providers/language-provider";
+import { ThemeSync } from "@/providers/theme-sync";
 
 type AuthStatus = {
   hasPin: boolean;
@@ -142,20 +143,20 @@ export function AuthGate({ children }: { children: ReactNode }) {
   // Loading — invisible bg to prevent FOUC
   if (user === undefined && !error) {
     return (
-      <div className="min-h-[100dvh] bg-slate-50" aria-hidden="true" />
+      <div className="min-h-[100dvh] bg-app" aria-hidden="true" />
     );
   }
 
   // Error
   if (error) {
     return (
-      <div className="flex min-h-[100dvh] items-center justify-center bg-slate-50 p-6">
+      <div className="flex min-h-[100dvh] items-center justify-center bg-app p-6">
         <div className="max-w-sm text-center">
-          <p className="text-sm font-medium text-slate-900">{error}</p>
+          <p className="text-sm font-medium text-ink">{error}</p>
           <button
             type="button"
             onClick={() => window.location.reload()}
-            className="mt-4 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white"
+            className="mt-4 rounded-control bg-brand-600 px-4 py-2 text-sm font-semibold text-white"
           >
             {t("common.retry")}
           </button>
@@ -167,7 +168,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
   // Not logged in (redirecting to login)
   if (!user) {
     return (
-      <div className="min-h-[100dvh] bg-slate-50" aria-hidden="true" />
+      <div className="min-h-[100dvh] bg-app" aria-hidden="true" />
     );
   }
 
@@ -191,5 +192,10 @@ export function AuthGate({ children }: { children: ReactNode }) {
   }
 
   // Authenticated + unlocked + (active subscription or on accessible page) → render app
-  return <>{children}</>;
+  return (
+    <>
+      <ThemeSync />
+      {children}
+    </>
+  );
 }

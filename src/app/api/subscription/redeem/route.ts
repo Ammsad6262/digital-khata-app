@@ -13,11 +13,13 @@ const redeemSchema = z.object({
 });
 
 export async function POST(req: NextRequest) {
+  const ip = getClientIp(req);
+  const rateKey = `redeem:${ip}`;
+
   try {
     const userId = await requireUserId(req);
-    const ip = getClientIp(req);
 
-    const { locked } = checkRateLimit(ip);
+    const { locked } = checkRateLimit(rateKey);
     if (locked) {
       throw new BadRequestError("api.subscription.rateLimited");
     }
@@ -28,11 +30,10 @@ export async function POST(req: NextRequest) {
     const parsed = redeemSchema.parse(data);
     const result = await redeemCode(userId, parsed.code);
 
-    recordSuccess(ip);
+    recordSuccess(rateKey);
     return ok(result);
   } catch (error) {
-    const ip = getClientIp(req);
-    recordFailure(ip);
+    recordFailure(rateKey);
     return fail(error);
   }
 }

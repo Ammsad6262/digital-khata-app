@@ -20,9 +20,9 @@ const AddCustomerForm = dynamic(
   {
     loading: () => (
       <div className="space-y-4">
-        <div className="h-16 animate-pulse rounded-xl bg-slate-200" />
-        <div className="h-16 animate-pulse rounded-xl bg-slate-200" />
-        <div className="h-16 animate-pulse rounded-xl bg-slate-200" />
+        <div className="h-16 animate-pulse rounded-xl bg-surface-2" />
+        <div className="h-16 animate-pulse rounded-xl bg-surface-2" />
+        <div className="h-16 animate-pulse rounded-xl bg-surface-2" />
       </div>
     ),
   },
@@ -37,7 +37,7 @@ export default function AddCustomerPage() {
         rightSlot={
           <Link
             href="/khata"
-            className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100"
+            className="rounded-lg p-1.5 text-ink-subtle hover:bg-surface-2"
             aria-label={t("common.back")}
           >
             <ArrowLeft className="h-5 w-5" />

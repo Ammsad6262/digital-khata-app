@@ -26,13 +26,6 @@ import { voidSale } from "@/lib/services/sales";
 import { voidExpense } from "@/lib/services/expenses";
 import { voidPayment } from "@/lib/services/payments";
 import { BadRequestError } from "@/lib/errors";
-import {
-  categoryLabel,
-  pickVoice,
-  unitLabel,
-  type VoiceLang,
-  type VoicePhraseKey,
-} from "./phrases";
 import type { PlanPayload } from "./types";
 
 export type ActionResult =
@@ -66,59 +59,30 @@ function money(v: Decimal | string | number): string {
   return `Rs. ${dec.toDecimalPlaces(2).toNumber().toLocaleString("en-PK", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-/** Urdu names for the fields the validation errors mention. */
-const FIELD_NAMES_UR: Record<string, string> = {
-  quantity: "مقدار",
-  product: "مصنوع",
-  price: "قیمت",
-  customer: "گاہک",
-  amount: "رقم",
-  "customer name": "گاہک کا نام",
-  "supplier name": "سپلائر کا نام",
-  "product name": "مصنوع کا نام",
-  "selling price": "فروخت کی قیمت",
-  supplier: "سپلائر",
-  "purchase price": "خریداری کی قیمت",
-  "reminder title": "یاد دہانی کا عنوان",
-  "due date": "واجب تاریخ",
-  reminder: "یاد دہانی",
-  sale: "فروخت",
-  expense: "خرچ",
-  payment: "ادائیگی",
-};
-
-function requireField<T>(
-  value: T | null | undefined,
-  name: string,
-  lang: VoiceLang,
-): T {
+function requireField<T>(value: T | null | undefined, name: string): T {
   if (value === null || value === undefined) {
-    throw new BadRequestError(
-      pickVoice(lang, "missingField", {
-        field: lang === "ur" ? (FIELD_NAMES_UR[name] ?? name) : name,
-      }),
-    );
+    throw new BadRequestError(`The ${name} is missing.`);
   }
   return value;
 }
 
 /** Normalise the single-item shorthand into the array the service expects. */
-function saleItems(payload: PlanPayload, lang: VoiceLang) {
+function saleItems(payload: PlanPayload) {
   if (payload.items && payload.items.length > 0) return payload.items;
 
-  const quantity = requireField(payload.quantity, "quantity", lang);
-  if (quantity <= 0) throw new BadRequestError(pickVoice(lang, "errQuantityPositive"));
+  const quantity = requireField(payload.quantity, "quantity");
+  if (quantity <= 0) throw new BadRequestError("Quantity must be greater than zero.");
 
   let unitPrice = payload.unitPrice;
   if ((unitPrice === undefined || unitPrice === null) && payload.total) {
     unitPrice = Math.round((payload.total / quantity) * 100) / 100;
   }
   if (unitPrice === undefined || unitPrice === null) {
-    throw new BadRequestError(pickVoice(lang, "errPriceMissing"));
+    throw new BadRequestError("The price is missing.");
   }
   return [
     {
-      productId: requireField(payload.productId, "product", lang),
+      productId: requireField(payload.productId, "product"),
       quantity,
       unitPrice,
     },
@@ -128,25 +92,23 @@ function saleItems(payload: PlanPayload, lang: VoiceLang) {
 export async function performAction(
   userId: string,
   payload: PlanPayload,
-  lang: VoiceLang = "en",
 ): Promise<ActionResult> {
-  const v = (key: VoicePhraseKey, params?: Record<string, string | number>) =>
-    pickVoice(lang, key, params);
-
   switch (payload.action) {
     // ── SALES ────────────────────────────────────────────────────────────
     case "CREATE_SALE": {
-      const customerId = requireField(payload.customerId, "customer", lang);
-      const items = saleItems(payload, lang);
+      const customerId = requireField(payload.customerId, "customer");
+      const items = saleItems(payload);
 
       const before = await getCustomerWithBalance(customerId, userId);
       const balanceBefore = d(before.balance);
 
       if (payload.paidAmount === null || payload.paidAmount === undefined) {
-        throw new BadRequestError(v("errPaidAmountRequired"));
+        throw new BadRequestError(
+          "How much did the customer pay? Say the paid amount, or confirm 'on credit'.",
+        );
       }
       const paidAmount = payload.paidAmount;
-      if (paidAmount < 0) throw new BadRequestError(v("errPaidNegative"));
+      if (paidAmount < 0) throw new BadRequestError("Paid amount cannot be negative.");
 
       const sale = await createSale(
         {
@@ -168,31 +130,21 @@ export async function performAction(
 
       return {
         ok: true,
-        message: v("actionSaleSaved", {
-          total: money(d(sale.totalAmount)),
-          name: before.name,
-          paid: money(d(paidAmount)),
-          balance: money(d(after.balance)),
-        }),
+        message: `Sale saved: ${money(d(sale.totalAmount))} to ${before.name}. Paid ${money(d(paidAmount))}, balance ${money(d(after.balance))}.`,
         entityId: sale.id,
         entityType: "sale",
         href: `/sales/${sale.id}`,
         verified,
-        verification: verified
-          ? undefined
-          : v("actionExpectedBalance", {
-              expected: money(expected),
-              actual: money(d(after.balance)),
-            }),
+        verification: verified ? undefined : `Expected balance ${money(expected)}, found ${money(d(after.balance))}.`,
         data: { total: sale.totalAmount, paidAmount, balance: after.balance },
       };
     }
 
     // ── CUSTOMER PAYMENT ─────────────────────────────────────────────────
     case "RECORD_PAYMENT": {
-      const customerId = requireField(payload.customerId, "customer", lang);
-      const amount = requireField(payload.amount, "amount", lang);
-      if (amount <= 0) throw new BadRequestError(v("errPaymentPositive"));
+      const customerId = requireField(payload.customerId, "customer");
+      const amount = requireField(payload.amount, "amount");
+      if (amount <= 0) throw new BadRequestError("A payment must be greater than zero.");
 
       const before = await getCustomerWithBalance(customerId, userId);
       const balanceBefore = d(before.balance);
@@ -215,34 +167,24 @@ export async function performAction(
 
       return {
         ok: true,
-        message: v("actionPaymentRecorded", {
-          amount: money(d(amount)),
-          name: before.name,
-          balance: money(d(after.balance)),
-        }),
+        message: `Recorded ${money(d(amount))} from ${before.name}. Balance is now ${money(d(after.balance))}.`,
         entityId: payment.id,
         entityType: "payment",
         href: `/khata/${customerId}`,
         verified,
-        verification: verified
-          ? undefined
-          : v("actionExpectedBalance", {
-              expected: money(expected),
-              actual: money(d(after.balance)),
-            }),
+        verification: verified ? undefined : `Expected balance ${money(expected)}, found ${money(d(after.balance))}.`,
         data: { balance: after.balance },
       };
     }
 
     // ── EXPENSE ──────────────────────────────────────────────────────────
     case "CREATE_EXPENSE": {
-      const amount = requireField(payload.amount, "amount", lang);
-      if (amount <= 0) throw new BadRequestError(v("errExpensePositive"));
-      const expenseName = payload.expenseName || v("generalExpense");
+      const amount = requireField(payload.amount, "amount");
+      if (amount <= 0) throw new BadRequestError("An expense must be greater than zero.");
 
       const expense = await recordExpense(
         {
-          name: expenseName,
+          name: payload.expenseName || "General expense",
           amount,
           category: payload.category ?? "other",
           notes: payload.notes,
@@ -253,11 +195,7 @@ export async function performAction(
 
       return {
         ok: true,
-        message: v("actionExpenseSaved", {
-          name: expenseName,
-          amount: money(d(amount)),
-          category: categoryLabel(lang, payload.category ?? "other"),
-        }),
+        message: `Expense saved: ${payload.expenseName || "General expense"} ${money(d(amount))} (${payload.category ?? "other"}).`,
         entityId: expense.id,
         entityType: "expense",
         href: `/expenses/${expense.id}`,
@@ -268,7 +206,7 @@ export async function performAction(
 
     // ── PEOPLE ───────────────────────────────────────────────────────────
     case "CREATE_CUSTOMER": {
-      const name = requireField(payload.name, "customer name", lang);
+      const name = requireField(payload.name, "customer name");
       const customer = await createCustomer(
         {
           name,
@@ -280,7 +218,7 @@ export async function performAction(
       );
       return {
         ok: true,
-        message: v("actionCustomerAdded", { name: customer.name }),
+        message: `Customer ${customer.name} added.`,
         entityId: customer.id,
         entityType: "customer",
         href: `/khata/${customer.id}`,
@@ -290,14 +228,14 @@ export async function performAction(
     }
 
     case "CREATE_SUPPLIER": {
-      const name = requireField(payload.name, "supplier name", lang);
+      const name = requireField(payload.name, "supplier name");
       const supplier = await createSupplier(
         { name, phone: payload.phone, address: payload.address, openingBalance: payload.openingBalance ?? 0 },
         userId,
       );
       return {
         ok: true,
-        message: v("actionSupplierAdded", { name: supplier.name }),
+        message: `Supplier ${supplier.name} added.`,
         entityId: supplier.id,
         entityType: "supplier",
         href: `/suppliers/${supplier.id}`,
@@ -308,8 +246,8 @@ export async function performAction(
 
     // ── PRODUCTS ─────────────────────────────────────────────────────────
     case "CREATE_PRODUCT": {
-      const name = requireField(payload.name, "product name", lang);
-      const sellingPrice = requireField(payload.sellingPrice, "selling price", lang);
+      const name = requireField(payload.name, "product name");
+      const sellingPrice = requireField(payload.sellingPrice, "selling price");
       const purchasePrice = payload.purchasePrice ?? sellingPrice;
       const unit = payload.unit || "piece";
       const openingStock = payload.openingStock ?? 0;
@@ -332,12 +270,8 @@ export async function performAction(
         ok: true,
         message:
           openingStock > 0
-            ? v("actionProductAddedStock", {
-                name: result.product.name,
-                stock: openingStock,
-                unit: unitLabel(lang, unit),
-              })
-            : v("actionProductAdded", { name: result.product.name }),
+            ? `Product ${result.product.name} added with ${openingStock} ${unit} opening stock.`
+            : `Product ${result.product.name} added.`,
         entityId: result.product.id,
         entityType: "product",
         href: `/more/products/${result.product.id}`,
@@ -348,15 +282,15 @@ export async function performAction(
 
     // ── PURCHASES ────────────────────────────────────────────────────────
     case "CREATE_PURCHASE": {
-      const supplierId = requireField(payload.supplierId, "supplier", lang);
-      const quantity = requireField(payload.quantity, "quantity", lang);
-      const unitCost = requireField(payload.unitCost, "purchase price", lang);
-      const productId = requireField(payload.productId, "product", lang);
+      const supplierId = requireField(payload.supplierId, "supplier");
+      const quantity = requireField(payload.quantity, "quantity");
+      const unitCost = requireField(payload.unitCost, "purchase price");
+      const productId = requireField(payload.productId, "product");
 
       const stockBefore = await getProductWithStock(productId, userId);
       const suppliersBefore = await listSuppliersWithBalance(userId);
       const supplierBefore = suppliersBefore.find((s) => s.id === supplierId);
-      if (!supplierBefore) throw new BadRequestError(v("errSupplierNotFound"));
+      if (!supplierBefore) throw new BadRequestError("Supplier not found.");
 
       const purchase = await createPurchase(
         {
@@ -378,39 +312,29 @@ export async function performAction(
 
       return {
         ok: true,
-        message: v("actionPurchaseSaved", {
-          supplier: supplierBefore.name,
-          items: purchase.items.length,
-          total: money(d(purchase.totalAmount)),
-          outstanding: money(outstanding),
-          stock: stockAfter.currentStock,
-          unit: unitLabel(lang, stockAfter.unit),
-        }),
+        message: `Purchase saved from ${supplierBefore.name}: ${purchase.items.length} item(s), ${money(d(purchase.totalAmount))} total, ${money(outstanding)} on credit. Stock is now ${stockAfter.currentStock} ${stockAfter.unit}.`,
         entityId: purchase.id,
         entityType: "purchase",
         href: `/suppliers/${supplierId}`,
         verified,
         verification: verified
           ? undefined
-          : v("actionExpectedStock", {
-              expected: expectedStock.toString(),
-              actual: stockAfter.currentStock,
-            }),
+          : `Expected stock ${expectedStock.toString()}, found ${stockAfter.currentStock}.`,
         data: { total: purchase.totalAmount, outstanding: outstanding.toString() },
       };
     }
 
     // ── SUPPLIER PAYMENT ─────────────────────────────────────────────────
     case "SUPPLIER_PAYMENT": {
-      const supplierId = requireField(payload.supplierId, "supplier", lang);
-      const amount = requireField(payload.amount, "amount", lang);
-      if (amount <= 0) throw new BadRequestError(v("errPaymentPositive"));
+      const supplierId = requireField(payload.supplierId, "supplier");
+      const amount = requireField(payload.amount, "amount");
+      if (amount <= 0) throw new BadRequestError("A payment must be greater than zero.");
 
       const before = (await listSuppliersWithBalance(userId)).find((s) => s.id === supplierId);
-      if (!before) throw new BadRequestError(v("errSupplierNotFound"));
+      if (!before) throw new BadRequestError("Supplier not found.");
       if (d(amount).gt(d(before.balance))) {
         throw new BadRequestError(
-          v("errPaymentOverBalance", { amount: money(d(before.balance)) }),
+          `Payment is more than the outstanding balance (${money(d(before.balance))}).`,
         );
       }
 
@@ -432,25 +356,21 @@ export async function performAction(
 
       return {
         ok: true,
-        message: v("actionSupplierPaid", {
-          amount: money(d(amount)),
-          name: before.name,
-          balance: after ? money(d(after.balance)) : v("actionUpdated"),
-        }),
+        message: `Paid ${money(d(amount))} to ${before.name}. Balance is now ${after ? money(d(after.balance)) : "updated"}.`,
         entityId: payment.id,
         entityType: "supplierPayment",
         href: `/suppliers/${supplierId}`,
         verified,
-        verification: verified ? undefined : v("errSupplierBalanceMismatch"),
+        verification: verified ? undefined : "Supplier balance did not match the expected value.",
         data: { balance: after?.balance },
       };
     }
 
     // ── STOCK ────────────────────────────────────────────────────────────
     case "ADD_STOCK": {
-      const productId = requireField(payload.productId, "product", lang);
-      const quantity = requireField(payload.quantity, "quantity", lang);
-      if (quantity <= 0) throw new BadRequestError(v("errStockPositive"));
+      const productId = requireField(payload.productId, "product");
+      const quantity = requireField(payload.quantity, "quantity");
+      if (quantity <= 0) throw new BadRequestError("Stock quantity must be greater than zero.");
 
       const before = await getProductWithStock(productId, userId);
       const unitCost = payload.unitCost ?? Number(before.purchasePrice);
@@ -462,7 +382,7 @@ export async function performAction(
           quantity,
           unitCost,
           batchName: payload.batchName ?? `Stock ${new Date().toISOString().slice(0, 10)}`,
-          reason: payload.notes ?? v("addedByAssistant"),
+          reason: payload.notes ?? "Added by assistant",
           date: payload.date,
         },
         userId,
@@ -474,25 +394,20 @@ export async function performAction(
 
       return {
         ok: true,
-        message: v("actionStockAdded", {
-          quantity,
-          unit: unitLabel(lang, after.unit),
-          name: after.name,
-          stock: after.currentStock,
-        }),
+        message: `Added ${quantity} ${after.unit} of ${after.name}. Stock is now ${after.currentStock} ${after.unit}.`,
         entityId: move.id,
         entityType: "stockMove",
         href: `/more/products/${productId}`,
         verified,
-        verification: verified ? undefined : v("errStockMismatch"),
+        verification: verified ? undefined : "Stock did not match the expected value.",
         data: { before: before.currentStock, after: after.currentStock },
       };
     }
 
     // ── REMINDERS ────────────────────────────────────────────────────────
     case "CREATE_REMINDER": {
-      const title = requireField(payload.reminderTitle, "reminder title", lang);
-      const dueAt = requireField(payload.reminderDueAt, "due date", lang);
+      const title = requireField(payload.reminderTitle, "reminder title");
+      const dueAt = requireField(payload.reminderDueAt, "due date");
       const reminder = await createReminder(
         {
           title,
@@ -508,7 +423,7 @@ export async function performAction(
       );
       return {
         ok: true,
-        message: v("actionReminderSet", { title: reminder.title }),
+        message: `Reminder set: “${reminder.title}”.`,
         entityId: reminder.id,
         entityType: "reminder",
         href: "/reminders",
@@ -518,11 +433,11 @@ export async function performAction(
     }
 
     case "COMPLETE_REMINDER": {
-      const id = requireField(payload.targetId, "reminder", lang);
+      const id = requireField(payload.targetId, "reminder");
       const reminder = await setReminderCompleted(id, true, userId);
       return {
         ok: true,
-        message: v("actionReminderCompleted", { title: reminder.title }),
+        message: `Reminder completed: “${reminder.title}”.`,
         entityId: reminder.id,
         entityType: "reminder",
         href: "/reminders",
@@ -532,11 +447,11 @@ export async function performAction(
 
     // ── VOIDS (sensitive — the plan always requires confirmation) ────────
     case "VOID_SALE": {
-      const id = requireField(payload.targetId, "sale", lang);
+      const id = requireField(payload.targetId, "sale");
       const sale = await voidSale(id, userId);
       return {
         ok: true,
-        message: v("actionSaleVoided"),
+        message: "Sale voided. Its payments were reversed and stock restored.",
         entityId: sale.id,
         entityType: "sale",
         href: `/sales/${sale.id}`,
@@ -545,11 +460,11 @@ export async function performAction(
     }
 
     case "VOID_EXPENSE": {
-      const id = requireField(payload.targetId, "expense", lang);
+      const id = requireField(payload.targetId, "expense");
       const expense = await voidExpense(id, userId);
       return {
         ok: true,
-        message: v("actionExpenseVoided"),
+        message: "Expense voided. It will no longer count in reports.",
         entityId: expense.id,
         entityType: "expense",
         href: `/expenses/${expense.id}`,
@@ -558,11 +473,11 @@ export async function performAction(
     }
 
     case "VOID_PAYMENT": {
-      const id = requireField(payload.targetId, "payment", lang);
+      const id = requireField(payload.targetId, "payment");
       const payment = await voidPayment(id, userId);
       return {
         ok: true,
-        message: v("actionPaymentVoided"),
+        message: "Payment voided. The customer balance has been restored.",
         entityId: payment.id,
         entityType: "payment",
         verified: true,
@@ -570,7 +485,7 @@ export async function performAction(
     }
 
     default:
-      return { ok: false, message: v("errUnsupportedAction"), code: "UNSUPPORTED_ACTION" };
+      return { ok: false, message: "That action is not supported yet.", code: "UNSUPPORTED_ACTION" };
   }
 }
 

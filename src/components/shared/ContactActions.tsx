@@ -38,7 +38,7 @@ export function ContactActions({
       <a
         href={callHref}
         aria-label={t("contact.call")}
-        className={`inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white font-semibold text-slate-700 hover:bg-slate-50 active:scale-[0.97] ${padding}`}
+        className={`inline-flex items-center gap-1 rounded-lg border border-line bg-surface font-semibold text-ink-muted hover:bg-app active:scale-[0.97] ${padding}`}
       >
         <Phone className="h-3.5 w-3.5" />
         {t("contact.call")}
@@ -48,7 +48,7 @@ export function ContactActions({
         target="_blank"
         rel="noopener noreferrer"
         aria-label={t("contact.whatsapp")}
-        className={`inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 font-semibold text-emerald-700 hover:bg-emerald-100 active:scale-[0.97] ${padding}`}
+        className={`inline-flex items-center gap-1 rounded-lg border border-success/20 bg-success-soft font-semibold text-success-ink hover:bg-success-soft active:scale-[0.97] ${padding}`}
       >
         <MessageCircle className="h-3.5 w-3.5" />
         {t("contact.whatsapp")}

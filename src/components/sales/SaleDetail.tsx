@@ -94,20 +94,20 @@ export function SaleDetail({ saleId }: { saleId: string }) {
   const isVoided = !!sale.voidedAt;
 
   const statusBadge = isVoided
-    ? { label: t("sale.voided"), color: "bg-slate-100 text-slate-600 border-slate-200" }
+    ? { label: t("sale.voided"), color: "bg-surface-2 text-ink-muted border-line" }
     : isFullyPaid
       ? { label: t("sale.paid"), color: "bg-brand-50 text-brand-700 border-brand-200" }
       : sale.isOverdue
-        ? { label: t("sale.overdue"), color: "bg-red-50 text-red-700 border-red-200" }
-        : { label: t("sale.partial"), color: "bg-amber-50 text-amber-700 border-amber-200" };
+        ? { label: t("sale.overdue"), color: "bg-danger-soft text-danger-ink border-danger/20" }
+        : { label: t("sale.partial"), color: "bg-warning-soft text-warning-ink border-warning/25" };
 
   return (
     <div className="space-y-4">
       {/* Status hero */}
       <div
         className={cn(
-          "rounded-2xl border bg-white p-4 shadow-sm",
-          isVoided ? "border-slate-200 opacity-75" : "border-slate-200",
+          "rounded-2xl border bg-surface p-4 shadow-card",
+          isVoided ? "border-line opacity-75" : "border-line",
         )}
       >
         <div className="flex items-start justify-between gap-2">
@@ -121,17 +121,17 @@ export function SaleDetail({ saleId }: { saleId: string }) {
               {isVoided ? <Ban className="h-3 w-3" /> : isFullyPaid ? <CheckCircle2 className="h-3 w-3" /> : <Clock className="h-3 w-3" />}
               {statusBadge.label}
             </span>
-            <p className="mt-2 text-2xl font-bold tabular-nums text-slate-900">
+            <p className="mt-2 text-2xl font-bold tabular-nums text-ink">
               <Money value={sale.totalAmount} />
             </p>
-            <p className="mt-0.5 text-xs text-slate-500">
+            <p className="mt-0.5 text-xs text-ink-subtle">
               {formatDateTime(new Date(sale.date))}
             </p>
             {sale.dueDate ? (
               <p
                 className={cn(
                   "mt-1 flex items-center gap-1 text-xs",
-                  sale.isOverdue ? "font-medium text-red-600" : "text-slate-500",
+                  sale.isOverdue ? "font-medium text-danger-ink" : "text-ink-subtle",
                 )}
               >
                 <CalendarClock className="h-3 w-3" />
@@ -147,9 +147,9 @@ export function SaleDetail({ saleId }: { saleId: string }) {
 
         {/* Payment summary tiles */}
         <div className="mt-3 grid grid-cols-3 gap-2">
-          <div className="rounded-lg bg-slate-50 p-2 text-center">
-            <p className="text-[10px] uppercase tracking-wide text-slate-500">{t("sale.total")}</p>
-            <p className="text-sm font-bold tabular-nums text-slate-900">
+          <div className="rounded-lg bg-app p-2 text-center">
+            <p className="text-[10px] uppercase tracking-wide text-ink-subtle">{t("sale.total")}</p>
+            <p className="text-sm font-bold tabular-nums text-ink">
               <Money value={sale.totalAmount} />
             </p>
           </div>
@@ -162,13 +162,13 @@ export function SaleDetail({ saleId }: { saleId: string }) {
           <div
             className={cn(
               "rounded-lg p-2 text-center",
-              outstanding.gt(0) ? "bg-red-50" : "bg-slate-50",
+              outstanding.gt(0) ? "bg-danger-soft" : "bg-app",
             )}
           >
             <p
               className={cn(
                 "text-[10px] uppercase tracking-wide",
-                outstanding.gt(0) ? "text-red-700" : "text-slate-500",
+                outstanding.gt(0) ? "text-danger-ink" : "text-ink-subtle",
               )}
             >
               {t("sale.due")}
@@ -176,7 +176,7 @@ export function SaleDetail({ saleId }: { saleId: string }) {
             <p
               className={cn(
                 "text-sm font-bold tabular-nums",
-                outstanding.gt(0) ? "text-red-700" : "text-slate-900",
+                outstanding.gt(0) ? "text-danger-ink" : "text-ink",
               )}
             >
               <Money value={sale.outstanding} />
@@ -188,17 +188,17 @@ export function SaleDetail({ saleId }: { saleId: string }) {
       {/* Customer card */}
       <Link
         href={`/khata/${sale.customerId}`}
-        className="block rounded-xl border border-slate-200 bg-white p-3 hover:bg-slate-50"
+        className="block rounded-card border border-line bg-surface shadow-card p-3 hover:bg-app"
       >
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-100 text-sm font-semibold text-brand-700">
             {sale.customerName.charAt(0).toUpperCase()}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium text-slate-900">
+            <p className="truncate text-sm font-medium text-ink">
               {sale.customerName}
             </p>
-            <p className="flex items-center gap-1 text-xs text-slate-500">
+            <p className="flex items-center gap-1 text-xs text-ink-subtle">
               <Phone className="h-3 w-3" />
               {sale.customerPhone}
             </p>
@@ -209,18 +209,18 @@ export function SaleDetail({ saleId }: { saleId: string }) {
 
       {/* Notes */}
       {sale.notes ? (
-        <div className="rounded-xl border border-slate-200 bg-white p-3">
-          <p className="text-xs font-medium text-slate-500">{t("customer.notes")}</p>
-          <p className="mt-1 text-sm text-slate-900">{sale.notes}</p>
+        <div className="rounded-card border border-line bg-surface shadow-card p-3">
+          <p className="text-xs font-medium text-ink-subtle">{t("customer.notes")}</p>
+          <p className="mt-1 text-sm text-ink">{sale.notes}</p>
         </div>
       ) : null}
 
       {/* Items list */}
       <section className="space-y-2">
-        <h3 className="px-1 text-sm font-semibold text-slate-700">
+        <h3 className="px-1 text-sm font-semibold text-ink-muted">
           {t("sale.items")} ({sale.items.length})
         </h3>
-        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+        <div className="overflow-hidden rounded-card border border-line bg-surface shadow-card">
           {sale.items.map((item, idx) => {
             const lineTotal = new Decimal(item.total);
             return (
@@ -228,33 +228,33 @@ export function SaleDetail({ saleId }: { saleId: string }) {
                 key={item.id}
                 className={cn(
                   "px-3 py-2.5",
-                  idx > 0 && "border-t border-slate-100",
+                  idx > 0 && "border-t border-line",
                 )}
               >
                 <div className="flex items-baseline justify-between gap-2">
-                  <p className="min-w-0 flex-1 truncate text-sm font-medium text-slate-900">
+                  <p className="min-w-0 flex-1 truncate text-sm font-medium text-ink">
                     {item.productName}
                   </p>
-                  <p className="shrink-0 text-sm font-bold tabular-nums text-slate-900">
+                  <p className="shrink-0 text-sm font-bold tabular-nums text-ink">
                     <Money value={lineTotal.toString()} />
                   </p>
                 </div>
-                <p className="mt-0.5 text-xs text-slate-500">
-                  {formatQuantity(item.quantity, item.productUnit)} × {formatMoney(item.unitPrice, symbol)} / {item.productUnit}
+                <p className="mt-0.5 text-xs text-ink-subtle">
+                  {formatQuantity(item.quantity, item.productUnit)} × {formatMoney(item.unitPrice)} / {item.productUnit}
                 </p>
               </div>
             );
           })}
-          <div className="border-t border-slate-200 bg-slate-50 px-3 py-2">
+          <div className="border-t border-line bg-app px-3 py-2">
             {discount.gt(0) ? (
               <>
-                <div className="flex items-baseline justify-between text-xs text-slate-500">
+                <div className="flex items-baseline justify-between text-xs text-ink-subtle">
                   <span>{t("sale.subtotal")}</span>
                   <span className="tabular-nums">
                     <Money value={total.plus(discount).toString()} />
                   </span>
                 </div>
-                <div className="mt-0.5 flex items-baseline justify-between text-xs font-medium text-amber-700">
+                <div className="mt-0.5 flex items-baseline justify-between text-xs font-medium text-warning-ink">
                   <span>{t("sale.discountLabel")}</span>
                   <span className="tabular-nums">
                     − <Money value={sale.discountAmount} />
@@ -263,8 +263,8 @@ export function SaleDetail({ saleId }: { saleId: string }) {
               </>
             ) : null}
             <div className={cn("flex items-baseline justify-between", discount.gt(0) && "mt-1")}>
-              <span className="text-sm font-medium text-slate-700">{t("sale.total")}</span>
-              <span className="text-sm font-bold tabular-nums text-slate-900">
+              <span className="text-sm font-medium text-ink-muted">{t("sale.total")}</span>
+              <span className="text-sm font-bold tabular-nums text-ink">
                 <Money value={sale.totalAmount} />
               </span>
             </div>
@@ -283,7 +283,7 @@ export function SaleDetail({ saleId }: { saleId: string }) {
         >
           <Wallet className="h-4 w-4" />
           {t("payment.recordPaymentForSale")}
-          <span className="ml-1 rounded-md bg-white/20 px-1.5 py-0.5 text-xs tabular-nums">
+          <span className="ml-1 rounded-md bg-surface/20 px-1.5 py-0.5 text-xs tabular-nums">
             <Money value={sale.outstanding} />
           </span>
         </Link>
@@ -310,21 +310,21 @@ export function SaleDetail({ saleId }: { saleId: string }) {
 
       {/* Void action */}
       {isVoided ? (
-        <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-center">
-          <p className="text-xs text-slate-500">
+        <div className="rounded-card border border-line bg-app p-3 text-center">
+          <p className="text-xs text-ink-subtle">
             {t("sale.voidedOn")} {sale.voidedAt ? formatDateTime(new Date(sale.voidedAt)) : "—"}. {t("sale.voidedDesc")}
           </p>
         </div>
       ) : confirmVoid ? (
-        <div className="rounded-xl border border-red-200 bg-red-50 p-3 space-y-3">
+        <div className="rounded-xl border border-danger/20 bg-danger-soft p-3 space-y-3">
           <div>
-            <p className="text-sm font-semibold text-red-900">{t("sale.voidSaleConfirm")}</p>
-            <p className="mt-1 text-xs text-red-700">
+            <p className="text-sm font-semibold text-danger-ink">{t("sale.voidSaleConfirm")}</p>
+            <p className="mt-1 text-xs text-danger-ink">
               {paid.gt(0) ? (
                 <>
-                  {t("sale.hadPaymentsPrefix")} {formatMoney(paid, symbol)}{" "}
+                  {t("sale.hadPaymentsPrefix")} {formatMoney(paid)}{" "}
                   {t("sale.hadPaymentsMiddle")}{" "}
-                  {formatMoney(paid.minus(total).abs(), symbol)}{" "}
+                  {formatMoney(paid.minus(total).abs())}{" "}
                   {t("sale.hadPaymentsSuffix")}
                 </>
               ) : (
@@ -377,7 +377,7 @@ export function SaleDetail({ saleId }: { saleId: string }) {
         <button
           type="button"
           onClick={() => setConfirmVoid(true)}
-          className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-medium text-red-600 hover:bg-red-50"
+          className="w-full rounded-card border border-line bg-surface shadow-card px-3 py-2.5 text-xs font-medium text-danger-ink hover:bg-danger-soft"
         >
           {t("sale.voidSale")}
         </button>
@@ -389,18 +389,18 @@ export function SaleDetail({ saleId }: { saleId: string }) {
 function SaleDetailSkeleton() {
   return (
     <div className="space-y-4">
-      <div className="h-44 animate-pulse rounded-2xl bg-slate-200" />
-      <div className="h-20 animate-pulse rounded-xl bg-slate-200" />
+      <div className="h-44 animate-pulse rounded-2xl bg-surface-2" />
+      <div className="h-20 animate-pulse rounded-xl bg-surface-2" />
       <div className="space-y-2">
-        <div className="h-4 w-24 animate-pulse rounded bg-slate-200" />
-        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+        <div className="h-4 w-24 animate-pulse rounded bg-surface-2" />
+        <div className="overflow-hidden rounded-card border border-line bg-surface shadow-card">
           {[0, 1, 2].map((i) => (
             <div
               key={i}
-              className={cn("px-3 py-2.5", i > 0 && "border-t border-slate-100")}
+              className={cn("px-3 py-2.5", i > 0 && "border-t border-line")}
             >
-              <div className="h-3.5 w-32 animate-pulse rounded bg-slate-200" />
-              <div className="mt-1 h-2.5 w-24 animate-pulse rounded bg-slate-100" />
+              <div className="h-3.5 w-32 animate-pulse rounded bg-surface-2" />
+              <div className="mt-1 h-2.5 w-24 animate-pulse rounded bg-surface-2" />
             </div>
           ))}
         </div>

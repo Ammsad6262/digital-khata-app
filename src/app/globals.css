@@ -3,93 +3,304 @@
 @tailwind utilities;
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   THEME SYSTEM
-   Brand colors are defined as CSS variables (space-separated RGB channels).
-   Tailwind references them via rgb(var(--brand-X) / <alpha-value>).
+   DUKHATA — DESIGN SYSTEM
+   ---------------------------------------------------------------------------
+   Colours live as CSS variables (space separated RGB channels) so that
+   Tailwind's `rgb(var(--x) / <alpha-value>)` works and the entire app can be
+   re-skinned instantly by flipping `data-theme` on <html>.
 
-   Three themes:
-     1. Default (green)  — the original palette
-     2. Bright Leaf     — uses #CDFF9B (BRIGHT LEAF) as the accent and
-                          #203D43 (EMERALD GREEN) as the darkest shade
-     3. Monochrome (B&W) — premium black & white. DEFAULT for new users.
+   Each theme defines a complete set of tokens — not just an accent colour:
+
+     brand    · signature colour (primary actions, active navigation)
+     accent   · complementary highlight (secondary emphasis, charts)
+     bg       · page canvas
+     surface  · card / sheet background     surface-2 · inset fill
+     line     · hairline borders            line-strong · inputs & emphasis
+     ink      · text: ink / muted / subtle / faint
+
+   Themes
+     ink      · warm graphite + ember     (default — premium ledger paper)
+     emerald  · deep emerald + gold       (money / growth)
+     saffron  · marigold + teal           (bazaar warmth)
+     indigo   · indigo + teal             (modern fintech)
+     rose     · rosewood + gold           (confident & warm)
+
+   Legacy ids (`monochrome`, `default`, `leaf`) are aliased further down so
+   a previously-saved preference never breaks.
    ═══════════════════════════════════════════════════════════════════════════ */
 
 @layer base {
-  :root {
-    --font-sans: "Inter", system-ui, -apple-system, BlinkMacSystemFont,
-      "Segoe UI", Roboto, sans-serif;
+  :root,
+  [data-theme="ink"] {
+    /* Typography */
+    --font-sans: var(--font-jakarta, "Inter"), "Inter", system-ui,
+      -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --font-display: var(--font-jakarta, "Inter"), "Inter", system-ui,
+      -apple-system, "Segoe UI", Roboto, sans-serif;
 
-    /* Default theme: classic green (Tailwind's emerald-ish palette) */
-    --brand-50:  240 253 244;  /* #f0fdf4 */
-    --brand-100: 220 252 231;  /* #dcfce7 */
-    --brand-200: 187 247 208;  /* #bbf7d0 */
-    --brand-300: 134 239 172;  /* #86efac */
-    --brand-400: 74 222 128;   /* #4ade80 */
-    --brand-500: 34 197 94;    /* #22c55e */
-    --brand-600: 22 163 74;    /* #16a34a */
-    --brand-700: 21 128 61;    /* #15803d */
-    --brand-800: 22 101 52;    /* #166534 */
-    --brand-900: 20 83 45;     /* #14532d */
+    /* Brand — warm graphite */
+    --brand-50: 250 249 247;
+    --brand-100: 244 242 238;
+    --brand-200: 232 229 223;
+    --brand-300: 212 207 199;
+    --brand-400: 168 162 152;
+    --brand-500: 120 113 105;
+    --brand-600: 68 64 59;
+    --brand-700: 41 37 36;
+    --brand-800: 28 25 23;
+    --brand-900: 12 10 9;
+    --brand-950: 7 6 5;
+
+    /* Accent — ember */
+    --accent-50: 255 247 237;
+    --accent-100: 255 237 213;
+    --accent-200: 254 215 170;
+    --accent-300: 253 186 116;
+    --accent-400: 251 146 60;
+    --accent-500: 249 115 22;
+    --accent-600: 234 88 12;
+    --accent-700: 194 65 12;
+    --accent-800: 154 52 18;
+    --accent-900: 124 45 18;
+
+    /* Surfaces */
+    --bg: 250 248 244;
+    --surface: 255 253 250;
+    --surface-2: 245 242 237;
+    --surface-3: 236 232 226;
+    --line: 235 231 225;
+    --line-strong: 216 210 202;
+
+    /* Text */
+    --ink: 28 25 23;
+    --ink-muted: 87 83 78;
+    --ink-subtle: 102 96 92;
+    --ink-faint: 116 112 108;
+
+    /* Shadow base */
+    --shadow-rgb: 28 25 23;
+
+    /* Semantic */
+    --success: 5 150 105;
+    --success-soft: 236 253 245;
+    --success-ink: 4 120 87;
+    --warning: 217 119 6;
+    --warning-soft: 255 251 235;
+    --warning-ink: 180 83 9;
+    --danger: 220 38 38;
+    --danger-soft: 254 242 242;
+    --danger-ink: 185 28 28;
+    --info: 37 99 235;
+    --info-soft: 239 246 255;
+    --info-ink: 29 78 216;
   }
 
-  /* Bright Leaf theme — user-requested custom palette */
-  /* #CDFF9B = BRIGHT LEAF (used as brand-200/300 — the vibrant accent) */
-  /* #203D43 = EMERALD GREEN (used as brand-900 — the dark anchor) */
-  [data-theme="leaf"] {
-    --brand-50:  247 255 238;  /* very pale leaf */
-    --brand-100: 224 255 210;  /* light leaf */
-    --brand-200: 205 255 155;  /* #CDFF9B — BRIGHT LEAF */
-    --brand-300: 175 240 115;  /* vibrant */
-    --brand-400: 135 210 70;   /* medium */
-    --brand-500: 95 175 40;    /* primary action */
-    --brand-600: 70 140 30;    /* darker for buttons (white text readable) */
-    --brand-700: 50 100 22;    /* deep */
-    --brand-800: 38 75 30;     /* darker */
-    --brand-900: 32 61 67;     /* #203D43 — EMERALD GREEN */
+  /* ─── Emerald · deep green + gold ─────────────────────────────────────── */
+  [data-theme="emerald"] {
+    --brand-50: 236 253 245;
+    --brand-100: 209 250 229;
+    --brand-200: 167 243 208;
+    --brand-300: 110 231 183;
+    --brand-400: 52 211 153;
+    --brand-500: 16 185 129;
+    --brand-600: 5 150 105;
+    --brand-700: 4 120 87;
+    --brand-800: 6 95 70;
+    --brand-900: 6 78 59;
+    --brand-950: 2 44 34;
+
+    --accent-50: 255 251 235;
+    --accent-100: 254 243 199;
+    --accent-200: 253 230 138;
+    --accent-300: 252 211 77;
+    --accent-400: 251 191 36;
+    --accent-500: 245 158 11;
+    --accent-600: 217 119 6;
+    --accent-700: 180 83 9;
+    --accent-800: 146 64 14;
+    --accent-900: 120 53 15;
+
+    --bg: 246 251 248;
+    --surface: 255 255 255;
+    --surface-2: 236 245 240;
+    --surface-3: 224 238 231;
+    --line: 219 234 227;
+    --line-strong: 196 218 208;
+
+    --ink: 6 46 35;
+    --ink-muted: 45 84 68;
+    --ink-subtle: 70 105 89;
+    --ink-faint: 97 118 109;
+
+    --shadow-rgb: 6 46 35;
   }
 
-  /* ─── Black & White (Monochrome) theme ────────────────────────────────
-     Premium, minimal, elegant. Uses near-black as the brand color.
-     White surfaces, charcoal text, subtle gray backgrounds.
-     Color is used ONLY for functional meaning (destructive=red, success=green).
-     This is the DEFAULT theme for new users. */
+  /* ─── Saffron · marigold + teal ───────────────────────────────────────── */
+  [data-theme="saffron"] {
+    --brand-50: 255 251 235;
+    --brand-100: 255 243 199;
+    --brand-200: 253 230 138;
+    --brand-300: 252 211 77;
+    --brand-400: 250 180 30;
+    --brand-500: 217 119 6;
+    --brand-600: 180 83 9;
+    --brand-700: 146 64 14;
+    --brand-800: 120 53 15;
+    --brand-900: 92 41 12;
+    --brand-950: 69 26 3;
+
+    --accent-50: 240 253 250;
+    --accent-100: 204 251 241;
+    --accent-200: 153 246 228;
+    --accent-300: 94 234 212;
+    --accent-400: 45 212 191;
+    --accent-500: 20 184 166;
+    --accent-600: 13 148 136;
+    --accent-700: 15 118 110;
+    --accent-800: 17 94 89;
+    --accent-900: 19 78 74;
+
+    --bg: 255 249 240;
+    --surface: 255 253 248;
+    --surface-2: 251 241 226;
+    --surface-3: 246 232 212;
+    --line: 240 227 209;
+    --line-strong: 224 205 182;
+
+    --ink: 58 36 14;
+    --ink-muted: 105 74 42;
+    --ink-subtle: 121 92 62;
+    --ink-faint: 128 109 88;
+
+    --shadow-rgb: 58 36 14;
+  }
+
+  /* ─── Indigo · indigo + teal ──────────────────────────────────────────── */
+  [data-theme="indigo"] {
+    --brand-50: 238 242 255;
+    --brand-100: 224 231 255;
+    --brand-200: 199 210 254;
+    --brand-300: 165 180 252;
+    --brand-400: 129 140 248;
+    --brand-500: 99 102 241;
+    --brand-600: 79 70 229;
+    --brand-700: 67 56 202;
+    --brand-800: 55 48 163;
+    --brand-900: 49 46 129;
+    --brand-950: 30 27 75;
+
+    --accent-50: 240 253 250;
+    --accent-100: 204 251 241;
+    --accent-200: 153 246 228;
+    --accent-300: 94 234 212;
+    --accent-400: 45 212 191;
+    --accent-500: 20 184 166;
+    --accent-600: 13 148 136;
+    --accent-700: 15 118 110;
+    --accent-800: 17 94 89;
+    --accent-900: 19 78 74;
+
+    --bg: 247 247 255;
+    --surface: 255 255 255;
+    --surface-2: 237 238 252;
+    --surface-3: 226 228 249;
+    --line: 224 225 245;
+    --line-strong: 203 205 232;
+
+    --ink: 26 25 58;
+    --ink-muted: 70 68 110;
+    --ink-subtle: 95 93 130;
+    --ink-faint: 111 110 135;
+
+    --shadow-rgb: 26 25 58;
+  }
+
+  /* ─── Rose · rosewood + gold ──────────────────────────────────────────── */
+  [data-theme="rose"] {
+    --brand-50: 255 241 243;
+    --brand-100: 255 228 233;
+    --brand-200: 254 205 217;
+    --brand-300: 253 164 186;
+    --brand-400: 251 113 148;
+    --brand-500: 244 63 107;
+    --brand-600: 225 29 72;
+    --brand-700: 190 18 60;
+    --brand-800: 159 18 57;
+    --brand-900: 136 19 55;
+    --brand-950: 76 5 25;
+
+    --accent-50: 255 251 235;
+    --accent-100: 254 243 199;
+    --accent-200: 253 230 138;
+    --accent-300: 252 211 77;
+    --accent-400: 251 191 36;
+    --accent-500: 245 158 11;
+    --accent-600: 217 119 6;
+    --accent-700: 180 83 9;
+    --accent-800: 146 64 14;
+    --accent-900: 120 53 15;
+
+    --bg: 255 247 249;
+    --surface: 255 255 255;
+    --surface-2: 252 235 240;
+    --surface-3: 249 224 231;
+    --line: 246 224 231;
+    --line-strong: 232 201 211;
+
+    --ink: 55 20 33;
+    --ink-muted: 100 55 72;
+    --ink-subtle: 127 86 101;
+    --ink-faint: 130 106 116;
+
+    --shadow-rgb: 55 20 33;
+  }
+
+  /* ─── Legacy aliases (saved preferences from older builds) ────────────── */
   [data-theme="monochrome"] {
-    --brand-50:  249 250 251;  /* gray-50 — very light gray bg */
-    --brand-100: 243 244 246;  /* gray-100 — light surface */
-    --brand-200: 229 231 235;  /* gray-200 — subtle borders */
-    --brand-300: 209 213 219;  /* gray-300 — muted borders */
-    --brand-400: 156 163 175;  /* gray-400 — placeholder text */
-    --brand-500: 107 114 128;  /* gray-500 — secondary text */
-    --brand-600: 17 24 39;     /* gray-900 — near-black (primary action) */
-    --brand-700: 17 24 39;     /* gray-900 — same (buttons, active states) */
-    --brand-800: 3 7 18;       /* near pure black */
-    --brand-900: 0 0 0;        /* pure black */
+    color-scheme: light;
   }
 
   html,
   body {
-    @apply bg-slate-100 text-slate-900 antialiased;
+    @apply bg-app text-ink antialiased;
+    font-family: var(--font-sans);
     -webkit-tap-highlight-color: transparent;
     overscroll-behavior-y: none;
   }
 
-  /* Urdu language: switch to Noto Nastaliq Urdu font
-     Applied when <html lang="ur"> is set by LanguageProvider */
+  body {
+    @apply min-h-[100dvh];
+    font-feature-settings: "cv11", "ss01";
+  }
+
+  ::selection {
+    background: rgb(var(--brand-500) / 0.22);
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply font-display tracking-[-0.02em];
+    text-wrap: balance;
+  }
+
+  /* Urdu: use Noto Naskh Arabic for the whole UI. It is the standard,
+     highly legible Arabic-script face — Nastaliq is calligraphic and hard to
+     read at interface sizes. We set only the family on the root elements and
+     a comfortable base line-height on <body>; deliberately NOT a line-height
+     on every element, so component `leading-*` utilities (compact buttons,
+     nav pills, charts) keep working and fixed-height rows don't clip. */
   html[lang="ur"] body,
-  html[lang="ur"] input,
-  html[lang="ur"] select,
-  html[lang="ur"] textarea,
-  html[lang="ur"] button,
-  html[lang="ur"] a,
-  html[lang="ur"] p,
-  html[lang="ur"] span,
   html[lang="ur"] h1,
   html[lang="ur"] h2,
   html[lang="ur"] h3,
-  html[lang="ur"] label,
-  html[lang="ur"] div {
-    font-family: var(--font-urdu), "Noto Nastaliq Urdu", serif;
-    line-height: 2.2; /* Nastaliq needs more vertical space */
+  html[lang="ur"] h4 {
+    font-family: var(--font-urdu), "Noto Naskh Arabic", "Noto Nastaliq Urdu", serif;
+  }
+
+  html[lang="ur"] body {
+    line-height: 1.75;
   }
 
   /* RTL: flip text alignment and spacing */
@@ -187,7 +398,7 @@
   :focus-visible {
     outline: 2px solid rgb(var(--brand-600));
     outline-offset: 2px;
-    border-radius: 4px;
+    border-radius: 6px;
   }
 
   /* Reduce motion for users who prefer it */
@@ -200,97 +411,141 @@
       transition-duration: 0.01ms !important;
     }
   }
-
-  /* Numerical alignment — money + quantities use tabular figures */
-  .tabular-nums {
-    font-variant-numeric: tabular-nums;
-  }
 }
 
 @layer components {
-  /* App shell: mobile-first, but expands on larger screens (tablet/desktop)
-     instead of staying locked to 480px. On desktop, content centers with
-     a max-width of 1024px (lg breakpoint) for readability. */
+  /* App shell: mobile-first. On desktop it becomes a centred "device"
+     column with a soft brand glow painted into its background. */
   .app-shell {
-    @apply mx-auto flex min-h-[100dvh] w-full flex-col bg-slate-50 shadow-sm;
+    @apply relative mx-auto flex min-h-[100dvh] w-full flex-col;
     max-width: 100%;
+    background:
+      radial-gradient(64rem 30rem at 50% -12%, rgb(var(--brand-500) / 0.10), transparent 62%),
+      radial-gradient(46rem 24rem at 108% 104%, rgb(var(--accent-500) / 0.07), transparent 60%),
+      rgb(var(--bg));
   }
 
   @media (min-width: 768px) {
     .app-shell {
-      max-width: 1024px;
-      border-left: 1px solid rgb(226 232 240);
-      border-right: 1px solid rgb(226 232 240);
+      max-width: 1040px;
+      @apply border-x border-line shadow-lift;
     }
   }
 
   .app-content {
-    @apply flex-1 px-4 pb-24 pt-4;
-    /* Reserve space for the fixed BottomNav (h-16 = 4rem) + safe area */
-    /* This prevents content from being hidden behind the nav AND prevents
-       layout shift when the nav renders */
-    padding-bottom: calc(4rem + 2rem + env(safe-area-inset-bottom));
+    @apply flex-1 px-4 pt-5;
+    /* Reserve space for the floating BottomNav dock + safe area */
+    padding-bottom: calc(5.75rem + 1.25rem + env(safe-area-inset-bottom));
     min-height: calc(100dvh - 4rem);
   }
 
   @media (min-width: 768px) {
     .app-content {
       @apply px-6;
-      padding-bottom: calc(4rem + 3rem + env(safe-area-inset-bottom));
+      padding-bottom: calc(5.75rem + 2rem + env(safe-area-inset-bottom));
     }
   }
 
-  /* Card primitive — used everywhere for grouped content */
+  /* Card primitives */
   .card {
-    @apply rounded-xl border border-slate-200 bg-white p-4 shadow-sm;
+    @apply rounded-card border border-line bg-surface p-4 shadow-card;
+  }
+
+  .card-flat {
+    @apply rounded-card border border-line bg-surface p-4;
+  }
+
+  .card-inset {
+    @apply rounded-control border border-line bg-surface-2;
   }
 
   .stat-card {
     @apply card flex flex-col gap-1;
   }
 
+  /* Typography helpers — calm labels, no shouting uppercase everywhere */
+  .section-title {
+    @apply text-[13px] font-semibold tracking-[-0.01em] text-ink-muted;
+  }
+
+  .eyebrow {
+    @apply text-[10px] font-semibold uppercase tracking-[0.16em] text-ink-faint;
+  }
+
+  /* Pills / badges */
+  .pill {
+    @apply inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold leading-none;
+  }
+
+  /* List rows */
+  .list-row {
+    @apply flex items-center gap-3 px-4 py-3;
+  }
+
+  /* Focus ring shorthand */
+  .focus-ring {
+    @apply outline-none focus-visible:ring-2 focus-visible:ring-brand-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-app;
+  }
+
   /* Skeleton shimmer — used in loading states across list pages */
   .animate-shimmer {
     background: linear-gradient(
       90deg,
-      rgb(226 232 240) 0%,
-      rgb(241 245 249) 50%,
-      rgb(226 232 240) 100%
+      rgb(var(--surface-2)) 0%,
+      rgb(var(--surface-3)) 50%,
+      rgb(var(--surface-2)) 100%
     );
     background-size: 200% 100%;
     animation: shimmer 1.5s infinite;
+  }
+
+  .skeleton {
+    @apply animate-shimmer rounded-control;
+  }
+
+  /* Thin, unobtrusive scrollbars everywhere */
+  .scroll-slim {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(var(--line-strong)) transparent;
+  }
+  .scroll-slim::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .scroll-slim::-webkit-scrollbar-thumb {
+    background: rgb(var(--line-strong));
+    border-radius: 999px;
+  }
+}
+
+@layer utilities {
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1;
+  }
+
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Soft brand wash for emphasis blocks */
+  .brand-wash {
+    background:
+      radial-gradient(120% 120% at 0% 0%, rgb(var(--brand-500) / 0.14), transparent 60%),
+      radial-gradient(120% 120% at 100% 100%, rgb(var(--accent-500) / 0.10), transparent 55%),
+      rgb(var(--surface));
   }
 }
 
 @keyframes shimmer {
   0% { background-position: 200% 0; }
   100% { background-position: -200% 0; }
-}
-
-/* ═══════════════════════════════════════════════════════════════════════════
-   ASSISTANT LAUNCHER DOCK
-   The Voice Assistant (mic) and Khata Assistant (chart) are two separate
-   products with separate launchers. They share ONE fixed dock so the two
-   buttons always sit side by side with a constant gap, in every language and
-   in both writing directions — RTL must never push one to the left edge and
-   the other to the right edge.
-   ═══════════════════════════════════════════════════════════════════════════ */
-.assistant-dock {
-  position: fixed;
-  /* Anchored to the physical right edge (same as English) so switching to
-     Urdu never moves the pair. */
-  right: 1rem;
-  bottom: 6rem; /* 24 × 0.25rem — the offset the launchers used before */
-  z-index: 40;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  /* Only the buttons are interactive; the gap lets clicks pass through. */
-  pointer-events: none;
-}
-
-/* Keep the exact left→right order (Khata, then Voice) in both directions.
-   DOM order is [Khata, Voice]: LTR uses `row`, RTL reverses it back. */
-html[dir="rtl"] .assistant-dock {
-  flex-direction: row-reverse;
 }

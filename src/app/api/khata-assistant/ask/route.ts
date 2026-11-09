@@ -38,19 +38,19 @@ export async function POST(req: NextRequest) {
     const userId = await requireActiveAccess(req);
 
     const { data: body } = await parseJsonBody<Body>(req);
-    if (!body) throw new BadRequestError("khata.ask.bodyRequired");
+    if (!body) throw new BadRequestError("A request body is required.");
 
     const questionId =
       typeof body.questionId === "string" ? body.questionId.trim() : "";
     const text = typeof body.text === "string" ? body.text.trim() : "";
 
     if (text.length > MAX_TEXT_CHARS) {
-      throw new BadRequestError("khata.ask.tooLong", undefined, {
-        max: MAX_TEXT_CHARS,
-      });
+      throw new BadRequestError(
+        `Question is too long (max ${MAX_TEXT_CHARS} characters).`,
+      );
     }
     if (!questionId && !text) {
-      throw new BadRequestError("khata.ask.chooseOrType");
+      throw new BadRequestError("Choose a question or type one.");
     }
 
     // Prepared questions are free DB reads. Only typed questions may reach the
@@ -58,9 +58,9 @@ export async function POST(req: NextRequest) {
     if (text) {
       const limit = checkExecuteLimit(userId);
       if (!limit.allowed) {
-        throw new BadRequestError("khata.ask.rateLimited", undefined, {
-          seconds: limit.retryAfterSec,
-        });
+        throw new BadRequestError(
+          `Too many questions for now. Try again in ${limit.retryAfterSec}s.`,
+        );
       }
     }
 

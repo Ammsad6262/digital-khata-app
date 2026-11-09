@@ -1,10 +1,13 @@
 "use client";
 
 /**
- * Quick actions — 4 large tappable buttons for the dashboard.
+ * Quick actions — the four things an owner does most often.
  *
- * Each button navigates to its respective entry form:
- *   - New Sale     → /sales/new
+ * Deliberately asymmetric: the first action (New Sale) is the solid brand
+ * tile, the rest sit quietly on the surface. That gives a clear primary
+ * action instead of four competing colours.
+ *
+ *   - New Sale     → /sales/new        (primary, solid)
  *   - Add Payment  → /payments/new
  *   - Add Customer → /more/customers/new
  *   - Add Expense  → /more/expenses/new
@@ -20,25 +23,29 @@ const ACTIONS = [
     href: "/sales/new",
     labelKey: "action.newSale",
     icon: ShoppingCart,
-    tone: "bg-brand-600 text-white hover:bg-brand-700",
+    solid: true,
+    chip: "bg-surface/15 text-white",
   },
   {
     href: "/payments/new",
     labelKey: "action.addPayment",
     icon: Wallet,
-    tone: "bg-blue-600 text-white hover:bg-blue-700",
+    solid: false,
+    chip: "bg-info-soft text-info-ink",
   },
   {
     href: "/more/customers/new",
     labelKey: "action.addCustomer",
     icon: UserPlus,
-    tone: "bg-slate-900 text-white hover:bg-slate-800",
+    solid: false,
+    chip: "bg-brand-50 text-brand-700",
   },
   {
     href: "/more/expenses/new",
     labelKey: "action.addExpense",
     icon: Receipt,
-    tone: "bg-amber-500 text-white hover:bg-amber-600",
+    solid: false,
+    chip: "bg-warning-soft text-warning-ink",
   },
 ] as const;
 
@@ -53,12 +60,23 @@ export function QuickActions() {
             key={action.href}
             href={action.href}
             className={cn(
-              "flex items-center gap-3 rounded-xl px-4 py-3.5 text-sm font-semibold shadow-sm transition-colors active:scale-[0.98]",
-              action.tone,
+              "flex items-center gap-2.5 rounded-card p-3 transition-all duration-150 active:scale-[0.98]",
+              action.solid
+                ? "bg-brand-600 text-white shadow-brand hover:bg-brand-700"
+                : "border border-line bg-surface text-ink shadow-card hover:bg-surface-2",
             )}
           >
-            <Icon className="h-5 w-5 shrink-0" />
-            <span className="truncate">{t(action.labelKey)}</span>
+            <span
+              className={cn(
+                "flex h-9 w-9 shrink-0 items-center justify-center rounded-[0.7rem]",
+                action.chip,
+              )}
+            >
+              <Icon className="h-[1.05rem] w-[1.05rem]" />
+            </span>
+            <span className="truncate text-[13px] font-semibold tracking-[-0.01em]">
+              {t(action.labelKey)}
+            </span>
           </Link>
         );
       })}

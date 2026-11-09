@@ -48,12 +48,12 @@ function envInt(name: string, fallback: number): number {
 
 /** Cap on a single model call (local abort). */
 export function attemptTimeoutMs(): number {
-  return envInt("GEMINI_TIMEOUT_MS", 14_000);
+  return envInt("GEMINI_TIMEOUT_MS", 16_000);
 }
 
 /** Cap on the whole rotation (all models together). */
 export function deadlineMs(): number {
-  return envInt("GEMINI_DEADLINE_MS", 18_000);
+  return envInt("GEMINI_DEADLINE_MS", 24_000);
 }
 
 /**

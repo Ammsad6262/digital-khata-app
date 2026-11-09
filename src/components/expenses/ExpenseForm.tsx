@@ -29,8 +29,6 @@ import {
   useExpense,
 } from "@/hooks/use-expenses";
 import { ApiError } from "@/lib/utils/api-client";
-import { userMessage } from "@/lib/i18n/message";
-import { formatMoney } from "@/lib/utils/money";
 import { cn } from "@/lib/utils/cn";
 import { useLanguage } from "@/providers/language-provider";
 import { useCurrencySymbol } from "@/hooks/use-currency-symbol";
@@ -68,7 +66,7 @@ export function ExpenseForm({
 }) {
   const router = useRouter();
   const toast = useToast();
-  const { t, tParams } = useLanguage();
+  const { t } = useLanguage();
   const symbol = useCurrencySymbol();
 
   // In edit mode, fetch existing expense to pre-fill.
@@ -82,8 +80,6 @@ export function ExpenseForm({
   const [category, setCategory] = useState<Category>("other");
   const [date, setDate] = useState<string>(todayIsoLocal());
   const [notes, setNotes] = useState<string>("");
-  // Only show validation messages after the first save attempt.
-  const [submitted, setSubmitted] = useState(false);
 
   // Sync form fields when existing expense data arrives (edit mode)
   useEffect(() => {
@@ -100,9 +96,9 @@ export function ExpenseForm({
   if (mode === "edit" && !existing) {
     return (
       <div className="space-y-4">
-        <div className="h-16 animate-pulse rounded-xl bg-slate-200" />
-        <div className="h-12 animate-pulse rounded-xl bg-slate-200" />
-        <div className="h-12 animate-pulse rounded-xl bg-slate-200" />
+        <div className="h-16 animate-pulse rounded-xl bg-surface-2" />
+        <div className="h-12 animate-pulse rounded-xl bg-surface-2" />
+        <div className="h-12 animate-pulse rounded-xl bg-surface-2" />
       </div>
     );
   }
@@ -130,7 +126,6 @@ export function ExpenseForm({
   const hasErrors = !!errors.name || !!errors.amount || !!errors.date;
 
   const handleSubmit = () => {
-    setSubmitted(true);
     if (hasErrors) {
       toast.error(t("common.fixErrorsBeforeSaving"));
       return;
@@ -148,13 +143,11 @@ export function ExpenseForm({
     if (mode === "create") {
       recordExpense.mutate(payload, {
         onSuccess: (expense) => {
-          toast.success("expense.savedAmount", {
-            amount: formatMoney(amt, symbol),
-          });
+          toast.success(t("expense.expenseRecorded"));
           router.push(`/more/expenses/${expense.id}`);
         },
         onError: (error) => {
-          toast.error(userMessage(error, t, tParams));
+          toast.error(error instanceof Error ? error.message : t("common.failed"));
         },
       });
     } else {
@@ -167,7 +160,7 @@ export function ExpenseForm({
           if (error instanceof ApiError && error.code === "NOT_FOUND") {
             toast.error(t("expense.notFound"));
           } else {
-            toast.error(userMessage(error, t, tParams));
+            toast.error(error instanceof Error ? error.message : t("common.failed"));
           }
         },
       });
@@ -178,7 +171,7 @@ export function ExpenseForm({
 
   return (
     <div className="space-y-4">
-      <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="rounded-card border border-line bg-surface shadow-card p-4 shadow-card">
         <div className="space-y-3">
           {/* Name */}
           <TextField
@@ -187,18 +180,16 @@ export function ExpenseForm({
             onChange={(e) => setName(e.target.value)}
             placeholder={t("expense.expenseNamePlaceholder")}
             autoComplete="off"
-            showRequired
-            error={submitted ? errors.name ?? null : null}
+            error={errors.name ?? null}
           />
 
           {/* Amount */}
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">
+            <label className="mb-1 block text-sm font-medium text-ink-muted">
               {t("expense.amount")}
-              <span className="text-red-500" aria-hidden> *</span>
             </label>
             <div className="relative">
-              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-medium text-slate-500">
+              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-medium text-ink-subtle">
                 {symbol}
               </span>
               <input
@@ -211,23 +202,22 @@ export function ExpenseForm({
                 placeholder="0"
                 autoFocus={mode === "create"}
                 className={cn(
-                  "w-full rounded-lg border bg-white py-2.5 pl-10 pr-3 text-lg font-bold tabular-nums text-slate-900 placeholder:text-slate-300 focus:outline-none focus:ring-2",
+                  "w-full rounded-lg border bg-surface py-2.5 pl-10 pr-3 text-lg font-bold tabular-nums text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2",
                   errors.amount
-                    ? "border-red-300 focus:border-red-500 focus:ring-red-500/30"
-                    : "border-slate-300 focus:border-brand-500 focus:ring-brand-500/30",
+                    ? "border-danger/40 focus:border-danger focus:ring-danger/30"
+                    : "border-line-strong focus:border-brand-500 focus:ring-brand-500/30",
                 )}
               />
             </div>
-            {submitted && errors.amount ? (
-              <p className="mt-1 text-xs text-red-600">{errors.amount}</p>
+            {errors.amount ? (
+              <p className="mt-1 text-xs text-danger-ink">{errors.amount}</p>
             ) : null}
           </div>
 
           {/* Category */}
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-slate-700">
+            <label className="mb-1.5 block text-sm font-medium text-ink-muted">
               {t("expense.expenseCategory")}
-              <span className="text-red-500" aria-hidden> *</span>
             </label>
             <div className="grid grid-cols-4 gap-1.5">
               {CATEGORIES.map((cat) => (
@@ -239,7 +229,7 @@ export function ExpenseForm({
                     "flex flex-col items-center gap-0.5 rounded-lg border py-2 text-[11px] font-medium transition-colors",
                     category === cat.value
                       ? "border-brand-500 bg-brand-50 text-brand-700"
-                      : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50",
+                      : "border-line bg-surface text-ink-muted hover:bg-app",
                   )}
                 >
                   <span className="text-base leading-none">{cat.icon}</span>
@@ -251,7 +241,7 @@ export function ExpenseForm({
 
           {/* Date */}
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">
+            <label className="mb-1 block text-sm font-medium text-ink-muted">
               {t("payment.date")}
             </label>
             <input
@@ -260,10 +250,10 @@ export function ExpenseForm({
               onChange={(e) => setDate(e.target.value)}
               max={todayIsoLocal()}
               className={cn(
-                "w-full rounded-lg border bg-white px-3 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2",
+                "w-full rounded-lg border bg-surface px-3 py-2.5 text-sm text-ink focus:outline-none focus:ring-2",
                 errors.date
-                  ? "border-red-300 focus:border-red-500 focus:ring-red-500/30"
-                  : "border-slate-300 focus:border-brand-500 focus:ring-brand-500/30",
+                  ? "border-danger/40 focus:border-danger focus:ring-danger/30"
+                  : "border-line-strong focus:border-brand-500 focus:ring-brand-500/30",
               )}
             />
           </div>
@@ -284,6 +274,7 @@ export function ExpenseForm({
         onCancel={() => router.back()}
         onSave={handleSubmit}
         saveLabel={mode === "create" ? t("expense.saveExpense") : t("expense.updateExpense")}
+        saveDisabled={hasErrors}
         isPending={isPending}
       />
     </div>

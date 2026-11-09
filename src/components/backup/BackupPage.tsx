@@ -48,7 +48,7 @@ export function BackupPage() {
   const exportBackup = useExportBackup();
   const exportCsv = useExportCsv();
   const importBackup = useImportBackup();
-  const { t, tParams } = useLanguage();
+  const { t } = useLanguage();
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -61,15 +61,15 @@ export function BackupPage() {
     try {
       const parsed = JSON.parse(content) as BackupFile;
       if (typeof parsed.version !== "number") {
-        setUploadedFile({ name: file.name, content, preview: null, error: t("backup.error.missingVersion") });
+        setUploadedFile({ name: file.name, content, preview: null, error: "Missing 'version' field — not a valid backup file." });
         return;
       }
       if (parsed.version !== 1) {
-        setUploadedFile({ name: file.name, content, preview: null, error: tParams("backup.error.unsupportedVersion", { version: parsed.version }) });
+        setUploadedFile({ name: file.name, content, preview: null, error: `Backup version ${parsed.version} not supported (expected version 1).` });
         return;
       }
       if (!parsed.data || typeof parsed.data !== "object") {
-        setUploadedFile({ name: file.name, content, preview: null, error: t("backup.error.missingData") });
+        setUploadedFile({ name: file.name, content, preview: null, error: "Missing 'data' object." });
         return;
       }
       setUploadedFile({ name: file.name, content, preview: parsed, error: null });
@@ -95,14 +95,14 @@ export function BackupPage() {
   return (
     <div className="space-y-5">
       {/* ── Export Full Backup (JSON) ─────────────────────────────────── */}
-      <section className="rounded-xl border border-slate-200 bg-white p-4">
+      <section className="rounded-card border border-line bg-surface shadow-card p-4">
         <div className="flex items-start gap-3">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-50">
             <Database className="h-5 w-5 text-brand-700" />
           </div>
           <div className="min-w-0 flex-1">
-            <h2 className="text-sm font-semibold text-slate-900">{t("backup.fullBackup")}</h2>
-            <p className="mt-0.5 text-xs text-slate-500">
+            <h2 className="text-sm font-semibold text-ink">{t("backup.fullBackup")}</h2>
+            <p className="mt-0.5 text-xs text-ink-subtle">
               {t("backup.fullBackupDesc")}
             </p>
             <Button
@@ -130,14 +130,14 @@ export function BackupPage() {
       </section>
 
       {/* ── Export CSV (per table) ────────────────────────────────────── */}
-      <section className="rounded-xl border border-slate-200 bg-white p-4">
+      <section className="rounded-card border border-line bg-surface shadow-card p-4">
         <div className="flex items-start gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-50">
-            <FileSpreadsheet className="h-5 w-5 text-blue-700" />
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-info-soft">
+            <FileSpreadsheet className="h-5 w-5 text-info-ink" />
           </div>
           <div className="min-w-0 flex-1">
-            <h2 className="text-sm font-semibold text-slate-900">{t("backup.exportCsv")}</h2>
-            <p className="mt-0.5 text-xs text-slate-500">
+            <h2 className="text-sm font-semibold text-ink">{t("backup.exportCsv")}</h2>
+            <p className="mt-0.5 text-xs text-ink-subtle">
               {t("backup.exportCsvDesc")}
             </p>
             <div className="mt-3 grid grid-cols-2 gap-2">
@@ -148,19 +148,15 @@ export function BackupPage() {
                   disabled={exportCsv.isPending}
                   onClick={() => exportCsv.mutate(tbl.value)}
                   className={cn(
-                    "flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-left text-xs",
-                    "hover:bg-slate-50 active:bg-slate-100",
+                    "flex items-center gap-2 rounded-lg border border-line bg-surface px-3 py-2 text-left text-xs",
+                    "hover:bg-app active:bg-surface-2",
                     "disabled:opacity-50 disabled:cursor-not-allowed",
                   )}
                 >
-                  <FileSpreadsheet className="h-3.5 w-3.5 shrink-0 text-blue-600" />
+                  <FileSpreadsheet className="h-3.5 w-3.5 shrink-0 text-info-ink" />
                   <div className="min-w-0">
-                    <p className="truncate font-medium text-slate-900">
-                      {t(`backup.tables.${tbl.value}.label` as never)}
-                    </p>
-                    <p className="truncate text-[10px] text-slate-500">
-                      {t(`backup.tables.${tbl.value}.description` as never)}
-                    </p>
+                    <p className="truncate font-medium text-ink">{tbl.label}</p>
+                    <p className="truncate text-[10px] text-ink-subtle">{tbl.description}</p>
                   </div>
                 </button>
               ))}
@@ -170,16 +166,16 @@ export function BackupPage() {
       </section>
 
       {/* ── Import / Restore ──────────────────────────────────────────── */}
-      <section className="rounded-xl border border-slate-200 bg-white p-4">
+      <section className="rounded-card border border-line bg-surface shadow-card p-4">
         <div className="flex items-start gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-50">
-            <Upload className="h-5 w-5 text-amber-700" />
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-warning-soft">
+            <Upload className="h-5 w-5 text-warning-ink" />
           </div>
           <div className="min-w-0 flex-1">
-            <h2 className="text-sm font-semibold text-slate-900">{t("backup.importRestore")}</h2>
-            <p className="mt-0.5 text-xs text-slate-500">
+            <h2 className="text-sm font-semibold text-ink">{t("backup.importRestore")}</h2>
+            <p className="mt-0.5 text-xs text-ink-subtle">
               {t("backup.importDesc")}{" "}
-              <span className="font-semibold text-red-700">
+              <span className="font-semibold text-danger-ink">
                 {t("backup.replaceWarning")}
               </span>
             </p>
@@ -191,7 +187,7 @@ export function BackupPage() {
                 type="file"
                 accept=".json,application/json"
                 onChange={handleFileSelect}
-                className="block w-full text-xs text-slate-500 file:mr-3 file:rounded-lg file:border-0 file:bg-brand-600 file:px-3 file:py-2 file:text-xs file:font-medium file:text-white hover:file:bg-brand-700"
+                className="block w-full text-xs text-ink-subtle file:mr-3 file:rounded-lg file:border-0 file:bg-brand-600 file:px-3 file:py-2 file:text-xs file:font-medium file:text-white hover:file:bg-brand-700"
               />
             </div>
 
@@ -199,7 +195,7 @@ export function BackupPage() {
             {uploadedFile ? (
               <div className="mt-3 space-y-3">
                 {uploadedFile.error ? (
-                  <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-800">
+                  <div className="flex items-start gap-2 rounded-lg border border-danger/20 bg-danger-soft px-3 py-2 text-xs text-danger-ink">
                     <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                     <div>
                       <p className="font-semibold">{t("backup.importError")}</p>
@@ -227,8 +223,8 @@ export function BackupPage() {
       </section>
 
       {/* ── Help text ─────────────────────────────────────────────────── */}
-      <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-xs text-slate-600">
-        <p className="font-semibold text-slate-700">{t("backup.tips")}</p>
+      <div className="rounded-card border border-line bg-app p-4 text-xs text-ink-muted">
+        <p className="font-semibold text-ink-muted">{t("backup.tips")}</p>
         <ul className="mt-1.5 space-y-1">
           <li>• {t("backup.tip1")}</li>
           <li>• {t("backup.tip2")}</li>
@@ -259,45 +255,42 @@ function FilePreview({
   isPending: boolean;
   onCancel: () => void;
 }) {
-  const { t, tParams, lang } = useLanguage();
+  const { t } = useLanguage();
   const c = file.preview.counts;
   const total = c.customers + c.products + c.sales + c.saleItems + c.payments + c.customerAdjustments + c.stockMoves + c.expenses + c.transactions;
 
   return (
     <div className="space-y-3">
-      <div className="rounded-lg border border-slate-200 bg-white p-3">
+      <div className="rounded-lg border border-line bg-surface p-3">
         <div className="flex items-center gap-2">
-          <FileJson className="h-4 w-4 text-slate-500" />
-          <p className="truncate text-sm font-medium text-slate-900">{file.name}</p>
+          <FileJson className="h-4 w-4 text-ink-subtle" />
+          <p className="truncate text-sm font-medium text-ink">{file.name}</p>
         </div>
-        <p className="mt-1 text-[11px] text-slate-500">
-          {t("backup.preview.exported")}{" "}
-          {new Date(file.preview.exportedAt).toLocaleString(
-            lang === "ur" ? "ur-PK-u-nu-latn" : "en-GB",
-          )}
+        <p className="mt-1 text-[11px] text-ink-subtle">
+          Exported: {new Date(file.preview.exportedAt).toLocaleString()}
         </p>
-        <p className="text-[11px] text-slate-500">
-          {tParams("backup.preview.totalRecords", { total })}
+        <p className="text-[11px] text-ink-subtle">
+          Total records: {total}
         </p>
 
         {/* Counts grid */}
         <div className="mt-2 grid grid-cols-3 gap-1.5 text-xs">
-          <CountCell label={t("backup.table.customers")} value={c.customers} />
-          <CountCell label={t("backup.table.products")} value={c.products} />
-          <CountCell label={t("backup.table.sales")} value={c.sales} />
-          <CountCell label={t("backup.table.saleItems")} value={c.saleItems} />
-          <CountCell label={t("backup.table.payments")} value={c.payments} />
-          <CountCell label={t("backup.table.stockMoves")} value={c.stockMoves} />
-          <CountCell label={t("backup.table.expenses")} value={c.expenses} />
-          <CountCell label={t("backup.table.transactions")} value={c.transactions} />
-          <CountCell label={t("backup.table.adjustments")} value={c.customerAdjustments} />
+          <CountCell label={t("backup.count.customers")} value={c.customers} />
+          <CountCell label={t("backup.count.products")} value={c.products} />
+          <CountCell label={t("backup.count.sales")} value={c.sales} />
+          <CountCell label={t("backup.count.saleItems")} value={c.saleItems} />
+          <CountCell label={t("backup.count.payments")} value={c.payments} />
+          <CountCell label={t("backup.count.stockMoves")} value={c.stockMoves} />
+          <CountCell label={t("backup.count.expenses")} value={c.expenses} />
+          <CountCell label={t("backup.count.transactions")} value={c.transactions} />
+          <CountCell label={t("backup.count.adjustments")} value={c.customerAdjustments} />
         </div>
       </div>
 
       {/* Confirm step 1: show warning + Confirm button */}
       {!confirmStep ? (
         <div className="space-y-2">
-          <div className="flex items-start gap-2 rounded-lg border-2 border-red-200 bg-red-50 px-3 py-2.5 text-xs text-red-900">
+          <div className="flex items-start gap-2 rounded-lg border-2 border-danger/20 bg-danger-soft px-3 py-2.5 text-xs text-danger-ink">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
             <div>
               <p className="font-semibold">{t("backup.replaceAllWarning")}</p>
@@ -330,7 +323,7 @@ function FilePreview({
       ) : (
         /* Confirm step 2: final confirmation */
         <div className="space-y-2">
-          <div className="flex items-start gap-2 rounded-lg border-2 border-red-300 bg-red-100 px-3 py-2.5 text-xs text-red-900">
+          <div className="flex items-start gap-2 rounded-lg border-2 border-danger/40 bg-danger-soft px-3 py-2.5 text-xs text-danger-ink">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
             <div>
               <p className="font-bold">{t("backup.finalConfirm")}</p>
@@ -379,9 +372,9 @@ function FilePreview({
 
 function CountCell({ label, value }: { label: string; value: number }) {
   return (
-    <div className="rounded bg-slate-50 px-2 py-1">
-      <p className="text-[10px] uppercase tracking-wide text-slate-500">{label}</p>
-      <p className="text-sm font-bold tabular-nums text-slate-900">{value}</p>
+    <div className="rounded bg-app px-2 py-1">
+      <p className="text-[10px] uppercase tracking-wide text-ink-subtle">{label}</p>
+      <p className="text-sm font-bold tabular-nums text-ink">{value}</p>
     </div>
   );
 }

@@ -25,7 +25,7 @@ import {
 import { formatDate } from "@/lib/utils/date";
 import { Button } from "@/components/ui/Button";
 import { useLanguage } from "@/providers/language-provider";
-import { userMessage } from "@/lib/i18n/message";
+import { resolveApiError } from "@/lib/i18n/client";
 import { cn } from "@/lib/utils/cn";
 import type { Entitlement, LicenseRedeemResult } from "@/lib/services/entitlement";
 
@@ -33,8 +33,8 @@ export default function RedeemPage() {
   const { t } = useLanguage();
   return (
     <>
-      <div className="sticky top-0 z-20 border-b border-slate-200 bg-white px-4 py-3">
-        <h1 className="text-base font-semibold text-slate-900">
+<div className="sticky top-0 z-20 border-b border-line bg-surface px-4 py-3">
+        <h1 className="text-base font-semibold text-ink">
           {t("subscription.redeemCode")}
         </h1>
       </div>
@@ -234,7 +234,7 @@ function RedeemContent() {
   }
 
   const errorMessage = redeem.error
-    ? userMessage(redeem.error, t, tParams, "licensing.failed")
+    ? resolveApiError(redeem.error) || t("licensing.failed")
     : null;
 
   return (

@@ -37,7 +37,7 @@ import type { KhataAnswer } from "@/lib/khata-assistant/types";
 type UiLanguage = "en" | "ur" | "roman-ur" | "mixed";
 
 export function KhataAssistant() {
-  const { lang, t } = useLanguage();
+  const { t, lang } = useLanguage();
   const assistant = useKhataAssistant();
   const [input, setInput] = useState("");
   const [detected, setDetected] = useState<UiLanguage>("en");
@@ -46,8 +46,7 @@ export function KhataAssistant() {
 
   // Prepared questions follow the app language, or the language the owner last
   // used when they typed a question.
-  const uiLanguage: UiLanguage =
-    detected === "roman-ur" || detected === "ur" ? detected : lang;
+  const uiLanguage: UiLanguage = detected === "roman-ur" || detected === "ur" ? detected : lang;
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -66,8 +65,8 @@ export function KhataAssistant() {
     const text = input.trim();
     if (!text || busy) return;
     setInput("");
-    void assistant.askText(text, lang).then(() => undefined);
-  }, [assistant, busy, input, lang]);
+    void assistant.askText(text).then(() => undefined);
+  }, [assistant, busy, input]);
 
   // Keep the language chip in sync with the answered question's language.
   useEffect(() => {
@@ -80,10 +79,10 @@ export function KhataAssistant() {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        aria-label={t("khataAssistant.open")}
+        aria-label={t("assistant.khataOpen")}
         className={cn(
-          "relative pointer-events-auto flex h-14 w-14 items-center justify-center rounded-full",
-          "bg-neutral-900 text-white shadow-lg dark:bg-white dark:text-neutral-900",
+          "fixed bottom-24 end-20 z-40 flex h-14 w-14 items-center justify-center rounded-full",
+          "bg-ink text-white shadow-lg",
           "transition-transform hover:scale-105 active:scale-95",
         )}
       >
@@ -93,31 +92,28 @@ export function KhataAssistant() {
       {open ? (
         <div
           role="dialog"
-          aria-label={t("khataAssistant.title")}
+          aria-label={t("assistant.khataTitle")}
           className={cn(
-            "pointer-events-auto fixed inset-x-0 bottom-0 z-50 flex max-h-[88vh] flex-col overflow-hidden rounded-t-3xl border border-neutral-200 bg-white shadow-2xl",
-            "sm:inset-x-auto sm:bottom-4 sm:right-4 sm:w-[440px] sm:rounded-3xl",
-            "dark:border-neutral-800 dark:bg-neutral-900",
+            "fixed inset-x-0 bottom-0 z-50 flex max-h-[88vh] flex-col overflow-hidden rounded-t-3xl border border-line bg-surface shadow-2xl",
+            "sm:inset-x-auto sm:bottom-4 sm:end-4 sm:w-[440px] sm:rounded-3xl",
           )}
         >
           {/* Header */}
-          <div className="flex items-center gap-2 border-b border-neutral-200 px-4 py-3 dark:border-neutral-800">
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-50 text-brand-700 dark:bg-brand-950 dark:text-brand-300">
+          <div className="flex items-center gap-2 border-b border-line px-4 py-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-50 text-brand-700">
               <BarChart3 className="h-5 w-5" />
             </div>
             <div className="flex-1">
-              <p className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">
-                {t("khataAssistant.title")}
-              </p>
-              <p className="text-xs text-neutral-500">
-                {t("khataAssistant.subtitle")}
+              <p className="text-sm font-semibold text-ink">{t("assistant.khataTitle")}</p>
+              <p className="text-xs text-ink-subtle">
+                {t("assistant.khataSubtitle")}
               </p>
             </div>
             <button
               type="button"
               onClick={() => setOpen(false)}
               aria-label={t("common.close")}
-              className="rounded-lg p-1.5 text-neutral-500 hover:bg-neutral-100 dark:hover:bg-neutral-800"
+              className="rounded-lg p-1.5 text-ink-subtle hover:bg-surface-2"
             >
               <X className="h-4 w-4" />
             </button>
@@ -136,7 +132,7 @@ export function KhataAssistant() {
           </div>
 
           {/* Ask your own */}
-          <div className="flex items-end gap-2 border-t border-neutral-200 p-3 dark:border-neutral-800">
+          <div className="flex items-end gap-2 border-t border-line p-3">
             <textarea
               value={input}
               onChange={(e) => setInput(e.target.value)}
@@ -147,16 +143,16 @@ export function KhataAssistant() {
                 }
               }}
               rows={1}
-              placeholder={t("khataAssistant.placeholder")}
-              className="max-h-28 min-h-11 flex-1 resize-none rounded-2xl border border-neutral-300 bg-white px-3 py-2.5 text-sm outline-none focus:border-brand-500 dark:border-neutral-700 dark:bg-neutral-800"
+              placeholder={t("assistant.askPlaceholder")}
+              className="max-h-28 min-h-11 flex-1 resize-none rounded-2xl border border-line-strong bg-surface px-3 py-2.5 text-sm outline-none focus:border-brand-500"
             />
             <button
               type="button"
               onClick={handleSend}
               disabled={busy || input.trim().length === 0}
-              aria-label={t("khataAssistant.ask")}
+              aria-label={t("assistant.askAria")}
               className={cn(
-                "flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-neutral-900 text-white dark:bg-white dark:text-neutral-900",
+                "flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-ink text-white",
                 (busy || input.trim().length === 0) && "opacity-40",
               )}
             >
@@ -171,30 +167,28 @@ export function KhataAssistant() {
 
 // ────────────────────────────────────────────────────────────────────────────
 
-function AssistantBody(
-  {
-    answer,
-    busy,
-    error,
-    assistant,
-    uiLanguage,
-    onQuestion,
-  }: {
-    answer: KhataAnswer | null;
-    busy: boolean;
-    error: string | null;
-    assistant: ReturnType<typeof useKhataAssistant>;
-    uiLanguage: UiLanguage;
-    onQuestion: (id: string) => void;
-  },
-) {
+function AssistantBody({
+  answer,
+  busy,
+  error,
+  assistant,
+  uiLanguage,
+  onQuestion,
+}: {
+  answer: KhataAnswer | null;
+  busy: boolean;
+  error: string | null;
+  assistant: ReturnType<typeof useKhataAssistant>;
+  uiLanguage: UiLanguage;
+  onQuestion: (id: string) => void;
+}) {
   const { t } = useLanguage();
 
   if (busy && !answer) {
     return (
-      <div className="flex flex-col items-center justify-center gap-3 py-16 text-sm text-neutral-500">
+      <div className="flex flex-col items-center justify-center gap-3 py-16 text-sm text-ink-subtle">
         <Loader2 className="h-6 w-6 animate-spin" />
-        <p>{t("khataAssistant.loading")}</p>
+        <p>{t("assistant.checking")}</p>
       </div>
     );
   }
@@ -202,24 +196,24 @@ function AssistantBody(
   if (error) {
     return (
       <div className="space-y-3 py-8 text-center">
-        <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-red-50 text-red-600 dark:bg-red-950/50">
+        <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-danger-soft text-danger-ink">
           <AlertTriangle className="h-5 w-5" />
         </div>
-        <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
+        <p className="text-sm text-danger-ink">{error}</p>
         <div className="flex items-center justify-center gap-2">
           <button
             type="button"
             onClick={() => assistant.retry()}
-            className="rounded-full bg-neutral-900 px-4 py-2 text-sm font-medium text-white dark:bg-white dark:text-neutral-900"
+            className="rounded-full bg-ink px-4 py-2 text-sm font-medium text-white"
           >
-            {t("common.retry")}
+            Try again
           </button>
           <button
             type="button"
             onClick={() => assistant.reset()}
-            className="rounded-full border border-neutral-300 px-4 py-2 text-sm font-medium dark:border-neutral-700"
+            className="rounded-full border border-line-strong px-4 py-2 text-sm font-medium"
           >
-            {t("common.back")}
+            Back
           </button>
         </div>
       </div>
@@ -227,12 +221,7 @@ function AssistantBody(
   }
 
   if (answer) {
-    return (
-      <AnswerView
-        answer={answer}
-        onAskAnother={() => assistant.reset()}
-      />
-    );
+    return <AnswerView answer={answer} onAskAnother={() => assistant.reset()} />;
   }
 
   return <QuestionList uiLanguage={uiLanguage} onQuestion={onQuestion} />;
@@ -245,18 +234,18 @@ function QuestionList({
   uiLanguage: UiLanguage;
   onQuestion: (id: string) => void;
 }) {
-  const { t } = useLanguage();
   return (
     <div className="space-y-4">
-      <p className="text-sm text-neutral-600 dark:text-neutral-300">
-        {t("khataAssistant.intro")}
+      <p className="text-sm text-ink-muted">
+        Tap a question to see the answer from your business data. You can also type your own
+        question below.
       </p>
 
       {CATEGORY_ORDER.map((categoryId) => {
         const category = KHATA_CATEGORIES.find((c) => c.id === categoryId)!;
         return (
           <div key={categoryId} className="space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-wide text-neutral-400">
+            <p className="text-xs font-semibold uppercase tracking-wide text-ink-faint">
               {categoryLabel(category, uiLanguage)}
             </p>
             <div className="space-y-1.5">
@@ -266,13 +255,12 @@ function QuestionList({
                   type="button"
                   onClick={() => onQuestion(question.id)}
                   className={cn(
-                    "flex w-full items-center justify-between gap-2 rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2.5 text-left text-sm",
-                    "text-neutral-800 transition-colors hover:border-brand-300 hover:bg-brand-50",
-                    "dark:border-neutral-800 dark:bg-neutral-800/60 dark:text-neutral-100 dark:hover:border-brand-700 dark:hover:bg-brand-950/40",
+                    "flex w-full items-center justify-between gap-2 rounded-xl border border-line bg-surface-2 px-3 py-2.5 text-left text-sm",
+                    "text-ink transition-colors hover:border-brand-300 hover:bg-brand-50",
                   )}
                 >
                   <span>{questionLabel(question, uiLanguage)}</span>
-                  <ChevronRight className="h-4 w-4 shrink-0 text-neutral-400" />
+                  <ChevronRight className="h-4 w-4 shrink-0 text-ink-faint" />
                 </button>
               ))}
             </div>
@@ -283,77 +271,49 @@ function QuestionList({
   );
 }
 
-function AnswerView({
-  answer,
-  onAskAnother,
-}: {
-  answer: KhataAnswer;
-  onAskAnother: () => void;
-}) {
-  const { t } = useLanguage();
+function AnswerView({ answer, onAskAnother }: { answer: KhataAnswer; onAskAnother: () => void }) {
   return (
     <div className="space-y-4">
       <button
         type="button"
         onClick={onAskAnother}
-        className="flex items-center gap-1 text-xs font-medium text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200"
+        className="flex items-center gap-1 text-xs font-medium text-ink-subtle hover:text-ink"
       >
         <ArrowLeft className="h-3.5 w-3.5" />
-        {t("khataAssistant.askAnother")}
+        Ask another question
       </button>
 
-      {answer.question ? (
-        <p className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">
-          {answer.question}
-        </p>
-      ) : null}
+      {answer.question ? <p className="text-sm font-semibold text-ink">{answer.question}</p> : null}
 
-      <p className="text-sm leading-relaxed text-neutral-700 dark:text-neutral-200">
-        {answer.headline}
-      </p>
+      <p className="text-sm leading-relaxed text-ink-muted">{answer.headline}</p>
 
       {answer.explanation ? (
-        <p className="text-xs leading-relaxed text-neutral-500 dark:text-neutral-400">
-          {answer.explanation}
-        </p>
+        <p className="text-xs leading-relaxed text-ink-subtle">{answer.explanation}</p>
       ) : null}
 
       {answer.figures.length > 0 ? (
         <div className="grid grid-cols-2 gap-2">
           {answer.figures.map((figure, index) => (
-            <div
-              key={`${figure.label}-${index}`}
-              className="rounded-xl bg-neutral-50 px-3 py-2 dark:bg-neutral-800/60"
-            >
-              <p className="text-[11px] text-neutral-500">{figure.label}</p>
-              <p className="mt-0.5 text-sm font-semibold text-neutral-900 dark:text-neutral-100">
-                {figure.value}
-              </p>
+            <div key={`${figure.label}-${index}`} className="rounded-xl bg-surface-2 px-3 py-2">
+              <p className="text-[11px] text-ink-subtle">{figure.label}</p>
+              <p className="mt-0.5 text-sm font-semibold text-ink">{figure.value}</p>
             </div>
           ))}
         </div>
       ) : null}
 
       {answer.rows.length > 0 ? (
-        <ul className="divide-y divide-neutral-100 rounded-xl border border-neutral-200 dark:divide-neutral-800 dark:border-neutral-800">
+        <ul className="divide-y divide-line rounded-xl border border-line">
           {answer.rows.slice(0, 12).map((row, index) => (
             <li
               key={`${row.label}-${index}`}
               className="flex items-center justify-between gap-3 px-3 py-2 text-sm"
             >
-              <span className="min-w-0 flex-1 truncate text-neutral-800 dark:text-neutral-100">
-                {row.label}
-              </span>
+              <span className="min-w-0 flex-1 truncate text-ink">{row.label}</span>
               <span className="shrink-0 text-right">
-                {row.value ? (
-                  <span className="font-medium text-neutral-900 dark:text-neutral-100">
-                    {row.value}
-                  </span>
-                ) : null}
+                {row.value ? <span className="font-medium text-ink">{row.value}</span> : null}
                 {row.meta ? (
-                  <span className="block text-[11px] text-neutral-500">
-                    {row.meta}
-                  </span>
+                  <span className="block text-[11px] text-ink-subtle">{row.meta}</span>
                 ) : null}
               </span>
             </li>
@@ -362,7 +322,7 @@ function AnswerView({
       ) : null}
 
       {answer.notes.length > 0 ? (
-        <div className="space-y-1.5 rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
+        <div className="space-y-1.5 rounded-xl bg-warning-soft px-3 py-2 text-xs text-warning-ink">
           {answer.notes.map((note, index) => (
             <p key={index}>{note}</p>
           ))}
@@ -370,7 +330,7 @@ function AnswerView({
       ) : null}
 
       {answer.nextStep ? (
-        <p className="flex items-start gap-1.5 text-xs text-neutral-500">
+        <p className="flex items-start gap-1.5 text-xs text-ink-subtle">
           <Sparkles className="mt-0.5 h-3.5 w-3.5 shrink-0 text-brand-500" />
           {answer.nextStep}
         </p>
@@ -379,9 +339,9 @@ function AnswerView({
       <button
         type="button"
         onClick={onAskAnother}
-        className="w-full rounded-full bg-neutral-900 px-4 py-2.5 text-sm font-medium text-white dark:bg-white dark:text-neutral-900"
+        className="w-full rounded-full bg-ink px-4 py-2.5 text-sm font-medium text-white"
       >
-        {t("khataAssistant.askAnother")}
+        Ask another question
       </button>
     </div>
   );

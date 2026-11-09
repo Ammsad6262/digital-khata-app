@@ -18,15 +18,19 @@
  *     wrong hint degrades the *reply language*, never the command handling.
  */
 
-import { pickVoice, type VoiceLang } from "./phrases";
-
-export type SpeechLanguage = "en" | "ur" | "roman-ur" | "mixed";
+export type SpeechLanguage = "en" | "ur" | "ps" | "roman-ur" | "mixed";
 
 /** Locales the browser speech engine understands, chosen automatically. */
-export type SpeechLocale = "en-PK" | "ur-PK";
+export type SpeechLocale = "en-PK" | "ur-PK" | "ps-AF";
 
 const ARABIC_SCRIPT = /[\u0600-\u06FF\u0750-\u077F\uFB50-\uFDFF\uFE70-\uFEFF]/u;
 const LATIN_LETTER = /[a-zA-Z]/;
+
+/**
+ * Letters and words that exist in Pashto but not Urdu. Pashto and Urdu share
+ * most of the Arabic script, so these are the reliable discriminators.
+ */
+const PASHTO_MARKERS = /[ګځڅښډړږڼېۍ]|واخيستل|واخيست|ورکړل|ورکول|څو|ډېر|لږ|پښتو|وښودل/;
 
 /**
  * High-signal Roman-Urdu words only. English words that Roman Urdu also uses
@@ -56,7 +60,7 @@ export function detectSpeechLanguage(text: string): SpeechLanguage {
   const hasArabic = ARABIC_SCRIPT.test(value);
   const hasLatin = LATIN_LETTER.test(value);
   if (hasArabic && hasLatin) return "mixed";
-  if (hasArabic) return "ur";
+  if (hasArabic) return PASHTO_MARKERS.test(value) ? "ps" : "ur";
 
   const words = value
     .toLowerCase()
@@ -72,7 +76,9 @@ export function detectSpeechLanguage(text: string): SpeechLanguage {
 
 /** The browser speech-recognition locale that best matches a detected language. */
 export function speechLocaleFor(language: SpeechLanguage): SpeechLocale {
-  return language === "ur" ? "ur-PK" : "en-PK";
+  if (language === "ur") return "ur-PK";
+  if (language === "ps") return "ps-AF";
+  return "en-PK";
 }
 
 /**
@@ -88,18 +94,17 @@ export function defaultSpeechLocale(appLang: "en" | "ur"): SpeechLocale {
  * A short, user-facing label for a detected language. This is shown so the owner
  * can see what the assistant understood — it is not developer information.
  */
-export function languageLabel(
-  language: SpeechLanguage,
-  lang: VoiceLang = "en",
-): string {
+export function languageLabel(language: SpeechLanguage): string {
   switch (language) {
     case "ur":
-      return pickVoice(lang, "langUrdu");
+      return "اردو";
+    case "ps":
+      return "پښتو";
     case "roman-ur":
-      return pickVoice(lang, "langRomanUrdu");
+      return "Roman Urdu";
     case "mixed":
-      return pickVoice(lang, "langMixed");
+      return "Mixed / مکس";
     default:
-      return pickVoice(lang, "langEnglish");
+      return "English";
   }
 }

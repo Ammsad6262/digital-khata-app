@@ -3,9 +3,9 @@
 -- Additive and idempotent: safe to re-run. It only adds nullable columns, one
 -- defaulted column, one index, and enables RLS.
 --
--- This file is intentionally NOT listed in `scripts/apply-production-ddl.mjs`.
--- The licensing release is prepared but deployment is a deliberate, separate
--- step (see docs/COMMERCIAL_LICENSING.md). Apply manually with:
+-- This file is listed in `scripts/apply-production-ddl.mjs`, so a Vercel
+-- production build applies it (build-gated: if the SQL fails, the build fails
+-- and the previous deployment stays live). It is also safe to apply manually:
 --
 --   psql "$DIRECT_URL" -f prisma/production/20261109_commercial_licensing.sql
 --
@@ -65,30 +65,43 @@ WHERE "accessExpiresAt" IS NULL
 -- `SET LOCAL ROLE khata_app` + `set_config('app.user_id', <userId>, true)`.
 -- Requires `LICENSING_RLS_ROLE=khata_app` in the app environment to take effect
 -- (unset = run as owner, RLS not filtered).
+--
+-- The role/grant steps are best-effort so an insufficiently privileged deploy
+-- user cannot fail the whole build; the columns, policies and RLS flags above
+-- and below always apply. The table owner bypasses RLS unless FORCE is set
+-- (it is not), which is what the admin/system path relies on.
 DO $$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'khata_app') THEN
-    CREATE ROLE khata_app
-      NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS;
+    BEGIN
+      CREATE ROLE khata_app
+        NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS;
+    EXCEPTION
+      WHEN insufficient_privilege THEN
+        RAISE NOTICE 'khata_app not created (insufficient privilege); RLS role enforcement stays off';
+    END;
   END IF;
 END
 $$;
 
 DO $$
 BEGIN
-  EXECUTE format('GRANT khata_app TO %I', current_user);
-EXCEPTION
-  WHEN insufficient_privilege THEN NULL;
-  WHEN duplicate_object THEN NULL;
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'khata_app') THEN
+    BEGIN
+      EXECUTE format('GRANT khata_app TO %I', current_user);
+    EXCEPTION
+      WHEN insufficient_privilege THEN NULL;
+      WHEN duplicate_object THEN NULL;
+    END;
+    EXECUTE 'GRANT USAGE ON SCHEMA public TO khata_app';
+    EXECUTE 'GRANT SELECT, INSERT, UPDATE, DELETE ON "UserSubscription" TO khata_app';
+    EXECUTE 'GRANT SELECT, INSERT, UPDATE, DELETE ON "RedeemCodeRedemption" TO khata_app';
+    EXECUTE 'GRANT SELECT, INSERT, UPDATE ON "RedeemCode" TO khata_app';
+    EXECUTE 'GRANT SELECT ON "User" TO khata_app';
+    EXECUTE 'GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO khata_app';
+  END IF;
 END
 $$;
-
-GRANT USAGE ON SCHEMA public TO khata_app;
-GRANT SELECT, INSERT, UPDATE, DELETE ON "UserSubscription" TO khata_app;
-GRANT SELECT, INSERT, UPDATE, DELETE ON "RedeemCodeRedemption" TO khata_app;
-GRANT SELECT, INSERT, UPDATE ON "RedeemCode" TO khata_app;
-GRANT SELECT ON "User" TO khata_app;
-GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO khata_app;
 
 DROP POLICY IF EXISTS user_subscription_owner ON "UserSubscription";
 CREATE POLICY user_subscription_owner ON "UserSubscription"

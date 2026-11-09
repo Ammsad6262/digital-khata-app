@@ -38,7 +38,6 @@ import { formatQuantity } from "@/lib/utils/money";
 import { formatDate, formatTime } from "@/lib/utils/date";
 import { cn } from "@/lib/utils/cn";
 import { useLanguage } from "@/providers/language-provider";
-import { userMessage } from "@/lib/i18n/message";
 import type { TranslationKey } from "@/lib/i18n/translations";
 
 export function ProductDetail({ productId }: { productId: string }) {
@@ -47,7 +46,7 @@ export function ProductDetail({ productId }: { productId: string }) {
   const deleteProduct = useDeleteProduct();
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const router = useRouter();
-  const { t, tParams } = useLanguage();
+  const { t } = useLanguage();
 
   if (isLoading) {
     return <ProductDetailSkeleton />;
@@ -87,11 +86,11 @@ export function ProductDetail({ productId }: { productId: string }) {
       {/* Stock hero */}
       <div
         className={cn(
-          "rounded-2xl p-4 text-white shadow-sm",
+          "rounded-2xl p-4 text-white shadow-card",
           isNegative
-            ? "bg-gradient-to-br from-red-500 to-red-600"
+            ? "bg-gradient-to-br from-danger to-danger"
             : isLow
-              ? "bg-gradient-to-br from-amber-500 to-amber-600"
+              ? "bg-gradient-to-br from-warning to-warning"
               : "bg-gradient-to-br from-brand-600 to-brand-700",
         )}
       >
@@ -107,23 +106,23 @@ export function ProductDetail({ productId }: { productId: string }) {
       </div>
 
       {/* Product info */}
-      <div className="rounded-xl border border-slate-200 bg-white p-3">
-        <h2 className="text-base font-semibold text-slate-900">{product.name}</h2>
-        <div className="mt-1 space-y-0.5 text-xs text-slate-500">
+      <div className="rounded-card border border-line bg-surface shadow-card p-3">
+        <h2 className="text-base font-semibold text-ink">{product.name}</h2>
+        <div className="mt-1 space-y-0.5 text-xs text-ink-subtle">
           <p>{product.category ?? t("stock.uncategorized")} · {product.unit}</p>
           {product.sku ? <p>{t("product.skuLabel")} {product.sku}</p> : null}
         </div>
 
-        <div className="mt-3 grid grid-cols-2 gap-2 border-t border-slate-100 pt-3">
+        <div className="mt-3 grid grid-cols-2 gap-2 border-t border-line pt-3">
           <div>
-            <p className="text-[10px] uppercase tracking-wide text-slate-500">{t("product.sellingPrice")}</p>
-            <p className="text-sm font-bold text-slate-900">
+            <p className="text-[10px] uppercase tracking-wide text-ink-subtle">{t("product.sellingPrice")}</p>
+            <p className="text-sm font-bold text-ink">
               <Money value={product.sellingPrice} />
             </p>
           </div>
           <div>
-            <p className="text-[10px] uppercase tracking-wide text-slate-500">{t("product.purchasePrice")}</p>
-            <p className="text-sm font-bold text-slate-700">
+            <p className="text-[10px] uppercase tracking-wide text-ink-subtle">{t("product.purchasePrice")}</p>
+            <p className="text-sm font-bold text-ink-muted">
               <Money value={product.purchasePrice} />
             </p>
           </div>
@@ -154,14 +153,14 @@ export function ProductDetail({ productId }: { productId: string }) {
 
       {/* Stock movement history */}
       <section className="space-y-2">
-        <h3 className="px-1 text-sm font-semibold text-slate-700">
+        <h3 className="px-1 text-sm font-semibold text-ink-muted">
           {t("stock.stockHistory")}
         </h3>
 
         {movesLoading ? (
           <div className="space-y-1.5">
             {[0, 1, 2].map((i) => (
-              <div key={i} className="h-12 animate-pulse rounded-lg bg-slate-200" />
+              <div key={i} className="h-12 animate-pulse rounded-lg bg-surface-2" />
             ))}
           </div>
         ) : !moves || moves.length === 0 ? (
@@ -171,7 +170,7 @@ export function ProductDetail({ productId }: { productId: string }) {
             icon={<Package className="h-6 w-6" />}
           />
         ) : (
-          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+          <div className="overflow-hidden rounded-card border border-line bg-surface shadow-card">
             {/* Opening balance row */}
             {new Decimal(product.openingStock).gt(0) ? (
               <MovementRow
@@ -203,7 +202,7 @@ export function ProductDetail({ productId }: { productId: string }) {
           </div>
         )}
 
-        <p className="px-1 text-[11px] text-slate-400">
+        <p className="px-1 text-[11px] text-ink-faint">
           {t("stock.salesReductionNote")}
         </p>
       </section>
@@ -220,7 +219,7 @@ export function ProductDetail({ productId }: { productId: string }) {
                 router.push("/stock");
               },
               onError: (err) => {
-                setDeleteError(userMessage(err, t, tParams, "product.deleteFailed"));
+                setDeleteError(err instanceof Error ? err.message : t("product.deleteFailed"));
               },
             });
           }}
@@ -266,7 +265,7 @@ function MovementRow({
     <div
       className={cn(
         "flex items-center gap-3 px-3 py-2.5",
-        !isFirst && "border-t border-slate-100",
+        !isFirst && "border-t border-line",
         isVoided && "opacity-50",
       )}
     >
@@ -274,30 +273,30 @@ function MovementRow({
         className={cn(
           "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg",
           isVoided
-            ? "bg-slate-100"
+            ? "bg-surface-2"
             : isPositive
               ? "bg-brand-50"
-              : "bg-red-50",
+              : "bg-danger-soft",
         )}
       >
         <Icon
           className={cn(
             "h-4 w-4",
             isVoided
-              ? "text-slate-400"
+              ? "text-ink-faint"
               : isPositive
                 ? "text-brand-700"
-                : "text-red-600",
+                : "text-danger-ink",
           )}
         />
       </div>
 
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium text-slate-900">
+        <p className="truncate text-sm font-medium text-ink">
           {label}
-          {isVoided ? <span className="ml-1.5 text-[10px] font-semibold text-slate-500">({t("sale.voided").toLowerCase()})</span> : null}
+          {isVoided ? <span className="ml-1.5 text-[10px] font-semibold text-ink-subtle">({t("sale.voided").toLowerCase()})</span> : null}
         </p>
-        <p className="text-[11px] text-slate-400">
+        <p className="text-[11px] text-ink-faint">
           {formatDate(new Date(date))} · {formatTime(new Date(date))}
         </p>
       </div>
@@ -307,16 +306,16 @@ function MovementRow({
           className={cn(
             "text-sm font-bold tabular-nums",
             isVoided
-              ? "text-slate-400"
+              ? "text-ink-faint"
               : isPositive
                 ? "text-brand-700"
-                : "text-red-600",
+                : "text-danger-ink",
           )}
         >
           {isPositive ? "+" : ""}
           {formatQuantity(qty, unit)}
         </p>
-        <p className="text-[10px] text-slate-400">
+        <p className="text-[10px] text-ink-faint">
           {type === "opening" ? t("stock.openingBadge") : type}
         </p>
       </div>
@@ -327,16 +326,16 @@ function MovementRow({
 function ProductDetailSkeleton() {
   return (
     <div className="space-y-4">
-      <div className="h-32 animate-pulse rounded-2xl bg-slate-200" />
-      <div className="h-32 animate-pulse rounded-xl bg-slate-200" />
+      <div className="h-32 animate-pulse rounded-2xl bg-surface-2" />
+      <div className="h-32 animate-pulse rounded-xl bg-surface-2" />
       <div className="grid grid-cols-3 gap-2">
         {[0, 1, 2].map((i) => (
-          <div key={i} className="h-11 animate-pulse rounded-lg bg-slate-200" />
+          <div key={i} className="h-11 animate-pulse rounded-lg bg-surface-2" />
         ))}
       </div>
       <div className="space-y-1.5">
         {[0, 1, 2].map((i) => (
-          <div key={i} className="h-12 animate-pulse rounded-lg bg-slate-200" />
+          <div key={i} className="h-12 animate-pulse rounded-lg bg-surface-2" />
         ))}
       </div>
     </div>

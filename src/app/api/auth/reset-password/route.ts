@@ -40,7 +40,7 @@ const resetSchema = z.object({
     .max(50, "api.password.resetCodeRequired"),
   newPassword: z
     .string()
-    .min(6, "api.password.tooShort")
+    .min(8, "api.password.tooShort")
     .max(200, "api.password.tooShort"),
 });
 

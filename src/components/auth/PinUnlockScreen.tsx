@@ -18,6 +18,7 @@
 import { useState, useEffect } from "react";
 import { Delete, Lock, Loader2, AlertCircle } from "lucide-react";
 import { useLanguage } from "@/providers/language-provider";
+import { resolveApiError } from "@/lib/i18n/client";
 
 export function PinUnlockScreen({
   hasPin,
@@ -69,12 +70,11 @@ export function PinUnlockScreen({
 
       // Error
       if (json.error?.code === "RATE_LIMITED") {
-        const match = json.error.message.match(/(\d+) seconds/);
-        const seconds = match ? parseInt(match[1], 10) : 300;
+        const seconds = Number(json.error?.params?.seconds) || 300;
         setRetryAfter(seconds);
         setError(`${t("common.lockedOut")} ${seconds}s.`);
       } else {
-        setError(json.error?.message || t("common.incorrectPin"));
+        setError(resolveApiError(json.error) || t("common.incorrectPin"));
       }
       setPin("");
     } catch {
@@ -121,8 +121,8 @@ export function PinUnlockScreen({
             key={i}
             className={`h-4 w-4 rounded-full transition-all ${
               i < pin.length
-                ? "bg-white scale-110"
-                : "bg-white/30"
+                ? "bg-surface scale-110"
+                : "bg-surface/30"
             }`}
           />
         ))}
@@ -130,7 +130,7 @@ export function PinUnlockScreen({
 
       {/* Error */}
       {error ? (
-        <div className="mb-4 flex items-center gap-1.5 rounded-lg bg-red-500/20 px-3 py-1.5 text-xs text-white">
+        <div className="mb-4 flex items-center gap-1.5 rounded-lg bg-danger/20 px-3 py-1.5 text-xs text-white">
           <AlertCircle className="h-3.5 w-3.5" />
           {error}
         </div>
@@ -149,7 +149,7 @@ export function PinUnlockScreen({
             type="button"
             onClick={() => handleDigit(digit)}
             disabled={isSubmitting || retryAfter > 0}
-            className="flex h-16 items-center justify-center rounded-2xl bg-white/10 text-xl font-bold text-white backdrop-blur transition-colors hover:bg-white/20 active:bg-white/30 disabled:opacity-50"
+            className="flex h-16 items-center justify-center rounded-2xl bg-surface/10 text-xl font-bold text-white backdrop-blur transition-colors hover:bg-surface/20 active:bg-surface/30 disabled:opacity-50"
           >
             {digit}
           </button>
@@ -161,7 +161,7 @@ export function PinUnlockScreen({
           type="button"
           onClick={() => handleDigit("0")}
           disabled={isSubmitting || retryAfter > 0}
-          className="flex h-16 items-center justify-center rounded-2xl bg-white/10 text-xl font-bold text-white backdrop-blur transition-colors hover:bg-white/20 active:bg-white/30 disabled:opacity-50"
+          className="flex h-16 items-center justify-center rounded-2xl bg-surface/10 text-xl font-bold text-white backdrop-blur transition-colors hover:bg-surface/20 active:bg-surface/30 disabled:opacity-50"
         >
           0
         </button>
@@ -170,7 +170,7 @@ export function PinUnlockScreen({
           type="button"
           onClick={handleDelete}
           disabled={pin.length === 0 || isSubmitting}
-          className="flex h-16 items-center justify-center rounded-2xl text-white transition-colors hover:bg-white/10 active:bg-white/20 disabled:opacity-30"
+          className="flex h-16 items-center justify-center rounded-2xl text-white transition-colors hover:bg-surface/10 active:bg-surface/20 disabled:opacity-30"
         >
           <Delete className="h-5 w-5" />
         </button>

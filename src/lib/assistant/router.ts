@@ -24,9 +24,9 @@ import {
   parseRelativeDays,
   removeRanges,
   meaningfulWords,
+  STOPWORDS,
   type EntityMatch,
 } from "./nlg";
-import { pickVoice, type VoiceLang } from "./phrases";
 import type {
   ActionKind,
   PlanPayload,
@@ -55,9 +55,29 @@ function canonicalUnit(raw: string): string {
   return UNIT_ALIASES[raw] ?? raw;
 }
 
+/**
+ * Scripts that are not Latin. The deterministic rules below are Latin /
+ * Roman-Urdu only, so any Urdu, Pashto or Arabic-script command is escalated
+ * to the model (which reads the script directly).
+ */
+const NON_LATIN_SCRIPT =
+  /[\u0600-\u06FF\u0750-\u077F\uFB50-\uFDFF\uFE70-\uFEFF]/u;
+
+/** Verbs and command words that are never part of a product/customer name. */
+const COMMAND_VERBS = new Set([
+  "bought", "buy", "buys", "buying", "purchased", "purchase", "ordered", "order",
+  "sold", "sell", "sells", "selling", "sale", "took", "taken", "take",
+  "gave", "give", "given", "paid", "pay", "received", "receive", "got",
+  "add", "added", "create", "created", "make", "made", "new", "record",
+  "note", "entered", "enter", "register", "spent", "spend", "spending",
+  "liya", "liye", "lena", "leni", "kharida", "kharide", "kharidna", "becha",
+  "bechi", "diya", "diye", "dena", "deni", "mila", "wasool", "jama",
+  "increase", "update", "reduce", "dal", "daal", "shamil",
+]);
+
 const MONEY_WORDS = /(paid|pay|gave|give|received|receive|advance|diye|diya|dya|mila|wasool|naqad|cash|deposit|jama)/;
 const TOTAL_WORDS = /(total|amount|for|hua|banaya|worth|ki|ka|ke|rs|rupees|rupay|rupaye)/;
-const PRICE_WORDS = /(per|rate|each|price|@|\/)/;
+const PRICE_WORDS = /(per|rate|each|price|@|\/|\bat\b)/;
 const DISCOUNT_WORDS = /(discount|kam kiya|kam|chhoot|rebate)/;
 
 type NumberRole = {
@@ -224,12 +244,15 @@ function cleanName(raw: string, maxWords = 4): string | null {
 
 function guessCustomerName(text: string, entities: Entities): string | null {
   if (entities.customers[0]) return entities.customers[0].entity.name;
-  const beforeBought = text.match(/^(.+?)\s+(?:bought|purchased|took|ne|ko)\b/);
-  if (beforeBought) {
-    const candidate = cleanName(beforeBought[1]!, 3);
+  // "ahmed bought …", "ahmed ne …", "ahmed ko …", "ahmed se …", "ahmed liye …"
+  const beforeVerb = text.match(
+    /^([\p{L}][\p{L}\s]{0,30}?)\s+(?:bought|purchased|took|ordered|ne|ko|se|liya|liye|becha|bechi|kharida|diya|diye)\b/u,
+  );
+  if (beforeVerb) {
+    const candidate = cleanName(beforeVerb[1]!, 3);
     if (candidate) return candidate;
   }
-  const afterTo = wordsAfter(text, /\b(?:to|ko)\s+/);
+  const afterTo = wordsAfter(text, /\b(?:to|ko|for)\s+/);
   if (afterTo) {
     const candidate = cleanName(afterTo, 3);
     if (candidate) return candidate;
@@ -237,22 +260,62 @@ function guessCustomerName(text: string, entities: Entities): string | null {
   return null;
 }
 
-function guessProductName(text: string, entities: Entities): string | null {
-  if (entities.products[0]) return entities.products[0].entity.name;
-  const of = text.match(/\bof\s+([a-z\p{L}][\p{L}\s]{1,40})/u);
-  if (of) {
-    const candidate = cleanName(of[1]!, 3);
-    if (candidate) return candidate;
-  }
-  return null;
+function stripWord(word: string): string {
+  return word.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, "");
 }
 
-function detectAction(
+/**
+ * Pick a product name out of leftover words.
+ *
+ * The old version only understood "N of X", so "Ahmed bought 25 kilo rice"
+ * produced no product at all and the confirmation card said "the product".
+ * Here we strip numbers, units, verbs, stopwords and any already-identified
+ * customer/supplier name, then keep the remaining noun phrase.
+ */
+function productCandidate(
+  raw: string,
+  stripNames: Array<string | null | undefined>,
+): string | null {
+  const strip = new Set<string>();
+  for (const name of stripNames) {
+    for (const word of (name ?? "").toLowerCase().split(/\s+/)) {
+      if (word) strip.add(word);
+    }
+  }
+
+  const words = raw
+    .split(/\s+/)
+    .map(stripWord)
+    .filter((word) => word.length > 1)
+    .filter((word) => !/^\d/.test(word))
+    .filter((word) => !UNIT_RE.test(word))
+    .filter((word) => !STOPWORDS.has(word))
+    .filter((word) => !COMMAND_VERBS.has(word))
+    .filter((word) => !strip.has(word));
+
+  if (words.length === 0) return null;
+  return words
+    .slice(0, 3)
+    .map((word) => word[0]!.toUpperCase() + word.slice(1))
+    .join(" ");
+}
+
+function guessProductName(
   text: string,
   entities: Entities,
-  ctx: RouterContext,
-  lang: VoiceLang = "en",
-): RouteAction | null {
+  stripNames: Array<string | null | undefined> = [],
+): string | null {
+  if (entities.products[0]) return entities.products[0].entity.name;
+  // An explicit "of X" / "X ka" phrase is the strongest signal.
+  const of = text.match(/\b(?:of|ka|ki|ke)\s+([\p{L}][\p{L}\s]{1,40})/u);
+  if (of) {
+    const candidate = productCandidate(of[1]!, stripNames);
+    if (candidate) return candidate;
+  }
+  return productCandidate(text, stripNames);
+}
+
+function detectAction(text: string, entities: Entities, ctx: RouterContext): RouteAction | null {
   const numbers = classifyNumbers(text);
   const qty = pick(numbers, "quantity");
   const unitPrice = pick(numbers, "unitPrice");
@@ -290,7 +353,7 @@ function detectAction(
       .replace(/\b(remind me|reminder|to|that|please|yaad dila(na)?|karo|kar)\b/g, " ")
       .replace(/\s+/g, " ")
       .trim();
-    const title = (entity ? `${rawTitle}` : rawTitle) || pickVoice(lang, "followUp");
+    const title = (entity ? `${rawTitle}` : rawTitle) || "Follow up";
     return action(
       "CREATE_REMINDER",
       {
@@ -451,7 +514,7 @@ function detectAction(
         supplierId: supplier.id,
         supplierName: supplier.name,
         productId: product?.id,
-        productName: product?.name ?? guessProductName(text, entities) ?? undefined,
+        productName: product?.name ?? guessProductName(text, entities, [supplier.name]) ?? undefined,
         quantity: qty?.value,
         unit: qty?.unit,
         unitCost,
@@ -472,13 +535,16 @@ function detectAction(
   if (selling && (mentionsCustomer || /\b(bought|sold|liya|liye)\b/.test(text))) {
     const customer = entities.customers[0]?.entity;
     const product = entities.products[0]?.entity;
+    const customerName = customer?.name ?? guessCustomerName(text, entities) ?? undefined;
+    const productName =
+      product?.name ?? guessProductName(text, entities, [customerName]) ?? undefined;
     return action(
       "CREATE_SALE",
       {
         customerId: customer?.id,
-        customerName: customer?.name ?? guessCustomerName(text, entities) ?? undefined,
+        customerName,
         productId: product?.id,
-        productName: product?.name ?? guessProductName(text, entities) ?? undefined,
+        productName,
         quantity: qty?.value,
         unit: qty?.unit ?? product?.unit,
         unitPrice: unitPrice?.value ?? (product ? Number(product.sellingPrice) : undefined),
@@ -553,7 +619,7 @@ function detectAction(
             .trim(),
           3,
         ) ??
-        pickVoice(lang, "generalExpense");
+        "General expense";
       return action(
         "CREATE_EXPENSE",
         {
@@ -623,11 +689,7 @@ function capitalize(s: string): string {
 // Public entry point
 // ────────────────────────────────────────────────────────────────────────────
 
-export function route(
-  rawText: string,
-  ctx: RouterContext,
-  lang: VoiceLang = "en",
-): RouteMatch | null {
+export function route(rawText: string, ctx: RouterContext): RouteMatch | null {
   const text = normalizeText(rawText);
   if (!text) return null;
 
@@ -636,7 +698,7 @@ export function route(
   // Queries first: "show me today's expenses" must not be read as an expense
   // creation because of the word "expenses".
   const query = detectQuery(text, entities);
-  const actionMatch = detectAction(text, entities, ctx, lang);
+  const actionMatch = detectAction(text, entities, ctx);
 
   if (query && actionMatch) {
     // "add customer Imran" contains the word "customer" (a list-query trigger)
@@ -667,4 +729,72 @@ export function looksLikeBusinessCommand(rawText: string): boolean {
   // before the model ever saw it.
   if (/[\u0600-\u06FF]/.test(text)) return true;
   return /\b(sale|sales|sell|sold|bikri|buy|bought|purchase|kharid|customer|supplier|party|product|item|stock|inventory|expense|kharch|payment|paid|pay|udhaar|udhar|baqaya|balance|owe|profit|munafa|report|reminder|task|khata|account|ledger|hisaab|dashboard|order|delivery|discount|rate|price|quantity|unit|kg|carton|box|bag|piece|dozen|payment)\b/.test(text);
+}
+
+/** True when the command is written in a non-Latin script (Urdu/Pashto/Arabic). */
+export function hasNonLatinScript(text: string): boolean {
+  return NON_LATIN_SCRIPT.test(text);
+}
+
+/** Whether a rule-parsed action already carries every field it needs. */
+function isActionComplete(match: RouteAction): boolean {
+  const f = match.fields;
+  switch (match.action) {
+    case "CREATE_SALE":
+      return Boolean(f.customerId || f.customerName) &&
+        Boolean(f.productId || f.productName) &&
+        (f.quantity ?? 0) > 0;
+    case "CREATE_PURCHASE":
+      return Boolean(f.supplierId || f.supplierName) &&
+        Boolean(f.productId || f.productName) &&
+        (f.quantity ?? 0) > 0 &&
+        (f.unitCost != null || f.unitPrice != null || f.total != null);
+    case "RECORD_PAYMENT":
+      return Boolean(f.customerId || f.customerName) && (f.amount ?? f.paidAmount ?? 0) > 0;
+    case "SUPPLIER_PAYMENT":
+      return Boolean(f.supplierId || f.supplierName) && (f.amount ?? f.paidAmount ?? 0) > 0;
+    case "CREATE_EXPENSE":
+      return (f.amount ?? f.total ?? f.paidAmount ?? 0) > 0 && Boolean(f.expenseName || f.name);
+    case "ADD_STOCK":
+      return Boolean(f.productId || f.productName) && (f.quantity ?? 0) > 0;
+    case "CREATE_CUSTOMER":
+      return Boolean(f.name || f.customerName);
+    case "CREATE_SUPPLIER":
+      return Boolean(f.name || f.supplierName);
+    case "CREATE_PRODUCT":
+      return Boolean(f.name || f.productName);
+    case "CREATE_REMINDER":
+      return true;
+    case "VOID_SALE":
+    case "VOID_EXPENSE":
+    case "VOID_PAYMENT":
+    case "COMPLETE_REMINDER":
+      return Boolean(f.targetId);
+    default:
+      return false;
+  }
+}
+
+/**
+ * Decide whether the model should still be consulted even though the rules
+ * produced a match.
+ *
+ * The rule engine is Latin / Roman-Urdu only and its name extraction is
+ * heuristic. A partial match that silently drops the product ("Ahmed bought
+ * 25 kilo rice" used to become product "the product") is worse than no match
+ * at all, so an incomplete action — or ANY command written in Urdu/Pashto
+ * script — is escalated to the model. The model never touches the database; it
+ * returns the same structured fields the rules return.
+ */
+export function shouldEscalate(match: RouteMatch | null, rawText: string): boolean {
+  const text = normalizeText(rawText);
+  if (!text) return false;
+  if (!match) return true;
+  // A query the rules already matched (including the Urdu query patterns) is
+  // answered from the database; the model would only re-classify it, so it is
+  // not worth a free-tier request.
+  if (match.type === "query") return false;
+  // Actions written in Urdu/Pashto script: the rules are Latin/Roman-Urdu only.
+  if (hasNonLatinScript(text)) return true;
+  return !isActionComplete(match);
 }

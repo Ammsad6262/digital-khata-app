@@ -31,7 +31,6 @@ import { formatDate, formatTime } from "@/lib/utils/date";
 import { formatMoney } from "@/lib/utils/money";
 import { cn } from "@/lib/utils/cn";
 import { useLanguage } from "@/providers/language-provider";
-import { useCurrencySymbol } from "@/hooks/use-currency-symbol";
 
 type FilterLabelKey =
   | "transactions.today"
@@ -55,13 +54,13 @@ type CategoryLabelKey =
   | "payment.other";
 
 const CATEGORY_META: Record<string, { labelKey: CategoryLabelKey; bg: string; text: string; icon: string; bar: string }> = {
-  transport:   { labelKey: "expense.transport",   bg: "bg-blue-50",   text: "text-blue-700",   icon: "🚚", bar: "bg-blue-500" },
-  shop:        { labelKey: "expense.shop",        bg: "bg-purple-50", text: "text-purple-700", icon: "🏪", bar: "bg-purple-500" },
-  electricity: { labelKey: "expense.electricity", bg: "bg-amber-50",  text: "text-amber-700",  icon: "💡", bar: "bg-amber-500" },
-  packaging:   { labelKey: "expense.packaging",   bg: "bg-orange-50", text: "text-orange-700", icon: "📦", bar: "bg-orange-500" },
-  salary:      { labelKey: "expense.salary",      bg: "bg-green-50",  text: "text-green-700",  icon: "👷", bar: "bg-green-500" },
-  rent:        { labelKey: "expense.rent",         bg: "bg-red-50",    text: "text-red-700",    icon: "🏠", bar: "bg-red-500" },
-  other:       { labelKey: "payment.other",         bg: "bg-slate-100", text: "text-slate-700", icon: "•", bar: "bg-slate-400" },
+  transport:   { labelKey: "expense.transport",   bg: "bg-info-soft",   text: "text-info-ink",   icon: "🚚", bar: "bg-info" },
+  shop:        { labelKey: "expense.shop",        bg: "bg-brand-50", text: "text-brand-700", icon: "🏪", bar: "bg-brand-500" },
+  electricity: { labelKey: "expense.electricity", bg: "bg-warning-soft",  text: "text-warning-ink",  icon: "💡", bar: "bg-warning" },
+  packaging:   { labelKey: "expense.packaging",   bg: "bg-accent-50", text: "text-accent-700", icon: "📦", bar: "bg-accent-500" },
+  salary:      { labelKey: "expense.salary",      bg: "bg-success-soft",  text: "text-success-ink",  icon: "👷", bar: "bg-success" },
+  rent:        { labelKey: "expense.rent",         bg: "bg-danger-soft",    text: "text-danger-ink",    icon: "🏠", bar: "bg-danger" },
+  other:       { labelKey: "payment.other",         bg: "bg-surface-2", text: "text-ink-muted", icon: "•", bar: "bg-ink-faint" },
 };
 
 /** Get category metadata with a guaranteed fallback (noUncheckedIndexedAccess safe). */
@@ -74,7 +73,6 @@ export function ExpensesOverview() {
   const summaryQuery = useExpensesSummary(filter);
   const listQuery = useExpensesList(filter);
   const { t } = useLanguage();
-  const symbol = useCurrencySymbol();
 
   const summary = summaryQuery.data;
   const recentList = listQuery.data?.slice(0, 5) ?? [];
@@ -92,7 +90,7 @@ export function ExpensesOverview() {
               "shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
               filter === f.value
                 ? "bg-brand-600 text-white"
-                : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50",
+                : "bg-surface text-ink-muted border border-line hover:bg-app",
             )}
           >
             {t(f.labelKey)}
@@ -141,13 +139,13 @@ export function ExpensesOverview() {
 
       {/* ── Category breakdown ─────────────────────────────────────────── */}
       {summary && summary.byCategory.length > 0 ? (
-        <section className="rounded-xl border border-slate-200 bg-white p-3">
+        <section className="rounded-card border border-line bg-surface shadow-card p-3">
           <div className="mb-2 flex items-center justify-between">
-            <h2 className="flex items-center gap-1.5 text-xs font-semibold text-slate-700">
-              <TrendingUp className="h-3.5 w-3.5 text-slate-400" />
+            <h2 className="flex items-center gap-1.5 text-xs font-semibold text-ink-muted">
+              <TrendingUp className="h-3.5 w-3.5 text-ink-faint" />
               {t("expense.byCategory")}
             </h2>
-            <span className="text-[11px] text-slate-400">
+            <span className="text-[11px] text-ink-faint">
               {summary.byCategory.length} {summary.byCategory.length === 1 ? t("expense.category") : t("expense.categories")}
             </span>
           </div>
@@ -161,16 +159,16 @@ export function ExpensesOverview() {
                       <span className={cn("flex h-6 w-6 items-center justify-center rounded-md text-xs", meta.bg)}>
                         {meta.icon}
                       </span>
-                      <span className="font-medium text-slate-700">{t(meta.labelKey)}</span>
-                      <span className="text-slate-400">· {cat.count}</span>
+                      <span className="font-medium text-ink-muted">{t(meta.labelKey)}</span>
+                      <span className="text-ink-faint">· {cat.count}</span>
                     </div>
                     <div className="flex items-center gap-1.5">
-                      <span className="font-semibold tabular-nums text-slate-900">{formatMoney(cat.total, symbol)}</span>
-                      <span className="text-[10px] text-slate-400">{cat.percentage}%</span>
+                      <span className="font-semibold tabular-nums text-ink">{formatMoney(cat.total)}</span>
+                      <span className="text-[10px] text-ink-faint">{cat.percentage}%</span>
                     </div>
                   </div>
                   {/* Progress bar */}
-                  <div className="h-1.5 overflow-hidden rounded-full bg-slate-100">
+                  <div className="h-1.5 overflow-hidden rounded-full bg-surface-2">
                     <div
                       className={cn("h-full rounded-full transition-all", meta.bar)}
                       style={{ width: `${Math.max(2, cat.percentage)}%` }}
@@ -186,7 +184,7 @@ export function ExpensesOverview() {
       {/* ── Recent expenses ────────────────────────────────────────────── */}
       <section className="space-y-2">
         <div className="flex items-center justify-between">
-          <h2 className="px-1 text-sm font-semibold text-slate-700">{t("expense.recent")}</h2>
+          <h2 className="px-1 text-sm font-semibold text-ink-muted">{t("expense.recent")}</h2>
           <Link
             href="/more/expenses"
             className="text-xs font-medium text-brand-600 hover:underline"
@@ -227,7 +225,7 @@ export function ExpensesOverview() {
             }
           />
         ) : (
-          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+          <div className="overflow-hidden rounded-card border border-line bg-surface shadow-card">
             {recentList.map((expense, idx) => (
               <RecentExpenseRow key={expense.id} expense={expense} isFirst={idx === 0} />
             ))}
@@ -238,7 +236,7 @@ export function ExpensesOverview() {
       {/* ── "Record new expense" CTA ───────────────────────────────────── */}
       <Link
         href="/more/expenses/new"
-        className="flex items-center justify-center gap-1.5 rounded-xl border-2 border-dashed border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-700 hover:border-brand-400 hover:bg-brand-50 hover:text-brand-700 active:scale-[0.99]"
+        className="flex items-center justify-center gap-1.5 rounded-xl border-2 border-dashed border-line-strong bg-surface px-4 py-3 text-sm font-semibold text-ink-muted hover:border-brand-400 hover:bg-brand-50 hover:text-brand-700 active:scale-[0.99]"
       >
         <Plus className="h-4 w-4" strokeWidth={2.5} />
         {t("expense.recordNew")}
@@ -265,34 +263,33 @@ function SummaryCard({
   className?: string;
 }) {
   const { t } = useLanguage();
-  const symbol = useCurrencySymbol();
   // Convert "0" / "0.00" strings to a Decimal for safe display
   const v = new Decimal(value);
   const isZero = v.isZero();
 
   const toneClasses = {
-    primary: "bg-gradient-to-br from-slate-900 to-slate-700 text-white",
-    today: "bg-white border border-slate-200 text-slate-900",
-    month: "bg-white border border-slate-200 text-slate-900",
+    primary: "bg-gradient-to-br from-brand-700 to-brand-500 text-white",
+    today: "bg-surface border border-line text-ink",
+    month: "bg-surface border border-line text-ink",
   }[tone];
 
   return (
-    <div className={cn("rounded-2xl p-3 shadow-sm", toneClasses, className)}>
-      <p className={cn("text-[11px] font-medium uppercase tracking-wide", tone === "primary" ? "text-slate-300" : "text-slate-500")}>
+    <div className={cn("rounded-2xl p-3 shadow-card", toneClasses, className)}>
+      <p className={cn("text-[11px] font-medium uppercase tracking-wide", tone === "primary" ? "text-ink-faint" : "text-ink-subtle")}>
         {label}
       </p>
       <p className={cn(
         "mt-1 text-2xl font-bold tabular-nums",
-        tone === "primary" ? "text-white" : isZero ? "text-slate-400" : "text-red-600",
+        tone === "primary" ? "text-white" : isZero ? "text-ink-faint" : "text-danger-ink",
       )}>
         {tone === "primary" ? (
           // For the primary card, show the value as a Money (no red color)
-          <span className="text-white">{formatMoney(value, symbol)}</span>
+          <span className="text-white">{formatMoney(value)}</span>
         ) : (
-          formatMoney(value, symbol)
+          formatMoney(value)
         )}
       </p>
-      <p className={cn("mt-0.5 text-[11px]", tone === "primary" ? "text-slate-300" : "text-slate-400")}>
+      <p className={cn("mt-0.5 text-[11px]", tone === "primary" ? "text-ink-faint" : "text-ink-faint")}>
         {count} {count === 1 ? t("expense.expense") : t("expense.expenses")}
       </p>
     </div>
@@ -314,23 +311,22 @@ function RecentExpenseRow({
   isFirst: boolean;
 }) {
   const { t } = useLanguage();
-  const symbol = useCurrencySymbol();
   const meta = getCategoryMeta(expense.category);
 
   return (
     <Link
       href={`/more/expenses/${expense.id}`}
       className={cn(
-        "flex items-center gap-3 px-3 py-3 hover:bg-slate-50 active:bg-slate-100",
-        !isFirst && "border-t border-slate-100",
+        "flex items-center gap-3 px-3 py-3 hover:bg-app active:bg-surface-2",
+        !isFirst && "border-t border-line",
       )}
     >
       <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-base", meta.bg)}>
         {meta.icon}
       </div>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium text-slate-900">{expense.name}</p>
-        <div className="flex items-center gap-1.5 text-[11px] text-slate-500">
+        <p className="truncate text-sm font-medium text-ink">{expense.name}</p>
+        <div className="flex items-center gap-1.5 text-[11px] text-ink-subtle">
           <span className={cn("rounded px-1 py-0.5 text-[10px] font-medium", meta.bg, meta.text)}>
             {t(meta.labelKey)}
           </span>
@@ -339,9 +335,9 @@ function RecentExpenseRow({
         </div>
       </div>
       <div className="shrink-0 text-right">
-        <p className="text-sm font-bold tabular-nums text-red-600">-{formatMoney(expense.amount, symbol)}</p>
+        <p className="text-sm font-bold tabular-nums text-danger-ink">-{formatMoney(expense.amount)}</p>
       </div>
-      <ChevronRight className="h-4 w-4 shrink-0 text-slate-300" />
+      <ChevronRight className="h-4 w-4 shrink-0 text-ink-faint" />
     </Link>
   );
 }
@@ -349,30 +345,30 @@ function RecentExpenseRow({
 function SummaryCardsSkeleton() {
   return (
     <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
-      <div className="col-span-2 h-24 animate-pulse rounded-2xl bg-slate-200 sm:col-span-1 sm:row-span-2" />
-      <div className="h-24 animate-pulse rounded-2xl bg-slate-200" />
-      <div className="h-24 animate-pulse rounded-2xl bg-slate-200" />
+      <div className="col-span-2 h-24 animate-pulse rounded-2xl bg-surface-2 sm:col-span-1 sm:row-span-2" />
+      <div className="h-24 animate-pulse rounded-2xl bg-surface-2" />
+      <div className="h-24 animate-pulse rounded-2xl bg-surface-2" />
     </div>
   );
 }
 
 function RecentListSkeleton() {
   return (
-    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+    <div className="overflow-hidden rounded-card border border-line bg-surface shadow-card">
       {[0, 1, 2, 3].map((i) => (
         <div
           key={i}
           className={cn(
             "flex items-center gap-3 px-3 py-3",
-            i > 0 && "border-t border-slate-100",
+            i > 0 && "border-t border-line",
           )}
         >
-          <div className="h-10 w-10 animate-pulse rounded-lg bg-slate-200" />
+          <div className="h-10 w-10 animate-pulse rounded-lg bg-surface-2" />
           <div className="flex-1 space-y-1.5">
-            <div className="h-3.5 w-32 animate-pulse rounded bg-slate-200" />
-            <div className="h-2.5 w-24 animate-pulse rounded bg-slate-100" />
+            <div className="h-3.5 w-32 animate-pulse rounded bg-surface-2" />
+            <div className="h-2.5 w-24 animate-pulse rounded bg-surface-2" />
           </div>
-          <div className="h-3 w-16 animate-pulse rounded bg-slate-200" />
+          <div className="h-3 w-16 animate-pulse rounded bg-surface-2" />
         </div>
       ))}
     </div>

@@ -245,7 +245,7 @@ export function removeRanges(text: string, ranges: Array<[number, number]>): str
 }
 
 /** Words that almost never belong to an entity name in these commands. */
-const STOPWORDS = new Set([
+export const STOPWORDS = new Set([
   "paid", "pay", "gave", "give", "diye", "diya", "de", "received", "receive",
   "bought", "buy", "purchased", "sold", "sell", "from", "to", "se", "ko", "ne",
   "of", "for", "at", "per", "rate", "total", "amount", "rs", "rupees", "rupay",

@@ -11,7 +11,6 @@ import { ContactActions } from "@/components/shared/ContactActions";
 import { useReminders, useSetReminderCompleted, useSnoozeReminder } from "@/hooks/use-reminders";
 import { useCurrencySymbol } from "@/hooks/use-currency-symbol";
 import { useLanguage } from "@/providers/language-provider";
-import { userMessage } from "@/lib/i18n/message";
 import { useToast } from "@/providers/toast-provider";
 import { formatMoney } from "@/lib/utils/money";
 import { EmptyState } from "@/components/shared/EmptyState";
@@ -67,7 +66,7 @@ export function RemindersList() {
         completed: !reminder.completedAt,
       });
     } catch (err) {
-      toast.error(userMessage(err, t, tParams));
+      toast.error(err instanceof Error ? err.message : t("common.failed"));
     }
   }
 
@@ -83,7 +82,7 @@ export function RemindersList() {
         }),
       );
     } catch (err) {
-      toast.error(userMessage(err, t, tParams));
+      toast.error(err instanceof Error ? err.message : t("common.failed"));
     }
   }
 
@@ -101,14 +100,14 @@ export function RemindersList() {
               className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition ${
                 active
                   ? "bg-brand-600 text-white"
-                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                  : "bg-surface-2 text-ink-muted hover:bg-surface-2"
               }`}
             >
               {t(tab.labelKey)}
               {typeof count === "number" && count > 0 ? (
                 <span
                   className={`ml-1.5 rounded-full px-1.5 py-0.5 text-[10px] ${
-                    active ? "bg-white/20" : "bg-white text-slate-600"
+                    active ? "bg-surface/20" : "bg-surface text-ink-muted"
                   }`}
                 >
                   {count}
@@ -120,10 +119,10 @@ export function RemindersList() {
       </div>
 
       {isLoading ? (
-        <p className="py-8 text-center text-sm text-slate-500">{t("common.loading")}</p>
+        <p className="py-8 text-center text-sm text-ink-subtle">{t("common.loading")}</p>
       ) : isError ? (
-        <p className="py-8 text-center text-sm text-red-600">
-          {userMessage(error, t, tParams, "common.couldntLoad")}
+        <p className="py-8 text-center text-sm text-danger-ink">
+          {error instanceof Error ? error.message : t("common.couldntLoad")}
         </p>
       ) : !data || data.items.length === 0 ? (
         filter === "all" ? (
@@ -177,8 +176,8 @@ export function RemindersList() {
             return (
               <li
                 key={r.id}
-                className={`rounded-xl border bg-white p-3 ${
-                  overdue ? "border-red-200" : "border-slate-200"
+                className={`rounded-xl border bg-surface p-3 ${
+                  overdue ? "border-danger/20" : "border-line"
                 }`}
               >
                 <div className="flex items-start gap-3">
@@ -186,7 +185,7 @@ export function RemindersList() {
                     type="button"
                     onClick={() => onToggle(r)}
                     disabled={toggle.isPending}
-                    className="mt-0.5 shrink-0 text-slate-400 hover:text-brand-600"
+                    className="mt-0.5 shrink-0 text-ink-faint hover:text-brand-600"
                     aria-label={done ? t("reminders.markIncomplete") : t("reminders.markComplete")}
                   >
                     {done ? (
@@ -200,7 +199,7 @@ export function RemindersList() {
                     <Link href={`/more/reminders/${r.id}`} className="block">
                       <p
                         className={`text-sm font-medium ${
-                          done ? "text-slate-400 line-through" : "text-slate-900"
+                          done ? "text-ink-faint line-through" : "text-ink"
                         }`}
                       >
                         {r.title}
@@ -209,29 +208,29 @@ export function RemindersList() {
                         <span
                           className={
                             overdue
-                              ? "font-medium text-red-600"
+                              ? "font-medium text-danger-ink"
                               : isToday
-                                ? "font-medium text-amber-700"
-                                : "text-slate-500"
+                                ? "font-medium text-warning-ink"
+                                : "text-ink-subtle"
                           }
                         >
                           {overdue ? <AlertTriangle className="mr-0.5 inline h-3 w-3" /> : null}
                           {dueLabel(r.dueAt)}
                         </span>
-                        <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-600">
+                        <span className="rounded bg-surface-2 px-1.5 py-0.5 text-[10px] text-ink-muted">
                           {t(typeKey)}
                         </span>
                         {r.priority === "high" ? (
-                          <span className="rounded bg-red-50 px-1.5 py-0.5 text-[10px] font-medium text-red-600">
+                          <span className="rounded bg-danger-soft px-1.5 py-0.5 text-[10px] font-medium text-danger-ink">
                             {t("reminderPriority.high")}
                           </span>
                         ) : null}
                       </div>
                       {context ? (
-                        <p className="mt-1 truncate text-xs text-slate-500">{context}</p>
+                        <p className="mt-1 truncate text-xs text-ink-subtle">{context}</p>
                       ) : null}
                       {balanceText ? (
-                        <p className="mt-1 text-xs font-semibold text-slate-800">
+                        <p className="mt-1 text-xs font-semibold text-ink">
                           {t("reminders.owes")} {balanceText}
                         </p>
                       ) : null}
@@ -243,7 +242,7 @@ export function RemindersList() {
                       ) : null}
                       {!done ? (
                         <div className="flex items-center gap-1.5">
-                          <span className="inline-flex items-center gap-1 text-[11px] text-slate-400">
+                          <span className="inline-flex items-center gap-1 text-[11px] text-ink-faint">
                             <Clock className="h-3 w-3" />
                             {t("reminders.later")}
                           </span>
@@ -253,7 +252,7 @@ export function RemindersList() {
                               type="button"
                               disabled={snooze.isPending}
                               onClick={() => onSnooze(r, preset.days)}
-                              className="rounded-lg border border-slate-200 px-2 py-1 text-[11px] font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50 active:scale-[0.97]"
+                              className="rounded-lg border border-line px-2 py-1 text-[11px] font-semibold text-ink-muted hover:bg-app disabled:opacity-50 active:scale-[0.97]"
                             >
                               {t(preset.labelKey)}
                             </button>

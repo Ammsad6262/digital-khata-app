@@ -9,33 +9,35 @@
  *   5. The mobile-first app shell (Screen + BottomNav)
  *
  * Fonts:
- *   - Inter: for English text (Latin script)
- *   - Noto Nastaliq Urdu: for Urdu text (Arabic script) — the gold standard
- *     Urdu font, designed specifically for Nastaliq calligraphy
+ *   - Plus Jakarta Sans: the interface typeface — geometric, warm and a touch
+ *     more characterful than the default system stack.
+ *   - Noto Naskh Arabic: for Urdu text (Arabic script) — the standard,
+ *     highly legible face for reading at interface sizes.
  *
- * Anti-FOUC: inline script sets theme + language dir before first paint
+ * Anti-FOUC: inline script sets theme + language dir before first paint.
  */
 
 import type { Metadata, Viewport } from "next";
-import { Inter } from "next/font/google";
-import { Noto_Nastaliq_Urdu } from "next/font/google";
+import { Plus_Jakarta_Sans, Noto_Naskh_Arabic } from "next/font/google";
 import "./globals.css";
+import { Analytics } from "@vercel/analytics/next";
 import { Providers } from "./providers";
 
-const inter = Inter({
+const jakarta = Plus_Jakarta_Sans({
   subsets: ["latin"],
-  variable: "--font-sans",
+  variable: "--font-jakarta",
   display: "swap",
   preload: true,
   fallback: ["system-ui", "-apple-system", "BlinkMacSystemFont", "Segoe UI", "Roboto", "sans-serif"],
   adjustFontFallback: true,
 });
 
-// Noto Nastaliq Urdu — the premier Urdu font
-// Uses weights 400 (normal) and 700 (bold)
-const nastaliq = Noto_Nastaliq_Urdu({
+// Noto Naskh Arabic — the standard, highly legible Arabic-script face used
+// across Urdu/Arabic interfaces. (Nastaliq is calligraphic and hard to read
+// at interface sizes, so it is kept only as a last-resort fallback.)
+const urduFont = Noto_Naskh_Arabic({
   subsets: ["arabic"],
-  weight: ["400", "700"],
+  weight: ["400", "500", "600", "700"],
   variable: "--font-urdu",
   display: "swap",
   preload: true,
@@ -60,36 +62,35 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  
-  
-  themeColor: "#16a34a",
+  themeColor: "#FAF8F4",
 };
 
-// Anti-FOUC: set theme + language dir BEFORE React hydrates
-// Default theme is "monochrome" (Black & White) for new users.
-// If no localStorage preference exists, apply monochrome immediately.
+// Anti-FOUC: set theme + language dir BEFORE React hydrates.
+// Default theme is "ink" — warm graphite on ledger paper.
 const initScript = `
 (function() {
   try {
-    // Theme — default to monochrome (Black & White) for new users
+    var KNOWN = ['ink', 'emerald', 'saffron', 'indigo', 'rose'];
+    // Migrate theme ids saved by older builds.
+    var LEGACY = { monochrome: 'ink', default: 'emerald', leaf: 'emerald' };
     var t = localStorage.getItem('digital-khata-theme');
-    if (t === 'leaf') {
-      document.documentElement.setAttribute('data-theme', 'leaf');
-    } else if (t === 'default') {
-      // 'default' = no data-theme attribute (uses :root green variables)
-      document.documentElement.removeAttribute('data-theme');
-    } else if (t === 'monochrome') {
-      document.documentElement.setAttribute('data-theme', 'monochrome');
-    } else {
-      // No stored preference → apply monochrome (the default)
-      document.documentElement.setAttribute('data-theme', 'monochrome');
+    if (LEGACY[t]) {
+      t = LEGACY[t];
+      try { localStorage.setItem('digital-khata-theme', t); } catch (e) {}
     }
+    if (KNOWN.indexOf(t) === -1) {
+      // No usable choice stored yet. Show the default for the first paint but
+      // do NOT persist it: an absent value means "no preference", which lets
+      // the server seed the signed-in user's own theme once settings load.
+      t = 'ink';
+    }
+    document.documentElement.setAttribute('data-theme', t);
+
     // Language
     var lang = localStorage.getItem('digital-khata-lang');
     if (lang === 'ur') {
       document.documentElement.setAttribute('dir', 'rtl');
       document.documentElement.setAttribute('lang', 'ur');
-      document.documentElement.classList.add('font-urdu');
     }
   } catch (e) {}
 })();
@@ -106,12 +107,23 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${inter.variable} ${nastaliq.variable}`} suppressHydrationWarning>
+    <html
+      lang="en"
+      translate="no"
+      data-theme="ink"
+      className={`${jakarta.variable} ${urduFont.variable}`}
+      suppressHydrationWarning
+    >
       <head>
+        {/* Never let the browser machine-translate the interface. The app
+            ships its own Urdu; auto-translation mangles it back into bad
+            English (e.g. the brand "دکھاتہ" becomes "Show"). */}
+        <meta name="google" content="notranslate" />
         <script dangerouslySetInnerHTML={{ __html: initScript }} />
       </head>
       <body>
         <Providers>{children}</Providers>
+        <Analytics />
       </body>
     </html>
   );

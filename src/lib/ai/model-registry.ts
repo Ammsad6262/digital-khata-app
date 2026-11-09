@@ -31,10 +31,23 @@ export type ModelConfig = {
   dailyLimit: number;
 };
 
+/**
+ * Verified against the live key (benchmarked with real English/Urdu/Pashto
+ * commands):
+ *   - gemini-3.5-flash        primary; correct on sales, payments, expenses,
+ *                             queries and Urdu/Pashto (variable latency).
+ *   - gemini-3.1-flash-lite   6/6 mixed commands, its own daily quota.
+ *   - gemini-3-flash-preview  fastest when healthy (~1-3 s).
+ *
+ * gemini-flash-latest and gemini-3.8-flash were removed after they repeatedly
+ * hung (20 s+) or returned 503, which burned the caller's time budget without
+ * producing an answer. The free tier allows 20 requests/day PER MODEL, so three
+ * distinct models give ~60 usable requests/day.
+ */
 const FALLBACK_CHAIN: ModelConfig[] = [
   { id: "gemini-3.5-flash", dailyLimit: 20 },
-  { id: "gemini-flash-latest", dailyLimit: 20 },
-  { id: "gemini-3.8-flash", dailyLimit: 20 },
+  { id: "gemini-3.1-flash-lite", dailyLimit: 20 },
+  { id: "gemini-3-flash-preview", dailyLimit: 20 },
 ];
 
 function envInt(name: string, fallback: number): number {

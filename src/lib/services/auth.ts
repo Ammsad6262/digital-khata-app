@@ -108,7 +108,9 @@ export async function verifyToken(token: string): Promise<{ userId: string } | n
     const body = JSON.parse(atob(bodyB64));
     if (body.exp && Math.floor(Date.now() / 1000) > body.exp) return null;
 
-    return { userId: body.userId };
+    return typeof body.userId === "string" && body.userId
+      ? { userId: body.userId }
+      : null;
   } catch {
     return null;
   }
@@ -141,7 +143,7 @@ export async function registerUser(input: {
 
   if (!name) throw new BadRequestError("api.auth.nameRequired");
   if (!email || !email.includes("@")) throw new BadRequestError("api.auth.emailRequired");
-  if (!password || password.length < 6) throw new BadRequestError("api.auth.passwordTooShort");
+  if (!password || password.length < 8) throw new BadRequestError("api.auth.passwordTooShort");
 
   // Check if email already exists
   const existing = await prisma.user.findUnique({ where: { email } });
@@ -192,10 +194,15 @@ export async function loginUser(input: {
   if (!email || !password) throw new BadRequestError("api.auth.credentialsRequired");
 
   const user = await prisma.user.findUnique({ where: { email } });
-  if (!user) throw new UnauthorizedError("api.auth.invalidCredentials");
 
-  const valid = await verifyPassword(password, user.passwordHash);
-  if (!valid) throw new UnauthorizedError("api.auth.invalidCredentials");
+  // Always run a bcrypt comparison — even when the account does not exist — so
+  // response timing cannot be used to enumerate registered email addresses.
+  // This hash is for a random throwaway string, never a real password.
+  const DUMMY_HASH =
+    "$2a$10$mqidfr/VWH0VLZ9mQ3wWROZO6t39OAZsSE4r5WhrVxjpX6q1NxoZu";
+  const valid = await verifyPassword(password, user?.passwordHash ?? DUMMY_HASH);
+
+  if (!user || !valid) throw new UnauthorizedError("api.auth.invalidCredentials");
 
   const token = await signToken({ userId: user.id });
 

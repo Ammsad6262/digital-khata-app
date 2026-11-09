@@ -50,6 +50,7 @@ import { formatMoney } from "@/lib/utils/money";
 import { cn } from "@/lib/utils/cn";
 import Link from "next/link";
 import { useLanguage } from "@/providers/language-provider";
+import { resolveApiError } from "@/lib/i18n/client";
 import { useCurrencySymbol } from "@/hooks/use-currency-symbol";
 import { useSettings } from "@/hooks/use-settings";
 
@@ -149,7 +150,7 @@ export function SmartEntryModal({
         role="dialog"
         aria-modal="true"
         aria-label={t("smartentry.aria.dialog")}
-        className="fixed inset-x-0 bottom-0 z-[90] mx-auto flex w-full max-w-[640px] flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl sm:inset-y-8 sm:bottom-auto sm:rounded-2xl"
+        className="fixed inset-x-0 bottom-0 z-[90] mx-auto flex w-full max-w-[640px] flex-col overflow-hidden rounded-t-2xl bg-surface shadow-2xl sm:inset-y-8 sm:bottom-auto sm:rounded-2xl"
         style={{
           // Mobile: content-aware max-height. The sheet will be as tall as its
           // content needs, up to 90dvh. Short content (ChoiceView) will be ~50%.
@@ -162,25 +163,25 @@ export function SmartEntryModal({
       >
         {/* Drag handle — visual indicator that this is a bottom sheet */}
         <div className="flex shrink-0 justify-center pt-2 sm:hidden">
-          <div className="h-1 w-10 rounded-full bg-slate-300" aria-hidden />
+          <div className="h-1 w-10 rounded-full bg-surface-3" aria-hidden />
         </div>
 
         {/* Header */}
-        <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-5 py-4">
+        <div className="flex shrink-0 items-center justify-between border-b border-line px-5 py-4">
           <div className="flex items-center gap-2.5">
-            <div className="relative flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 text-white shadow-sm">
+            <div className="relative flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 text-white shadow-card">
               <Sparkles className="h-5 w-5" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-slate-900">{t("smartentry.title")}</h2>
-              <p className="text-[11px] text-slate-500">{t("smartentry.subtitle")}</p>
+              <h2 className="text-base font-bold text-ink">{t("smartentry.title")}</h2>
+              <p className="text-[11px] text-ink-subtle">{t("smartentry.subtitle")}</p>
             </div>
           </div>
           <button
             type="button"
             onClick={handleClose}
             disabled={smartEntry.state === "executing"}
-            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 disabled:opacity-30"
+            className="rounded-lg p-1.5 text-ink-faint hover:bg-surface-2 disabled:opacity-30"
             aria-label={t("smartentry.aria.close")}
           >
             <X className="h-5 w-5" />
@@ -543,12 +544,12 @@ function ChoiceView({
   return (
     <div className="space-y-4">
       {/* Example prompts */}
-      <div className="rounded-xl bg-slate-50 p-3.5 text-xs text-slate-600">
-        <p className="mb-1.5 font-medium text-slate-700">{t("smartentry.choice.examplesLabel")}</p>
+      <div className="rounded-xl bg-app p-3.5 text-xs text-ink-muted">
+        <p className="mb-1.5 font-medium text-ink-muted">{t("smartentry.choice.examplesLabel")}</p>
         <ul className="space-y-1">
-          <li className="text-slate-600">&ldquo;{t("smartentry.choice.example1")}&rdquo;</li>
-          <li className="text-slate-600">&ldquo;{t("smartentry.choice.example2")}&rdquo;</li>
-          <li className="text-slate-600">&ldquo;{t("smartentry.choice.example3")}&rdquo;</li>
+          <li className="text-ink-muted">&ldquo;{t("smartentry.choice.example1")}&rdquo;</li>
+          <li className="text-ink-muted">&ldquo;{t("smartentry.choice.example2")}&rdquo;</li>
+          <li className="text-ink-muted">&ldquo;{t("smartentry.choice.example3")}&rdquo;</li>
         </ul>
       </div>
 
@@ -564,9 +565,9 @@ function ChoiceView({
 
       {/* OR divider */}
       <div className="flex items-center gap-3">
-        <div className="h-px flex-1 bg-slate-200" />
-        <span className="text-xs text-slate-400">{t("smartentry.choice.orType")}</span>
-        <div className="h-px flex-1 bg-slate-200" />
+        <div className="h-px flex-1 bg-surface-2" />
+        <span className="text-xs text-ink-faint">{t("smartentry.choice.orType")}</span>
+        <div className="h-px flex-1 bg-surface-2" />
       </div>
 
       {/* Text input — auto-focus when user came from "Type instead" */}
@@ -606,12 +607,12 @@ function TextInput({
         onChange={(e) => setTextValue(e.target.value)}
         placeholder={t("smartentry.input.placeholder")}
         rows={2}
-        className="flex-1 resize-none rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+        className="flex-1 resize-none rounded-card border border-line-strong bg-surface px-3 py-2.5 text-sm text-ink placeholder:text-ink-faint focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
       />
       <button
         type="submit"
         disabled={!value.trim()}
-        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-600 text-white shadow-sm transition-colors hover:bg-brand-700 active:scale-95 disabled:bg-brand-300"
+        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-600 text-white shadow-card transition-colors hover:bg-brand-700 active:scale-95 disabled:bg-brand-300"
         aria-label={t("smartentry.aria.submit")}
       >
         <Send className="h-5 w-5" />
@@ -635,12 +636,12 @@ function RecordingState({
 
   return (
     <div className="flex flex-col items-center justify-center gap-6 py-8">
-      <p className="text-base font-semibold text-slate-900">{t("smartentry.recording.listening")}</p>
+      <p className="text-base font-semibold text-ink">{t("smartentry.recording.listening")}</p>
 
       <div className="relative flex items-center justify-center" style={{ height: 160 }}>
         {/* Outer pulse ring */}
         <div
-          className="absolute rounded-full bg-red-500/30"
+          className="absolute rounded-full bg-danger/30"
           style={{
             width: size,
             height: size,
@@ -648,27 +649,27 @@ function RecordingState({
           }}
         />
         {/* Inner solid circle */}
-        <div className="relative flex h-20 w-20 items-center justify-center rounded-full bg-red-500 text-white shadow-lg shadow-red-500/40">
+        <div className="relative flex h-20 w-20 items-center justify-center rounded-full bg-danger text-white shadow-lg shadow-danger/40">
           <Mic className="h-8 w-8" />
         </div>
       </div>
 
-      <p className="text-xs text-slate-500">{t("smartentry.recording.hint")}</p>
+      <p className="text-xs text-ink-subtle">{t("smartentry.recording.hint")}</p>
 
       <div className="flex gap-2">
         <button
           type="button"
           onClick={onCancel}
-          className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+          className="rounded-card border border-line-strong bg-surface px-4 py-2 text-sm font-medium text-ink-muted hover:bg-app"
         >
           {t("smartentry.action.cancel")}
         </button>
         <button
           type="button"
           onClick={onStop}
-          className="flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-700 active:scale-95"
+          className="flex items-center gap-2 rounded-xl bg-danger px-4 py-2 text-sm font-semibold text-white shadow-card hover:bg-danger/90 active:scale-95"
         >
-          <span className="h-2.5 w-2.5 rounded-sm bg-white" />
+          <span className="h-2.5 w-2.5 rounded-sm bg-surface" />
           {t("smartentry.action.stopAndSend")}
         </button>
       </div>
@@ -691,8 +692,8 @@ function LoadingState({ title, subtitle }: { title: string; subtitle: string }) 
         <Loader2 className="h-8 w-8 animate-spin text-brand-600" />
       </div>
       <div className="text-center">
-        <p className="font-semibold text-slate-900">{title}</p>
-        <p className="mt-0.5 text-xs text-slate-500">{subtitle}</p>
+        <p className="font-semibold text-ink">{title}</p>
+        <p className="mt-0.5 text-xs text-ink-subtle">{subtitle}</p>
       </div>
     </div>
   );
@@ -724,27 +725,27 @@ function ConfirmationView({
     <div className="space-y-5">
       {/* Transcript */}
       {transcript ? (
-        <div className="rounded-xl bg-slate-50 p-3.5">
-          <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">{t("smartentry.transcript.youSaid")}</p>
-          <p className="mt-1 text-sm italic text-slate-700">&ldquo;{transcript}&rdquo;</p>
+        <div className="rounded-xl bg-app p-3.5">
+          <p className="text-[11px] font-medium uppercase tracking-wide text-ink-subtle">{t("smartentry.transcript.youSaid")}</p>
+          <p className="mt-1 text-sm italic text-ink-muted">&ldquo;{transcript}&rdquo;</p>
         </div>
       ) : null}
 
       {/* Preview */}
       <div className="space-y-3">
-        <h3 className="text-sm font-semibold text-slate-900">{t("smartentry.confirm.iUnderstood")}</h3>
+        <h3 className="text-sm font-semibold text-ink">{t("smartentry.confirm.iUnderstood")}</h3>
 
-        <div className="space-y-2.5 rounded-2xl border border-slate-200 bg-white p-4">
+        <div className="space-y-2.5 rounded-2xl border border-line bg-surface p-4">
           <PreviewRow icon={<User className="h-4 w-4" />} label={t("smartentry.field.customer")} value={preview.customerName} />
-          <div className="h-px bg-slate-100" />
+          <div className="h-px bg-surface-2" />
           <PreviewRow icon={<Package className="h-4 w-4" />} label={t("smartentry.field.product")} value={preview.productName} />
-          <div className="h-px bg-slate-100" />
+          <div className="h-px bg-surface-2" />
           <PreviewRow
             icon={<Sparkles className="h-4 w-4" />}
             label={t("smartentry.field.quantity")}
             value={`${preview.quantity} ${preview.unit}`}
           />
-          <div className="h-px bg-slate-100" />
+          <div className="h-px bg-surface-2" />
           <PreviewRow
             icon={<ArrowRight className="h-4 w-4 rtl-flip" />}
             label={t("smartentry.field.type")}
@@ -769,7 +770,7 @@ function ConfirmationView({
         <button
           type="button"
           onClick={onCancel}
-          className="flex-1 rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 active:scale-[0.98]"
+          className="flex-1 rounded-card border border-line-strong bg-surface px-4 py-3 text-sm font-semibold text-ink-muted hover:bg-app active:scale-[0.98]"
         >
           {t("smartentry.action.cancel")}
         </button>
@@ -799,11 +800,11 @@ function PreviewRow({
 }) {
   return (
     <div className="flex items-center justify-between gap-3">
-      <div className="flex items-center gap-2 text-slate-500">
-        <span className="text-slate-400">{icon}</span>
+      <div className="flex items-center gap-2 text-ink-subtle">
+        <span className="text-ink-faint">{icon}</span>
         <span className="text-xs">{label}</span>
       </div>
-      <p className="text-sm font-semibold text-slate-900">{value}</p>
+      <p className="text-sm font-semibold text-ink">{value}</p>
     </div>
   );
 }
@@ -825,8 +826,8 @@ function DisambiguationView({
   return (
     <div className="space-y-4">
       <div>
-        <h3 className="text-sm font-semibold text-slate-900">{type === "customer" ? t("smartentry.disambig.multipleCustomers") : t("smartentry.disambig.multipleProducts")}</h3>
-        {message ? <p className="mt-1 text-xs text-slate-500">{message}</p> : null}
+        <h3 className="text-sm font-semibold text-ink">{type === "customer" ? t("smartentry.disambig.multipleCustomers") : t("smartentry.disambig.multipleProducts")}</h3>
+        {message ? <p className="mt-1 text-xs text-ink-subtle">{message}</p> : null}
       </div>
 
       <div className="space-y-2">
@@ -835,24 +836,24 @@ function DisambiguationView({
             key={c.id}
             type="button"
             onClick={() => onPick(c.id)}
-            className="flex w-full items-center gap-3 rounded-xl border border-slate-200 bg-white p-3 text-left transition-colors hover:bg-slate-50 active:bg-slate-100"
+            className="flex w-full items-center gap-3 rounded-card border border-line bg-surface shadow-card p-3 text-left transition-colors hover:bg-app active:bg-surface-2"
           >
             <div className={cn(
               "flex h-10 w-10 shrink-0 items-center justify-center rounded-full",
-              type === "customer" ? "bg-brand-50 text-brand-600" : "bg-indigo-50 text-indigo-600",
+              type === "customer" ? "bg-brand-50 text-brand-600" : "bg-brand-50 text-brand-600",
             )}>
               {type === "customer" ? <User className="h-5 w-5" /> : <Package className="h-5 w-5" />}
             </div>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-semibold text-slate-900">{c.name}</p>
-              {c.phone ? <p className="text-xs text-slate-500">{c.phone}</p> : null}
+              <p className="truncate text-sm font-semibold text-ink">{c.name}</p>
+              {c.phone ? <p className="text-xs text-ink-subtle">{c.phone}</p> : null}
               {c.unit ? (
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-ink-subtle">
                   {c.unit}{c.sellingPrice ? ` · ${formatMoney(c.sellingPrice)}` : ""}
                 </p>
               ) : null}
             </div>
-            <ArrowRight className="h-4 w-4 shrink-0 text-slate-300 rtl-flip" />
+            <ArrowRight className="h-4 w-4 shrink-0 text-ink-faint rtl-flip" />
           </button>
         ))}
       </div>
@@ -860,7 +861,7 @@ function DisambiguationView({
       <button
         type="button"
         onClick={onCancel}
-        className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+        className="w-full rounded-card border border-line-strong bg-surface px-4 py-2.5 text-sm font-medium text-ink-muted hover:bg-app"
       >
         {t("smartentry.action.cancel")}
       </button>
@@ -883,10 +884,10 @@ function MessageState({
 }) {
   const { t } = useLanguage();
   const toneClasses = {
-    amber: "bg-amber-50 text-amber-700 border-amber-200",
-    blue: "bg-blue-50 text-blue-700 border-blue-200",
-    red: "bg-red-50 text-red-700 border-red-200",
-    slate: "bg-slate-50 text-slate-700 border-slate-200",
+    amber: "bg-warning-soft text-warning-ink border-warning/25",
+    blue: "bg-info-soft text-info-ink border-info/20",
+    red: "bg-danger-soft text-danger-ink border-danger/20",
+    slate: "bg-app text-ink-muted border-line",
   }[tone];
 
   return (
@@ -964,7 +965,7 @@ function EditableFormView({
   onConfirm: (input: { customerId: string; productId: string; quantity: number; unitPrice?: number; paidAmount?: number; batchId?: string }) => void;
   onCancel: () => void;
 }) {
-  const { t, tParams, lang } = useLanguage();
+  const { t, tParams } = useLanguage();
   const symbol = useCurrencySymbol();
   // Local form state — initialized from the AI-resolved values, fully editable
   const [customerId, setCustomerId] = useState<string>(form.resolvedCustomerId ?? "");
@@ -1075,15 +1076,15 @@ function EditableFormView({
     <div className="space-y-4">
       {/* Transcript — what the user said */}
       {transcript ? (
-        <div className="rounded-xl bg-slate-50 p-3.5">
-          <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">{t("smartentry.transcript.youSaid")}</p>
-          <p className="mt-1 text-sm italic text-slate-700">&ldquo;{transcript}&rdquo;</p>
+        <div className="rounded-xl bg-app p-3.5">
+          <p className="text-[11px] font-medium uppercase tracking-wide text-ink-subtle">{t("smartentry.transcript.youSaid")}</p>
+          <p className="mt-1 text-sm italic text-ink-muted">&ldquo;{transcript}&rdquo;</p>
         </div>
       ) : null}
 
       {/* V3: Price conflict warning */}
       {form.priceConflict ? (
-        <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800">
+        <div className="rounded-xl border border-warning/30 bg-warning-soft p-3 text-sm text-warning-ink">
           <p className="font-semibold">{t("smartentry.priceConflict.title")}</p>
           <p className="mt-1 text-xs">
             {tParams("smartentry.priceConflict.detail", {
@@ -1100,12 +1101,12 @@ function EditableFormView({
 
       {/* V3: New customer prompt — with "Add" button */}
       {form.isNewCustomer && !customerId && !showNewCustomerForm ? (
-        <div className="rounded-xl border border-blue-300 bg-blue-50 p-3.5 text-sm text-blue-900">
+        <div className="rounded-xl border border-info/30 bg-info-soft p-3.5 text-sm text-info-ink">
           <p className="font-semibold flex items-center gap-2">
             <UserPlus className="h-4 w-4 shrink-0" />
             {t("smartentry.newCustomer.detected")}
           </p>
-          <p className="mt-1 text-xs text-blue-700">
+          <p className="mt-1 text-xs text-info-ink">
             {tParams("smartentry.newCustomer.prompt", { name: form.customerNameRaw ?? "" })}
           </p>
           <button
@@ -1114,7 +1115,7 @@ function EditableFormView({
               setNewCustomerName(form.customerNameRaw ?? "");
               setShowNewCustomerForm(true);
             }}
-            className="mt-2.5 flex w-full items-center justify-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700 active:scale-[0.98]"
+            className="mt-2.5 flex w-full items-center justify-center gap-1.5 rounded-lg bg-brand-600 px-3 py-2 text-sm font-semibold text-white shadow-card transition-colors hover:bg-brand-700 active:scale-[0.98]"
           >
             <Plus className="h-4 w-4" strokeWidth={2.5} />
             {tParams("smartentry.newCustomer.addName", { name: form.customerNameRaw ?? "" })}
@@ -1149,19 +1150,19 @@ function EditableFormView({
 
       {/* V6: New product prompt — with "Add Product" + "Choose Another" buttons */}
       {form.isNewProduct && !productId && !showNewProductWizard ? (
-        <div className="rounded-xl border border-indigo-300 bg-indigo-50 p-3.5 text-sm text-indigo-900">
+        <div className="rounded-xl border border-brand-200 bg-brand-50 p-3.5 text-sm text-brand-700">
           <p className="font-semibold flex items-center gap-2">
             <Package className="h-4 w-4 shrink-0" />
             {t("smartentry.newProduct.detected")}
           </p>
-          <p className="mt-1 text-xs text-indigo-700">
+          <p className="mt-1 text-xs text-brand-700">
             {tParams("smartentry.newProduct.prompt", { name: form.productNameRaw ?? "" })}
           </p>
           <div className="mt-2.5 grid grid-cols-2 gap-2">
             <button
               type="button"
               onClick={() => setShowNewProductWizard(true)}
-              className="flex items-center justify-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-indigo-700 active:scale-[0.98]"
+              className="flex items-center justify-center gap-1.5 rounded-lg bg-brand-600 px-3 py-2 text-sm font-semibold text-white shadow-card transition-colors hover:bg-brand-700 active:scale-[0.98]"
             >
               <Plus className="h-4 w-4" strokeWidth={2.5} />
               {t("smartentry.newProduct.add")}
@@ -1169,7 +1170,7 @@ function EditableFormView({
             <button
               type="button"
               onClick={() => setShowNewProductWizard(false)}
-              className="flex items-center justify-center gap-1.5 rounded-lg border border-indigo-300 bg-white px-3 py-2 text-sm font-semibold text-indigo-700 shadow-sm transition-colors hover:bg-indigo-50 active:scale-[0.98]"
+              className="flex items-center justify-center gap-1.5 rounded-lg border border-brand-200 bg-surface px-3 py-2 text-sm font-semibold text-brand-700 shadow-card transition-colors hover:bg-brand-50 active:scale-[0.98]"
             >
               <Package className="h-4 w-4" strokeWidth={2.5} />
               {t("smartentry.newProduct.chooseAnother")}
@@ -1282,10 +1283,10 @@ function EditableFormView({
             <select
               value={batchId}
               onChange={(e) => setBatchId(e.target.value)}
-              className={`w-full rounded-xl border bg-white px-3 py-2.5 text-sm font-medium text-slate-900 focus:outline-none focus:ring-2 ${
+              className={`w-full rounded-xl border bg-surface px-3 py-2.5 text-sm font-medium text-ink focus:outline-none focus:ring-2 ${
                 liveBatchSelectionRequired && !batchId
-                  ? "border-amber-400 focus:border-amber-500 focus:ring-amber-500/30"
-                  : "border-slate-300 focus:border-brand-500 focus:ring-brand-500/30"
+                  ? "border-warning focus:border-warning focus:ring-warning/30"
+                  : "border-line-strong focus:border-brand-500 focus:ring-brand-500/30"
               }`}
             >
               <option value="">
@@ -1293,22 +1294,14 @@ function EditableFormView({
               </option>
               {allBatchCandidates.map((b) => (
                 <option key={b.id} value={b.id}>
-                  {b.batchName ??
-                    tParams("smartentry.batch.fallback", {
-                      date: new Date(b.date).toLocaleDateString(
-                        lang === "ur" ? "ur-PK-u-nu-latn" : "en-GB",
-                      ),
-                    })}
-                  {" — "}
-                  {tParams("smartentry.batch.perUnit", {
-                    amount: `${symbol} ${b.unitCost ?? "?"}`,
-                  })}
+                  {b.batchName ?? `Batch ${new Date(b.date).toLocaleDateString()}`}
+                  {" — "}{symbol} {b.unitCost ?? "?"}/unit
                   {" — "}{tParams("smartentry.batch.remaining", { qty: b.remainingQuantity })}
                 </option>
               ))}
             </select>
             {liveBatchSelectionRequired && !batchId ? (
-              <p className="mt-1 text-xs text-amber-600">{t("smartentry.batch.selectError")}</p>
+              <p className="mt-1 text-xs text-warning-ink">{t("smartentry.batch.selectError")}</p>
             ) : null}
           </Field>
         ) : null}
@@ -1324,11 +1317,11 @@ function EditableFormView({
               value={quantityStr}
               onChange={(e) => setQuantityStr(e.target.value)}
               placeholder="0"
-              className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+              className="w-full rounded-card border border-line-strong bg-surface px-3 py-2.5 text-sm font-medium text-ink placeholder:text-ink-faint focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
             />
           </Field>
           <Field label={t("smartentry.field.unit")} isFilled={!!unit}>
-            <div className="flex h-[42px] items-center rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-medium text-slate-700">
+            <div className="flex h-[42px] items-center rounded-card border border-line bg-app px-3 text-sm font-medium text-ink-muted">
               {unit ?? "—"}
             </div>
           </Field>
@@ -1347,23 +1340,23 @@ function EditableFormView({
             value={unitPriceStr}
             onChange={(e) => setUnitPriceStr(e.target.value)}
             placeholder={defaultProductPrice != null ? String(defaultProductPrice) : "0"}
-            className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+            className="w-full rounded-card border border-line-strong bg-surface px-3 py-2.5 text-sm font-medium text-ink placeholder:text-ink-faint focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
           />
         </Field>
 
         {/* V4: Payment + Balance section */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-3">
+        <div className="rounded-2xl border border-line bg-surface p-4 space-y-3">
           {/* Total Amount */}
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium uppercase tracking-wide text-slate-500">{t("smartentry.field.totalAmount")}</span>
-            <span className="text-lg font-bold text-slate-900">
+            <span className="text-xs font-medium uppercase tracking-wide text-ink-subtle">{t("smartentry.field.totalAmount")}</span>
+            <span className="text-lg font-bold text-ink">
               {calculatedTotal != null ? formatMoney(calculatedTotal) : "—"}
             </span>
           </div>
 
           {/* Amount Paid (editable) */}
           <div className="flex items-center justify-between gap-2">
-            <span className="text-xs font-medium uppercase tracking-wide text-slate-500">{t("smartentry.field.amountPaid")}</span>
+            <span className="text-xs font-medium uppercase tracking-wide text-ink-subtle">{t("smartentry.field.amountPaid")}</span>
             <input
               type="number"
               inputMode="decimal"
@@ -1372,42 +1365,42 @@ function EditableFormView({
               value={paidAmountStr}
               onChange={(e) => setPaidAmountStr(e.target.value)}
               placeholder="0"
-              className="w-28 rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-right text-sm font-semibold text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+              className="w-28 rounded-lg border border-line-strong bg-surface px-2 py-1.5 text-right text-sm font-semibold text-ink placeholder:text-ink-faint focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
             />
           </div>
 
           {/* Divider */}
-          <div className="border-t-2 border-dashed border-slate-100" />
+          <div className="border-t-2 border-dashed border-line" />
 
           {/* Balance — HE OWES US / WE OWE HIM / FULLY PAID */}
           {liveBalance != null ? (
             liveBalance > 0 ? (
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold uppercase tracking-wide text-amber-700">{t("smartentry.balance.heOwesUs")}</span>
-                <span className="text-lg font-bold text-amber-700">{formatMoney(liveBalance)}</span>
+                <span className="text-xs font-bold uppercase tracking-wide text-warning-ink">{t("smartentry.balance.heOwesUs")}</span>
+                <span className="text-lg font-bold text-warning-ink">{formatMoney(liveBalance)}</span>
               </div>
             ) : liveBalance < 0 ? (
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold uppercase tracking-wide text-blue-700">{t("smartentry.balance.weOweHim")}</span>
-                <span className="text-lg font-bold text-blue-700">{formatMoney(Math.abs(liveBalance))}</span>
+                <span className="text-xs font-bold uppercase tracking-wide text-info-ink">{t("smartentry.balance.weOweHim")}</span>
+                <span className="text-lg font-bold text-info-ink">{formatMoney(Math.abs(liveBalance))}</span>
               </div>
             ) : (
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold uppercase tracking-wide text-green-700">{t("smartentry.balance.fullyPaid")}</span>
-                <span className="text-lg font-bold text-green-700">{formatMoney(0)}</span>
+                <span className="text-xs font-bold uppercase tracking-wide text-success-ink">{t("smartentry.balance.fullyPaid")}</span>
+                <span className="text-lg font-bold text-success-ink">{formatMoney(0)}</span>
               </div>
             )
           ) : (
             <div className="flex items-center justify-between">
-              <span className="text-xs font-medium uppercase tracking-wide text-slate-400">{t("smartentry.field.balance")}</span>
-              <span className="text-lg font-bold text-slate-400">—</span>
+              <span className="text-xs font-medium uppercase tracking-wide text-ink-faint">{t("smartentry.field.balance")}</span>
+              <span className="text-lg font-bold text-ink-faint">—</span>
             </div>
           )}
 
           {/* Show explicit total if the user said one and it differs */}
           {explicitTotalDisplay != null && calculatedTotal != null &&
            Math.abs(explicitTotalDisplay - calculatedTotal) > 1 ? (
-            <p className="border-t border-slate-100 pt-2 text-xs text-slate-500">
+            <p className="border-t border-line pt-2 text-xs text-ink-subtle">
               {tParams("smartentry.explicitTotal.detail", {
                 total: `${symbol} ${explicitTotalDisplay.toLocaleString()}`,
                 rate: `${symbol} ${(explicitTotalDisplay / quantityNum).toFixed(2)}/${unit}`,
@@ -1422,7 +1415,7 @@ function EditableFormView({
         <button
           type="button"
           onClick={onCancel}
-          className="flex-1 rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 active:scale-[0.98]"
+          className="flex-1 rounded-card border border-line-strong bg-surface px-4 py-3 text-sm font-semibold text-ink-muted hover:bg-app active:scale-[0.98]"
         >
           {t("smartentry.action.cancel")}
         </button>
@@ -1454,10 +1447,10 @@ function Field({
 }) {
   return (
     <div>
-      <label className="mb-1 flex items-center gap-1.5 text-xs font-medium text-slate-600">
+      <label className="mb-1 flex items-center gap-1.5 text-xs font-medium text-ink-muted">
         {label}
         {isFilled ? (
-          <Check className="h-3 w-3 text-green-600" strokeWidth={3} />
+          <Check className="h-3 w-3 text-success-ink" strokeWidth={3} />
         ) : null}
       </label>
       {children}
@@ -1514,12 +1507,12 @@ function SearchablePicker<T extends { id: string; name: string }>({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="flex w-full items-center justify-between gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-left text-sm font-medium text-slate-900 hover:border-brand-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+        className="flex w-full items-center justify-between gap-2 rounded-card border border-line-strong bg-surface px-3 py-2.5 text-left text-sm font-medium text-ink hover:border-brand-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
       >
-        <span className={selected ? "text-slate-900" : "text-slate-400"}>
+        <span className={selected ? "text-ink" : "text-ink-faint"}>
           {selected ? selected.name : placeholder}
         </span>
-        <ChevronDown className="h-4 w-4 shrink-0 text-slate-400" />
+        <ChevronDown className="h-4 w-4 shrink-0 text-ink-faint" />
       </button>
 
       {/* Search overlay */}
@@ -1530,23 +1523,23 @@ function SearchablePicker<T extends { id: string; name: string }>({
             onClick={() => setOpen(false)}
             aria-hidden
           />
-          <div className="fixed inset-x-0 bottom-0 z-[110] mx-auto flex max-h-[70dvh] w-full max-w-[640px] flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl"
+          <div className="fixed inset-x-0 bottom-0 z-[110] mx-auto flex max-h-[70dvh] w-full max-w-[640px] flex-col overflow-hidden rounded-t-2xl bg-surface shadow-2xl"
                style={{ animation: "se-slide-up 0.2s ease-out" }}>
             {/* Search input */}
-            <div className="border-b border-slate-100 p-3">
+            <div className="border-b border-line p-3">
               <input
                 type="text"
                 autoFocus
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder={t("smartentry.placeholder.search")}
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+                className="w-full rounded-lg border border-line-strong bg-surface px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
               />
             </div>
             {/* Results */}
             <div className="flex-1 overflow-y-auto">
               {filtered.length === 0 ? (
-                <p className="p-4 text-center text-sm text-slate-500">{emptyText}</p>
+                <p className="p-4 text-center text-sm text-ink-subtle">{emptyText}</p>
               ) : (
                 filtered.map((c) => (
                   <button
@@ -1558,14 +1551,14 @@ function SearchablePicker<T extends { id: string; name: string }>({
                       setQuery("");
                     }}
                     className={cn(
-                      "flex w-full items-center justify-between gap-2 border-b border-slate-50 px-4 py-3 text-left hover:bg-slate-50",
+                      "flex w-full items-center justify-between gap-2 border-b border-line px-4 py-3 text-left hover:bg-app",
                       c.id === value && "bg-brand-50",
                     )}
                   >
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium text-slate-900">{c.name}</p>
+                      <p className="truncate text-sm font-medium text-ink">{c.name}</p>
                       {getSubtitle ? (
-                        <p className="text-xs text-slate-500">{getSubtitle(c)}</p>
+                        <p className="text-xs text-ink-subtle">{getSubtitle(c)}</p>
                       ) : null}
                     </div>
                     {c.id === value ? <Check className="h-4 w-4 shrink-0 text-brand-600" /> : null}
@@ -1574,11 +1567,11 @@ function SearchablePicker<T extends { id: string; name: string }>({
               )}
             </div>
             {/* Close button */}
-            <div className="border-t border-slate-100 p-2">
+            <div className="border-t border-line p-2">
               <button
                 type="button"
                 onClick={() => setOpen(false)}
-                className="w-full rounded-lg py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
+                className="w-full rounded-lg py-2 text-sm font-medium text-ink-muted hover:bg-app"
               >
                 {t("smartentry.action.close")}
                 </button>
@@ -1628,7 +1621,7 @@ function NewCustomerForm({
       });
       const json = await res.json();
       if (!json.ok) {
-        setError(json.error?.message ?? t("smartentry.error.createCustomerFailed"));
+        setError(resolveApiError(json.error) || t("smartentry.error.createCustomerFailed"));
         return;
       }
       // Success — call onCreated with the new customer
@@ -1645,42 +1638,42 @@ function NewCustomerForm({
   };
 
   return (
-    <div className="rounded-xl border border-blue-200 bg-blue-50/50 p-4 space-y-3">
+    <div className="rounded-xl border border-info/20 bg-info-soft/50 p-4 space-y-3">
       <div className="flex items-center gap-2">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 text-white">
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-600 text-white">
           <UserPlus className="h-4 w-4" />
         </div>
-        <h3 className="text-sm font-bold text-slate-900">{t("smartentry.newCustomer.title")}</h3>
+        <h3 className="text-sm font-bold text-ink">{t("smartentry.newCustomer.title")}</h3>
       </div>
 
       {/* Name field */}
       <div>
-        <label className="mb-1 block text-xs font-medium text-slate-600">{t("smartentry.field.name")}</label>
+        <label className="mb-1 block text-xs font-medium text-ink-muted">{t("smartentry.field.name")}</label>
         <input
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder={t("smartentry.placeholder.customerName")}
           autoFocus
-          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+          className="w-full rounded-lg border border-line-strong bg-surface px-3 py-2 text-sm font-medium text-ink placeholder:text-ink-faint focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
         />
       </div>
 
       {/* Phone field (optional) */}
       <div>
-        <label className="mb-1 block text-xs font-medium text-slate-600">{t("smartentry.field.phone")} <span className="text-slate-400">({t("common.optional")})</span></label>
+        <label className="mb-1 block text-xs font-medium text-ink-muted">{t("smartentry.field.phone")} <span className="text-ink-faint">({t("common.optional")})</span></label>
         <input
           type="tel"
           value={phone}
           onChange={(e) => setPhone(e.target.value)}
           placeholder={t("smartentry.placeholder.phone")}
-          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+          className="w-full rounded-lg border border-line-strong bg-surface px-3 py-2 text-sm font-medium text-ink placeholder:text-ink-faint focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
         />
       </div>
 
       {/* Error message */}
       {error ? (
-        <div className="flex items-center gap-2 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+        <div className="flex items-center gap-2 rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger-ink">
           <AlertCircle className="h-4 w-4 shrink-0" />
           <span>{error}</span>
         </div>
@@ -1692,7 +1685,7 @@ function NewCustomerForm({
           type="button"
           onClick={onCancel}
           disabled={isSubmitting}
-          className="flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+          className="flex-1 rounded-lg border border-line-strong bg-surface px-3 py-2 text-sm font-semibold text-ink-muted hover:bg-app disabled:opacity-50"
         >
           {t("smartentry.action.cancel")}
         </button>
@@ -1700,7 +1693,7 @@ function NewCustomerForm({
           type="button"
           onClick={handleSubmit}
           disabled={isSubmitting || !name.trim()}
-          className="flex-1 rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 active:scale-[0.98] disabled:bg-blue-300"
+          className="flex-1 rounded-lg bg-brand-600 px-3 py-2 text-sm font-semibold text-white shadow-card hover:bg-brand-700 active:scale-[0.98] disabled:bg-brand-300"
         >
           {isSubmitting ? (
             <span className="flex items-center justify-center gap-1.5">
@@ -1868,7 +1861,7 @@ function AddProductWizard({
       });
       const json = await res.json();
       if (!json.ok) {
-        setCustomUnitError(json.error?.message ?? t("smartentry.error.addUnitFailed"));
+        setCustomUnitError(resolveApiError(json.error) || t("smartentry.error.addUnitFailed"));
         return;
       }
       setCustomUnits(json.data.customUnits ?? []);
@@ -1909,7 +1902,7 @@ function AddProductWizard({
       });
       const json = await res.json();
       if (!json.ok) {
-        setError(json.error?.message ?? t("smartentry.error.createProductFailed"));
+        setError(resolveApiError(json.error) || t("smartentry.error.createProductFailed"));
         return;
       }
       onCreated({
@@ -1934,13 +1927,13 @@ function AddProductWizard({
   };
 
   return (
-    <div className="rounded-xl border border-indigo-200 bg-indigo-50/40 p-4 space-y-4">
+    <div className="rounded-xl border border-brand-200 bg-brand-50/40 p-4 space-y-4">
       {/* Header */}
       <div className="flex items-center gap-2">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-600 text-white">
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-600 text-white">
           <Package className="h-4 w-4" />
         </div>
-        <h3 className="text-sm font-bold text-slate-900">{t("smartentry.newProduct.title")}</h3>
+        <h3 className="text-sm font-bold text-ink">{t("smartentry.newProduct.title")}</h3>
       </div>
 
       {/* Step indicator */}
@@ -1951,14 +1944,14 @@ function AddProductWizard({
               className={cn(
                 "flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold",
                 step >= s
-                  ? "bg-indigo-600 text-white"
-                  : "bg-slate-200 text-slate-500",
+                  ? "bg-brand-600 text-white"
+                  : "bg-surface-2 text-ink-subtle",
               )}
             >
               {step > s ? <Check className="h-3 w-3" strokeWidth={3} /> : s}
             </div>
             {s < 3 ? (
-              <div className={cn("h-0.5 flex-1", step > s ? "bg-indigo-600" : "bg-slate-200")} />
+              <div className={cn("h-0.5 flex-1", step > s ? "bg-brand-600" : "bg-surface-2")} />
             ) : null}
           </div>
         ))}
@@ -1967,11 +1960,11 @@ function AddProductWizard({
       {/* Step 1 — Product Details */}
       {step === 1 ? (
         <div className="space-y-3">
-          <p className="text-xs font-medium text-slate-600">{t("smartentry.wizard.step1")}</p>
+          <p className="text-xs font-medium text-ink-muted">{t("smartentry.wizard.step1")}</p>
 
           <div>
-            <label className="mb-1 block text-xs font-medium text-slate-600">
-              {t("smartentry.field.name")} <span className="text-red-500">*</span>
+            <label className="mb-1 block text-xs font-medium text-ink-muted">
+              {t("smartentry.field.name")} <span className="text-danger">*</span>
             </label>
             <input
               type="text"
@@ -1980,34 +1973,34 @@ function AddProductWizard({
               placeholder={t("smartentry.placeholder.productName")}
               autoFocus
               className={cn(
-                "w-full rounded-lg border bg-white px-3 py-2 text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2",
+                "w-full rounded-lg border bg-surface px-3 py-2 text-sm font-medium text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2",
                 step1Errors.name
-                  ? "border-red-300 focus:border-red-500 focus:ring-red-500/30"
-                  : "border-slate-300 focus:border-indigo-500 focus:ring-indigo-500/30",
+                  ? "border-danger/40 focus:border-danger focus:ring-danger/30"
+                  : "border-line-strong focus:border-brand-500 focus:ring-brand-500/30",
               )}
             />
             {step1Errors.name ? (
-              <p className="mt-1 text-xs text-red-600">{step1Errors.name}</p>
+              <p className="mt-1 text-xs text-danger-ink">{step1Errors.name}</p>
             ) : null}
           </div>
 
           <div>
-            <label className="mb-1 block text-xs font-medium text-slate-600">
-              {t("smartentry.field.category")} <span className="text-slate-400">({t("common.optional")})</span>
+            <label className="mb-1 block text-xs font-medium text-ink-muted">
+              {t("smartentry.field.category")} <span className="text-ink-faint">({t("common.optional")})</span>
             </label>
             <input
               type="text"
               value={category}
               onChange={(e) => setCategory(e.target.value)}
               placeholder={t("smartentry.placeholder.category")}
-              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+              className="w-full rounded-lg border border-line-strong bg-surface px-3 py-2 text-sm font-medium text-ink placeholder:text-ink-faint focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-2.5">
             <div>
-              <label className="mb-1 block text-xs font-medium text-slate-600">
-                {t("smartentry.field.unit")} <span className="text-red-500">*</span>
+              <label className="mb-1 block text-xs font-medium text-ink-muted">
+                {t("smartentry.field.unit")} <span className="text-danger">*</span>
               </label>
               <select
                 value={unit}
@@ -2020,10 +2013,10 @@ function AddProductWizard({
                   }
                 }}
                 className={cn(
-                  "w-full rounded-lg border bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2",
+                  "w-full rounded-lg border bg-surface px-3 py-2 text-sm text-ink focus:outline-none focus:ring-2",
                   step1Errors.unit
-                    ? "border-red-300 focus:border-red-500 focus:ring-red-500/30"
-                    : "border-slate-300 focus:border-indigo-500 focus:ring-indigo-500/30",
+                    ? "border-danger/40 focus:border-danger focus:ring-danger/30"
+                    : "border-line-strong focus:border-brand-500 focus:ring-brand-500/30",
                 )}
               >
                 {PRODUCT_UNITS.map((u) => (
@@ -2035,26 +2028,26 @@ function AddProductWizard({
                 <option value="__custom__">{t("smartentry.unit.addNew")}</option>
               </select>
               {step1Errors.unit ? (
-                <p className="mt-1 text-xs text-red-600">{step1Errors.unit}</p>
+                <p className="mt-1 text-xs text-danger-ink">{step1Errors.unit}</p>
               ) : null}
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-slate-600">
-                {t("smartentry.field.sku")} <span className="text-slate-400">({t("common.optional")})</span>
+              <label className="mb-1 block text-xs font-medium text-ink-muted">
+                {t("smartentry.field.sku")} <span className="text-ink-faint">({t("common.optional")})</span>
               </label>
               <input
                 type="text"
                 value={sku}
                 onChange={(e) => setSku(e.target.value)}
                 placeholder={t("smartentry.placeholder.sku")}
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+                className="w-full rounded-lg border border-line-strong bg-surface px-3 py-2 text-sm font-medium text-ink placeholder:text-ink-faint focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
               />
             </div>
           </div>
 
           {showCustomUnitInput ? (
-            <div className="rounded-lg border border-indigo-200 bg-white p-3 space-y-2">
-              <label className="block text-xs font-medium text-slate-600">{t("smartentry.unit.newName")}</label>
+            <div className="rounded-lg border border-brand-200 bg-surface p-3 space-y-2">
+              <label className="block text-xs font-medium text-ink-muted">{t("smartentry.unit.newName")}</label>
               <div className="flex gap-2">
                 <input
                   type="text"
@@ -2063,7 +2056,7 @@ function AddProductWizard({
                   placeholder={t("smartentry.placeholder.customUnit")}
                   maxLength={20}
                   autoFocus
-                  className="flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+                  className="flex-1 rounded-lg border border-line-strong bg-surface px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
                   onKeyDown={(e) => {
                     if (e.key === "Enter") {
                       e.preventDefault();
@@ -2075,13 +2068,13 @@ function AddProductWizard({
                   type="button"
                   onClick={handleAddCustomUnit}
                   disabled={addingCustomUnit || !customUnitInput.trim()}
-                  className="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:bg-indigo-300"
+                  className="rounded-lg bg-brand-600 px-3 py-2 text-sm font-semibold text-white hover:bg-brand-700 disabled:bg-brand-300"
                 >
                   {addingCustomUnit ? <Loader2 className="h-4 w-4 animate-spin" /> : t("smartentry.action.add")}
                 </button>
               </div>
               {customUnitError ? (
-                <p className="text-xs text-red-600">{customUnitError}</p>
+                <p className="text-xs text-danger-ink">{customUnitError}</p>
               ) : null}
               <button
                 type="button"
@@ -2090,7 +2083,7 @@ function AddProductWizard({
                   setCustomUnitInput("");
                   setCustomUnitError(null);
                 }}
-                className="text-xs text-slate-500 hover:text-slate-700"
+                className="text-xs text-ink-subtle hover:text-ink-muted"
               >
                 {t("smartentry.action.cancel")}
               </button>
@@ -2102,7 +2095,7 @@ function AddProductWizard({
               type="button"
               onClick={onCancel}
               disabled={isSubmitting}
-              className="flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+              className="flex-1 rounded-lg border border-line-strong bg-surface px-3 py-2 text-sm font-semibold text-ink-muted hover:bg-app disabled:opacity-50"
             >
               {t("smartentry.action.cancel")}
             </button>
@@ -2110,7 +2103,7 @@ function AddProductWizard({
               type="button"
               onClick={() => setStep(2)}
               disabled={!step1CanContinue}
-              className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700 active:scale-[0.98] disabled:bg-indigo-300"
+              className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-brand-600 px-3 py-2 text-sm font-semibold text-white shadow-card hover:bg-brand-700 active:scale-[0.98] disabled:bg-brand-300"
             >
               {t("smartentry.action.next")}
               <ArrowRight className="h-4 w-4 rtl-flip" />
@@ -2122,12 +2115,12 @@ function AddProductWizard({
       {/* Step 2 — Prices & Opening Stock */}
       {step === 2 ? (
         <div className="space-y-3">
-          <p className="text-xs font-medium text-slate-600">{t("smartentry.wizard.step2")}</p>
+          <p className="text-xs font-medium text-ink-muted">{t("smartentry.wizard.step2")}</p>
 
           <div className="grid grid-cols-2 gap-2.5">
             <div>
-              <label className="mb-1 block text-xs font-medium text-slate-600">
-                {t("smartentry.field.purchasePrice")} <span className="text-red-500">*</span>
+              <label className="mb-1 block text-xs font-medium text-ink-muted">
+                {t("smartentry.field.purchasePrice")} <span className="text-danger">*</span>
               </label>
               <input
                 type="number"
@@ -2138,19 +2131,19 @@ function AddProductWizard({
                 onChange={(e) => setPurchasePrice(e.target.value)}
                 placeholder="0"
                 className={cn(
-                  "w-full rounded-lg border bg-white px-3 py-2 text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2",
+                  "w-full rounded-lg border bg-surface px-3 py-2 text-sm font-medium text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2",
                   step2Errors.purchasePrice
-                    ? "border-red-300 focus:border-red-500 focus:ring-red-500/30"
-                    : "border-slate-300 focus:border-indigo-500 focus:ring-indigo-500/30",
+                    ? "border-danger/40 focus:border-danger focus:ring-danger/30"
+                    : "border-line-strong focus:border-brand-500 focus:ring-brand-500/30",
                 )}
               />
               {step2Errors.purchasePrice ? (
-                <p className="mt-1 text-xs text-red-600">{step2Errors.purchasePrice}</p>
+                <p className="mt-1 text-xs text-danger-ink">{step2Errors.purchasePrice}</p>
               ) : null}
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-slate-600">
-                {t("smartentry.field.sellingPrice")} <span className="text-red-500">*</span>
+              <label className="mb-1 block text-xs font-medium text-ink-muted">
+                {t("smartentry.field.sellingPrice")} <span className="text-danger">*</span>
               </label>
               <input
                 type="number"
@@ -2161,21 +2154,21 @@ function AddProductWizard({
                 onChange={(e) => setSellingPrice(e.target.value)}
                 placeholder="0"
                 className={cn(
-                  "w-full rounded-lg border bg-white px-3 py-2 text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2",
+                  "w-full rounded-lg border bg-surface px-3 py-2 text-sm font-medium text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2",
                   step2Errors.sellingPrice
-                    ? "border-red-300 focus:border-red-500 focus:ring-red-500/30"
-                    : "border-slate-300 focus:border-indigo-500 focus:ring-indigo-500/30",
+                    ? "border-danger/40 focus:border-danger focus:ring-danger/30"
+                    : "border-line-strong focus:border-brand-500 focus:ring-brand-500/30",
                 )}
               />
               {step2Errors.sellingPrice ? (
-                <p className="mt-1 text-xs text-red-600">{step2Errors.sellingPrice}</p>
+                <p className="mt-1 text-xs text-danger-ink">{step2Errors.sellingPrice}</p>
               ) : null}
             </div>
           </div>
 
           <div>
-            <label className="mb-1 block text-xs font-medium text-slate-600">
-              {t("smartentry.field.openingStock")} <span className="text-slate-400">({t("smartentry.field.openingStockHint")})</span>
+            <label className="mb-1 block text-xs font-medium text-ink-muted">
+              {t("smartentry.field.openingStock")} <span className="text-ink-faint">({t("smartentry.field.openingStockHint")})</span>
             </label>
             <input
               type="number"
@@ -2186,23 +2179,23 @@ function AddProductWizard({
               onChange={(e) => setOpeningStock(e.target.value)}
               placeholder="0"
               className={cn(
-                "w-full rounded-lg border bg-white px-3 py-2 text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2",
+                "w-full rounded-lg border bg-surface px-3 py-2 text-sm font-medium text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2",
                 step2Errors.openingStock
-                  ? "border-red-300 focus:border-red-500 focus:ring-red-500/30"
-                  : "border-slate-300 focus:border-indigo-500 focus:ring-indigo-500/30",
+                  ? "border-danger/40 focus:border-danger focus:ring-danger/30"
+                  : "border-line-strong focus:border-brand-500 focus:ring-brand-500/30",
               )}
             />
             {step2Errors.openingStock ? (
-              <p className="mt-1 text-xs text-red-600">{step2Errors.openingStock}</p>
+              <p className="mt-1 text-xs text-danger-ink">{step2Errors.openingStock}</p>
             ) : (
-              <p className="mt-1 text-[11px] text-slate-500">
+              <p className="mt-1 text-[11px] text-ink-subtle">
                 {tParams("smartentry.wizard.openingStockHelp", { name: name.trim() || t("smartentry.newProduct.title") })}
               </p>
             )}
           </div>
 
           <div>
-            <label className="mb-1 block text-xs font-medium text-slate-600">{t("smartentry.field.lowStockThreshold")}</label>
+            <label className="mb-1 block text-xs font-medium text-ink-muted">{t("smartentry.field.lowStockThreshold")}</label>
             <input
               type="number"
               inputMode="numeric"
@@ -2210,14 +2203,14 @@ function AddProductWizard({
               value={lowStockThreshold}
               onChange={(e) => setLowStockThreshold(e.target.value)}
               className={cn(
-                "w-full rounded-lg border bg-white px-3 py-2 text-sm font-medium text-slate-900 focus:outline-none focus:ring-2",
+                "w-full rounded-lg border bg-surface px-3 py-2 text-sm font-medium text-ink focus:outline-none focus:ring-2",
                 step2Errors.lowStockThreshold
-                  ? "border-red-300 focus:border-red-500 focus:ring-red-500/30"
-                  : "border-slate-300 focus:border-indigo-500 focus:ring-indigo-500/30",
+                  ? "border-danger/40 focus:border-danger focus:ring-danger/30"
+                  : "border-line-strong focus:border-brand-500 focus:ring-brand-500/30",
               )}
             />
             {step2Errors.lowStockThreshold ? (
-              <p className="mt-1 text-xs text-red-600">{step2Errors.lowStockThreshold}</p>
+              <p className="mt-1 text-xs text-danger-ink">{step2Errors.lowStockThreshold}</p>
             ) : null}
           </div>
 
@@ -2226,7 +2219,7 @@ function AddProductWizard({
               type="button"
               onClick={() => setStep(1)}
               disabled={isSubmitting}
-              className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+              className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-line-strong bg-surface px-3 py-2 text-sm font-semibold text-ink-muted hover:bg-app disabled:opacity-50"
             >
               <ArrowLeft className="h-4 w-4 rtl-flip" />
               {t("smartentry.action.back")}
@@ -2235,7 +2228,7 @@ function AddProductWizard({
               type="button"
               onClick={() => setStep(3)}
               disabled={!step2CanContinue}
-              className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700 active:scale-[0.98] disabled:bg-indigo-300"
+              className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-brand-600 px-3 py-2 text-sm font-semibold text-white shadow-card hover:bg-brand-700 active:scale-[0.98] disabled:bg-brand-300"
             >
               {t("smartentry.action.review")}
               <ArrowRight className="h-4 w-4 rtl-flip" />
@@ -2247,23 +2240,23 @@ function AddProductWizard({
       {/* Step 3 — Review & Create */}
       {step === 3 ? (
         <div className="space-y-3">
-          <p className="text-xs font-medium text-slate-600">{t("smartentry.wizard.step3")}</p>
+          <p className="text-xs font-medium text-ink-muted">{t("smartentry.wizard.step3")}</p>
 
-          <div className="rounded-lg border border-slate-200 bg-white p-4 space-y-2">
+          <div className="rounded-lg border border-line bg-surface p-4 space-y-2">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-sm font-bold text-slate-900">{name.trim() || "—"}</p>
-                <p className="text-xs text-slate-500">{unit}{category ? ` · ${category.trim()}` : ""}</p>
+                <p className="text-sm font-bold text-ink">{name.trim() || "—"}</p>
+                <p className="text-xs text-ink-subtle">{unit}{category ? ` · ${category.trim()}` : ""}</p>
               </div>
               <button
                 type="button"
                 onClick={() => setStep(1)}
-                className="text-xs font-medium text-indigo-600 hover:underline"
+                className="text-xs font-medium text-brand-600 hover:underline"
               >
                 {t("smartentry.action.edit")}
               </button>
             </div>
-            <div className="h-px bg-slate-100" />
+            <div className="h-px bg-surface-2" />
             <ReviewRow label={t("smartentry.field.purchasePrice")} value={pp.toNumber() > 0 ? formatMoney(pp.toNumber()) : "—"} />
             <ReviewRow label={t("smartentry.field.sellingPrice")} value={sp.toNumber() > 0 ? formatMoney(sp.toNumber()) : "—"} />
             <ReviewRow
@@ -2271,21 +2264,21 @@ function AddProductWizard({
               value={openingStock ? `${openingStock} ${unit}` : t("smartentry.wizard.addLater")}
             />
             {openingStock && pp.toNumber() > 0 ? (
-              <div className="h-px bg-slate-100" />
+              <div className="h-px bg-surface-2" />
             ) : null}
             {openingStock && pp.toNumber() > 0 ? (
               <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-slate-700">{t("smartentry.wizard.totalOpeningCost")}</span>
-                <span className="text-sm font-bold text-indigo-700">{formatMoney(totalOpeningCost)}</span>
+                <span className="text-xs font-semibold text-ink-muted">{t("smartentry.wizard.totalOpeningCost")}</span>
+                <span className="text-sm font-bold text-brand-700">{formatMoney(totalOpeningCost)}</span>
               </div>
             ) : null}
-            <div className="h-px bg-slate-100" />
+            <div className="h-px bg-surface-2" />
             <ReviewRow label={t("smartentry.field.lowStockThreshold")} value={String(lst)} />
             {sku.trim() ? <ReviewRow label={t("smartentry.field.sku")} value={sku.trim()} /> : null}
           </div>
 
           {error ? (
-            <div className="flex items-start gap-2 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+            <div className="flex items-start gap-2 rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger-ink">
               <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
               <span>{error}</span>
             </div>
@@ -2296,7 +2289,7 @@ function AddProductWizard({
               type="button"
               onClick={() => setStep(2)}
               disabled={isSubmitting}
-              className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+              className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-line-strong bg-surface px-3 py-2 text-sm font-semibold text-ink-muted hover:bg-app disabled:opacity-50"
             >
               <ArrowLeft className="h-4 w-4 rtl-flip" />
               {t("smartentry.action.back")}
@@ -2305,7 +2298,7 @@ function AddProductWizard({
               type="button"
               onClick={handleCreate}
               disabled={isSubmitting}
-              className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700 active:scale-[0.98] disabled:bg-indigo-300"
+              className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-brand-600 px-3 py-2 text-sm font-semibold text-white shadow-card hover:bg-brand-700 active:scale-[0.98] disabled:bg-brand-300"
             >
               {isSubmitting ? (
                 <>
@@ -2329,8 +2322,8 @@ function AddProductWizard({
 function ReviewRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-center justify-between">
-      <span className="text-xs font-medium text-slate-500">{label}</span>
-      <span className="text-sm font-semibold text-slate-900">{value}</span>
+      <span className="text-xs font-medium text-ink-subtle">{label}</span>
+      <span className="text-sm font-semibold text-ink">{value}</span>
     </div>
   );
 }
@@ -2421,16 +2414,16 @@ function ExpenseFormView({
   return (
     <div className="space-y-4">
       {transcript ? (
-        <div className="rounded-xl bg-slate-50 p-3.5">
-          <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">{t("smartentry.transcript.youSaid")}</p>
-          <p className="mt-1 text-sm italic text-slate-700">&ldquo;{transcript}&rdquo;</p>
+        <div className="rounded-xl bg-app p-3.5">
+          <p className="text-[11px] font-medium uppercase tracking-wide text-ink-subtle">{t("smartentry.transcript.youSaid")}</p>
+          <p className="mt-1 text-sm italic text-ink-muted">&ldquo;{transcript}&rdquo;</p>
         </div>
       ) : null}
 
       <div className="space-y-3">
         <div>
-          <label className="mb-1 block text-xs font-medium text-slate-600">
-            {t("smartentry.expense.name")} <span className="text-red-500">*</span>
+          <label className="mb-1 block text-xs font-medium text-ink-muted">
+            {t("smartentry.expense.name")} <span className="text-danger">*</span>
           </label>
           <input
             type="text"
@@ -2438,16 +2431,16 @@ function ExpenseFormView({
             onChange={(e) => setName(e.target.value)}
             placeholder={t("smartentry.expense.namePlaceholder")}
             autoFocus
-            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+            className="w-full rounded-lg border border-line-strong bg-surface px-3 py-2.5 text-sm font-medium text-ink placeholder:text-ink-faint focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
           />
         </div>
 
         <div>
-          <label className="mb-1 block text-xs font-medium text-slate-600">
-            {t("smartentry.field.amount")} <span className="text-red-500">*</span>
+          <label className="mb-1 block text-xs font-medium text-ink-muted">
+            {t("smartentry.field.amount")} <span className="text-danger">*</span>
           </label>
           <div className="relative">
-            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-medium text-slate-500">{symbol}</span>
+            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-medium text-ink-subtle">{symbol}</span>
             <input
               type="number"
               inputMode="decimal"
@@ -2456,13 +2449,13 @@ function ExpenseFormView({
               value={amountStr}
               onChange={(e) => setAmountStr(e.target.value)}
               placeholder="0"
-              className="w-full rounded-lg border border-slate-300 bg-white py-2.5 pl-10 pr-3 text-lg font-bold tabular-nums text-slate-900 placeholder:text-slate-300 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+              className="w-full rounded-lg border border-line-strong bg-surface py-2.5 pl-10 pr-3 text-lg font-bold tabular-nums text-ink placeholder:text-ink-faint focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
             />
           </div>
         </div>
 
         <div>
-          <label className="mb-1.5 block text-xs font-medium text-slate-600">{t("smartentry.field.category")}</label>
+          <label className="mb-1.5 block text-xs font-medium text-ink-muted">{t("smartentry.field.category")}</label>
           <div className="grid grid-cols-4 gap-1.5">
             {CATEGORIES.map((cat) => (
               <button
@@ -2473,7 +2466,7 @@ function ExpenseFormView({
                   "flex flex-col items-center gap-0.5 rounded-lg border py-2 text-[11px] font-medium transition-colors",
                   category === cat.value
                     ? "border-brand-500 bg-brand-50 text-brand-700"
-                    : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50",
+                    : "border-line bg-surface text-ink-muted hover:bg-app",
                 )}
               >
                 <span className="text-base leading-none">{cat.icon}</span>
@@ -2484,24 +2477,24 @@ function ExpenseFormView({
         </div>
 
         <div>
-          <label className="mb-1 block text-xs font-medium text-slate-600">{t("smartentry.field.date")}</label>
+          <label className="mb-1 block text-xs font-medium text-ink-muted">{t("smartentry.field.date")}</label>
           <input
             type="date"
             value={date}
             onChange={(e) => setDate(e.target.value)}
             max={new Date().toISOString().slice(0, 10)}
-            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+            className="w-full rounded-lg border border-line-strong bg-surface px-3 py-2.5 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
           />
         </div>
 
         <div>
-          <label className="mb-1 block text-xs font-medium text-slate-600">{t("smartentry.field.notes")}</label>
+          <label className="mb-1 block text-xs font-medium text-ink-muted">{t("smartentry.field.notes")}</label>
           <textarea
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             placeholder={t("smartentry.placeholder.notes")}
             rows={2}
-            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+            className="w-full rounded-lg border border-line-strong bg-surface px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
           />
         </div>
       </div>
@@ -2510,7 +2503,7 @@ function ExpenseFormView({
         <button
           type="button"
           onClick={onCancel}
-          className="flex-1 rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 active:scale-[0.98]"
+          className="flex-1 rounded-card border border-line-strong bg-surface px-4 py-3 text-sm font-semibold text-ink-muted hover:bg-app active:scale-[0.98]"
         >
           {t("smartentry.action.cancel")}
         </button>
@@ -2606,16 +2599,16 @@ function PaymentFormView({
   return (
     <div className="space-y-4">
       {transcript ? (
-        <div className="rounded-xl bg-slate-50 p-3.5">
-          <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">{t("smartentry.transcript.youSaid")}</p>
-          <p className="mt-1 text-sm italic text-slate-700">&ldquo;{transcript}&rdquo;</p>
+        <div className="rounded-xl bg-app p-3.5">
+          <p className="text-[11px] font-medium uppercase tracking-wide text-ink-subtle">{t("smartentry.transcript.youSaid")}</p>
+          <p className="mt-1 text-sm italic text-ink-muted">&ldquo;{transcript}&rdquo;</p>
         </div>
       ) : null}
 
       {form.isNewCustomer && !customerId ? (
-        <div className="rounded-xl border border-blue-300 bg-blue-50 p-3.5 text-sm text-blue-900">
+        <div className="rounded-xl border border-info/30 bg-info-soft p-3.5 text-sm text-info-ink">
           <p className="font-semibold">{t("smartentry.newCustomer.detected")}</p>
-          <p className="mt-1 text-xs text-blue-700">
+          <p className="mt-1 text-xs text-info-ink">
             {tParams("smartentry.payment.newCustomerPrompt", { name: form.customerNameRaw ?? "" })}
           </p>
         </div>
@@ -2633,11 +2626,11 @@ function PaymentFormView({
         </Field>
 
         <div>
-          <label className="mb-1 block text-xs font-medium text-slate-600">
-            {t("smartentry.payment.amountReceived")} <span className="text-red-500">*</span>
+          <label className="mb-1 block text-xs font-medium text-ink-muted">
+            {t("smartentry.payment.amountReceived")} <span className="text-danger">*</span>
           </label>
           <div className="relative">
-            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-medium text-slate-500">{symbol}</span>
+            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-medium text-ink-subtle">{symbol}</span>
             <input
               type="number"
               inputMode="decimal"
@@ -2647,19 +2640,19 @@ function PaymentFormView({
               onChange={(e) => setAmountStr(e.target.value)}
               placeholder="0"
               autoFocus
-              className="w-full rounded-lg border border-slate-300 bg-white py-2.5 pl-10 pr-3 text-lg font-bold tabular-nums text-slate-900 placeholder:text-slate-300 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+              className="w-full rounded-lg border border-line-strong bg-surface py-2.5 pl-10 pr-3 text-lg font-bold tabular-nums text-ink placeholder:text-ink-faint focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
             />
           </div>
         </div>
 
         {/* V12: Outstanding balance + remaining balance display */}
         {currentBalance != null ? (
-          <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-3">
+          <div className="rounded-2xl border border-line bg-surface p-4 space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-medium uppercase tracking-wide text-slate-500">{t("smartentry.payment.outstanding")}</span>
+              <span className="text-xs font-medium uppercase tracking-wide text-ink-subtle">{t("smartentry.payment.outstanding")}</span>
               <span className={cn(
                 "text-lg font-bold tabular-nums",
-                currentBalance > 0 ? "text-amber-700" : currentBalance < 0 ? "text-blue-700" : "text-green-700",
+                currentBalance > 0 ? "text-warning-ink" : currentBalance < 0 ? "text-info-ink" : "text-success-ink",
               )}>
                 {currentBalance > 0
                   ? `${symbol} ${currentBalance.toLocaleString()} ${t("smartentry.payment.owesYou")}`
@@ -2670,19 +2663,19 @@ function PaymentFormView({
             </div>
             {isValidAmount && remainingBalance != null ? (
               <>
-                <div className="border-t-2 border-dashed border-slate-100" />
+                <div className="border-t-2 border-dashed border-line" />
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold uppercase tracking-wide text-slate-500">{t("smartentry.payment.afterPayment")}</span>
+                  <span className="text-xs font-bold uppercase tracking-wide text-ink-subtle">{t("smartentry.payment.afterPayment")}</span>
                   {remainingBalance > 0 ? (
-                    <span className="text-lg font-bold tabular-nums text-amber-700">
+                    <span className="text-lg font-bold tabular-nums text-warning-ink">
                       {symbol} {remainingBalance.toLocaleString()} {t("smartentry.payment.remaining")}
                     </span>
                   ) : remainingBalance < 0 ? (
-                    <span className="text-lg font-bold tabular-nums text-blue-700">
+                    <span className="text-lg font-bold tabular-nums text-info-ink">
                       {symbol} {Math.abs(remainingBalance).toLocaleString()} {t("smartentry.payment.advance")}
                     </span>
                   ) : (
-                    <span className="text-lg font-bold tabular-nums text-green-700">
+                    <span className="text-lg font-bold tabular-nums text-success-ink">
                       {t("smartentry.payment.fullySettled")}
                     </span>
                   )}
@@ -2690,7 +2683,7 @@ function PaymentFormView({
               </>
             ) : null}
             {currentBalance > 0 && isValidAmount && amountNum > currentBalance ? (
-              <div className="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-800">
+              <div className="rounded-lg bg-warning-soft border border-warning/25 px-3 py-2 text-xs text-warning-ink">
                 {tParams("smartentry.payment.overpaymentWarn", { paid: amountNum.toLocaleString(), outstanding: currentBalance.toLocaleString() })}
               </div>
             ) : null}
@@ -2698,7 +2691,7 @@ function PaymentFormView({
         ) : null}
 
         <div>
-          <label className="mb-1.5 block text-xs font-medium text-slate-600">{t("smartentry.payment.method")}</label>
+          <label className="mb-1.5 block text-xs font-medium text-ink-muted">{t("smartentry.payment.method")}</label>
           <div className="grid grid-cols-3 gap-1.5">
             {METHODS.map((m) => (
               <button
@@ -2709,7 +2702,7 @@ function PaymentFormView({
                   "flex flex-col items-center gap-0.5 rounded-lg border py-2 text-xs font-medium transition-colors",
                   method === m.value
                     ? "border-brand-500 bg-brand-50 text-brand-700"
-                    : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50",
+                    : "border-line bg-surface text-ink-muted hover:bg-app",
                 )}
               >
                 <span className="text-base leading-none">{m.icon}</span>
@@ -2720,24 +2713,24 @@ function PaymentFormView({
         </div>
 
         <div>
-          <label className="mb-1 block text-xs font-medium text-slate-600">{t("smartentry.field.date")}</label>
+          <label className="mb-1 block text-xs font-medium text-ink-muted">{t("smartentry.field.date")}</label>
           <input
             type="date"
             value={date}
             onChange={(e) => setDate(e.target.value)}
             max={new Date().toISOString().slice(0, 10)}
-            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+            className="w-full rounded-lg border border-line-strong bg-surface px-3 py-2.5 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
           />
         </div>
 
         <div>
-          <label className="mb-1 block text-xs font-medium text-slate-600">{t("smartentry.field.notes")}</label>
+          <label className="mb-1 block text-xs font-medium text-ink-muted">{t("smartentry.field.notes")}</label>
           <textarea
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             placeholder={t("smartentry.placeholder.notes")}
             rows={2}
-            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+            className="w-full rounded-lg border border-line-strong bg-surface px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
           />
         </div>
       </div>
@@ -2746,7 +2739,7 @@ function PaymentFormView({
         <button
           type="button"
           onClick={onCancel}
-          className="flex-1 rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 active:scale-[0.98]"
+          className="flex-1 rounded-card border border-line-strong bg-surface px-4 py-3 text-sm font-semibold text-ink-muted hover:bg-app active:scale-[0.98]"
         >
           {t("smartentry.action.cancel")}
         </button>
@@ -2790,9 +2783,9 @@ function QueryResultView({
   return (
     <div className="space-y-4">
       {transcript ? (
-        <div className="rounded-xl bg-slate-50 p-3.5">
-          <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">{t("smartentry.query.youAsked")}</p>
-          <p className="mt-1 text-sm italic text-slate-700">&ldquo;{transcript}&rdquo;</p>
+        <div className="rounded-xl bg-app p-3.5">
+          <p className="text-[11px] font-medium uppercase tracking-wide text-ink-subtle">{t("smartentry.query.youAsked")}</p>
+          <p className="mt-1 text-sm italic text-ink-muted">&ldquo;{transcript}&rdquo;</p>
         </div>
       ) : null}
 
@@ -2800,8 +2793,8 @@ function QueryResultView({
         <div className="mb-3 flex h-14 w-14 mx-auto items-center justify-center rounded-full bg-brand-100">
           <Sparkles className="h-7 w-7 text-brand-600" />
         </div>
-        <p className="text-sm font-medium text-slate-500">{t("smartentry.query.result")}</p>
-        <p className="mt-1 text-lg font-bold text-slate-900">{result.result}</p>
+        <p className="text-sm font-medium text-ink-subtle">{t("smartentry.query.result")}</p>
+        <p className="mt-1 text-lg font-bold text-ink">{result.result}</p>
 
         {Array.isArray(result.data) && result.data.length > 0 ? (
           <div className="mt-4 space-y-1.5 text-left">
@@ -2828,10 +2821,10 @@ function QueryResultView({
 
               const row = (
                 <>
-                  <span className="min-w-0 flex-1 text-left font-medium text-slate-700">
+                  <span className="min-w-0 flex-1 text-left font-medium text-ink-muted">
                     {label}
                   </span>
-                  <span className="shrink-0 font-bold tabular-nums text-slate-900">{value}</span>
+                  <span className="shrink-0 font-bold tabular-nums text-ink">{value}</span>
                 </>
               );
 
@@ -2842,14 +2835,14 @@ function QueryResultView({
                   key={i}
                   href={item.href}
                   onClick={onDone}
-                  className="flex items-center justify-between gap-2 rounded-lg bg-white/60 px-3 py-2 text-sm hover:bg-white"
+                  className="flex items-center justify-between gap-2 rounded-lg bg-surface/60 px-3 py-2 text-sm hover:bg-surface"
                 >
                   {row}
                 </Link>
               ) : (
                 <div
                   key={i}
-                  className="flex items-center justify-between gap-2 rounded-lg bg-white/60 px-3 py-2 text-sm"
+                  className="flex items-center justify-between gap-2 rounded-lg bg-surface/60 px-3 py-2 text-sm"
                 >
                   {row}
                 </div>
@@ -2933,19 +2926,19 @@ function StockIntakeFormView({
   return (
     <div className="space-y-4">
       {transcript ? (
-        <div className="rounded-xl bg-slate-50 p-3.5">
-          <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">{t("smartentry.transcript.youSaid")}</p>
-          <p className="mt-1 text-sm italic text-slate-700">&ldquo;{transcript}&rdquo;</p>
+        <div className="rounded-xl bg-app p-3.5">
+          <p className="text-[11px] font-medium uppercase tracking-wide text-ink-subtle">{t("smartentry.transcript.youSaid")}</p>
+          <p className="mt-1 text-sm italic text-ink-muted">&ldquo;{transcript}&rdquo;</p>
         </div>
       ) : null}
 
       {form.isNewProduct && !productId ? (
-        <div className="rounded-xl border border-indigo-300 bg-indigo-50 p-3.5 text-sm text-indigo-900">
+        <div className="rounded-xl border border-brand-200 bg-brand-50 p-3.5 text-sm text-brand-700">
           <p className="font-semibold flex items-center gap-2">
             <Package className="h-4 w-4 shrink-0" />
             {t("smartentry.newProduct.detected")}
           </p>
-          <p className="mt-1 text-xs text-indigo-700">
+          <p className="mt-1 text-xs text-brand-700">
             {tParams("smartentry.stock.newProductPrompt", { name: form.productNameRaw ?? "" })}
           </p>
         </div>
@@ -2974,7 +2967,7 @@ function StockIntakeFormView({
               onChange={(e) => setQuantityStr(e.target.value)}
               placeholder="0"
               autoFocus
-              className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+              className="w-full rounded-card border border-line-strong bg-surface px-3 py-2.5 text-sm font-medium text-ink placeholder:text-ink-faint focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
             />
           </Field>
           <Field label={t("smartentry.stock.unitCost")} isFilled={!!unitCostStr}>
@@ -2986,7 +2979,7 @@ function StockIntakeFormView({
               value={unitCostStr}
               onChange={(e) => setUnitCostStr(e.target.value)}
               placeholder="0"
-              className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+              className="w-full rounded-card border border-line-strong bg-surface px-3 py-2.5 text-sm font-medium text-ink placeholder:text-ink-faint focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
             />
           </Field>
         </div>
@@ -2998,7 +2991,7 @@ function StockIntakeFormView({
             onChange={(e) => setBatchName(e.target.value)}
             placeholder={t("smartentry.stock.batchNamePlaceholder")}
             maxLength={100}
-            className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+            className="w-full rounded-card border border-line-strong bg-surface px-3 py-2.5 text-sm font-medium text-ink placeholder:text-ink-faint focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
           />
         </Field>
 
@@ -3008,7 +3001,7 @@ function StockIntakeFormView({
             value={date}
             onChange={(e) => setDate(e.target.value)}
             max={new Date().toISOString().slice(0, 10)}
-            className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+            className="w-full rounded-card border border-line-strong bg-surface px-3 py-2.5 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
           />
         </Field>
       </div>
@@ -3017,7 +3010,7 @@ function StockIntakeFormView({
         <button
           type="button"
           onClick={onCancel}
-          className="flex-1 rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 active:scale-[0.98]"
+          className="flex-1 rounded-card border border-line-strong bg-surface px-4 py-3 text-sm font-semibold text-ink-muted hover:bg-app active:scale-[0.98]"
         >
           {t("smartentry.action.cancel")}
         </button>
@@ -3055,26 +3048,26 @@ function SuccessState({
     <div className="flex flex-col items-center justify-center gap-5 py-8 text-center">
       <div className="relative flex h-20 w-20 items-center justify-center">
         <div
-          className="absolute rounded-full bg-green-500/20"
+          className="absolute rounded-full bg-success/20"
           style={{
             width: 80,
             height: 80,
             animation: "se-pulse-ring 1.2s ease-in-out infinite",
           }}
         />
-        <div className="relative flex h-16 w-16 items-center justify-center rounded-full bg-green-500 text-white shadow-lg shadow-green-500/40">
+        <div className="relative flex h-16 w-16 items-center justify-center rounded-full bg-success text-white shadow-lg shadow-success/40">
           <Check className="h-8 w-8" strokeWidth={3} />
         </div>
       </div>
       <div>
-        <p className="text-lg font-bold text-slate-900">{t("smartentry.success.title")}</p>
-        <p className="mt-1 text-sm text-slate-600">{message}</p>
+        <p className="text-lg font-bold text-ink">{t("smartentry.success.title")}</p>
+        <p className="mt-1 text-sm text-ink-muted">{message}</p>
       </div>
       <div className="flex w-full gap-2">
         {saleId ? (
           <Link
             href={`/sales/${saleId}`}
-            className="flex-1 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+            className="flex-1 rounded-card border border-line-strong bg-surface px-4 py-2.5 text-sm font-semibold text-ink-muted hover:bg-app"
           >
             {t("smartentry.action.viewSale")}
           </Link>
@@ -3082,7 +3075,7 @@ function SuccessState({
         {productId ? (
           <Link
             href={`/more/products/${productId}`}
-            className="flex-1 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+            className="flex-1 rounded-card border border-line-strong bg-surface px-4 py-2.5 text-sm font-semibold text-ink-muted hover:bg-app"
           >
             {t("smartentry.action.viewSale")}
           </Link>
@@ -3090,7 +3083,7 @@ function SuccessState({
         {customerId ? (
           <Link
             href={`/khata/${customerId}`}
-            className="flex-1 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+            className="flex-1 rounded-card border border-line-strong bg-surface px-4 py-2.5 text-sm font-semibold text-ink-muted hover:bg-app"
           >
             {t("smartentry.action.viewSale")}
           </Link>
@@ -3145,7 +3138,7 @@ function MicErrorState({
 
   return (
     <div className="space-y-4">
-      <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-800">
+      <div className="rounded-xl border border-warning/25 bg-warning-soft p-4 text-warning-ink">
         <div className="flex items-start gap-3">
           <span className="mt-0.5 shrink-0">
             <MicOff className="h-6 w-6" />
@@ -3153,7 +3146,7 @@ function MicErrorState({
           <div>
             <p className="font-semibold">{title}</p>
             <p className="mt-1 text-sm">{message}</p>
-            <p className="mt-2 text-xs text-amber-700">{helpText}</p>
+            <p className="mt-2 text-xs text-warning-ink">{helpText}</p>
           </div>
         </div>
       </div>
@@ -3171,7 +3164,7 @@ function MicErrorState({
         <button
           type="button"
           onClick={onUseText}
-          className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 active:scale-[0.98]"
+          className="flex w-full items-center justify-center gap-2 rounded-card border border-line-strong bg-surface px-4 py-2.5 text-sm font-semibold text-ink-muted hover:bg-app active:scale-[0.98]"
         >
           <Type className="h-4 w-4" />
           {t("smartentry.action.typeInstead")}
@@ -3207,26 +3200,26 @@ function ProductCreationView({ form, transcript, onConfirm, onCancel }: {
 
   return (
     <div className="space-y-4">
-      {transcript ? <div className="rounded-xl bg-slate-50 p-3.5"><p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">{t("smartentry.transcript.youSaid")}</p><p className="mt-1 text-sm italic text-slate-700">&ldquo;{transcript}&rdquo;</p></div> : null}
-      {form.hint ? <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800"><AlertCircle className="mr-1 inline h-3.5 w-3.5" />{form.hint}</div> : null}
+      {transcript ? <div className="rounded-xl bg-app p-3.5"><p className="text-[11px] font-medium uppercase tracking-wide text-ink-subtle">{t("smartentry.transcript.youSaid")}</p><p className="mt-1 text-sm italic text-ink-muted">&ldquo;{transcript}&rdquo;</p></div> : null}
+      {form.hint ? <div className="rounded-xl border border-warning/25 bg-warning-soft p-3 text-xs text-warning-ink"><AlertCircle className="mr-1 inline h-3.5 w-3.5" />{form.hint}</div> : null}
       <div className="space-y-3">
-        <div><label className="mb-1 block text-xs font-medium text-slate-600">{t("smartentry.field.name")} <span className="text-red-500">*</span></label>
-          <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Product name" autoFocus className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30" /></div>
-        <div><label className="mb-1 block text-xs font-medium text-slate-600">{t("smartentry.field.unit")} <span className="text-red-500">*</span></label>
-          <select value={unit} onChange={(e) => setUnit(e.target.value)} className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30">{units.map((u) => <option key={u} value={u}>{u}</option>)}</select></div>
-        <div><label className="mb-1 block text-xs font-medium text-slate-600">{t("smartentry.field.purchasePrice")} <span className="text-red-500">*</span></label>
-          <div className="relative"><span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-medium text-slate-500">Rs.</span>
-            <input type="number" inputMode="decimal" step="any" min="0" value={purchasePrice} onChange={(e) => setPurchasePrice(e.target.value)} placeholder="0" className="w-full rounded-lg border border-slate-300 bg-white py-2.5 pl-10 pr-3 text-sm font-medium tabular-nums text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30" /></div></div>
-        <div><label className="mb-1 block text-xs font-medium text-slate-600">{t("smartentry.field.sellingPrice")} <span className="text-red-500">*</span></label>
-          <div className="relative"><span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-medium text-slate-500">Rs.</span>
-            <input type="number" inputMode="decimal" step="any" min="0" value={sellingPrice} onChange={(e) => setSellingPrice(e.target.value)} placeholder="0" className="w-full rounded-lg border border-slate-300 bg-white py-2.5 pl-10 pr-3 text-sm font-medium tabular-nums text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30" /></div></div>
-        <div><label className="mb-1 block text-xs font-medium text-slate-600">{t("smartentry.field.openingStock")} <span className="text-slate-400">({t("common.optional")})</span></label>
-          <input type="number" inputMode="decimal" step="any" min="0" value={openingStock} onChange={(e) => setOpeningStock(e.target.value)} placeholder="0" className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm font-medium tabular-nums text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30" /></div>
-        <div><label className="mb-1 block text-xs font-medium text-slate-600">{t("smartentry.field.lowStockThreshold")}</label>
-          <input type="number" inputMode="numeric" step="1" min="0" value={lowStockThreshold} onChange={(e) => setLowStockThreshold(e.target.value)} className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm font-medium tabular-nums text-slate-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30" /></div>
+        <div><label className="mb-1 block text-xs font-medium text-ink-muted">{t("smartentry.field.name")} <span className="text-danger">*</span></label>
+          <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder={t("smartentry.productNamePlaceholder")} autoFocus className="w-full rounded-lg border border-line-strong bg-surface px-3 py-2.5 text-sm font-medium text-ink placeholder:text-ink-faint focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30" /></div>
+        <div><label className="mb-1 block text-xs font-medium text-ink-muted">{t("smartentry.field.unit")} <span className="text-danger">*</span></label>
+          <select value={unit} onChange={(e) => setUnit(e.target.value)} className="w-full rounded-lg border border-line-strong bg-surface px-3 py-2.5 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30">{units.map((u) => <option key={u} value={u}>{u}</option>)}</select></div>
+        <div><label className="mb-1 block text-xs font-medium text-ink-muted">{t("smartentry.field.purchasePrice")} <span className="text-danger">*</span></label>
+          <div className="relative"><span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-medium text-ink-subtle">Rs.</span>
+            <input type="number" inputMode="decimal" step="any" min="0" value={purchasePrice} onChange={(e) => setPurchasePrice(e.target.value)} placeholder="0" className="w-full rounded-lg border border-line-strong bg-surface py-2.5 pl-10 pr-3 text-sm font-medium tabular-nums text-ink placeholder:text-ink-faint focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30" /></div></div>
+        <div><label className="mb-1 block text-xs font-medium text-ink-muted">{t("smartentry.field.sellingPrice")} <span className="text-danger">*</span></label>
+          <div className="relative"><span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-medium text-ink-subtle">Rs.</span>
+            <input type="number" inputMode="decimal" step="any" min="0" value={sellingPrice} onChange={(e) => setSellingPrice(e.target.value)} placeholder="0" className="w-full rounded-lg border border-line-strong bg-surface py-2.5 pl-10 pr-3 text-sm font-medium tabular-nums text-ink placeholder:text-ink-faint focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30" /></div></div>
+        <div><label className="mb-1 block text-xs font-medium text-ink-muted">{t("smartentry.field.openingStock")} <span className="text-ink-faint">({t("common.optional")})</span></label>
+          <input type="number" inputMode="decimal" step="any" min="0" value={openingStock} onChange={(e) => setOpeningStock(e.target.value)} placeholder="0" className="w-full rounded-lg border border-line-strong bg-surface px-3 py-2.5 text-sm font-medium tabular-nums text-ink placeholder:text-ink-faint focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30" /></div>
+        <div><label className="mb-1 block text-xs font-medium text-ink-muted">{t("smartentry.field.lowStockThreshold")}</label>
+          <input type="number" inputMode="numeric" step="1" min="0" value={lowStockThreshold} onChange={(e) => setLowStockThreshold(e.target.value)} className="w-full rounded-lg border border-line-strong bg-surface px-3 py-2.5 text-sm font-medium tabular-nums text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30" /></div>
       </div>
       <div className="flex gap-2">
-        <button type="button" onClick={onCancel} className="flex-1 rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50">{t("smartentry.action.cancel")}</button>
+        <button type="button" onClick={onCancel} className="flex-1 rounded-card border border-line-strong bg-surface px-4 py-3 text-sm font-semibold text-ink-muted hover:bg-app">{t("smartentry.action.cancel")}</button>
         <button type="button" onClick={() => isValid && onConfirm({ intentType: "CREATE_PRODUCT", name: name.trim(), unit: unit.trim(), purchasePrice: pp, sellingPrice: sp, openingStock: openingStock ? Number(openingStock) : 0, lowStockThreshold: parseInt(lowStockThreshold, 10) })} disabled={!isValid} className="flex-1 rounded-xl bg-brand-600 px-4 py-3 text-sm font-semibold text-white shadow-md shadow-brand-600/30 hover:bg-brand-700 disabled:bg-brand-300"><span className="flex items-center justify-center gap-1.5"><Check className="h-4 w-4" /> {t("smartentry.action.createProduct")}</span></button>
       </div>
     </div>
@@ -3251,20 +3244,20 @@ function CustomerCreationView({ form, transcript, onConfirm, onCancel }: {
 
   return (
     <div className="space-y-4">
-      {transcript ? <div className="rounded-xl bg-slate-50 p-3.5"><p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">{t("smartentry.transcript.youSaid")}</p><p className="mt-1 text-sm italic text-slate-700">&ldquo;{transcript}&rdquo;</p></div> : null}
-      {form.hint ? <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800"><AlertCircle className="mr-1 inline h-3.5 w-3.5" />{form.hint}</div> : null}
+      {transcript ? <div className="rounded-xl bg-app p-3.5"><p className="text-[11px] font-medium uppercase tracking-wide text-ink-subtle">{t("smartentry.transcript.youSaid")}</p><p className="mt-1 text-sm italic text-ink-muted">&ldquo;{transcript}&rdquo;</p></div> : null}
+      {form.hint ? <div className="rounded-xl border border-warning/25 bg-warning-soft p-3 text-xs text-warning-ink"><AlertCircle className="mr-1 inline h-3.5 w-3.5" />{form.hint}</div> : null}
       <div className="space-y-3">
-        <div><label className="mb-1 block text-xs font-medium text-slate-600">{t("smartentry.field.name")} <span className="text-red-500">*</span></label>
-          <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Customer name" autoFocus className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30" /></div>
-        <div><label className="mb-1 block text-xs font-medium text-slate-600">{t("smartentry.field.phone")} <span className="text-slate-400">({t("common.optional")})</span></label>
-          <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="0300 1234567" className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30" /></div>
-        <div><label className="mb-1 block text-xs font-medium text-slate-600">{t("customer.openingBalance")} <span className="text-slate-400">({t("common.optional")})</span></label>
-          <div className="relative"><span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-medium text-slate-500">Rs.</span>
-            <input type="number" inputMode="decimal" step="any" value={openingBalance} onChange={(e) => setOpeningBalance(e.target.value)} placeholder="0" className="w-full rounded-lg border border-slate-300 bg-white py-2.5 pl-10 pr-3 text-sm font-medium tabular-nums text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30" /></div>
-          <p className="mt-1 text-[11px] text-slate-500">{t("customer.openingBalanceHint")}</p></div>
+        <div><label className="mb-1 block text-xs font-medium text-ink-muted">{t("smartentry.field.name")} <span className="text-danger">*</span></label>
+          <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder={t("smartentry.customerNamePlaceholder")} autoFocus className="w-full rounded-lg border border-line-strong bg-surface px-3 py-2.5 text-sm font-medium text-ink placeholder:text-ink-faint focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30" /></div>
+        <div><label className="mb-1 block text-xs font-medium text-ink-muted">{t("smartentry.field.phone")} <span className="text-ink-faint">({t("common.optional")})</span></label>
+          <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="0300 1234567" className="w-full rounded-lg border border-line-strong bg-surface px-3 py-2.5 text-sm font-medium text-ink placeholder:text-ink-faint focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30" /></div>
+        <div><label className="mb-1 block text-xs font-medium text-ink-muted">{t("customer.openingBalance")} <span className="text-ink-faint">({t("common.optional")})</span></label>
+          <div className="relative"><span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-medium text-ink-subtle">Rs.</span>
+            <input type="number" inputMode="decimal" step="any" value={openingBalance} onChange={(e) => setOpeningBalance(e.target.value)} placeholder="0" className="w-full rounded-lg border border-line-strong bg-surface py-2.5 pl-10 pr-3 text-sm font-medium tabular-nums text-ink placeholder:text-ink-faint focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30" /></div>
+          <p className="mt-1 text-[11px] text-ink-subtle">{t("customer.openingBalanceHint")}</p></div>
       </div>
       <div className="flex gap-2">
-        <button type="button" onClick={onCancel} className="flex-1 rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50">{t("smartentry.action.cancel")}</button>
+        <button type="button" onClick={onCancel} className="flex-1 rounded-card border border-line-strong bg-surface px-4 py-3 text-sm font-semibold text-ink-muted hover:bg-app">{t("smartentry.action.cancel")}</button>
         <button type="button" onClick={() => isValid && onConfirm({ intentType: "CREATE_CUSTOMER", name: name.trim(), phone: phone.trim() || null, openingBalance: openingBalance ? Number(openingBalance) : 0 })} disabled={!isValid} className="flex-1 rounded-xl bg-brand-600 px-4 py-3 text-sm font-semibold text-white shadow-md shadow-brand-600/30 hover:bg-brand-700 disabled:bg-brand-300"><span className="flex items-center justify-center gap-1.5"><Check className="h-4 w-4" /> {t("smartentry.action.addCustomer")}</span></button>
       </div>
     </div>
@@ -3285,22 +3278,22 @@ function ClarificationView({ clarification, transcript, onRetry, onCancel }: {
   const [textValue, setTextValue] = useState("");
   return (
     <div className="space-y-4">
-      {transcript ? <div className="rounded-xl bg-slate-50 p-3.5"><p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">{t("smartentry.transcript.youSaid")}</p><p className="mt-1 text-sm italic text-slate-700">&ldquo;{transcript}&rdquo;</p></div> : null}
+      {transcript ? <div className="rounded-xl bg-app p-3.5"><p className="text-[11px] font-medium uppercase tracking-wide text-ink-subtle">{t("smartentry.transcript.youSaid")}</p><p className="mt-1 text-sm italic text-ink-muted">&ldquo;{transcript}&rdquo;</p></div> : null}
       <div className="flex flex-col items-center justify-center gap-3 py-4 text-center">
-        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-amber-100 text-amber-600"><AlertCircle className="h-7 w-7" /></div>
-        <p className="text-sm font-medium text-slate-900">{clarification.question}</p>
+        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-warning-soft text-warning-ink"><AlertCircle className="h-7 w-7" /></div>
+        <p className="text-sm font-medium text-ink">{clarification.question}</p>
       </div>
       <div className="space-y-1.5">
-        <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">{t("smartentry.choice.examplesLabel")}</p>
+        <p className="text-[11px] font-medium uppercase tracking-wide text-ink-subtle">{t("smartentry.choice.examplesLabel")}</p>
         <div className="flex flex-wrap gap-1.5">
-          {clarification.suggestions.map((s) => <button key={s} type="button" onClick={() => setTextValue(s)} className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-100">{s}</button>)}
+          {clarification.suggestions.map((s) => <button key={s} type="button" onClick={() => setTextValue(s)} className="rounded-full border border-line bg-app px-3 py-1.5 text-xs text-ink-muted hover:bg-surface-2">{s}</button>)}
         </div>
       </div>
       <form onSubmit={(e) => { e.preventDefault(); if (textValue.trim()) { onRetry(); } }} className="flex items-end gap-2">
-        <textarea value={textValue} onChange={(e) => setTextValue(e.target.value)} placeholder="Type what happened..." rows={2} className="flex-1 resize-none rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30" />
-        <button type="submit" disabled={!textValue.trim()} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-600 text-white shadow-sm disabled:bg-brand-300" aria-label={t("smartentry.aria.submit")}><Send className="h-5 w-5" /></button>
+        <textarea value={textValue} onChange={(e) => setTextValue(e.target.value)} placeholder={t("smartentry.typeHappened")} rows={2} className="flex-1 resize-none rounded-card border border-line-strong bg-surface px-3 py-2.5 text-sm text-ink placeholder:text-ink-faint focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30" />
+        <button type="submit" disabled={!textValue.trim()} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-600 text-white shadow-card disabled:bg-brand-300" aria-label={t("smartentry.aria.submit")}><Send className="h-5 w-5" /></button>
       </form>
-      <button type="button" onClick={onCancel} className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">{t("smartentry.action.cancel")}</button>
+      <button type="button" onClick={onCancel} className="w-full rounded-card border border-line-strong bg-surface px-4 py-2.5 text-sm font-semibold text-ink-muted hover:bg-app">{t("smartentry.action.cancel")}</button>
     </div>
   );
 }
@@ -3343,21 +3336,21 @@ function SupplierPaymentFormView({
   return (
     <div className="space-y-4 p-1">
       <div className="flex items-center gap-2">
-        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-amber-100 text-amber-700">
+        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-warning-soft text-warning-ink">
           <Wallet className="h-4 w-4" />
         </div>
         <div>
-          <p className="text-sm font-semibold text-slate-900">{t("smartentry.supplierPayment.title")}</p>
-          {transcript ? <p className="text-xs text-slate-500">“{transcript}”</p> : null}
+          <p className="text-sm font-semibold text-ink">{t("smartentry.supplierPayment.title")}</p>
+          {transcript ? <p className="text-xs text-ink-subtle">“{transcript}”</p> : null}
         </div>
       </div>
 
       <div>
-        <label className="mb-1 block text-xs font-medium text-slate-600">{t("smartentry.supplierPayment.supplier")}</label>
+        <label className="mb-1 block text-xs font-medium text-ink-muted">{t("smartentry.supplierPayment.supplier")}</label>
         <select
           value={supplierId}
           onChange={(e) => setSupplierId(e.target.value)}
-          className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+          className="w-full rounded-card border border-line-strong bg-surface px-3 py-2.5 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
         >
           <option value="">{t("smartentry.supplierPayment.pickSupplier")}</option>
           {form.supplierCandidates.map((s) => (
@@ -3365,14 +3358,14 @@ function SupplierPaymentFormView({
           ))}
         </select>
         {selected && form.supplierBalance ? (
-          <p className="mt-1 text-xs text-slate-500">
+          <p className="mt-1 text-xs text-ink-subtle">
             {t("smartentry.supplierPayment.balance")}: Rs. {Number(form.supplierBalance).toLocaleString()}
           </p>
         ) : null}
       </div>
 
       <div>
-        <label className="mb-1 block text-xs font-medium text-slate-600">{t("smartentry.supplierPayment.amount")}</label>
+        <label className="mb-1 block text-xs font-medium text-ink-muted">{t("smartentry.supplierPayment.amount")}</label>
         <input
           type="number"
           inputMode="decimal"
@@ -3381,16 +3374,16 @@ function SupplierPaymentFormView({
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
           placeholder="0"
-          className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-lg font-semibold text-slate-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+          className="w-full rounded-card border border-line-strong bg-surface px-3 py-2.5 text-lg font-semibold text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
         />
       </div>
 
       <div>
-        <label className="mb-1 block text-xs font-medium text-slate-600">{t("smartentry.supplierPayment.method")}</label>
+        <label className="mb-1 block text-xs font-medium text-ink-muted">{t("smartentry.supplierPayment.method")}</label>
         <select
           value={method}
           onChange={(e) => setMethod(e.target.value)}
-          className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+          className="w-full rounded-card border border-line-strong bg-surface px-3 py-2.5 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
         >
           {["cash", "bank", "cheque", "jazzcash", "easypaisa", "other"].map((m) => (
             <option key={m} value={m}>{t(`method.${m}` as never)}</option>
@@ -3418,7 +3411,7 @@ function SupplierPaymentFormView({
         <button
           type="button"
           onClick={onCancel}
-          className="rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+          className="rounded-card border border-line-strong bg-surface px-4 py-3 text-sm font-semibold text-ink-muted hover:bg-app"
         >
           {t("smartentry.action.cancel")}
         </button>
@@ -3471,41 +3464,41 @@ function ReminderFormView({
   return (
     <div className="space-y-4 p-1">
       <div className="flex items-center gap-2">
-        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-sky-100 text-sky-700">
+        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-info-soft text-info-ink">
           <Sparkles className="h-4 w-4" />
         </div>
         <div>
-          <p className="text-sm font-semibold text-slate-900">{t("smartentry.reminder.title")}</p>
-          {transcript ? <p className="text-xs text-slate-500">“{transcript}”</p> : null}
+          <p className="text-sm font-semibold text-ink">{t("smartentry.reminder.title")}</p>
+          {transcript ? <p className="text-xs text-ink-subtle">“{transcript}”</p> : null}
         </div>
       </div>
 
       <div>
-        <label className="mb-1 block text-xs font-medium text-slate-600">{t("smartentry.reminder.what")}</label>
+        <label className="mb-1 block text-xs font-medium text-ink-muted">{t("smartentry.reminder.what")}</label>
         <input
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           maxLength={150}
-          className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+          className="w-full rounded-card border border-line-strong bg-surface px-3 py-2.5 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
         />
       </div>
 
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="mb-1 block text-xs font-medium text-slate-600">{t("smartentry.reminder.when")}</label>
+          <label className="mb-1 block text-xs font-medium text-ink-muted">{t("smartentry.reminder.when")}</label>
           <input
             type="datetime-local"
             value={dueAt}
             onChange={(e) => setDueAt(e.target.value)}
-            className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+            className="w-full rounded-card border border-line-strong bg-surface px-3 py-2.5 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
           />
         </div>
         <div>
-          <label className="mb-1 block text-xs font-medium text-slate-600">{t("smartentry.reminder.priority")}</label>
+          <label className="mb-1 block text-xs font-medium text-ink-muted">{t("smartentry.reminder.priority")}</label>
           <select
             value={priority}
             onChange={(e) => setPriority(e.target.value)}
-            className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+            className="w-full rounded-card border border-line-strong bg-surface px-3 py-2.5 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
           >
             {["low", "normal", "high"].map((p) => (
               <option key={p} value={p}>{t(`reminderPriority.${p}` as never)}</option>
@@ -3515,11 +3508,11 @@ function ReminderFormView({
       </div>
 
       <div>
-        <label className="mb-1 block text-xs font-medium text-slate-600">{t("smartentry.reminder.type")}</label>
+        <label className="mb-1 block text-xs font-medium text-ink-muted">{t("smartentry.reminder.type")}</label>
         <select
           value={type}
           onChange={(e) => setType(e.target.value)}
-          className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+          className="w-full rounded-card border border-line-strong bg-surface px-3 py-2.5 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
         >
           {["payment_collection", "supplier_payment", "customer_followup", "stock_reorder", "custom"].map((v) => (
             <option key={v} value={v}>{t(`reminderType.${v}` as never)}</option>
@@ -3528,11 +3521,11 @@ function ReminderFormView({
       </div>
 
       <div>
-        <label className="mb-1 block text-xs font-medium text-slate-600">{t("smartentry.reminder.customer")}</label>
+        <label className="mb-1 block text-xs font-medium text-ink-muted">{t("smartentry.reminder.customer")}</label>
         <select
           value={customerId}
           onChange={(e) => setCustomerId(e.target.value)}
-          className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+          className="w-full rounded-card border border-line-strong bg-surface px-3 py-2.5 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
         >
           <option value="">{t("smartentry.reminder.noCustomer")}</option>
           {form.customerCandidates.map((c) => (
@@ -3562,7 +3555,7 @@ function ReminderFormView({
         <button
           type="button"
           onClick={onCancel}
-          className="rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+          className="rounded-card border border-line-strong bg-surface px-4 py-3 text-sm font-semibold text-ink-muted hover:bg-app"
         >
           {t("smartentry.action.cancel")}
         </button>
@@ -3639,21 +3632,21 @@ function PurchaseFormView({
   return (
     <div className="space-y-4 p-1">
       <div className="flex items-center gap-2">
-        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-success-soft text-success-ink">
           <Package className="h-4 w-4" />
         </div>
         <div>
-          <p className="text-sm font-semibold text-slate-900">{t("smartentry.purchase.title")}</p>
-          {transcript ? <p className="text-xs text-slate-500">“{transcript}”</p> : null}
+          <p className="text-sm font-semibold text-ink">{t("smartentry.purchase.title")}</p>
+          {transcript ? <p className="text-xs text-ink-subtle">“{transcript}”</p> : null}
         </div>
       </div>
 
       <div>
-        <label className="mb-1 block text-xs font-medium text-slate-600">{t("smartentry.purchase.supplier")}</label>
+        <label className="mb-1 block text-xs font-medium text-ink-muted">{t("smartentry.purchase.supplier")}</label>
         <select
           value={supplierId}
           onChange={(e) => setSupplierId(e.target.value)}
-          className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+          className="w-full rounded-card border border-line-strong bg-surface px-3 py-2.5 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
         >
           <option value="">{t("smartentry.purchase.pickSupplier")}</option>
           {form.supplierCandidates.map((s) => (
@@ -3661,18 +3654,18 @@ function PurchaseFormView({
           ))}
         </select>
         {form.supplierBalance ? (
-          <p className="mt-1 text-xs text-slate-500">
+          <p className="mt-1 text-xs text-ink-subtle">
             {t("smartentry.purchase.payable")}: Rs. {Number(form.supplierBalance).toLocaleString()}
           </p>
         ) : null}
       </div>
 
       <div>
-        <label className="mb-1 block text-xs font-medium text-slate-600">{t("smartentry.purchase.product")}</label>
+        <label className="mb-1 block text-xs font-medium text-ink-muted">{t("smartentry.purchase.product")}</label>
         <select
           value={productId}
           onChange={(e) => setProductId(e.target.value)}
-          className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+          className="w-full rounded-card border border-line-strong bg-surface px-3 py-2.5 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
         >
           <option value="">{t("smartentry.purchase.pickProduct")}</option>
           {form.productCandidates.map((p) => (
@@ -3683,7 +3676,7 @@ function PurchaseFormView({
 
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="mb-1 block text-xs font-medium text-slate-600">
+          <label className="mb-1 block text-xs font-medium text-ink-muted">
             {t("smartentry.purchase.quantity")}{product?.unit ? ` (${product.unit})` : ""}
           </label>
           <input
@@ -3694,11 +3687,11 @@ function PurchaseFormView({
             value={quantity}
             onChange={(e) => setQuantity(e.target.value)}
             placeholder="0"
-            className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm font-semibold text-slate-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+            className="w-full rounded-card border border-line-strong bg-surface px-3 py-2.5 text-sm font-semibold text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
           />
         </div>
         <div>
-          <label className="mb-1 block text-xs font-medium text-slate-600">{t("smartentry.purchase.unitCost")}</label>
+          <label className="mb-1 block text-xs font-medium text-ink-muted">{t("smartentry.purchase.unitCost")}</label>
           <input
             type="number"
             inputMode="decimal"
@@ -3707,13 +3700,13 @@ function PurchaseFormView({
             value={unitCost}
             onChange={(e) => setUnitCost(e.target.value)}
             placeholder="0"
-            className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm font-semibold text-slate-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+            className="w-full rounded-card border border-line-strong bg-surface px-3 py-2.5 text-sm font-semibold text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
           />
         </div>
       </div>
 
       <div>
-        <label className="mb-1 block text-xs font-medium text-slate-600">{t("smartentry.purchase.paidNow")}</label>
+        <label className="mb-1 block text-xs font-medium text-ink-muted">{t("smartentry.purchase.paidNow")}</label>
         <input
           type="number"
           inputMode="decimal"
@@ -3722,21 +3715,21 @@ function PurchaseFormView({
           value={paid}
           onChange={(e) => setPaid(e.target.value)}
           placeholder="0"
-          className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm font-semibold text-slate-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+          className="w-full rounded-card border border-line-strong bg-surface px-3 py-2.5 text-sm font-semibold text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
         />
         {paidValue > total && total > 0 ? (
-          <p className="mt-1 text-xs font-medium text-red-600">{t("smartentry.purchase.paidTooMuch")}</p>
+          <p className="mt-1 text-xs font-medium text-danger-ink">{t("smartentry.purchase.paidTooMuch")}</p>
         ) : null}
       </div>
 
-      <div className="rounded-xl bg-slate-50 px-3 py-2.5 text-sm">
+      <div className="rounded-xl bg-app px-3 py-2.5 text-sm">
         <div className="flex items-center justify-between">
-          <span className="text-slate-600">{t("smartentry.purchase.total")}</span>
-          <span className="font-semibold text-slate-900">Rs. {total.toLocaleString()}</span>
+          <span className="text-ink-muted">{t("smartentry.purchase.total")}</span>
+          <span className="font-semibold text-ink">Rs. {total.toLocaleString()}</span>
         </div>
         <div className="mt-1 flex items-center justify-between">
-          <span className="text-slate-600">{t("smartentry.purchase.onCredit")}</span>
-          <span className="font-semibold text-amber-700">Rs. {roundedCredit.toLocaleString()}</span>
+          <span className="text-ink-muted">{t("smartentry.purchase.onCredit")}</span>
+          <span className="font-semibold text-warning-ink">Rs. {roundedCredit.toLocaleString()}</span>
         </div>
       </div>
 
@@ -3762,7 +3755,7 @@ function PurchaseFormView({
         <button
           type="button"
           onClick={onCancel}
-          className="rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+          className="rounded-card border border-line-strong bg-surface px-4 py-3 text-sm font-semibold text-ink-muted hover:bg-app"
         >
           {t("smartentry.action.cancel")}
         </button>

@@ -789,8 +789,12 @@ function isActionComplete(match: RouteAction): boolean {
 export function shouldEscalate(match: RouteMatch | null, rawText: string): boolean {
   const text = normalizeText(rawText);
   if (!text) return false;
-  if (hasNonLatinScript(text)) return true;
   if (!match) return true;
+  // A query the rules already matched (including the Urdu query patterns) is
+  // answered from the database; the model would only re-classify it, so it is
+  // not worth a free-tier request.
   if (match.type === "query") return false;
+  // Actions written in Urdu/Pashto script: the rules are Latin/Roman-Urdu only.
+  if (hasNonLatinScript(text)) return true;
   return !isActionComplete(match);
 }

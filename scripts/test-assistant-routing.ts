@@ -121,5 +121,13 @@ const asAction = (m: RouteMatch | null): RouteAction | null =>
   ok(shouldEscalate(r2, "show me today's expenses") === false, "query: no AI needed (2)");
 }
 
+// ── 12. A rule-matched Urdu query must NOT burn an AI request ──────────────
+{
+  const urduQuery = "مجھے کتنا ادھار لینا ہے";
+  const rq = route(urduQuery, ctx);
+  ok(rq?.type === "query" && rq.query === "RECEIVABLES", "query: Urdu receivables matched by rules", rq?.type === "query" ? rq.query : "");
+  ok(shouldEscalate(rq, urduQuery) === false, "Urdu query: answered from DB, no AI request");
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

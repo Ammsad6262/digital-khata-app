@@ -1363,6 +1363,13 @@ export const translations = {
   "smartentry.loading.requestingMicSubtitle": { en: "Allow microphone access to speak", ur: "بولنے کے لیے مائیکروفون تک رسائی دیں" },
 
   // Success / cancelled / error states
+  "assistant.answer.customerHistory": { en: "{name}: balance {balance} across {count} transaction(s).", ur: "{name}: بیلنس {balance}، {count} لین دین۔" },
+  "assistant.answer.topProducts": { en: "Best-selling products in the last {days} days:", ur: "پچھلے {days} دن کی سب سے زیادہ فروخت ہونے والی پروڈکٹس:" },
+  "assistant.answer.topProductsNone": { en: "No sales in the last 30 days, so there is no best-seller yet.", ur: "پچھلے 30 دن میں کوئی فروخت نہیں، اس لیے ابھی کوئی بہترین فروخت کنندہ نہیں۔" },
+  "assistant.answer.recentSales": { en: "Most recent sales:", ur: "حالیہ فروخت:" },
+  "assistant.answer.recentSalesNone": { en: "No sales recorded yet.", ur: "ابھی کوئی فروخت درج نہیں۔" },
+  "assistant.answer.recentExpenses": { en: "Most recent expenses:", ur: "حالیہ اخراجات:" },
+  "assistant.answer.recentExpensesNone": { en: "No expenses recorded yet.", ur: "ابھی کوئی خرچ درج نہیں۔" },
   // Deterministic query answers (sentence parts) and their item chips.
   "assistant.answer.dashboard": { en: "Today: sales {sales}, payments {payments}, expenses {expenses}.", ur: "آج: فروخت {sales}، وصولیاں {payments}، اخراجات {expenses}۔" },
   "assistant.answer.receivables": { en: "Receivables {total} from {count} customer(s).", ur: "وصولیاں {total}، {count} گاہک سے۔" },

@@ -217,6 +217,16 @@ export async function runQuery(
       const recent = h.transactions.slice(-8).reverse();
       return {
         text: `${h.customer.name}: balance ${money(h.customer.balance)} across ${h.transactions.length} transaction(s).`,
+        textKeys: [
+          {
+            key: "assistant.answer.customerHistory",
+            params: {
+              name: h.customer.name,
+              balance: money(h.customer.balance),
+              count: h.transactions.length,
+            },
+          },
+        ],
         items: recent.map((t) => ({
           label: `${t.type === "sale" ? "Sale" : t.type === "payment" ? "Payment" : "Adjustment"} · ${t.date.toISOString().slice(0, 10)}`,
           value: money(t.amount),
@@ -276,6 +286,14 @@ export async function runQuery(
         text: insights.topProducts.length
           ? `Best-selling products in the last ${insights.rangeDays} days:`
           : "No sales in the last 30 days, so there is no best-seller yet.",
+        textKeys: insights.topProducts.length
+          ? [
+              {
+                key: "assistant.answer.topProducts",
+                params: { days: insights.rangeDays },
+              },
+            ]
+          : [{ key: "assistant.answer.topProductsNone" }],
         items: insights.topProducts.slice(0, 10).map((p) => ({
           label: p.name,
           value: money(p.revenue),
@@ -371,6 +389,7 @@ export async function runQuery(
       const rows = await listSales(10, userId);
       return {
         text: rows.length ? "Most recent sales:" : "No sales recorded yet.",
+        textKeys: [rows.length ? { key: "assistant.answer.recentSales" } : { key: "assistant.answer.recentSalesNone" }],
         items: rows.map((s) => ({
           label: s.customerName,
           value: money(s.totalAmount),
@@ -385,6 +404,7 @@ export async function runQuery(
       const rows = await listExpenses(10, userId);
       return {
         text: rows.length ? "Most recent expenses:" : "No expenses recorded yet.",
+        textKeys: [rows.length ? { key: "assistant.answer.recentExpenses" } : { key: "assistant.answer.recentExpensesNone" }],
         items: rows.map((e) => ({
           label: e.name,
           value: money(e.amount),

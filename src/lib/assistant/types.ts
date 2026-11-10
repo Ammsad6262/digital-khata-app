@@ -97,6 +97,9 @@ export type PlanValues = {
   targetId?: string;
   category?: string;
   reminderTitle?: string;
+  customerName?: string;
+  productName?: string;
+  supplierName?: string;
 };
 
 export type PlanPayload = {

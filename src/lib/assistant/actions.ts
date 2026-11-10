@@ -26,6 +26,7 @@ import { voidSale } from "@/lib/services/sales";
 import { voidExpense } from "@/lib/services/expenses";
 import { voidPayment } from "@/lib/services/payments";
 import { BadRequestError } from "@/lib/errors";
+import { expenseCategorySchema } from "@/lib/schemas/expense";
 import type { PlanPayload } from "./types";
 
 export type ActionResult =
@@ -131,6 +132,12 @@ async function resolveOrCreateSupplier(userId: string, payload: PlanPayload): Pr
   return requireField(payload.supplierId, "supplier");
 }
 
+/** Map a free-text spoken category onto the strict expense enum, or "other". */
+function normaliseExpenseCategory(category: string | undefined) {
+  const parsed = expenseCategorySchema.safeParse(category);
+  return parsed.success ? parsed.data : ("other" as const);
+}
+
 export async function performAction(
   userId: string,
   payload: PlanPayload,
@@ -194,7 +201,7 @@ export async function performAction(
 
     // ── CUSTOMER PAYMENT ─────────────────────────────────────────────────
     case "RECORD_PAYMENT": {
-      const customerId = requireField(payload.customerId, "customer");
+      const customerId = await resolveOrCreateCustomer(userId, payload);
       const amount = requireField(payload.amount, "amount");
       if (amount <= 0) throw new BadRequestError("A payment must be greater than zero.");
 
@@ -238,7 +245,7 @@ export async function performAction(
         {
           name: payload.expenseName || "General expense",
           amount,
-          category: payload.category ?? "other",
+          category: normaliseExpenseCategory(payload.category),
           notes: payload.notes,
           date: payload.date,
         },
@@ -379,7 +386,7 @@ export async function performAction(
 
     // ── SUPPLIER PAYMENT ─────────────────────────────────────────────────
     case "SUPPLIER_PAYMENT": {
-      const supplierId = requireField(payload.supplierId, "supplier");
+      const supplierId = await resolveOrCreateSupplier(userId, payload);
       const amount = requireField(payload.amount, "amount");
       if (amount <= 0) throw new BadRequestError("A payment must be greater than zero.");
 
@@ -421,7 +428,7 @@ export async function performAction(
 
     // ── STOCK ────────────────────────────────────────────────────────────
     case "ADD_STOCK": {
-      const productId = requireField(payload.productId, "product");
+      const productId = await resolveOrCreateProduct(userId, payload);
       const quantity = requireField(payload.quantity, "quantity");
       if (quantity <= 0) throw new BadRequestError("Stock quantity must be greater than zero.");
 

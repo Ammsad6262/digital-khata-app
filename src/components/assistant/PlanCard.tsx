@@ -21,6 +21,7 @@ import type {
   ActionKind,
   AssistantPlan,
   Candidate,
+  PaymentMethod,
   PlanPayload,
   PlanValues,
 } from "@/lib/assistant/types";
@@ -32,14 +33,31 @@ function money(value: number | undefined, symbol = "Rs.") {
 
 type EntityKind = "customer" | "product" | "supplier";
 
-const CANDIDATE_KEY: Record<
-  "customers" | "products" | "suppliers",
-  { payload: keyof PlanPayload; create: EntityKind }
-> = {
-  customers: { payload: "customerId", create: "customer" },
-  products: { payload: "productId", create: "product" },
-  suppliers: { payload: "supplierId", create: "supplier" },
+const ENTITY_GROUP: Record<EntityKind, "customers" | "products" | "suppliers"> = {
+  customer: "customers",
+  product: "products",
+  supplier: "suppliers",
 };
+
+const ENTITY_ID_KEY: Record<EntityKind, "customerId" | "productId" | "supplierId"> = {
+  customer: "customerId",
+  product: "productId",
+  supplier: "supplierId",
+};
+
+const ENTITY_NAME_KEY: Record<EntityKind, "customerName" | "productName" | "supplierName"> = {
+  customer: "customerName",
+  product: "productName",
+  supplier: "supplierName",
+};
+
+const ENTITY_LABEL: Record<EntityKind, TranslationKey> = {
+  customer: "plan.label.customer",
+  product: "plan.label.product",
+  supplier: "plan.label.supplier",
+};
+
+const PAYMENT_METHODS: PaymentMethod[] = ["cash", "bank", "cheque", "jazzcash", "easypaisa", "other"];
 
 /** Server-supplied field labels are English; map them to translation keys. */
 const DISPLAY_LABEL: Record<string, TranslationKey> = {
@@ -88,7 +106,7 @@ const LABEL_TO_VALUE_KEY: Record<string, keyof PlanValues> = {
   Reminder: "reminderTitle",
 };
 
-type Spec = { key: keyof PlanPayload & keyof PlanValues; label: TranslationKey; type: "number" | "text" };
+type Spec = { key: keyof PlanPayload & keyof PlanValues; label: TranslationKey; type: "number" | "text" | "method" };
 
 /** Which parsed values the owner can change, per action. */
 const EDITABLE: Partial<Record<ActionKind, Spec[]>> = {
@@ -106,11 +124,11 @@ const EDITABLE: Partial<Record<ActionKind, Spec[]>> = {
   ],
   RECORD_PAYMENT: [
     { key: "amount", label: "plan.label.amount", type: "number" },
-    { key: "method", label: "plan.label.method", type: "text" },
+    { key: "method", label: "plan.label.method", type: "method" },
   ],
   SUPPLIER_PAYMENT: [
     { key: "amount", label: "plan.label.amount", type: "number" },
-    { key: "method", label: "plan.label.method", type: "text" },
+    { key: "method", label: "plan.label.method", type: "method" },
   ],
   CREATE_EXPENSE: [
     { key: "amount", label: "plan.label.amount", type: "number" },
@@ -168,6 +186,8 @@ export function PlanCard({
   const specs = EDITABLE[plan.action] ?? [];
   const wantsCreate = patch.createMissing ?? {};
 
+  // A cleared field stores "" (a sentinel) rather than undefined, so it does not
+  // silently fall back to the value the server first parsed.
   const val = (key: keyof PlanPayload & keyof PlanValues): number | string | null | undefined => {
     const p = patch[key];
     if (p !== undefined && p !== null) return p as number | string;
@@ -175,8 +195,9 @@ export function PlanCard({
   };
   const num = (key: keyof PlanPayload & keyof PlanValues): number | undefined => {
     const v = val(key);
+    if (v === "" || v === undefined || v === null) return undefined;
     const n = typeof v === "number" ? v : Number(v);
-    return Number.isFinite(n) && v !== "" && v !== undefined && v !== null ? n : undefined;
+    return Number.isFinite(n) ? n : undefined;
   };
   const str = (key: keyof PlanPayload & keyof PlanValues): string => {
     const v = val(key);
@@ -185,17 +206,34 @@ export function PlanCard({
   const setVal = (key: keyof PlanPayload, v: unknown) =>
     setPatch((prev) => ({ ...prev, [key]: v }));
   const toggleCreate = (kind: EntityKind) =>
-    setPatch((prev) => ({
-      ...prev,
-      createMissing: { ...prev.createMissing, [kind]: !prev.createMissing?.[kind] },
-    }));
+    setPatch((prev) => {
+      const on = !prev.createMissing?.[kind];
+      return {
+        ...prev,
+        ...(on ? { [ENTITY_ID_KEY[kind]]: undefined } : {}),
+        createMissing: { ...prev.createMissing, [kind]: on },
+      };
+    });
 
   const candidateGroups = Object.entries(plan.candidates).filter(
     ([, list]) => list && list.length > 0,
   ) as Array<["customers" | "products" | "suppliers", Candidate[]]>;
 
-  const missingEntity = (kind: EntityKind) =>
-    needs.has(kind) && !patch[`${kind}Id` as keyof PlanPayload] && !wantsCreate[kind];
+  // A required entity is satisfied by an existing id, by an explicit create, or
+  // (when no candidates and no spoken name exist) by a typed name that we create.
+  const missingEntity = (kind: EntityKind): boolean => {
+    if (!needs.has(kind)) return false;
+    if (patch[ENTITY_ID_KEY[kind]]) return false;
+    if (wantsCreate[kind]) return !str(ENTITY_NAME_KEY[kind]);
+    return true;
+  };
+
+  // Kinds that need a free-text name because there is nothing to pick or create.
+  const nameOnlyEntities = (["customer", "product", "supplier"] as EntityKind[]).filter((kind) => {
+    if (!needs.has(kind)) return false;
+    const hasCandidates = (plan.candidates[ENTITY_GROUP[kind]]?.length ?? 0) > 0;
+    return !hasCandidates && !plan.missing?.[kind];
+  });
 
   // Live total for a sale so the owner sees the effect of their edits.
   const liveTotal =
@@ -216,20 +254,27 @@ export function PlanCard({
     return true;
   });
 
+  const paidNow = num("paidAmount");
   const blocked =
     missingEntity("customer") ||
     missingEntity("product") ||
     missingEntity("supplier") ||
     (needs.has("quantity") && !((num("quantity") ?? 0) > 0)) ||
-    (needs.has("amount") && num("amount") === undefined) ||
-    (needs.has("paidAmount") && num("paidAmount") === undefined) ||
-    (needs.has("unitPrice") && num("unitPrice") === undefined && num("sellingPrice") === undefined && num("unitCost") === undefined) ||
+    (needs.has("amount") && !((num("amount") ?? 0) > 0)) ||
+    (needs.has("paidAmount") && (paidNow === undefined || paidNow < 0)) ||
+    (needs.has("unitPrice") &&
+      num("unitPrice") === undefined &&
+      num("sellingPrice") === undefined &&
+      num("unitCost") === undefined) ||
     (needs.has("name") && !str("name") && !str("expenseName") && !str("reminderTitle")) ||
     (needs.has("targetId") && !str("targetId"));
 
   return (
-    <div className="rounded-2xl rounded-es-sm border border-line bg-surface px-3 py-3 text-sm shadow-card">
-      <p className="font-semibold text-ink">{plan.summary}</p>
+    <div
+      key={plan.actionId}
+      className="rounded-2xl rounded-es-sm border border-line bg-surface px-3 py-3 text-sm shadow-card"
+    >
+      <p className="break-words font-semibold text-ink">{plan.summary}</p>
       {plan.usedContext ? (
         <p className="mt-0.5 text-xs text-ink-subtle">{t("plan.usingLastCustomer")}</p>
       ) : null}
@@ -239,7 +284,7 @@ export function PlanCard({
           {readonlyFields.map((field) => (
             <div key={field.label} className="flex justify-between gap-3">
               <dt className="text-ink-subtle">{displayLabel(field.label, t)}</dt>
-              <dd className="text-right font-medium text-ink">{field.value}</dd>
+              <dd className="min-w-0 break-words text-right font-medium text-ink">{field.value}</dd>
             </div>
           ))}
         </dl>
@@ -254,8 +299,10 @@ export function PlanCard({
       ) : null}
 
       {candidateGroups.map(([group, list]) => {
-        const { payload: key, create } = CANDIDATE_KEY[group];
-        const selectedId = patch[key] as string | undefined;
+        const kind: EntityKind =
+          group === "customers" ? "customer" : group === "products" ? "product" : "supplier";
+        const idKey = ENTITY_ID_KEY[kind];
+        const selectedId = patch[idKey] as string | undefined;
         return (
           <div key={group} className="mt-2">
             <p className="text-xs font-medium text-ink-subtle">
@@ -272,15 +319,16 @@ export function PlanCard({
                 <button
                   key={candidate.id}
                   type="button"
+                  aria-pressed={selectedId === candidate.id}
                   onClick={() =>
                     setPatch((p) => ({
                       ...p,
-                      [key]: candidate.id,
-                      createMissing: { ...p.createMissing, [create]: false },
+                      [idKey]: candidate.id,
+                      createMissing: { ...p.createMissing, [kind]: false },
                     }))
                   }
                   className={cn(
-                    "rounded-full border px-2.5 py-1 text-xs font-medium",
+                    "max-w-full truncate rounded-full border px-2.5 py-1 text-xs font-medium",
                     selectedId === candidate.id
                       ? "border-brand-600 bg-brand-600 text-white"
                       : "border-line-strong bg-surface",
@@ -294,45 +342,69 @@ export function PlanCard({
         );
       })}
 
+      {/* Typed name when nothing exists to pick or create from. */}
+      {nameOnlyEntities.map((kind) => (
+        <label key={kind} className="mt-2 block">
+          <span className="text-xs font-medium text-ink-subtle">{t(ENTITY_LABEL[kind])}</span>
+          <input
+            type="text"
+            dir="auto"
+            value={str(ENTITY_NAME_KEY[kind])}
+            onChange={(e) => {
+              const name = e.target.value;
+              setPatch((p) => ({
+                ...p,
+                [ENTITY_NAME_KEY[kind]]: name,
+                createMissing: { ...p.createMissing, [kind]: name.trim().length > 0 },
+              }));
+            }}
+            className="mt-0.5 w-full rounded-lg border border-line-strong bg-surface px-2 py-1.5 text-sm"
+          />
+        </label>
+      ))}
+
       {/* One-tap create for a named-but-missing entity. */}
       {plan.missing && (plan.missing.product || plan.missing.customer || plan.missing.supplier) ? (
         <div className="mt-2 flex flex-wrap gap-1.5">
           {plan.missing.customer ? (
             <button
               type="button"
+              aria-pressed={!!wantsCreate.customer}
               onClick={() => toggleCreate("customer")}
               className={cn(
-                "flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium",
+                "flex max-w-full items-center gap-1 truncate rounded-full border px-2.5 py-1 text-xs font-medium",
                 wantsCreate.customer ? "border-brand-600 bg-brand-600 text-white" : "border-brand-600 text-brand-700",
               )}
             >
-              <Plus className="h-3 w-3" />
+              <Plus className="h-3 w-3 shrink-0" />
               {tParams("plan.createCustomer", { name: plan.missing.customer })}
             </button>
           ) : null}
           {plan.missing.product ? (
             <button
               type="button"
+              aria-pressed={!!wantsCreate.product}
               onClick={() => toggleCreate("product")}
               className={cn(
-                "flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium",
+                "flex max-w-full items-center gap-1 truncate rounded-full border px-2.5 py-1 text-xs font-medium",
                 wantsCreate.product ? "border-brand-600 bg-brand-600 text-white" : "border-brand-600 text-brand-700",
               )}
             >
-              <Plus className="h-3 w-3" />
+              <Plus className="h-3 w-3 shrink-0" />
               {tParams("plan.createProduct", { name: plan.missing.product })}
             </button>
           ) : null}
           {plan.missing.supplier ? (
             <button
               type="button"
+              aria-pressed={!!wantsCreate.supplier}
               onClick={() => toggleCreate("supplier")}
               className={cn(
-                "flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium",
+                "flex max-w-full items-center gap-1 truncate rounded-full border px-2.5 py-1 text-xs font-medium",
                 wantsCreate.supplier ? "border-brand-600 bg-brand-600 text-white" : "border-brand-600 text-brand-700",
               )}
             >
-              <Plus className="h-3 w-3" />
+              <Plus className="h-3 w-3 shrink-0" />
               {tParams("plan.createSupplier", { name: plan.missing.supplier })}
             </button>
           ) : null}
@@ -346,24 +418,39 @@ export function PlanCard({
       {specs.length > 0 ? (
         <div className="mt-2">
           <p className="text-xs font-medium text-ink-subtle">{t("plan.editValues")}</p>
-          <div className="mt-1 grid grid-cols-2 gap-2">
+          <div className="mt-1 grid grid-cols-1 gap-2 min-[360px]:grid-cols-2">
             {specs.map((spec) => (
               <label key={String(spec.key)} className="block">
                 <span className="text-[11px] text-ink-subtle">{t(spec.label)}</span>
-                <input
-                  type={spec.type === "number" ? "number" : "text"}
-                  inputMode={spec.type === "number" ? "decimal" : undefined}
-                  value={str(spec.key)}
-                  onChange={(e) => {
-                    const raw = e.target.value;
-                    if (spec.type === "number") {
-                      setVal(spec.key, raw === "" ? undefined : Number.isFinite(Number(raw)) ? Number(raw) : undefined);
-                    } else {
-                      setVal(spec.key, raw);
-                    }
-                  }}
-                  className="mt-0.5 w-full rounded-lg border border-line-strong bg-surface px-2 py-1.5 text-sm"
-                />
+                {spec.type === "method" ? (
+                  <select
+                    value={str(spec.key) || "cash"}
+                    onChange={(e) => setVal(spec.key, e.target.value)}
+                    className="mt-0.5 w-full rounded-lg border border-line-strong bg-surface px-2 py-1.5 text-sm"
+                  >
+                    {PAYMENT_METHODS.map((method) => (
+                      <option key={method} value={method}>
+                        {t(`method.${method}` as TranslationKey)}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type={spec.type === "number" ? "number" : "text"}
+                    inputMode={spec.type === "number" ? "decimal" : undefined}
+                    dir={spec.type === "number" ? "ltr" : "auto"}
+                    value={str(spec.key)}
+                    onChange={(e) => {
+                      const raw = e.target.value;
+                      if (spec.type === "number") {
+                        setVal(spec.key, raw === "" ? "" : Number.isFinite(Number(raw)) ? Number(raw) : "");
+                      } else {
+                        setVal(spec.key, raw);
+                      }
+                    }}
+                    className="mt-0.5 w-full rounded-lg border border-line-strong bg-surface px-2 py-1.5 text-sm"
+                  />
+                )}
               </label>
             ))}
           </div>
@@ -377,13 +464,15 @@ export function PlanCard({
         </div>
       ) : null}
 
-      {needs.has("paidAmount") && !specs.some((s) => s.key === "paidAmount") ? (
+      {/* One-tap payment amount for the two actions that carry money. */}
+      {plan.action === "CREATE_SALE" || plan.action === "CREATE_PURCHASE" ? (
         <div className="mt-2">
           <p className="text-xs font-medium text-ink-subtle">{t("plan.howMuchPaid")}</p>
           <div className="mt-1 flex flex-wrap gap-1.5">
             {plan.suggested?.paidAmount !== undefined ? (
               <button
                 type="button"
+                aria-pressed={paidNow === plan.suggested.paidAmount}
                 onClick={() => setPatch((p) => ({ ...p, paidAmount: plan.suggested!.paidAmount }))}
                 className="rounded-full border border-brand-600 bg-brand-600 px-2.5 py-1 text-xs font-medium text-white"
               >
@@ -392,12 +481,11 @@ export function PlanCard({
             ) : null}
             <button
               type="button"
+              aria-pressed={paidNow === 0}
               onClick={() => setPatch((p) => ({ ...p, paidAmount: 0 }))}
               className={cn(
                 "rounded-full border px-2.5 py-1 text-xs font-medium",
-                patch.paidAmount === 0
-                  ? "border-brand-600 bg-brand-600 text-white"
-                  : "border-line-strong bg-surface",
+                paidNow === 0 ? "border-brand-600 bg-brand-600 text-white" : "border-line-strong bg-surface",
               )}
             >
               {t("plan.onCredit")}

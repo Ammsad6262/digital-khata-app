@@ -286,7 +286,13 @@ async function buildPlanFor(
       const productRecord = product.entity
         ? ctx.products.find((p) => p.id === product.entity!.id)
         : undefined;
-      const unitPrice = f.unitPrice ?? (productRecord ? Number(productRecord.sellingPrice) : null);
+      // Prefer an explicitly spoken unit price, then a spoken total split over
+      // the quantity, and only then the catalog price. Using the catalog price
+      // when the owner already said "for 5000" would silently change the charge.
+      const unitPrice =
+        f.unitPrice ??
+        (f.total != null && quantity ? Math.round((f.total / quantity) * 100) / 100 : null) ??
+        (productRecord ? Number(productRecord.sellingPrice) : null);
       if (unitPrice !== null) payload.unitPrice = unitPrice;
       else requires.push("unitPrice");
       payload.unit = f.unit ?? productRecord?.unit;
@@ -721,6 +727,9 @@ function valuesFromPayload(p: PlanPayload): PlanValues {
     targetId: p.targetId,
     category: p.category,
     reminderTitle: p.reminderTitle,
+    customerName: p.customerName,
+    productName: p.productName,
+    supplierName: p.supplierName,
   };
 }
 
@@ -752,10 +761,15 @@ async function storePlan(
       orderBy: { createdAt: "desc" },
     });
     if (existing) {
-      if (existing.status === "PENDING" || existing.status === "DONE") {
+      if (
+        existing.status === "PENDING" ||
+        existing.status === "EXECUTING" ||
+        existing.status === "DONE"
+      ) {
         return { id: existing.id, payload: existing.payload as unknown as PlanPayload, existing: true };
       }
-      // A cancelled or failed plan for the same command is replaced, not reused.
+      // Only a cancelled or failed plan is replaced. Re-arming an action that is
+      // mid-execution could let the same sale post twice.
       const refreshed = await prisma.assistantAction.update({
         where: { id: existing.id },
         data: {
@@ -1104,9 +1118,11 @@ export async function confirmAction(
   payload.action = stored.action;
 
   // Conditional transition prevents two concurrent confirms from both executing.
+  // A FAILED action may be retried (fix the value, confirm again); PENDING is
+  // claimed; EXECUTING/DONE/CANCELLED are never claimed again.
   const claim = await prisma.assistantAction.updateMany({
-    where: { id: actionId, userId, status: "PENDING" },
-    data: { status: "EXECUTING" },
+    where: { id: actionId, userId, status: { in: ["PENDING", "FAILED"] } },
+    data: { status: "EXECUTING", error: null },
   });
   if (claim.count === 0) {
     const latest = await prisma.assistantAction.findFirst({ where: { id: actionId, userId } });

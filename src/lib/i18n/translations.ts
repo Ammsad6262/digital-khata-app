@@ -1363,6 +1363,7 @@ export const translations = {
   "smartentry.loading.requestingMicSubtitle": { en: "Allow microphone access to speak", ur: "بولنے کے لیے مائیکروفون تک رسائی دیں" },
 
   // Success / cancelled / error states
+  "assistant.alreadyDone": { en: "That action was already saved.", ur: "وہ کام پہلے ہی محفوظ ہو چکا ہے۔" },
   "smartentry.success.title": { en: "Added to Khata", ur: "کھاتے میں شامل ہو گیا" },
   "smartentry.success.defaultMessage": { en: "Added to Khata", ur: "کھاتے میں شامل ہو گیا" },
   "smartentry.cancelled.title": { en: "Cancelled", ur: "منسوخ" },

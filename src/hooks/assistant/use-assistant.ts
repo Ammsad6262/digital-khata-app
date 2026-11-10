@@ -185,19 +185,36 @@ export function useAssistant() {
 
   const cancel = useCallback(
     async (actionId: string) => {
+      // Only tell the owner it was cancelled when the server actually cancelled
+      // a still-pending action; an action that already ran keeps its result.
+      let cancelled = false;
       try {
-        await fetch("/api/assistant/cancel", {
+        const res = await fetch("/api/assistant/cancel", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ actionId }),
         });
+        const json = (await res.json().catch(() => null)) as
+          | { data?: { cancelled?: boolean } }
+          | null;
+        cancelled = json?.data?.cancelled === true;
       } catch {
         /* best-effort */
       }
       setTurns((prev) =>
         prev.map((t) =>
           t.role === "assistant" && t.reply.kind === "plan" && t.reply.actionId === actionId
-            ? { ...t, reply: { ...t.reply, kind: "answer", text: "@key:assistant.cancelled", source: "database", requestsUsed: 0, timings: { totalMs: 0 } } as AssistantReply }
+            ? {
+                ...t,
+                reply: {
+                  ...t.reply,
+                  kind: "answer",
+                  text: cancelled ? "@key:assistant.cancelled" : "@key:assistant.alreadyDone",
+                  source: "database",
+                  requestsUsed: 0,
+                  timings: { totalMs: 0 },
+                } as AssistantReply,
+              }
             : t,
         ),
       );

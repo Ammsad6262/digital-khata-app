@@ -78,6 +78,15 @@ export type PlanRequirement =
   | "name"
   | "targetId";
 
+/** A plan warning reduced to a translation key plus parameters. */
+export type PlanWarning = {
+  /** Translation key. Empty when the warning could not be mapped; then use `text`. */
+  key: string;
+  params?: Record<string, string | number>;
+  /** Original English text, the fallback. */
+  text?: string;
+};
+
 export type PlanValues = {
   quantity?: number;
   unit?: string;
@@ -149,6 +158,8 @@ export type PlanPayload = {
     summary: string;
     fields: Array<{ label: string; value: string }>;
     warnings: string[];
+    /** Warnings as translation keys, so the card can show them in the UI language. */
+    warningKeys?: PlanWarning[];
     requires: PlanRequirement[];
     candidates: { customers?: Candidate[]; products?: Candidate[]; suppliers?: Candidate[] };
     usedContext: boolean;
@@ -199,6 +210,8 @@ export type AssistantPlan = {
   summary: string;
   fields: Array<{ label: string; value: string }>;
   warnings: string[];
+  /** Warnings as translation keys; preferred over the English `warnings`. */
+  warningKeys?: PlanWarning[];
   requires: PlanRequirement[];
   candidates: {
     customers?: Candidate[];

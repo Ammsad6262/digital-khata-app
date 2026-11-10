@@ -39,6 +39,7 @@ import type {
   RouterContext,
   Timings,
 } from "./types";
+import { warningKeysFromEnglish } from "./warnings";
 
 // ────────────────────────────────────────────────────────────────────────────
 // Context + entity helpers
@@ -172,6 +173,7 @@ function planReply(
     summary: display.summary,
     fields: display.fields,
     warnings: display.warnings,
+    warningKeys: display.warningKeys,
     requires: display.requires,
     candidates: display.candidates,
     usedContext: display.usedContext,
@@ -745,6 +747,7 @@ async function storePlan(
       summary: build.summary,
       fields: build.fields,
       warnings: build.warnings,
+      warningKeys: warningKeysFromEnglish(build.warnings),
       requires: build.requires,
       candidates: build.candidates,
       usedContext: build.usedContext,

@@ -300,9 +300,14 @@ export function PlanCard({
 
       {plan.warnings.length > 0 ? (
         <ul className="mt-2 space-y-1 rounded-lg bg-warning-soft p-2 text-xs text-warning-ink">
-          {plan.warnings.map((warning, index) => (
-            <li key={index}>{warning}</li>
-          ))}
+          {plan.warnings.map((warning, index) => {
+            const entry = plan.warningKeys?.[index];
+            const text =
+              entry && entry.key
+                ? tParams(entry.key as TranslationKey, entry.params ?? {})
+                : (entry?.text ?? warning);
+            return <li key={index}>{text}</li>;
+          })}
         </ul>
       ) : null}
 

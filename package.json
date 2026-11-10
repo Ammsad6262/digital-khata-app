@@ -26,6 +26,7 @@
     "test:dates": "tsx scripts/test-dates.ts",
     "test:assistant-routing": "tsx scripts/test-assistant-routing.ts",
     "test:assistant-patch": "tsx scripts/test-assistant-patch.ts",
+    "test:assistant-warnings": "tsx scripts/test-assistant-warnings.ts",
     "test:audit": "tsx scripts/audit-data-integrity.ts",
     "test:e2e": "tsx scripts/test-e2e.ts",
     "test:acceptance": "tsx scripts/test-acceptance-http.ts",

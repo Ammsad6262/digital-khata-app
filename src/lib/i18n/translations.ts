@@ -1363,6 +1363,16 @@ export const translations = {
   "smartentry.loading.requestingMicSubtitle": { en: "Allow microphone access to speak", ur: "بولنے کے لیے مائیکروفون تک رسائی دیں" },
 
   // Success / cancelled / error states
+  // Plan warning sentences, so the card can show them in the UI language.
+  "plan.warn.noCustomerNamed": { en: "No customer named “{name}” yet. Pick one or add them.", ur: "“{name}” نام کا گاہک موجود نہیں۔ کوئی منتخب کریں یا نیا شامل کریں۔" },
+  "plan.warn.noCustomer": { en: "No customer was mentioned.", ur: "کوئی گاہک ذکر نہیں کیا گیا۔" },
+  "plan.warn.noProductNamed": { en: "No product named “{name}” yet.", ur: "“{name}” نام کی پروڈکٹ موجود نہیں۔" },
+  "plan.warn.noProduct": { en: "No product was mentioned.", ur: "کوئی پروڈکٹ ذکر نہیں کی گئی۔" },
+  "plan.warn.noSupplierNamed": { en: "No supplier named “{name}” yet.", ur: "“{name}” نام کا سپلائر موجود نہیں۔" },
+  "plan.warn.noSupplier": { en: "No supplier was mentioned.", ur: "کوئی سپلائر ذکر نہیں کیا گیا۔" },
+  "plan.warn.overpaid": { en: "Paid {paid} is more than the sale total {total}.", ur: "ادا شدہ {paid} فروخت کے کل {total} سے زیادہ ہے۔" },
+  "plan.warn.oversell": { en: "Only {current} {unit} of {name} in stock — this sale will oversell.", ur: "اسٹاک میں {name} کے صرف {current} {unit} ہیں — یہ فروخت اسٹاک سے زیادہ ہو جائے گی۔" },
+  "plan.warn.void": { en: "This reverses money and inventory. Confirm only if you are sure.", ur: "یہ رقم اور اسٹاک واپس پلٹاتا ہے۔ صرف اسی صورت میں تصدیق کریں جب آپ کو یقین ہو۔" },
   // Localised headings for the confirmation card, because a rule-built plan's
   // own summary sentence is English.
   "plan.title.CREATE_SALE": { en: "New sale", ur: "نئی فروخت" },

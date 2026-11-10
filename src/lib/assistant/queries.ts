@@ -28,6 +28,8 @@ import type { AnswerItem, QueryKind, RouteQuery } from "./types";
 
 export type QueryResult = {
   text: string;
+  /** Localised sentence parts; preferred over `text` when present. */
+  textKeys?: Array<{ key: string; params?: Record<string, string | number> }>;
   items?: AnswerItem[];
   data?: unknown;
 };
@@ -92,6 +94,23 @@ export async function runQuery(
             ? `${d.lowStockProducts.length} product(s) are low on stock.`
             : "No products are low on stock.",
         ].join(" "),
+        textKeys: [
+          {
+            key: "assistant.answer.dashboard",
+            params: {
+              sales: money(d.todaysSales),
+              payments: money(d.todaysPayments),
+              expenses: money(d.todaysExpenses),
+            },
+          },
+          {
+            key: "assistant.answer.receivables",
+            params: { total: money(d.totalReceivables), count: d.customersWithBalance },
+          },
+          d.lowStockProducts.length
+            ? { key: "assistant.answer.lowStock.count", params: { count: d.lowStockProducts.length } }
+            : { key: "assistant.answer.lowStock.none" },
+        ],
         data: d,
         items: [
           { label: "Receivables", value: money(d.totalReceivables), href: "/khata" },
@@ -113,6 +132,14 @@ export async function runQuery(
         text: rows.length
           ? `Customers owe you ${money(total)} in total. ${rows.length} customer(s) have an outstanding balance.`
           : "No customer owes you anything right now.",
+        textKeys: rows.length
+          ? [
+              {
+                key: "assistant.answer.receivablesOwed",
+                params: { total: money(total), count: rows.length },
+              },
+            ]
+          : [{ key: "assistant.answer.receivablesNone" }],
         items: rows.slice(0, 12).map((r) => ({
           label: r.name,
           value: money(r.balance),
@@ -129,6 +156,14 @@ export async function runQuery(
         text: rows.length
           ? `You owe suppliers ${money(total)}. ${rows.length} supplier(s) have a payable balance.`
           : "You do not owe any supplier right now.",
+        textKeys: rows.length
+          ? [
+              {
+                key: "assistant.answer.payables",
+                params: { total: money(total), count: rows.length },
+              },
+            ]
+          : [{ key: "assistant.answer.payablesNone" }],
         items: rows.slice(0, 12).map((r) => ({
           label: r.name,
           value: money(r.balance),
@@ -152,6 +187,19 @@ export async function runQuery(
             : `${c.name}'s account is settled.`;
       return {
         text,
+        textKeys: [
+          balance > 0
+            ? {
+                key: "assistant.answer.customerOwes",
+                params: { name: c.name, amount: money(balance) },
+              }
+            : balance < 0
+              ? {
+                  key: "assistant.answer.customerAdvance",
+                  params: { name: c.name, amount: money(Math.abs(balance)) },
+                }
+              : { key: "assistant.answer.customerSettled", params: { name: c.name } },
+        ],
         items: [
           { label: c.name, value: money(balance), href: `/khata/${c.id}` },
           { label: "Total sales", value: money(c.totalPurchases) },
@@ -186,6 +234,17 @@ export async function runQuery(
       const p = await getProductWithStock(entity.id, userId);
       return {
         text: `${p.name}: ${formatQuantity(p.currentStock, p.unit)} in stock${p.isLowStock ? " (low)" : ""}. Selling price ${money(p.sellingPrice)} per ${p.unit}.`,
+        textKeys: [
+          {
+            key: p.isLowStock ? "assistant.answer.stockLow" : "assistant.answer.stock",
+            params: {
+              name: p.name,
+              quantity: formatQuantity(p.currentStock, p.unit),
+              price: money(p.sellingPrice),
+              unit: p.unit,
+            },
+          },
+        ],
         items: [
           { label: p.name, value: formatQuantity(p.currentStock, p.unit), href: `/more/products/${p.id}` },
           { label: "Selling price", value: `${money(p.sellingPrice)} / ${p.unit}` },
@@ -233,6 +292,16 @@ export async function runQuery(
       const r = await getReportForPreset(userId, preset, tz);
       return {
         text: `${preset === "today" ? "Today" : "This month"}: billed ${money(r.sales.billed)} across ${r.sales.count} sale(s); cash received ${money(r.sales.cashReceived)}.`,
+        textKeys: [
+          {
+            key: preset === "today" ? "assistant.answer.salesToday" : "assistant.answer.salesMonth",
+            params: {
+              billed: money(r.sales.billed),
+              count: r.sales.count,
+              cash: money(r.sales.cashReceived),
+            },
+          },
+        ],
         items: [
           { label: "Billed", value: money(r.sales.billed) },
           { label: "Cash received", value: money(r.sales.cashReceived) },
@@ -249,6 +318,12 @@ export async function runQuery(
       const r = await getReportForPreset(userId, preset, tz);
       return {
         text: `${preset === "today" ? "Today" : "This month"}: expenses ${money(r.expenses.total)} across ${r.expenses.count} record(s).`,
+        textKeys: [
+          {
+            key: preset === "today" ? "assistant.answer.expensesToday" : "assistant.answer.expensesMonth",
+            params: { total: money(r.expenses.total), count: r.expenses.count },
+          },
+        ],
         items: r.expenses.byCategory.slice(0, 8).map((c) => ({
           label: c.category,
           value: money(c.amount),
@@ -263,6 +338,24 @@ export async function runQuery(
       const p = r.profit;
       return {
         text: `${preset === "today" ? "Today" : preset === "all" ? "All time" : "This month"}: revenue ${money(p.revenue)}, cost of goods ${money(p.cogs)}, gross profit ${money(p.grossProfit)}, expenses ${money(p.expenses)}, net profit ${money(p.netProfit)} (${p.profitMargin}% margin).`,
+        textKeys: [
+          {
+            key:
+              preset === "today"
+                ? "assistant.answer.profitToday"
+                : preset === "all"
+                  ? "assistant.answer.profitAll"
+                  : "assistant.answer.profitMonth",
+            params: {
+              revenue: money(p.revenue),
+              cogs: money(p.cogs),
+              gross: money(p.grossProfit),
+              expenses: money(p.expenses),
+              net: money(p.netProfit),
+              margin: p.profitMargin,
+            },
+          },
+        ],
         items: [
           { label: "Revenue", value: money(p.revenue) },
           { label: "Cost of goods sold", value: money(p.cogs) },

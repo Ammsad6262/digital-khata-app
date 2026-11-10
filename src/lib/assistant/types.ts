@@ -195,6 +195,8 @@ export type AnswerItem = {
 export type AssistantAnswer = {
   kind: "answer";
   text: string;
+  /** Localised sentence parts; preferred over `text` when present. */
+  textKeys?: Array<{ key: string; params?: Record<string, string | number> }>;
   items?: AnswerItem[];
   data?: unknown;
   source: "database" | "ai";

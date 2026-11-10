@@ -961,6 +961,7 @@ export async function handleMessage(
       return {
         kind: "answer",
         text: result.text,
+        textKeys: result.textKeys,
         items: result.items,
         data: result.data,
         source: "database",

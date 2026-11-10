@@ -178,9 +178,13 @@ export function PlanCard({
   onConfirm: (actionId: string, patch: Partial<PlanPayload>) => void;
   onCancel: (actionId: string) => void;
 }) {
-  const { t, tParams } = useLanguage();
+  const { t, tParams, lang } = useLanguage();
   const symbol = useCurrencySymbol();
   const [patch, setPatch] = useState<Partial<PlanPayload>>({});
+
+  // Rule-built summaries are English; show a localised heading instead when the
+  // owner is reading the app in another language. The values below are fields.
+  const heading = lang === "en" ? plan.summary : t(`plan.title.${plan.action}` as TranslationKey);
 
   const needs = new Set(plan.requires);
   const specs = EDITABLE[plan.action] ?? [];
@@ -267,14 +271,18 @@ export function PlanCard({
       num("sellingPrice") === undefined &&
       num("unitCost") === undefined) ||
     (needs.has("name") && !str("name") && !str("expenseName") && !str("reminderTitle")) ||
-    (needs.has("targetId") && !str("targetId"));
+    (needs.has("targetId") && !str("targetId")) ||
+    (plan.action === "CREATE_SALE" &&
+      liveTotal !== undefined &&
+      paidNow !== undefined &&
+      paidNow > liveTotal);
 
   return (
     <div
       key={plan.actionId}
       className="rounded-2xl rounded-es-sm border border-line bg-surface px-3 py-3 text-sm shadow-card"
     >
-      <p className="break-words font-semibold text-ink">{plan.summary}</p>
+      <p className="break-words font-semibold text-ink">{heading}</p>
       {plan.usedContext ? (
         <p className="mt-0.5 text-xs text-ink-subtle">{t("plan.usingLastCustomer")}</p>
       ) : null}

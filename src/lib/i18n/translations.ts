@@ -1363,6 +1363,22 @@ export const translations = {
   "smartentry.loading.requestingMicSubtitle": { en: "Allow microphone access to speak", ur: "بولنے کے لیے مائیکروفون تک رسائی دیں" },
 
   // Success / cancelled / error states
+  // Localised headings for the confirmation card, because a rule-built plan's
+  // own summary sentence is English.
+  "plan.title.CREATE_SALE": { en: "New sale", ur: "نئی فروخت" },
+  "plan.title.RECORD_PAYMENT": { en: "Payment received", ur: "وصولی" },
+  "plan.title.CREATE_EXPENSE": { en: "Expense", ur: "خرچ" },
+  "plan.title.CREATE_CUSTOMER": { en: "New customer", ur: "نیا گاہک" },
+  "plan.title.CREATE_PRODUCT": { en: "New product", ur: "نئی پروڈکٹ" },
+  "plan.title.CREATE_SUPPLIER": { en: "New supplier", ur: "نیا سپلائر" },
+  "plan.title.CREATE_PURCHASE": { en: "Purchase", ur: "خریداری" },
+  "plan.title.SUPPLIER_PAYMENT": { en: "Payment to supplier", ur: "سپلائر کو ادائیگی" },
+  "plan.title.CREATE_REMINDER": { en: "Reminder", ur: "یاد دہانی" },
+  "plan.title.ADD_STOCK": { en: "Stock added", ur: "اسٹاک میں اضافہ" },
+  "plan.title.COMPLETE_REMINDER": { en: "Complete reminder", ur: "یاد دہانی مکمل کریں" },
+  "plan.title.VOID_SALE": { en: "Void sale", ur: "فروخت منسوخ کریں" },
+  "plan.title.VOID_EXPENSE": { en: "Void expense", ur: "خرچ منسوخ کریں" },
+  "plan.title.VOID_PAYMENT": { en: "Void payment", ur: "ادائیگی منسوخ کریں" },
   "assistant.alreadyDone": { en: "That action was already saved.", ur: "وہ کام پہلے ہی محفوظ ہو چکا ہے۔" },
   "smartentry.success.title": { en: "Added to Khata", ur: "کھاتے میں شامل ہو گیا" },
   "smartentry.success.defaultMessage": { en: "Added to Khata", ur: "کھاتے میں شامل ہو گیا" },

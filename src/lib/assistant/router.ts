@@ -110,6 +110,18 @@ function classifyNumbers(text: string): NumberRole[] {
       unit = canonicalUnit(unitMatch[1]!);
     } else if (TOTAL_WORDS.test(before)) role = "total";
 
+    // "25 marshmallows": a bare number followed by a noun is the quantity even
+    // when no unit word is spoken. We only do this when nothing else claimed the
+    // number, and never when the next word is a preposition/connector.
+    if (role === "unknown") {
+      const following = after.trimStart();
+      const nextWord = following.match(/^([^\s\d]+)/)?.[1]?.toLowerCase() ?? "";
+      const isConnector = /^(on|to|from|at|for|per|and|of|in|with|the|a|an)$/.test(nextWord);
+      if (nextWord && !isConnector && !/^\d/.test(nextWord)) {
+        role = "quantity";
+      }
+    }
+
     roles.push({ value: n.value, role, unit, raw: n.raw });
   }
   return roles;

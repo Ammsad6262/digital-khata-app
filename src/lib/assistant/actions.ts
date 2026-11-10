@@ -157,8 +157,19 @@ export async function performAction(
       if (!payload.items?.length) {
         const qty = requireField(payload.quantity, "quantity");
         if (qty <= 0) throw new BadRequestError("Quantity must be greater than zero.");
-        if (payload.unitPrice == null && !payload.total) {
+        const price =
+          payload.unitPrice ??
+          (payload.total ? Math.round((payload.total / qty) * 100) / 100 : null);
+        if (price == null) {
           throw new BadRequestError("The price is missing.");
+        }
+        // Reject an over-payment BEFORE creating any new customer/product, so a
+        // failure here cannot leave orphan rows (the same rule createSale enforces).
+        const expectedTotal = Math.round((qty * price - (payload.discountAmount ?? 0)) * 100) / 100;
+        if (paidAmount > expectedTotal) {
+          throw new BadRequestError(
+            `The paid amount is more than the sale total (${money(expectedTotal)}).`,
+          );
         }
       }
 

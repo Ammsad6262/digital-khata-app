@@ -1112,6 +1112,21 @@ export async function confirmAction(
     return errorReply("INVALID_INPUT", "That action was cancelled.", "", emptyTimings());
   }
 
+  // A plan left open for a day would execute at the prices/stock captured then.
+  const MAX_PLAN_AGE_MS = 24 * 60 * 60 * 1000;
+  if (row.status === "PENDING" && Date.now() - new Date(row.createdAt).getTime() > MAX_PLAN_AGE_MS) {
+    await prisma.assistantAction.update({
+      where: { id: actionId },
+      data: { status: "CANCELLED" },
+    });
+    return errorReply(
+      "INVALID_INPUT",
+      "That action has expired. Please say it again.",
+      "",
+      emptyTimings(),
+    );
+  }
+
   const stored = row.payload as unknown as PlanPayload;
   const payload: PlanPayload = { ...stored, ...patch };
   // Never let a patch overwrite the action kind.

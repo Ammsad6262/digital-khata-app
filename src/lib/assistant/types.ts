@@ -78,11 +78,38 @@ export type PlanRequirement =
   | "name"
   | "targetId";
 
+export type PlanValues = {
+  quantity?: number;
+  unit?: string;
+  unitPrice?: number;
+  unitCost?: number;
+  total?: number;
+  paidAmount?: number | null;
+  amount?: number;
+  discountAmount?: number;
+  name?: string;
+  expenseName?: string;
+  phone?: string;
+  method?: PaymentMethod;
+  sellingPrice?: number;
+  purchasePrice?: number;
+  openingStock?: number;
+  targetId?: string;
+  category?: string;
+  reminderTitle?: string;
+};
+
 export type PlanPayload = {
   action: ActionKind;
   customerId?: string;
   supplierId?: string;
   productId?: string;
+  /** Names as spoken, kept so a missing entity can be created on confirm. */
+  customerName?: string;
+  productName?: string;
+  supplierName?: string;
+  /** True per entity the owner chose to create instead of picking an existing one. */
+  createMissing?: { customer?: boolean; product?: boolean; supplier?: boolean };
   items?: Array<{ productId: string; quantity: number; unitPrice: number }>;
   quantity?: number;
   unit?: string;
@@ -122,6 +149,10 @@ export type PlanPayload = {
     requires: PlanRequirement[];
     candidates: { customers?: Candidate[]; products?: Candidate[]; suppliers?: Candidate[] };
     usedContext: boolean;
+    /** Relevant parsed values, so the confirmation card can edit them. */
+    values?: PlanValues;
+    /** Named entities that were not found, so the card can offer to create them. */
+    missing?: { customer?: string; product?: string; supplier?: string };
     /** Values the confirmation card can offer as one-tap choices. */
     suggested?: {
       total?: number;
@@ -173,6 +204,10 @@ export type AssistantPlan = {
   };
   /** True when a pronoun was resolved from the previous turn. */
   usedContext: boolean;
+  /** Relevant parsed values, so the card can offer editable inputs. */
+  values?: PlanValues;
+  /** Named entities that were not found, so the card can offer to create them. */
+  missing?: { customer?: string; product?: string; supplier?: string };
   /** One-tap values for the confirmation card. */
   suggested?: {
     total?: number;

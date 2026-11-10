@@ -32,22 +32,20 @@ export type ModelConfig = {
 };
 
 /**
- * Verified against the live key (benchmarked with real English/Urdu/Pashto
- * commands):
- *   - gemini-3.5-flash        primary; correct on sales, payments, expenses,
- *                             queries and Urdu/Pashto (variable latency).
- *   - gemini-3.1-flash-lite   6/6 mixed commands, its own daily quota.
- *   - gemini-3-flash-preview  fastest when healthy (~1-3 s).
+ * Ordered STRONGEST → WEAKEST (re-benchmarked with real English/Urdu commands):
+ *   1. gemini-3.5-flash       full Flash, stable — strongest reliable model.
+ *   2. gemini-3-flash-preview full Flash, preview — a touch weaker/experimental.
+ *   3. gemini-3.1-flash-lite  lite — weakest, but fast and reliable.
  *
- * gemini-flash-latest and gemini-3.8-flash were removed after they repeatedly
- * hung (20 s+) or returned 503, which burned the caller's time budget without
- * producing an answer. The free tier allows 20 requests/day PER MODEL, so three
- * distinct models give ~60 usable requests/day.
+ * gemini-3.8-flash and gemini-3.7-flash are the highest-numbered models but
+ * they time out (~20 s) or 503 on every call, so they are intentionally NOT in
+ * the chain. gemini-flash-latest was equally unreliable. The free tier allows
+ * 20 requests/day PER MODEL, so three distinct models give ~60 usable/day.
  */
 const FALLBACK_CHAIN: ModelConfig[] = [
   { id: "gemini-3.5-flash", dailyLimit: 20 },
-  { id: "gemini-3.1-flash-lite", dailyLimit: 20 },
   { id: "gemini-3-flash-preview", dailyLimit: 20 },
+  { id: "gemini-3.1-flash-lite", dailyLimit: 20 },
 ];
 
 function envInt(name: string, fallback: number): number {

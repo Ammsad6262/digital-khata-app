@@ -32,6 +32,7 @@ import type {
   Candidate,
   PlanPayload,
   PlanRequirement,
+  PlanValues,
   RouteAction,
   RouteMatch,
   RouteQuery,
@@ -174,6 +175,8 @@ function planReply(
     requires: display.requires,
     candidates: display.candidates,
     usedContext: display.usedContext,
+    values: display.values,
+    missing: display.missing,
     suggested: display.suggested,
     source: meta.source,
     model: meta.model,
@@ -212,6 +215,8 @@ type PlanBuild = {
   requires: PlanRequirement[];
   candidates: { customers?: Candidate[]; products?: Candidate[]; suppliers?: Candidate[] };
   usedContext: boolean;
+  /** Named entities that were not found (offered as "create" buttons). */
+  missing?: { customer?: string; product?: string; supplier?: string };
   suggested?: {
     total?: number;
     paidAmount?: number;
@@ -271,6 +276,8 @@ async function buildPlanFor(
         );
       }
       payload.productId = product.entity?.id;
+      payload.customerName = f.customerName;
+      payload.productName = f.productName;
 
       const quantity = f.quantity ?? null;
       if (quantity === null || quantity <= 0) requires.push("quantity");
@@ -281,6 +288,7 @@ async function buildPlanFor(
         : undefined;
       const unitPrice = f.unitPrice ?? (productRecord ? Number(productRecord.sellingPrice) : null);
       if (unitPrice !== null) payload.unitPrice = unitPrice;
+      else requires.push("unitPrice");
       payload.unit = f.unit ?? productRecord?.unit;
 
       const discount = f.discountAmount ?? 0;
@@ -342,6 +350,10 @@ async function buildPlanFor(
         requires,
         candidates,
         usedContext,
+        missing: {
+          customer: !customer.entity && f.customerName ? f.customerName : undefined,
+          product: !product.entity && f.productName ? f.productName : undefined,
+        },
         suggested: {
           total: total ?? undefined,
           paidAmount: total ?? undefined,
@@ -364,6 +376,7 @@ async function buildPlanFor(
         requires.push("customer");
       }
       payload.customerId = customer.entity?.id;
+      payload.customerName = f.customerName;
       payload.amount = (f.amount ?? f.paidAmount ?? undefined) as number | undefined;
       if (!payload.amount || payload.amount <= 0) requires.push("amount");
       payload.method = f.method;
@@ -382,6 +395,9 @@ async function buildPlanFor(
         requires,
         candidates,
         usedContext,
+        missing: {
+          customer: !customer.entity && f.customerName ? f.customerName : undefined,
+        },
       };
     }
 
@@ -398,6 +414,7 @@ async function buildPlanFor(
         requires.push("supplier");
       }
       payload.supplierId = supplier.entity?.id;
+      payload.supplierName = f.supplierName;
       payload.amount = (f.amount ?? f.paidAmount ?? undefined) as number | undefined;
       if (!payload.amount || payload.amount <= 0) requires.push("amount");
       payload.method = f.method;
@@ -416,6 +433,9 @@ async function buildPlanFor(
         requires,
         candidates,
         usedContext,
+        missing: {
+          supplier: !supplier.entity && f.supplierName ? f.supplierName : undefined,
+        },
       };
     }
 
@@ -455,6 +475,7 @@ async function buildPlanFor(
         warnings.push(f.productName ? `No product named “${f.productName}” yet.` : "No product was mentioned.");
       }
       payload.productId = product.entity?.id;
+      payload.productName = f.productName;
       payload.quantity = f.quantity ?? undefined;
       if (!payload.quantity || payload.quantity <= 0) requires.push("quantity");
 
@@ -482,6 +503,9 @@ async function buildPlanFor(
         requires,
         candidates,
         usedContext,
+        missing: {
+          product: !product.entity && f.productName ? f.productName : undefined,
+        },
       };
     }
 
@@ -512,6 +536,8 @@ async function buildPlanFor(
         requires.push("product");
       }
       payload.productId = product.entity?.id;
+      payload.supplierName = f.supplierName;
+      payload.productName = f.productName;
 
       payload.quantity = f.quantity ?? undefined;
       if (!payload.quantity || payload.quantity <= 0) requires.push("quantity");
@@ -544,6 +570,10 @@ async function buildPlanFor(
         requires,
         candidates,
         usedContext,
+        missing: {
+          supplier: !supplier.entity && f.supplierName ? f.supplierName : undefined,
+          product: !product.entity && f.productName ? f.productName : undefined,
+        },
       };
     }
 
@@ -670,6 +700,30 @@ async function buildPlanFor(
 // Persistence
 // ────────────────────────────────────────────────────────────────────────────
 
+/** Raw parsed values handed to the confirmation card for editing. */
+function valuesFromPayload(p: PlanPayload): PlanValues {
+  return {
+    quantity: p.quantity,
+    unit: p.unit,
+    unitPrice: p.unitPrice,
+    unitCost: p.unitCost,
+    total: p.total,
+    paidAmount: p.paidAmount ?? undefined,
+    amount: p.amount,
+    discountAmount: p.discountAmount,
+    name: p.name,
+    expenseName: p.expenseName,
+    phone: p.phone,
+    method: p.method,
+    sellingPrice: p.sellingPrice,
+    purchasePrice: p.purchasePrice,
+    openingStock: p.openingStock,
+    targetId: p.targetId,
+    category: p.category,
+    reminderTitle: p.reminderTitle,
+  };
+}
+
 async function storePlan(
   userId: string,
   build: PlanBuild,
@@ -685,6 +739,8 @@ async function storePlan(
       requires: build.requires,
       candidates: build.candidates,
       usedContext: build.usedContext,
+      values: valuesFromPayload(build.payload),
+      missing: build.missing,
       suggested: build.suggested,
     },
   } satisfies PlanPayload;

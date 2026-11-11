@@ -87,6 +87,31 @@ type EntityOptions = {
 };
 const EMPTY_OPTIONS: EntityOptions = { customers: [], products: [], suppliers: [] };
 
+/**
+ * One shared request for every plan card in the conversation. A new card must
+ * not refetch 300 customers each time the owner says something.
+ */
+let optionsCache: Promise<EntityOptions> | null = null;
+let optionsCacheAt = 0;
+function loadOptions(): Promise<EntityOptions> {
+  // A short TTL picks up a customer/product created from an earlier card.
+  if (!optionsCache || Date.now() - optionsCacheAt > 30_000) {
+    optionsCacheAt = Date.now();
+    optionsCache = fetch("/api/assistant/options", { cache: "no-store" })
+      .then((res) => (res.ok ? res.json() : Promise.reject(new Error(String(res.status)))))
+      .then((json: { data?: Partial<EntityOptions> } | null) => ({
+        customers: json?.data?.customers ?? [],
+        products: json?.data?.products ?? [],
+        suppliers: json?.data?.suppliers ?? [],
+      }))
+      .catch((error: unknown) => {
+        optionsCache = null; // let the retry button try again
+        throw error;
+      });
+  }
+  return optionsCache;
+}
+
 /** Server-supplied field labels are English; map them to translation keys. */
 const DISPLAY_LABEL: Record<string, TranslationKey> = {
   Customer: "plan.label.customer",
@@ -268,15 +293,9 @@ export function PlanCard({
     if (entityKinds.length === 0) return;
     let alive = true;
     setOptionsFailed(false);
-    fetch("/api/assistant/options", { cache: "no-store" })
-      .then((res) => (res.ok ? res.json() : Promise.reject(new Error(String(res.status)))))
-      .then((json: { data?: Partial<EntityOptions> } | null) => {
-        if (!alive) return;
-        setOptions({
-          customers: json?.data?.customers ?? [],
-          products: json?.data?.products ?? [],
-          suppliers: json?.data?.suppliers ?? [],
-        });
+    loadOptions()
+      .then((data) => {
+        if (alive) setOptions(data);
       })
       .catch(() => {
         if (alive) setOptionsFailed(true);

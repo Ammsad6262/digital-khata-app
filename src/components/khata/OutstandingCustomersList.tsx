@@ -30,16 +30,20 @@ import {
 } from "lucide-react";
 import { useOutstandingCustomers } from "@/hooks/use-customers";
 import { Money } from "@/components/shared/Money";
+import { ContactActions } from "@/components/shared/ContactActions";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { Button } from "@/components/ui/Button";
 import { useLanguage } from "@/providers/language-provider";
 import { formatRelative, formatDate } from "@/lib/utils/date";
 import { Decimal } from "@/lib/utils/decimal";
+import { formatMoney } from "@/lib/utils/money";
+import { useCurrencySymbol } from "@/hooks/use-currency-symbol";
 
 export function OutstandingCustomersList() {
   const { data, isLoading, isError, error, refetch, isFetching } =
     useOutstandingCustomers();
-  const { t, lang } = useLanguage();
+  const { t, tParams, lang } = useLanguage();
+  const symbol = useCurrencySymbol();
 
   // ── Loading skeleton ──────────────────────────────────────────────────────
   if (isLoading) {
@@ -130,84 +134,102 @@ export function OutstandingCustomersList() {
             ? formatRelative(new Date(c.lastActivityAt))
             : "—";
           const since = formatDate(new Date(c.createdAt));
+          const whatsappMessage = tParams("customer.followUpMessage", {
+            name: c.name,
+            amount: formatMoney(c.balance, symbol),
+          });
 
           return (
-            <Link
+            <div
               key={c.id}
-              href={`/khata/${c.id}`}
-              className="block overflow-hidden rounded-card border border-line bg-surface shadow-card transition-colors hover:border-brand-300 hover:bg-brand-50/30 active:bg-brand-50/60"
+              className="overflow-hidden rounded-card border border-line bg-surface shadow-card transition-colors hover:border-brand-300"
             >
-              {/* Top row: avatar + name + phone + balance */}
-              <div className="flex items-center gap-3 px-3 py-3">
-                <div
-                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-danger-soft text-sm font-bold text-danger-ink"
-                  aria-hidden
+              {/* Top row: avatar + name + phone + balance + follow-up actions */}
+              <div className="flex items-center gap-2 px-3 py-3">
+                <Link
+                  href={`/khata/${c.id}`}
+                  className="flex min-w-0 flex-1 items-center gap-3"
                 >
-                  {c.name.charAt(0).toUpperCase()}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold text-ink">
-                    <span className="mr-1.5 text-ink-faint">#{idx + 1}</span>
-                    {c.name}
-                  </p>
-                  {c.phone ? (
-                    <p className="flex items-center gap-1 text-xs text-ink-subtle">
-                      <Phone className="h-3 w-3" />
-                      {c.phone}
+                  <div
+                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-danger-soft text-sm font-bold text-danger-ink"
+                    aria-hidden
+                  >
+                    {c.name.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold text-ink">
+                      <span className="mr-1.5 text-ink-faint">#{idx + 1}</span>
+                      {c.name}
                     </p>
-                  ) : (
-                    <p className="text-xs text-ink-faint">{t("customer.noPhone")}</p>
-                  )}
-                </div>
-                <div className="shrink-0 text-right">
-                  <p className="text-base font-bold tabular-nums text-danger-ink">
-                    <Money value={c.balance} />
-                  </p>
-                  <p className="text-[10px] font-medium uppercase tracking-wider text-danger/80">
-                    {t("customer.owes")}
-                  </p>
-                </div>
-              </div>
-
-              {/* Bottom row: stats grid — opening / sales / payments / last activity */}
-              <div className="grid grid-cols-4 gap-1 border-t border-line bg-app/60 px-3 py-2 text-center">
-                <Stat
-                  label={t("customer.opening")}
-                  value={<Money value={c.openingBalance} />}
-                  icon={<Wallet className="h-3 w-3" />}
-                />
-                <Stat
-                  label={t("dashboard.todaysSales")}
-                  value={<Money value={c.totalSales} />}
-                  icon={<TrendingUp className="h-3 w-3" />}
-                  tone="green"
-                />
-                <Stat
-                  label={t("dashboard.todaysPayments")}
-                  value={<Money value={c.totalPayments} />}
-                  icon={<TrendingDown className="h-3 w-3" />}
-                  tone="blue"
-                />
-                <Stat
-                  label={t("outstanding.lastActivity")}
-                  value={
-                    <span className="text-[11px] font-medium text-ink-muted">
-                      {lastActivity}
-                    </span>
-                  }
+                    {c.phone ? (
+                      <p className="flex items-center gap-1 text-xs text-ink-subtle">
+                        <Phone className="h-3 w-3" />
+                        {c.phone}
+                      </p>
+                    ) : (
+                      <p className="text-xs text-ink-faint">{t("customer.noPhone")}</p>
+                    )}
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <p className="text-base font-bold tabular-nums text-danger-ink">
+                      <Money value={c.balance} />
+                    </p>
+                    <p className="text-[10px] font-medium uppercase tracking-wider text-danger/80">
+                      {t("customer.owes")}
+                    </p>
+                  </div>
+                </Link>
+                <ContactActions
+                  phone={c.phone}
+                  whatsappMessage={whatsappMessage}
+                  iconOnly
                 />
               </div>
 
-              {/* Footer: customer since + CTA */}
-              <div className="flex items-center justify-between px-3 py-1.5 text-[11px] text-ink-faint">
-                <span>
-                  {t("outstanding.openedOn")}: {since}
-                </span>
-                <span className="font-medium text-brand-600">
-                  {t("outstanding.viewKhata")} <ChevronRight className="inline h-3 w-3 rtl-flip" />
-                </span>
-              </div>
-            </Link>
+              <Link
+                href={`/khata/${c.id}`}
+                className="block hover:bg-brand-50/30 active:bg-brand-50/60"
+              >
+                {/* Bottom row: stats grid — opening / sales / payments / last activity */}
+                <div className="grid grid-cols-4 gap-1 border-t border-line bg-app/60 px-3 py-2 text-center">
+                  <Stat
+                    label={t("customer.opening")}
+                    value={<Money value={c.openingBalance} />}
+                    icon={<Wallet className="h-3 w-3" />}
+                  />
+                  <Stat
+                    label={t("dashboard.todaysSales")}
+                    value={<Money value={c.totalSales} />}
+                    icon={<TrendingUp className="h-3 w-3" />}
+                    tone="green"
+                  />
+                  <Stat
+                    label={t("dashboard.todaysPayments")}
+                    value={<Money value={c.totalPayments} />}
+                    icon={<TrendingDown className="h-3 w-3" />}
+                    tone="blue"
+                  />
+                  <Stat
+                    label={t("outstanding.lastActivity")}
+                    value={
+                      <span className="text-[11px] font-medium text-ink-muted">
+                        {lastActivity}
+                      </span>
+                    }
+                  />
+                </div>
+
+                {/* Footer: customer since + CTA */}
+                <div className="flex items-center justify-between px-3 py-1.5 text-[11px] text-ink-faint">
+                  <span>
+                    {t("outstanding.openedOn")}: {since}
+                  </span>
+                  <span className="font-medium text-brand-600">
+                    {t("outstanding.viewKhata")} <ChevronRight className="inline h-3 w-3 rtl-flip" />
+                  </span>
+                </div>
+              </Link>
+            </div>
           );
         })}
       </div>

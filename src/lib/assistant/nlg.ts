@@ -7,6 +7,8 @@
  * falls back to the model.
  */
 
+import { nameScore } from "./names";
+
 export function normalizeText(input: string): string {
   return input
     .normalize("NFKC")
@@ -212,24 +214,40 @@ export function matchEntities<T extends { name: string }>(
     if (found) continue;
   }
 
-  // Partial: first word of a name, when unique among candidates.
-  for (const entity of sorted) {
-    const words = normalizeText(entity.name).split(" ").filter(Boolean);
-    const first = words[0];
-    if (!first || first.length < 3) continue;
-    const sameFirst = candidates.filter(
-      (c) => normalizeText(c.name).split(" ")[0] === first,
-    );
-    if (sameFirst.length !== 1) continue;
+  // Fuzzy / cross-script pass. The transcript may use a different script
+  // ("احمد" vs "Ahmed") or a different spelling ("Mohammad" vs "Muhammad").
+  // Only words of 3+ letters are considered; stop words, units and numbers are
+  // ignored so an item named "Cash" cannot be "found" in "cash sale".
+  const words: Array<{ word: string; start: number; end: number }> = [];
+  const wordRe = /[\p{L}\p{N}]+/gu;
+  let wm: RegExpExecArray | null;
+  while ((wm = wordRe.exec(text))) {
+    const word = wm[0]!;
+    if (word.length < 3 || /^\d/.test(word)) continue;
+    if (STOPWORDS.has(word.toLowerCase())) continue;
+    words.push({ word, start: wm.index, end: wm.index + word.length });
+  }
 
-    const re = new RegExp(`(^|\\s)(${escapeRegExp(first)})(?=\\s|$)`, "g");
-    const m = re.exec(text);
-    if (!m) continue;
-    const start = m.index + m[1]!.length;
-    const end = start + m[2]!.length;
-    if (overlaps(start, end)) continue;
-    matches.push({ entity, name: entity.name, start, end, exact: false });
-    used.push([start, end]);
+  for (const entity of sorted) {
+    if (matches.some((m) => m.entity === entity)) continue;
+    let best: { start: number; end: number; score: number } | null = null;
+    for (const candidate of words) {
+      if (overlaps(candidate.start, candidate.end)) continue;
+      const score = nameScore(candidate.word, entity.name);
+      if (score >= 80 && (!best || score > best.score)) {
+        best = { start: candidate.start, end: candidate.end, score };
+      }
+    }
+    if (best) {
+      matches.push({
+        entity,
+        name: entity.name,
+        start: best.start,
+        end: best.end,
+        exact: false,
+      });
+      used.push([best.start, best.end]);
+    }
   }
 
   return matches.sort((a, b) => a.start - b.start);

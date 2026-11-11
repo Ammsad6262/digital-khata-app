@@ -9,6 +9,7 @@
  */
 
 import { useCallback, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import type { AssistantReply, PlanPayload } from "@/lib/assistant/types";
 import type { SpeechLanguage } from "@/lib/assistant/language";
 
@@ -47,6 +48,7 @@ async function blobToBase64(blob: Blob): Promise<string> {
 }
 
 export function useAssistant() {
+  const queryClient = useQueryClient();
   const [turns, setTurns] = useState<AssistantTurn[]>([]);
   const [busy, setBusy] = useState(false);
   const [state, setState] = useState<AssistantState>("idle");
@@ -160,6 +162,14 @@ export function useAssistant() {
           throw new Error(json?.error?.message || `Could not confirm (${res.status}).`);
         }
         append({ id: nextId(), role: "assistant", reply: json.data });
+
+        // The assistant writes through the same services as the screens, but
+        // React Query does not know about it. Invalidate everything so the
+        // dashboard, khata, sales and expenses show the new row immediately
+        // instead of waiting for a poll or a manual reload.
+        if (json.data.kind !== "error") {
+          await queryClient.invalidateQueries();
+        }
       } catch (err) {
         const message = err instanceof Error ? err.message : "Could not confirm.";
         append({
@@ -180,7 +190,7 @@ export function useAssistant() {
         setState("idle");
       }
     },
-    [append],
+    [append, queryClient],
   );
 
   const cancel = useCallback(

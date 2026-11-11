@@ -24,6 +24,7 @@ import { AlertCircle, Receipt, Plus, ChevronRight, TrendingUp } from "lucide-rea
 import { useExpensesList, useExpensesSummary } from "@/hooks/use-expenses";
 import type { ExpenseFilter } from "@/lib/services/expenses";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { PullToRefresh } from "@/components/shared/PullToRefresh";
 import { Money } from "@/components/shared/Money";
 import { Button } from "@/components/ui/Button";
 import { Decimal } from "@/lib/utils/decimal";
@@ -78,7 +79,12 @@ export function ExpensesOverview() {
   const recentList = listQuery.data?.slice(0, 5) ?? [];
 
   return (
-    <div className="space-y-4">
+    <PullToRefresh
+      onRefresh={async () => {
+        await Promise.all([summaryQuery.refetch(), listQuery.refetch()]);
+      }}
+    >
+      <div className="space-y-4">
       {/* ── Period filter chips ─────────────────────────────────────────── */}
       <div className="flex gap-1.5 overflow-x-auto pb-1">
         {FILTERS.map((f) => (
@@ -241,7 +247,8 @@ export function ExpensesOverview() {
         <Plus className="h-4 w-4" strokeWidth={2.5} />
         {t("expense.recordNew")}
       </Link>
-    </div>
+      </div>
+    </PullToRefresh>
   );
 }
 

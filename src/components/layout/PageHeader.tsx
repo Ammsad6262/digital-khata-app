@@ -14,6 +14,7 @@ import Link from "next/link";
 import { type ReactNode } from "react";
 import { type LucideIcon } from "lucide-react";
 import { MoreButton } from "@/components/layout/MoreButton";
+import { RefreshButton } from "@/components/shared/RefreshButton";
 import { cn } from "@/lib/utils/cn";
 
 type Tone = "brand" | "neutral";
@@ -30,6 +31,7 @@ export function PageHeader({
   action,
   tone = "brand",
   showMore = true,
+  showRefresh = true,
 }: {
   icon: LucideIcon;
   title: string;
@@ -37,6 +39,7 @@ export function PageHeader({
   action?: ReactNode;
   tone?: Tone;
   showMore?: boolean;
+  showRefresh?: boolean;
 }) {
   return (
     <header className="sticky top-0 z-20 border-b border-line/70 bg-surface/80 px-4 py-3 backdrop-blur-xl">
@@ -63,6 +66,7 @@ export function PageHeader({
         </div>
 
         <div className="flex shrink-0 items-center gap-1.5">
+          {showRefresh ? <RefreshButton /> : null}
           {action}
           {showMore ? <MoreButton /> : null}
         </div>

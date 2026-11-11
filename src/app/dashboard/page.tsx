@@ -11,6 +11,7 @@
 import { ScreenContent } from "@/components/layout/Screen";
 import { Dashboard } from "@/components/dashboard/Dashboard";
 import { MoreButton } from "@/components/layout/MoreButton";
+import { RefreshButton } from "@/components/shared/RefreshButton";
 import { useLanguage } from "@/providers/language-provider";
 
 export default function DashboardPage() {
@@ -30,7 +31,10 @@ export default function DashboardPage() {
             <p className="truncate text-[11px] text-ink-subtle">{t("dashboard.subtitle")}</p>
           </div>
         </div>
-        <MoreButton />
+        <div className="flex shrink-0 items-center gap-1.5">
+          <RefreshButton />
+          <MoreButton />
+        </div>
       </header>
       <ScreenContent>
         <Dashboard />

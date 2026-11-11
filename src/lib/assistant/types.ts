@@ -88,6 +88,10 @@ export type PlanWarning = {
 };
 
 export type PlanValues = {
+  /** Resolved entities, so the card can preselect the real customer/product. */
+  customerId?: string;
+  productId?: string;
+  supplierId?: string;
   quantity?: number;
   unit?: string;
   unitPrice?: number;

@@ -22,6 +22,7 @@
  */
 
 import { useCallback, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import type {
   InterpretResult, FormFieldState, ExpenseFormState, PaymentFormState,
   QueryResultState, StockIntakeFormState, ProductCreationFormState,
@@ -71,6 +72,7 @@ function mapStatusToState(status: InterpretResult["status"]): SmartEntryState {
 }
 
 export function useSmartEntry() {
+  const queryClient = useQueryClient();
   const [state, setState] = useState<State>(INITIAL);
 
   // ── Duplicate-submission guard ────────────────────────────────────────────
@@ -345,6 +347,9 @@ export function useSmartEntry() {
         createdCustomerId: data.customerId ?? null,
         message: data.message ?? "smartentry.success.defaultMessage",
       });
+      // Smart entry writes on the server; refresh every open screen so the new
+      // sale/payment/expense is visible the moment the success card appears.
+      void queryClient.invalidateQueries();
     } catch (e) {
       if (e instanceof DOMException && e.name === "AbortError") return;
       setState((s) => ({
@@ -356,7 +361,7 @@ export function useSmartEntry() {
     } finally {
       abortControllerRef.current = null;
     }
-  }, [state.sessionId]);
+  }, [state.sessionId, queryClient]);
 
   const cancel = useCallback(async () => {
     // Increment request ID to invalidate any in-flight API response

@@ -1022,6 +1022,7 @@ export const translations = {
   "more.settingsDesc": { en: "Business name, currency, backup, PIN", ur: "کاروبار کا نام، کرنسی، بیک اپ، PIN" },
 
   // ─── Common ───
+  "common.refresh": { en: "Refresh", ur: "تازہ کریں" },
   "common.retry": { en: "Retry", ur: "دوبارہ کوشش" },
   "common.cancel": { en: "Cancel", ur: "منسوخ" },
   "common.save": { en: "Save", ur: "محفوظ" },
@@ -1192,6 +1193,10 @@ export const translations = {
   "common.required": { en: "required", ur: "لازمی" },
 
   // ─── Customer extras ───
+  "customer.followUpMessage": {
+    en: "Assalam-o-Alaikum {name}. Your khata balance is {amount}. Please clear it when convenient. Thank you.",
+    ur: "السلام علیکم {name}۔ آپ کا کھاتہ بقایا {amount} ہے۔ سہولت ہو تو ادائیگی کر دیجیے۔ شکریہ۔",
+  },
   "customer.noPhone": { en: "No phone", ur: "فون نمبر نہیں" },
   "customer.createFromTransactionHint": { en: "You can also create a customer from any transaction.", ur: "آپ کسی بھی لین دین سے گاہک بنا سکتے ہیں۔" },
   "customer.deleteFailed": { en: "Failed to delete customer.", ur: "گاہک حذف نہیں ہو سکا۔" },
@@ -2113,6 +2118,11 @@ export const translations = {
   "plan.label.priority": { en: "Priority", ur: "ترجیح" },
   "plan.label.target": { en: "Target", ur: "ہدف" },
   "plan.editValues": { en: "Check & change", ur: "چیک کریں اور تبدیل کریں" },
+  "plan.chooseEntity": { en: "Choose a saved record", ur: "محفوظ ریکارڈ منتخب کریں" },
+  "plan.createNew": { en: "Create new", ur: "نیا بنائیں" },
+  "plan.createNewNamed": { en: "Create new: {name}", ur: "نیا بنائیں: {name}" },
+  "plan.newEntityName": { en: "Name", ur: "نام" },
+  "plan.optionsFailed": { en: "Couldn't load the list — tap to retry.", ur: "فہرست لوڈ نہیں ہو سکی — دوبارہ کوشش کے لیے دبائیں۔" },
   "plan.createCustomer": { en: "Create customer “{name}”", ur: "گاہک “{name}” بنائیں" },
   "plan.createProduct": { en: "Create product “{name}”", ur: "پروڈکٹ “{name}” بنائیں" },
   "plan.createSupplier": { en: "Create supplier “{name}”", ur: "سپلائر “{name}” بنائیں" },

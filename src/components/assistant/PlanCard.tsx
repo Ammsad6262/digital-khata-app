@@ -11,8 +11,8 @@
  * server already produced and hands the diff back as a patch.
  */
 
-import { useState } from "react";
-import { Check, Plus } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Check, ChevronDown, Plus } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { useLanguage } from "@/providers/language-provider";
 import { useCurrencySymbol } from "@/hooks/use-currency-symbol";
@@ -20,7 +20,6 @@ import type { TranslationKey } from "@/lib/i18n/translations";
 import type {
   ActionKind,
   AssistantPlan,
-  Candidate,
   PaymentMethod,
   PlanPayload,
   PlanValues,
@@ -57,7 +56,36 @@ const ENTITY_LABEL: Record<EntityKind, TranslationKey> = {
   supplier: "plan.label.supplier",
 };
 
+/** Field label used by the server for the resolved entity's display name. */
+const ENTITY_FIELD: Record<EntityKind, string> = {
+  customer: "Customer",
+  product: "Product",
+  supplier: "Supplier",
+};
+
 const PAYMENT_METHODS: PaymentMethod[] = ["cash", "bank", "cheque", "jazzcash", "easypaisa", "other"];
+
+/** Actions that always involve an entity, even when it already resolved. */
+const ENTITY_ACTIONS: Record<EntityKind, ActionKind[]> = {
+  customer: ["CREATE_SALE", "RECORD_PAYMENT"],
+  product: ["CREATE_SALE", "CREATE_PURCHASE", "ADD_STOCK"],
+  supplier: ["CREATE_PURCHASE", "SUPPLIER_PAYMENT"],
+};
+
+type EntityOption = {
+  id: string;
+  name: string;
+  unit?: string;
+  phone?: string | null;
+  sellingPrice?: string | number | null;
+  purchasePrice?: string | number | null;
+};
+type EntityOptions = {
+  customers: EntityOption[];
+  products: EntityOption[];
+  suppliers: EntityOption[];
+};
+const EMPTY_OPTIONS: EntityOptions = { customers: [], products: [], suppliers: [] };
 
 /** Server-supplied field labels are English; map them to translation keys. */
 const DISPLAY_LABEL: Record<string, TranslationKey> = {
@@ -214,30 +242,65 @@ export function PlanCard({
       const on = !prev.createMissing?.[kind];
       return {
         ...prev,
-        ...(on ? { [ENTITY_ID_KEY[kind]]: undefined } : {}),
+        // "" clears the resolved id on the server (creating instead); when the
+        // chip is turned off, undefined falls back to the resolved entity.
+        [ENTITY_ID_KEY[kind]]: on ? "" : undefined,
         createMissing: { ...prev.createMissing, [kind]: on },
       };
     });
 
-  const candidateGroups = Object.entries(plan.candidates).filter(
-    ([, list]) => list && list.length > 0,
-  ) as Array<["customers" | "products" | "suppliers", Candidate[]]>;
+  const entityKinds = (["customer", "product", "supplier"] as EntityKind[]).filter(
+    (kind) =>
+      ENTITY_ACTIONS[kind].includes(plan.action) ||
+      needs.has(kind) ||
+      Boolean(plan.values?.[ENTITY_ID_KEY[kind]]) ||
+      Boolean(plan.missing?.[kind]) ||
+      (plan.candidates[ENTITY_GROUP[kind]]?.length ?? 0) > 0,
+  );
 
-  // A required entity is satisfied by an existing id, by an explicit create, or
-  // (when no candidates and no spoken name exist) by a typed name that we create.
-  const missingEntity = (kind: EntityKind): boolean => {
-    if (!needs.has(kind)) return false;
-    if (patch[ENTITY_ID_KEY[kind]]) return false;
-    if (wantsCreate[kind]) return !str(ENTITY_NAME_KEY[kind]);
-    return true;
+  const [options, setOptions] = useState<EntityOptions>(EMPTY_OPTIONS);
+  const [optionsFailed, setOptionsFailed] = useState(false);
+  const [optionsVersion, setOptionsVersion] = useState(0);
+
+  // One request per plan gives every existing customer/product/supplier, so the
+  // owner changes the entity with a picker instead of retyping a name.
+  useEffect(() => {
+    if (entityKinds.length === 0) return;
+    let alive = true;
+    setOptionsFailed(false);
+    fetch("/api/assistant/options", { cache: "no-store" })
+      .then((res) => (res.ok ? res.json() : Promise.reject(new Error(String(res.status)))))
+      .then((json: { data?: Partial<EntityOptions> } | null) => {
+        if (!alive) return;
+        setOptions({
+          customers: json?.data?.customers ?? [],
+          products: json?.data?.products ?? [],
+          suppliers: json?.data?.suppliers ?? [],
+        });
+      })
+      .catch(() => {
+        if (alive) setOptionsFailed(true);
+      });
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [plan.actionId, optionsVersion]);
+
+  const selectedId = (kind: EntityKind): string =>
+    (patch[ENTITY_ID_KEY[kind]] as string | undefined) ??
+    plan.values?.[ENTITY_ID_KEY[kind]] ??
+    "";
+  const entityName = (kind: EntityKind): string =>
+    str(ENTITY_NAME_KEY[kind]) || plan.missing?.[kind] || "";
+  const entitySatisfied = (kind: EntityKind): boolean => {
+    if (selectedId(kind)) return true;
+    if (wantsCreate[kind]) return entityName(kind).trim().length > 0;
+    return false;
   };
-
-  // Kinds that need a free-text name because there is nothing to pick or create.
-  const nameOnlyEntities = (["customer", "product", "supplier"] as EntityKind[]).filter((kind) => {
-    if (!needs.has(kind)) return false;
-    const hasCandidates = (plan.candidates[ENTITY_GROUP[kind]]?.length ?? 0) > 0;
-    return !hasCandidates && !plan.missing?.[kind];
-  });
+  // A required entity is satisfied by an id or by an explicit create + name.
+  const missingEntity = (kind: EntityKind): boolean =>
+    entityKinds.includes(kind) && !entitySatisfied(kind);
 
   // Live total for a sale so the owner sees the effect of their edits.
   const liveTotal =
@@ -255,10 +318,31 @@ export function PlanCard({
     const key = LABEL_TO_VALUE_KEY[field.label];
     if (key && editableKeys.has(key)) return false;
     if (plan.action === "CREATE_SALE" && field.label === "Total") return false;
+    // The picker below shows the current choice; keep the stale parsed name out
+    // of the read-only list so changing the customer/product is not confusing.
+    if (
+      (field.label === "Customer" && entityKinds.includes("customer")) ||
+      (field.label === "Product" && entityKinds.includes("product")) ||
+      (field.label === "Supplier" && entityKinds.includes("supplier"))
+    ) {
+      return false;
+    }
     return true;
   });
 
   const paidNow = num("paidAmount");
+  // After the owner edits quantity/price, "Full payment" must mean the new
+  // total, not the one parsed before the edit.
+  const fullPaymentAmount = liveTotal ?? plan.suggested?.paidAmount;
+  // Whatever "Paid now" shows is what the owner is confirming. Send it
+  // explicitly so an untouched default (the full sale total) is not lost, and
+  // so editing quantity/price cannot silently change the paid amount after the
+  // screen showed a different number.
+  const confirmPatch: Partial<PlanPayload> = { ...patch };
+  if (paidNow !== undefined && confirmPatch.paidAmount === undefined) {
+    confirmPatch.paidAmount = paidNow;
+  }
+
   const blocked =
     missingEntity("customer") ||
     missingEntity("product") ||
@@ -311,70 +395,134 @@ export function PlanCard({
         </ul>
       ) : null}
 
-      {candidateGroups.map(([group, list]) => {
-        const kind: EntityKind =
-          group === "customers" ? "customer" : group === "products" ? "product" : "supplier";
-        const idKey = ENTITY_ID_KEY[kind];
-        const selectedId = patch[idKey] as string | undefined;
-        return (
-          <div key={group} className="mt-2">
-            <p className="text-xs font-medium text-ink-subtle">
-              {t(
-                group === "customers"
-                  ? "plan.pickCustomer"
-                  : group === "products"
-                    ? "plan.pickProduct"
-                    : "plan.pickSupplier",
-              )}
-            </p>
-            <div className="mt-1 flex flex-wrap gap-1.5">
-              {list.map((candidate) => (
-                <button
-                  key={candidate.id}
-                  type="button"
-                  aria-pressed={selectedId === candidate.id}
-                  onClick={() =>
-                    setPatch((p) => ({
-                      ...p,
-                      [idKey]: candidate.id,
-                      createMissing: { ...p.createMissing, [kind]: false },
-                    }))
-                  }
-                  className={cn(
-                    "max-w-full truncate rounded-full border px-2.5 py-1 text-xs font-medium",
-                    selectedId === candidate.id
-                      ? "border-brand-600 bg-brand-600 text-white"
-                      : "border-line-strong bg-surface",
-                  )}
-                >
-                  {candidate.name}
-                </button>
-              ))}
-            </div>
-          </div>
-        );
-      })}
+      {/* Customer / product / supplier pickers. Every existing record is in the
+          list, so changing an entity never means retyping its name. */}
+      {entityKinds.length > 0 ? (
+        <div className="mt-2 space-y-2">
+          {entityKinds.map((kind) => {
+            const group = ENTITY_GROUP[kind];
+            const list = options[group];
+            // Put the server's candidates at the top of the dropdown; the rest
+            // stay available for a manual change.
+            const candidateIds = new Set(
+              (plan.candidates[group] ?? []).map((candidate) => candidate.id),
+            );
+            const ordered = [...list].sort(
+              (a, b) =>
+                Number(candidateIds.has(b.id)) - Number(candidateIds.has(a.id)) ||
+                a.name.localeCompare(b.name),
+            );
+            const id = selectedId(kind);
+            const creating = !!wantsCreate[kind];
+            const spoken = plan.missing?.[kind] ?? entityName(kind);
+            const resolvedName = id
+              ? (list.find((option) => option.id === id)?.name ??
+                plan.candidates[group]?.find((candidate) => candidate.id === id)?.name ??
+                plan.fields.find((field) => field.label === ENTITY_FIELD[kind])?.value ??
+                "")
+              : "";
 
-      {/* Typed name when nothing exists to pick or create from. */}
-      {nameOnlyEntities.map((kind) => (
-        <label key={kind} className="mt-2 block">
-          <span className="text-xs font-medium text-ink-subtle">{t(ENTITY_LABEL[kind])}</span>
-          <input
-            type="text"
-            dir="auto"
-            value={str(ENTITY_NAME_KEY[kind])}
-            onChange={(e) => {
-              const name = e.target.value;
-              setPatch((p) => ({
-                ...p,
-                [ENTITY_NAME_KEY[kind]]: name,
-                createMissing: { ...p.createMissing, [kind]: name.trim().length > 0 },
-              }));
-            }}
-            className="mt-0.5 w-full rounded-lg border border-line-strong bg-surface px-2 py-1.5 text-sm"
-          />
-        </label>
-      ))}
+            return (
+              <div key={kind}>
+                <label className="block">
+                  <span className="text-xs font-medium text-ink-subtle">
+                    {t(ENTITY_LABEL[kind])}
+                  </span>
+                  <div className="relative mt-0.5">
+                    <select
+                      value={creating ? "__new__" : id}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        if (value === "__new__") {
+                          setPatch((p) => ({
+                            ...p,
+                            [ENTITY_ID_KEY[kind]]: "",
+                            createMissing: { ...p.createMissing, [kind]: true },
+                          }));
+                        } else if (value === "") {
+                          setPatch((p) => ({ ...p, [ENTITY_ID_KEY[kind]]: "" }));
+                        } else {
+                          const picked = list.find((option) => option.id === value);
+                          setPatch((p) => {
+                            const next: Partial<PlanPayload> = {
+                              ...p,
+                              [ENTITY_ID_KEY[kind]]: value,
+                              createMissing: { ...p.createMissing, [kind]: false },
+                            };
+                            // Choosing a different product brings its catalog
+                            // unit and price, so the card does not keep the
+                            // previous product's rate.
+                            if (kind === "product" && picked) {
+                              const selling =
+                                picked.sellingPrice != null ? Number(picked.sellingPrice) : NaN;
+                              const purchase =
+                                picked.purchasePrice != null ? Number(picked.purchasePrice) : NaN;
+                              if (Number.isFinite(selling) && selling > 0) next.unitPrice = selling;
+                              if (Number.isFinite(purchase) && purchase > 0) next.unitCost = purchase;
+                              if (picked.unit) next.unit = picked.unit;
+                            }
+                            return next;
+                          });
+                        }
+                      }}
+                      className="w-full appearance-none rounded-lg border border-line-strong bg-surface px-2 py-1.5 pe-8 text-sm"
+                    >
+                      {!id && !creating ? (
+                        <option value="">{t("plan.chooseEntity")}</option>
+                      ) : null}
+                      {id && !list.some((option) => option.id === id) ? (
+                        <option value={id}>{resolvedName || "—"}</option>
+                      ) : null}
+                      {ordered.map((option) => (
+                        <option key={option.id} value={option.id}>
+                          {option.name}
+                          {option.phone ? ` · ${option.phone}` : ""}
+                          {option.unit ? ` · ${option.unit}` : ""}
+                        </option>
+                      ))}
+                      <option value="__new__">
+                        {spoken
+                          ? tParams("plan.createNewNamed", { name: spoken })
+                          : t("plan.createNew")}
+                      </option>
+                    </select>
+                    <ChevronDown
+                      className="pointer-events-none absolute end-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-ink-faint"
+                      aria-hidden
+                    />
+                  </div>
+                </label>
+                {creating ? (
+                  <input
+                    type="text"
+                    dir="auto"
+                    value={entityName(kind)}
+                    onChange={(e) => {
+                      const name = e.target.value;
+                      setPatch((p) => ({
+                        ...p,
+                        [ENTITY_NAME_KEY[kind]]: name,
+                        createMissing: { ...p.createMissing, [kind]: name.trim().length > 0 },
+                      }));
+                    }}
+                    placeholder={t("plan.newEntityName")}
+                    className="mt-1 w-full rounded-lg border border-line-strong bg-surface px-2 py-1.5 text-sm"
+                  />
+                ) : null}
+              </div>
+            );
+          })}
+          {optionsFailed ? (
+            <button
+              type="button"
+              onClick={() => setOptionsVersion((version) => version + 1)}
+              className="text-[11px] font-medium text-brand-700 underline"
+            >
+              {t("plan.optionsFailed")}
+            </button>
+          ) : null}
+        </div>
+      ) : null}
 
       {/* One-tap create for a named-but-missing entity. */}
       {plan.missing && (plan.missing.product || plan.missing.customer || plan.missing.supplier) ? (
@@ -482,14 +630,14 @@ export function PlanCard({
         <div className="mt-2">
           <p className="text-xs font-medium text-ink-subtle">{t("plan.howMuchPaid")}</p>
           <div className="mt-1 flex flex-wrap gap-1.5">
-            {plan.suggested?.paidAmount !== undefined ? (
+            {fullPaymentAmount !== undefined ? (
               <button
                 type="button"
-                aria-pressed={paidNow === plan.suggested.paidAmount}
-                onClick={() => setPatch((p) => ({ ...p, paidAmount: plan.suggested!.paidAmount }))}
+                aria-pressed={paidNow === fullPaymentAmount}
+                onClick={() => setPatch((p) => ({ ...p, paidAmount: fullPaymentAmount }))}
                 className="rounded-full border border-brand-600 bg-brand-600 px-2.5 py-1 text-xs font-medium text-white"
               >
-                {tParams("plan.fullPayment", { amount: money(plan.suggested.paidAmount, symbol) })}
+                {tParams("plan.fullPayment", { amount: money(fullPaymentAmount, symbol) })}
               </button>
             ) : null}
             <button
@@ -511,7 +659,7 @@ export function PlanCard({
         <button
           type="button"
           disabled={busy || blocked}
-          onClick={() => onConfirm(plan.actionId, patch)}
+          onClick={() => onConfirm(plan.actionId, confirmPatch)}
           className={cn(
             "flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-brand-600 px-3 py-2 text-sm font-semibold text-white",
             (busy || blocked) && "opacity-50",

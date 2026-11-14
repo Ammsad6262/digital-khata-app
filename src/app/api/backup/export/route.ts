@@ -27,7 +27,7 @@ export const maxDuration = 60;
 
 export async function GET(req: NextRequest) {
   try {
-    const userId = await requireUserId(req);
+    const userId = await requireUserId(req, { requireActiveSubscription: false });
     const dateStr = new Date().toISOString().slice(0, 10);
     const filename = `digital-khata-backup-${dateStr}.json`;
 

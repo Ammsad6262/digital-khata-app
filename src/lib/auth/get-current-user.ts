@@ -46,22 +46,6 @@ export async function getCurrentUserId(req: NextRequest): Promise<string | null>
   }
 }
 
-/**
- * Like getCurrentUserId, but throws UnauthorizedError if not authenticated.
- * Use this in protected API routes that require a logged-in user.
- *
- * Sets RLS context so database queries are scoped to this user.
- */
-export async function requireUserId(req: NextRequest): Promise<string> {
-  const userId = await getCurrentUserId(req);
-  if (!userId) {
-    throw new UnauthorizedError("api.auth.required");
-  }
-  // Set RLS context so database queries are scoped to this user
-  await setUserContext(userId);
-  return userId;
-}
-
 // ── Subscription check cache ──────────────────────────────────────────────────
 // Caching the subscription check saves ~300ms per API call. A subscription
 // status doesn't change within 60 seconds — even if the user redeems a code,
@@ -70,14 +54,31 @@ const subCache = new Map<string, { active: boolean; expiresAt: number }>();
 const SUB_CACHE_TTL_MS = 60 * 1000; // 60 seconds
 
 /**
- * Like requireUserId, but ALSO checks that the user has an active
- * subscription/trial. If expired, throws ForbiddenError.
+ * Like getCurrentUserId, but throws UnauthorizedError if not authenticated.
+ * Use this in protected API routes that require a logged-in user.
  *
- * PERFORMANCE: The subscription check is cached for 60 seconds per user
- * to avoid a DB round-trip on every API call.
+ * By default it ALSO requires an active trial/licence, matching the promise
+ * the client makes ("the API layer enforces access server-side"). Routes that
+ * must stay reachable after a trial ends — redeem, subscription status,
+ * licensing status, account/settings, PIN lock/unlock, and backup/export —
+ * opt out with `{ requireActiveSubscription: false }`.
+ *
+ * Sets RLS context so database queries are scoped to this user.
  */
-export async function requireActiveAccess(req: NextRequest): Promise<string> {
-  const userId = await requireUserId(req);
+export async function requireUserId(
+  req: NextRequest,
+  options: { requireActiveSubscription?: boolean } = {},
+): Promise<string> {
+  const userId = await getCurrentUserId(req);
+  if (!userId) {
+    throw new UnauthorizedError("api.auth.required");
+  }
+  // Set RLS context so database queries are scoped to this user
+  await setUserContext(userId);
+
+  if (options.requireActiveSubscription === false) {
+    return userId;
+  }
 
   // Check subscription with in-memory cache (60s TTL)
   const cached = subCache.get(userId);
@@ -97,4 +98,17 @@ export async function requireActiveAccess(req: NextRequest): Promise<string> {
   }
 
   return userId;
+}
+
+/** Drop a user's cached entitlement after a redeem so access starts at once. */
+export function invalidateActiveAccessCache(userId: string): void {
+  subCache.delete(userId);
+}
+
+/**
+ * Backwards-compatible alias for {@link requireUserId}. The licensing check
+ * now lives in requireUserId so every protected route enforces it by default.
+ */
+export async function requireActiveAccess(req: NextRequest): Promise<string> {
+  return requireUserId(req);
 }

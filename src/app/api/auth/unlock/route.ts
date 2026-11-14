@@ -31,7 +31,7 @@ const unlockSchema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
-    const userId = await requireUserId(req);
+    const userId = await requireUserId(req, { requireActiveSubscription: false });
     const ip = getClientIp(req);
     const rateKey = `pin:${ip}`;
 

@@ -14,7 +14,7 @@ export const dynamic = "force-dynamic";
  */
 export async function GET(req: NextRequest) {
   try {
-    const userId = await requireUserId(req);
+    const userId = await requireUserId(req, { requireActiveSubscription: false });
     const entitlement = await getEntitlement(userId);
     return ok(entitlement);
   } catch (error) {

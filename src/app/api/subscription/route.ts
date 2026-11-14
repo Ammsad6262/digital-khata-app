@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   try {
-    const userId = await requireUserId(req);
+    const userId = await requireUserId(req, { requireActiveSubscription: false });
     const status = await getSubscriptionStatus(userId);
     return ok(status);
   } catch (error) {

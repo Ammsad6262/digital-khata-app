@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
 import { redeemCode } from "@/lib/services/subscription";
-import { requireUserId } from "@/lib/auth/get-current-user";
+import { invalidateActiveAccessCache, requireUserId } from "@/lib/auth/get-current-user";
 import { checkRateLimit, recordFailure, recordSuccess, getClientIp } from "@/lib/auth/rate-limiter";
 import { ok, fail, parseJsonBody } from "@/lib/utils/api";
 import { BadRequestError } from "@/lib/errors";
@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
   const rateKey = `redeem:${ip}`;
 
   try {
-    const userId = await requireUserId(req);
+    const userId = await requireUserId(req, { requireActiveSubscription: false });
 
     const { locked } = checkRateLimit(rateKey);
     if (locked) {
@@ -31,6 +31,7 @@ export async function POST(req: NextRequest) {
     const result = await redeemCode(userId, parsed.code);
 
     recordSuccess(rateKey);
+    invalidateActiveAccessCache(userId);
     return ok(result);
   } catch (error) {
     recordFailure(rateKey);

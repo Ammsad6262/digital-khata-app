@@ -44,7 +44,7 @@ export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
   try {
-    const userId = await requireUserId(req);
+    const userId = await requireUserId(req, { requireActiveSubscription: false });
     const { data, error } = await parseJsonBody<unknown>(req);
     if (error || !data) {
       return fail(new BadRequestError(error || tServer("api.errors.invalidBody")));

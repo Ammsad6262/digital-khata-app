@@ -52,7 +52,7 @@ export async function DELETE(req: NextRequest) {
       );
     }
 
-    const userId = await requireUserId(req);
+    const userId = await requireUserId(req, { requireActiveSubscription: false });
     const { data, error } = await parseJsonBody<unknown>(req);
     if (error) return fail(new Error(error));
 

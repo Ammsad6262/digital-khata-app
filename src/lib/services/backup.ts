@@ -168,7 +168,9 @@ export async function exportBackup(userId?: string | null): Promise<BackupFile> 
       followUps: followUps.length,
     },
     data: {
-      settings: settings.map((s) => serialize(s)),
+      // Never export the PIN hash: a 4-6 digit PIN is cheap to crack offline,
+      // and a backup file is often copied to cloud storage or chat apps.
+      settings: settings.map((s) => ({ ...serialize(s), ownerPinHash: null })),
       customers: customers.map((s) => serialize(s)),
       products: products.map((s) => serialize(s)),
       sales: sales.map((s) => serialize(s)),
@@ -453,6 +455,16 @@ export async function importBackup(
     const saleItemWhere = userId ? { sale: { userId } } : undefined;
     const purchaseItemWhere = userId ? { purchase: { userId } } : undefined;
 
+    // A backup is untrusted input, so it must never replace the account PIN.
+    // Keep the PIN that is currently configured, even if the file carries an
+    // older (or attacker-chosen) hash.
+    const currentPinHash = userId
+      ? (await tx.setting.findUnique({
+          where: { userId },
+          select: { ownerPinHash: true },
+        }))?.ownerPinHash ?? null
+      : null;
+
     await tx.transaction.deleteMany({ where: userWhere });
     await tx.followUp.deleteMany({ where: userWhere });
     await tx.reminder.deleteMany({ where: userWhere });
@@ -481,7 +493,10 @@ export async function importBackup(
     if (backup.data.settings.length > 0 && userId) {
       const firstSetting = backup.data.settings[0];
       if (firstSetting) {
-        const deserialized = deserializeSetting(firstSetting);
+        const deserialized = {
+          ...deserializeSetting(firstSetting),
+          ownerPinHash: currentPinHash,
+        };
         await tx.setting.upsert({
           where: { userId },
           create: { ...deserialized, userId },

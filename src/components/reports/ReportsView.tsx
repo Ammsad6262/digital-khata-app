@@ -66,7 +66,12 @@ function prettyDate(value: string): string {
 
 function csvCell(value: string | number | null | undefined): string {
   const text = value === null || value === undefined ? "" : String(value);
-  return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+  // Neutralise spreadsheet formulas (=, +, -, @, tab, CR) before quoting.
+  // A customer/supplier name comes from user or imported data, so opening the
+  // report in Excel must never execute it. Plain negative numbers stay numeric.
+  const looksNumeric = /^-?\d+(?:\.\d+)?$/.test(text);
+  const safe = !looksNumeric && /^[=+\-@\t\r]/.test(text) ? `'${text}` : text;
+  return /[",\r\n]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
 }
 
 function ChangeBadge({

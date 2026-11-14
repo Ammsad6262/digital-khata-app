@@ -36,7 +36,7 @@ export async function GET(
 ) {
   try {
     const { table } = await params;
-    const userId = await requireUserId(req);
+    const userId = await requireUserId(req, { requireActiveSubscription: false });
 
     if (!VALID_TABLES.has(table)) {
       throw new BadRequestError(

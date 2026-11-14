@@ -16,7 +16,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   try {
-    const userId = await requireUserId(req);
+    const userId = await requireUserId(req, { requireActiveSubscription: false });
     const settings = await getSettings(userId);
     return ok(settings);
   } catch (error) {
@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
 
 export async function PATCH(req: NextRequest) {
   try {
-    const userId = await requireUserId(req);
+    const userId = await requireUserId(req, { requireActiveSubscription: false });
     const { data, error } = await parseJsonBody<unknown>(req);
     if (error) return fail(new Error(error));
 

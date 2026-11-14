@@ -68,6 +68,7 @@ export function VoiceAssistant() {
   const [open, setOpen] = useState(false);
   const [typed, setTyped] = useState("");
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const dialogRef = useRef<HTMLDivElement | null>(null);
 
   const busy = assistant.busy;
   const refreshStatus = assistant.refreshStatus;
@@ -80,6 +81,13 @@ export function VoiceAssistant() {
     const el = scrollRef.current;
     if (el) el.scrollTop = el.scrollHeight;
   }, [assistant.turns, open, voice.transcript]);
+
+  // Move focus into the panel when it opens so keyboard users land inside it.
+  useEffect(() => {
+    if (!open) return;
+    const id = window.setTimeout(() => dialogRef.current?.focus(), 0);
+    return () => window.clearTimeout(id);
+  }, [open]);
 
   const lastReply = useMemo<AssistantReply | null>(() => {
     for (let i = assistant.turns.length - 1; i >= 0; i--) {
@@ -146,8 +154,14 @@ export function VoiceAssistant() {
 
       {open ? (
         <div
+          ref={dialogRef}
           role="dialog"
+          aria-modal="true"
           aria-label={t("assistant.voiceTitle")}
+          tabIndex={-1}
+          onKeyDown={(event) => {
+            if (event.key === "Escape") setOpen(false);
+          }}
           className={cn(
             "fixed inset-x-0 bottom-0 z-50 flex max-h-[92vh] flex-col overflow-hidden rounded-t-3xl border border-line bg-surface shadow-2xl",
             "sm:inset-x-auto sm:end-4 sm:bottom-4 sm:w-[440px] sm:rounded-3xl",
@@ -186,7 +200,7 @@ export function VoiceAssistant() {
           </div>
 
           {/* Conversation */}
-          <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto px-4 py-3">
+          <div ref={scrollRef} role="log" aria-live="polite" className="flex-1 space-y-3 overflow-y-auto px-4 py-3">
             {!hasConversation ? (
               <div className="space-y-2 text-sm text-ink-subtle">
                 <p className="font-medium text-ink-muted">{t("assistant.introSpeak")}</p>
@@ -234,7 +248,7 @@ export function VoiceAssistant() {
 
           {/* Live transcript while listening */}
           {voice.listening ? (
-            <div className="border-t border-line px-4 py-2 text-sm">
+            <div role="status" className="border-t border-line px-4 py-2 text-sm">
               <span className="text-ink-faint">{t("assistant.youSaid")}{" "}</span>
               <span className="text-ink">{speech.interim || speech.transcript || "…"}</span>
             </div>
@@ -386,6 +400,29 @@ export function VoiceAssistant() {
 
 // ────────────────────────────────────────────────────────────────────────────
 
+/** Common answer-item labels, so the chips match the app language. */
+const ANSWER_ITEM_KEYS: Record<string, TranslationKey> = {
+  Receivables: "assistant.item.receivables",
+  "Today's sales": "assistant.item.todaysSales",
+  "Today's expenses": "assistant.item.todaysExpenses",
+  Billed: "assistant.item.billed",
+  "Cash received": "assistant.item.cashReceived",
+  Discounts: "assistant.item.discounts",
+  "Selling price": "assistant.item.sellingPrice",
+  "Purchase price": "assistant.item.purchasePrice",
+  "Total sales": "assistant.item.totalSales",
+  "Total payments": "assistant.item.totalPayments",
+  Revenue: "assistant.item.revenue",
+  "Cost of goods sold": "assistant.item.cogs",
+  "Gross profit": "assistant.item.grossProfit",
+  Expenses: "assistant.item.expenses",
+  "Net profit": "assistant.item.netProfit",
+  Outstanding: "assistant.item.outstanding",
+  Sale: "assistant.item.sale",
+  Payment: "assistant.item.payment",
+  Adjustment: "assistant.item.adjustment",
+};
+
 function VoiceReply({
   reply,
   busy,
@@ -408,27 +445,37 @@ function VoiceReply({
   if (reply.kind === "answer") {
     return (
       <div className="rounded-2xl rounded-es-sm bg-surface-2 px-3 py-2 text-sm text-ink">
-        <p>{renderText(reply.text)}</p>
+        <p>
+          {reply.textKeys && reply.textKeys.length > 0
+            ? reply.textKeys
+                .map((part) => tParams(part.key as TranslationKey, part.params ?? {}))
+                .join(" ")
+            : renderText(reply.text)}
+        </p>
         {reply.items && reply.items.length > 0 ? (
           <ul className="mt-2 space-y-1">
-            {reply.items.slice(0, 8).map((item, index) => (
-              <li key={index} className="flex items-center justify-between gap-2 text-xs">
-                {item.href ? (
-                  <a
-                    href={item.href}
-                    className="truncate font-medium text-brand-700 hover:underline"
-                  >
-                    {item.label}
-                  </a>
-                ) : (
-                  <span className="truncate font-medium">{item.label}</span>
-                )}
-                <span className="shrink-0 text-ink-subtle">
-                  {item.value}
-                  {item.meta ? ` · ${item.meta}` : ""}
-                </span>
-              </li>
-            ))}
+            {reply.items.slice(0, 8).map((item, index) => {
+              const itemKey = ANSWER_ITEM_KEYS[item.label];
+              const label = itemKey ? t(itemKey) : item.label;
+              return (
+                <li key={index} className="flex items-center justify-between gap-2 text-xs">
+                  {item.href ? (
+                    <a
+                      href={item.href}
+                      className="truncate font-medium text-brand-700 hover:underline"
+                    >
+                      {label}
+                    </a>
+                  ) : (
+                    <span className="truncate font-medium">{label}</span>
+                  )}
+                  <span className="shrink-0 text-ink-subtle">
+                    {item.value}
+                    {item.meta ? ` · ${item.meta}` : ""}
+                  </span>
+                </li>
+              );
+            })}
           </ul>
         ) : null}
       </div>
@@ -496,5 +543,5 @@ function VoiceReply({
     );
   }
 
-  return <PlanCard plan={reply} busy={busy} onConfirm={onConfirm} onCancel={onCancel} />;
+  return <PlanCard key={reply.actionId} plan={reply} busy={busy} onConfirm={onConfirm} onCancel={onCancel} />;
 }

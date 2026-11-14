@@ -78,11 +78,54 @@ export type PlanRequirement =
   | "name"
   | "targetId";
 
+/** A plan warning reduced to a translation key plus parameters. */
+export type PlanWarning = {
+  /** Translation key. Empty when the warning could not be mapped; then use `text`. */
+  key: string;
+  params?: Record<string, string | number>;
+  /** Original English text, the fallback. */
+  text?: string;
+};
+
+export type PlanValues = {
+  /** Resolved entities, so the card can preselect the real customer/product. */
+  customerId?: string;
+  productId?: string;
+  supplierId?: string;
+  quantity?: number;
+  unit?: string;
+  unitPrice?: number;
+  unitCost?: number;
+  total?: number;
+  paidAmount?: number | null;
+  amount?: number;
+  discountAmount?: number;
+  name?: string;
+  expenseName?: string;
+  phone?: string;
+  method?: PaymentMethod;
+  sellingPrice?: number;
+  purchasePrice?: number;
+  openingStock?: number;
+  targetId?: string;
+  category?: string;
+  reminderTitle?: string;
+  customerName?: string;
+  productName?: string;
+  supplierName?: string;
+};
+
 export type PlanPayload = {
   action: ActionKind;
   customerId?: string;
   supplierId?: string;
   productId?: string;
+  /** Names as spoken, kept so a missing entity can be created on confirm. */
+  customerName?: string;
+  productName?: string;
+  supplierName?: string;
+  /** True per entity the owner chose to create instead of picking an existing one. */
+  createMissing?: { customer?: boolean; product?: boolean; supplier?: boolean };
   items?: Array<{ productId: string; quantity: number; unitPrice: number }>;
   quantity?: number;
   unit?: string;
@@ -119,9 +162,15 @@ export type PlanPayload = {
     summary: string;
     fields: Array<{ label: string; value: string }>;
     warnings: string[];
+    /** Warnings as translation keys, so the card can show them in the UI language. */
+    warningKeys?: PlanWarning[];
     requires: PlanRequirement[];
     candidates: { customers?: Candidate[]; products?: Candidate[]; suppliers?: Candidate[] };
     usedContext: boolean;
+    /** Relevant parsed values, so the confirmation card can edit them. */
+    values?: PlanValues;
+    /** Named entities that were not found, so the card can offer to create them. */
+    missing?: { customer?: string; product?: string; supplier?: string };
     /** Values the confirmation card can offer as one-tap choices. */
     suggested?: {
       total?: number;
@@ -150,6 +199,8 @@ export type AnswerItem = {
 export type AssistantAnswer = {
   kind: "answer";
   text: string;
+  /** Localised sentence parts; preferred over `text` when present. */
+  textKeys?: Array<{ key: string; params?: Record<string, string | number> }>;
   items?: AnswerItem[];
   data?: unknown;
   source: "database" | "ai";
@@ -165,6 +216,8 @@ export type AssistantPlan = {
   summary: string;
   fields: Array<{ label: string; value: string }>;
   warnings: string[];
+  /** Warnings as translation keys; preferred over the English `warnings`. */
+  warningKeys?: PlanWarning[];
   requires: PlanRequirement[];
   candidates: {
     customers?: Candidate[];
@@ -173,6 +226,10 @@ export type AssistantPlan = {
   };
   /** True when a pronoun was resolved from the previous turn. */
   usedContext: boolean;
+  /** Relevant parsed values, so the card can offer editable inputs. */
+  values?: PlanValues;
+  /** Named entities that were not found, so the card can offer to create them. */
+  missing?: { customer?: string; product?: string; supplier?: string };
   /** One-tap values for the confirmation card. */
   suggested?: {
     total?: number;

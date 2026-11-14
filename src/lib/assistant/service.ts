@@ -32,12 +32,15 @@ import type {
   Candidate,
   PlanPayload,
   PlanRequirement,
+  PlanValues,
   RouteAction,
   RouteMatch,
   RouteQuery,
   RouterContext,
   Timings,
 } from "./types";
+import { warningKeysFromEnglish } from "./warnings";
+import { nameScore } from "./names";
 
 // ────────────────────────────────────────────────────────────────────────────
 // Context + entity helpers
@@ -80,21 +83,36 @@ async function findNamed(
 ): Promise<NamedEntity[]> {
   const needle = name.trim();
   if (!needle) return [];
-  const where = {
-    userId,
-    name: { contains: needle, mode: "insensitive" as const },
-    ...(kind === "customer" ? { isDeleted: false } : {}),
-    ...(kind === "product" ? { isDeleted: false } : {}),
-    ...(kind === "supplier" ? { isDeleted: false } : {}),
-  };
 
-  if (kind === "customer") {
-    return prisma.customer.findMany({ where, select: { id: true, name: true }, take: 8 });
-  }
-  if (kind === "product") {
-    return prisma.product.findMany({ where, select: { id: true, name: true }, take: 8 });
-  }
-  return prisma.supplier.findMany({ where, select: { id: true, name: true }, take: 8 });
+  // A SQL `contains` cannot join "احمد" to "Ahmed", so read the owner's own
+  // list (bounded) and match in memory with the cross-script scorer. 500 rows
+  // is a few milliseconds and guarantees the confirmation card never asks to
+  // create a customer/product that already exists under another spelling.
+  const rows =
+    kind === "customer"
+      ? await prisma.customer.findMany({
+          where: { userId, isDeleted: false },
+          select: { id: true, name: true },
+          take: 500,
+        })
+      : kind === "product"
+        ? await prisma.product.findMany({
+            where: { userId, isDeleted: false },
+            select: { id: true, name: true },
+            take: 500,
+          })
+        : await prisma.supplier.findMany({
+            where: { userId, isDeleted: false },
+            select: { id: true, name: true },
+            take: 300,
+          });
+
+  return rows
+    .map((row) => ({ row, score: nameScore(needle, row.name) }))
+    .filter((m) => m.score >= 70)
+    .sort((a, b) => b.score - a.score || a.row.name.localeCompare(b.row.name))
+    .slice(0, 8)
+    .map((m) => m.row);
 }
 
 async function resolveNamed(
@@ -171,9 +189,12 @@ function planReply(
     summary: display.summary,
     fields: display.fields,
     warnings: display.warnings,
+    warningKeys: display.warningKeys,
     requires: display.requires,
     candidates: display.candidates,
     usedContext: display.usedContext,
+    values: display.values,
+    missing: display.missing,
     suggested: display.suggested,
     source: meta.source,
     model: meta.model,
@@ -212,6 +233,8 @@ type PlanBuild = {
   requires: PlanRequirement[];
   candidates: { customers?: Candidate[]; products?: Candidate[]; suppliers?: Candidate[] };
   usedContext: boolean;
+  /** Named entities that were not found (offered as "create" buttons). */
+  missing?: { customer?: string; product?: string; supplier?: string };
   suggested?: {
     total?: number;
     paidAmount?: number;
@@ -271,6 +294,8 @@ async function buildPlanFor(
         );
       }
       payload.productId = product.entity?.id;
+      payload.customerName = f.customerName;
+      payload.productName = f.productName;
 
       const quantity = f.quantity ?? null;
       if (quantity === null || quantity <= 0) requires.push("quantity");
@@ -279,8 +304,15 @@ async function buildPlanFor(
       const productRecord = product.entity
         ? ctx.products.find((p) => p.id === product.entity!.id)
         : undefined;
-      const unitPrice = f.unitPrice ?? (productRecord ? Number(productRecord.sellingPrice) : null);
+      // Prefer an explicitly spoken unit price, then a spoken total split over
+      // the quantity, and only then the catalog price. Using the catalog price
+      // when the owner already said "for 5000" would silently change the charge.
+      const unitPrice =
+        f.unitPrice ??
+        (f.total != null && quantity ? Math.round((f.total / quantity) * 100) / 100 : null) ??
+        (productRecord ? Number(productRecord.sellingPrice) : null);
       if (unitPrice !== null) payload.unitPrice = unitPrice;
+      else requires.push("unitPrice");
       payload.unit = f.unit ?? productRecord?.unit;
 
       const discount = f.discountAmount ?? 0;
@@ -342,6 +374,10 @@ async function buildPlanFor(
         requires,
         candidates,
         usedContext,
+        missing: {
+          customer: !customer.entity && f.customerName ? f.customerName : undefined,
+          product: !product.entity && f.productName ? f.productName : undefined,
+        },
         suggested: {
           total: total ?? undefined,
           paidAmount: total ?? undefined,
@@ -364,6 +400,7 @@ async function buildPlanFor(
         requires.push("customer");
       }
       payload.customerId = customer.entity?.id;
+      payload.customerName = f.customerName;
       payload.amount = (f.amount ?? f.paidAmount ?? undefined) as number | undefined;
       if (!payload.amount || payload.amount <= 0) requires.push("amount");
       payload.method = f.method;
@@ -382,6 +419,9 @@ async function buildPlanFor(
         requires,
         candidates,
         usedContext,
+        missing: {
+          customer: !customer.entity && f.customerName ? f.customerName : undefined,
+        },
       };
     }
 
@@ -398,6 +438,7 @@ async function buildPlanFor(
         requires.push("supplier");
       }
       payload.supplierId = supplier.entity?.id;
+      payload.supplierName = f.supplierName;
       payload.amount = (f.amount ?? f.paidAmount ?? undefined) as number | undefined;
       if (!payload.amount || payload.amount <= 0) requires.push("amount");
       payload.method = f.method;
@@ -416,6 +457,9 @@ async function buildPlanFor(
         requires,
         candidates,
         usedContext,
+        missing: {
+          supplier: !supplier.entity && f.supplierName ? f.supplierName : undefined,
+        },
       };
     }
 
@@ -455,6 +499,7 @@ async function buildPlanFor(
         warnings.push(f.productName ? `No product named “${f.productName}” yet.` : "No product was mentioned.");
       }
       payload.productId = product.entity?.id;
+      payload.productName = f.productName;
       payload.quantity = f.quantity ?? undefined;
       if (!payload.quantity || payload.quantity <= 0) requires.push("quantity");
 
@@ -482,6 +527,9 @@ async function buildPlanFor(
         requires,
         candidates,
         usedContext,
+        missing: {
+          product: !product.entity && f.productName ? f.productName : undefined,
+        },
       };
     }
 
@@ -512,6 +560,8 @@ async function buildPlanFor(
         requires.push("product");
       }
       payload.productId = product.entity?.id;
+      payload.supplierName = f.supplierName;
+      payload.productName = f.productName;
 
       payload.quantity = f.quantity ?? undefined;
       if (!payload.quantity || payload.quantity <= 0) requires.push("quantity");
@@ -544,6 +594,10 @@ async function buildPlanFor(
         requires,
         candidates,
         usedContext,
+        missing: {
+          supplier: !supplier.entity && f.supplierName ? f.supplierName : undefined,
+          product: !product.entity && f.productName ? f.productName : undefined,
+        },
       };
     }
 
@@ -670,6 +724,55 @@ async function buildPlanFor(
 // Persistence
 // ────────────────────────────────────────────────────────────────────────────
 
+/** Raw parsed values handed to the confirmation card for editing. */
+function valuesFromPayload(p: PlanPayload): PlanValues {
+  const quantity = p.quantity ?? undefined;
+  // "20 kg for 10,000" may arrive as a total with no unit price. Show the
+  // derived unit price so the owner can see (and change) it.
+  const unitPrice =
+    p.unitPrice ??
+    (quantity && p.total !== undefined
+      ? Math.round((p.total / quantity) * 100) / 100
+      : undefined);
+  const total =
+    p.total ??
+    (quantity && unitPrice
+      ? Math.round((quantity * unitPrice - (p.discountAmount ?? 0)) * 100) / 100
+      : undefined);
+  // "Paid now" defaults to the full amount; the owner can still change it to 0
+  // (on credit) or a part payment before confirming. An explicit 0 is kept.
+  const paidAmount =
+    p.paidAmount ??
+    (p.action === "CREATE_SALE" || p.action === "CREATE_PURCHASE" ? total : undefined);
+
+  return {
+    customerId: p.customerId,
+    productId: p.productId,
+    supplierId: p.supplierId,
+    quantity,
+    unit: p.unit,
+    unitPrice,
+    unitCost: p.unitCost,
+    total,
+    paidAmount,
+    amount: p.amount,
+    discountAmount: p.discountAmount,
+    name: p.name,
+    expenseName: p.expenseName,
+    phone: p.phone,
+    method: p.method,
+    sellingPrice: p.sellingPrice,
+    purchasePrice: p.purchasePrice,
+    openingStock: p.openingStock,
+    targetId: p.targetId,
+    category: p.category,
+    reminderTitle: p.reminderTitle,
+    customerName: p.customerName,
+    productName: p.productName,
+    supplierName: p.supplierName,
+  };
+}
+
 async function storePlan(
   userId: string,
   build: PlanBuild,
@@ -682,9 +785,12 @@ async function storePlan(
       summary: build.summary,
       fields: build.fields,
       warnings: build.warnings,
+      warningKeys: warningKeysFromEnglish(build.warnings),
       requires: build.requires,
       candidates: build.candidates,
       usedContext: build.usedContext,
+      values: valuesFromPayload(build.payload),
+      missing: build.missing,
       suggested: build.suggested,
     },
   } satisfies PlanPayload;
@@ -696,10 +802,31 @@ async function storePlan(
       orderBy: { createdAt: "desc" },
     });
     if (existing) {
-      if (existing.status === "PENDING" || existing.status === "DONE") {
-        return { id: existing.id, payload: existing.payload as unknown as PlanPayload, existing: true };
+      const previous = existing.payload as unknown as PlanPayload | null;
+      const ageMs = Date.now() - existing.createdAt.getTime();
+      const hadGaps =
+        (previous?.display?.requires?.length ?? 0) > 0 ||
+        Boolean(previous?.display?.missing);
+
+      // Never re-arm an action that is mid-execution: the same sale could post
+      // twice. Return it unchanged so the client sees the in-flight state.
+      if (existing.status === "EXECUTING") {
+        return { id: existing.id, payload: previous ?? payload, existing: true };
       }
-      // A cancelled or failed plan for the same command is replaced, not reused.
+
+      // Reuse only a very recent, fully-resolved plan (a retry of the same
+      // turn), or a sale that just completed (network retry). Older plans are
+      // rebuilt: a plan that said "No customer named احمد" must not survive the
+      // owner creating that customer two minutes later.
+      const reusable =
+        (existing.status === "PENDING" && ageMs < 2 * 60_000 && !hadGaps) ||
+        (existing.status === "DONE" && ageMs < 15_000);
+      if (reusable) {
+        return { id: existing.id, payload: previous ?? payload, existing: true };
+      }
+
+      // Cancelled, failed, stale or previously incomplete → refresh in place
+      // (the idempotency key is unique per user, so update rather than insert).
       const refreshed = await prisma.assistantAction.update({
         where: { id: existing.id },
         data: {
@@ -888,6 +1015,7 @@ export async function handleMessage(
       return {
         kind: "answer",
         text: result.text,
+        textKeys: result.textKeys,
         items: result.items,
         data: result.data,
         source: "database",
@@ -1042,15 +1170,48 @@ export async function confirmAction(
     return errorReply("INVALID_INPUT", "That action was cancelled.", "", emptyTimings());
   }
 
+  // A plan left open for a day would execute at the prices/stock captured then.
+  const MAX_PLAN_AGE_MS = 24 * 60 * 60 * 1000;
+  if (row.status === "PENDING" && Date.now() - new Date(row.createdAt).getTime() > MAX_PLAN_AGE_MS) {
+    await prisma.assistantAction.update({
+      where: { id: actionId },
+      data: { status: "CANCELLED" },
+    });
+    return errorReply(
+      "INVALID_INPUT",
+      "That action has expired. Please say it again.",
+      "",
+      emptyTimings(),
+    );
+  }
+
   const stored = row.payload as unknown as PlanPayload;
   const payload: PlanPayload = { ...stored, ...patch };
   // Never let a patch overwrite the action kind.
   payload.action = stored.action;
 
+  // The confirmation card prefills values the owner did not speak — most
+  // importantly "Paid now" (the full sale total). If the client did not send
+  // an explicit patch for them, apply the same defaults here so confirming
+  // does not fail with "How much did the customer pay?" for an amount that was
+  // visible on screen.
+  const derived = valuesFromPayload(payload);
+  if (payload.paidAmount === null || payload.paidAmount === undefined) {
+    if (derived.paidAmount !== undefined) payload.paidAmount = derived.paidAmount;
+  }
+  if (payload.unitPrice === undefined && derived.unitPrice !== undefined) {
+    payload.unitPrice = derived.unitPrice;
+  }
+  if (payload.total === undefined && derived.total !== undefined) {
+    payload.total = derived.total;
+  }
+
   // Conditional transition prevents two concurrent confirms from both executing.
+  // A FAILED action may be retried (fix the value, confirm again); PENDING is
+  // claimed; EXECUTING/DONE/CANCELLED are never claimed again.
   const claim = await prisma.assistantAction.updateMany({
-    where: { id: actionId, userId, status: "PENDING" },
-    data: { status: "EXECUTING" },
+    where: { id: actionId, userId, status: { in: ["PENDING", "FAILED"] } },
+    data: { status: "EXECUTING", error: null },
   });
   if (claim.count === 0) {
     const latest = await prisma.assistantAction.findFirst({ where: { id: actionId, userId } });

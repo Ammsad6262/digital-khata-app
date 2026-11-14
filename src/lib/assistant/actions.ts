@@ -26,6 +26,7 @@ import { voidSale } from "@/lib/services/sales";
 import { voidExpense } from "@/lib/services/expenses";
 import { voidPayment } from "@/lib/services/payments";
 import { BadRequestError } from "@/lib/errors";
+import { expenseCategorySchema } from "@/lib/schemas/expense";
 import type { PlanPayload } from "./types";
 
 export type ActionResult =
@@ -67,7 +68,7 @@ function requireField<T>(value: T | null | undefined, name: string): T {
 }
 
 /** Normalise the single-item shorthand into the array the service expects. */
-function saleItems(payload: PlanPayload) {
+function saleItems(payload: PlanPayload, productId: string) {
   if (payload.items && payload.items.length > 0) return payload.items;
 
   const quantity = requireField(payload.quantity, "quantity");
@@ -80,13 +81,61 @@ function saleItems(payload: PlanPayload) {
   if (unitPrice === undefined || unitPrice === null) {
     throw new BadRequestError("The price is missing.");
   }
-  return [
-    {
-      productId: requireField(payload.productId, "product"),
-      quantity,
-      unitPrice,
-    },
-  ];
+  return [{ productId, quantity, unitPrice }];
+}
+
+/**
+ * Resolve-or-create helpers.
+ *
+ * When the owner taps "Create <name>" on the confirmation card, the payload
+ * carries `createMissing.<entity> = true` plus the spoken name. We create the
+ * record through the SAME service the normal screens use, then continue with
+ * the original action, so nothing is written unless the whole action succeeds.
+ */
+async function resolveOrCreateCustomer(userId: string, payload: PlanPayload): Promise<string> {
+  if (payload.customerId) return payload.customerId;
+  if (payload.createMissing?.customer && payload.customerName) {
+    const created = await createCustomer({ name: payload.customerName }, userId);
+    return created.id;
+  }
+  return requireField(payload.customerId, "customer");
+}
+
+async function resolveOrCreateProduct(userId: string, payload: PlanPayload): Promise<string> {
+  if (payload.productId) return payload.productId;
+  if (payload.createMissing?.product && payload.productName) {
+    const price = payload.unitPrice ?? payload.unitCost ?? 0;
+    const created = await createProductWithOpeningStock(
+      {
+        name: payload.productName,
+        unit: payload.unit || "piece",
+        sellingPrice: price,
+        purchasePrice: price,
+        category: null,
+        sku: null,
+        lowStockThreshold: 5,
+        openingStock: 0,
+      },
+      userId,
+    );
+    return created.product.id;
+  }
+  return requireField(payload.productId, "product");
+}
+
+async function resolveOrCreateSupplier(userId: string, payload: PlanPayload): Promise<string> {
+  if (payload.supplierId) return payload.supplierId;
+  if (payload.createMissing?.supplier && payload.supplierName) {
+    const created = await createSupplier({ name: payload.supplierName }, userId);
+    return created.id;
+  }
+  return requireField(payload.supplierId, "supplier");
+}
+
+/** Map a free-text spoken category onto the strict expense enum, or "other". */
+function normaliseExpenseCategory(category: string | undefined) {
+  const parsed = expenseCategorySchema.safeParse(category);
+  return parsed.success ? parsed.data : ("other" as const);
 }
 
 export async function performAction(
@@ -96,12 +145,8 @@ export async function performAction(
   switch (payload.action) {
     // ── SALES ────────────────────────────────────────────────────────────
     case "CREATE_SALE": {
-      const customerId = requireField(payload.customerId, "customer");
-      const items = saleItems(payload);
-
-      const before = await getCustomerWithBalance(customerId, userId);
-      const balanceBefore = d(before.balance);
-
+      // Validate BEFORE creating any new customer/product, so a failed confirm
+      // never leaves orphan rows behind.
       if (payload.paidAmount === null || payload.paidAmount === undefined) {
         throw new BadRequestError(
           "How much did the customer pay? Say the paid amount, or confirm 'on credit'.",
@@ -109,6 +154,31 @@ export async function performAction(
       }
       const paidAmount = payload.paidAmount;
       if (paidAmount < 0) throw new BadRequestError("Paid amount cannot be negative.");
+      if (!payload.items?.length) {
+        const qty = requireField(payload.quantity, "quantity");
+        if (qty <= 0) throw new BadRequestError("Quantity must be greater than zero.");
+        const price =
+          payload.unitPrice ??
+          (payload.total ? Math.round((payload.total / qty) * 100) / 100 : null);
+        if (price == null) {
+          throw new BadRequestError("The price is missing.");
+        }
+        // Reject an over-payment BEFORE creating any new customer/product, so a
+        // failure here cannot leave orphan rows (the same rule createSale enforces).
+        const expectedTotal = Math.round((qty * price - (payload.discountAmount ?? 0)) * 100) / 100;
+        if (paidAmount > expectedTotal) {
+          throw new BadRequestError(
+            `The paid amount is more than the sale total (${money(expectedTotal)}).`,
+          );
+        }
+      }
+
+      const customerId = await resolveOrCreateCustomer(userId, payload);
+      const productId = await resolveOrCreateProduct(userId, payload);
+      const items = saleItems(payload, productId);
+
+      const before = await getCustomerWithBalance(customerId, userId);
+      const balanceBefore = d(before.balance);
 
       const sale = await createSale(
         {
@@ -142,7 +212,7 @@ export async function performAction(
 
     // ── CUSTOMER PAYMENT ─────────────────────────────────────────────────
     case "RECORD_PAYMENT": {
-      const customerId = requireField(payload.customerId, "customer");
+      const customerId = await resolveOrCreateCustomer(userId, payload);
       const amount = requireField(payload.amount, "amount");
       if (amount <= 0) throw new BadRequestError("A payment must be greater than zero.");
 
@@ -186,7 +256,7 @@ export async function performAction(
         {
           name: payload.expenseName || "General expense",
           amount,
-          category: payload.category ?? "other",
+          category: normaliseExpenseCategory(payload.category),
           notes: payload.notes,
           date: payload.date,
         },
@@ -282,10 +352,11 @@ export async function performAction(
 
     // ── PURCHASES ────────────────────────────────────────────────────────
     case "CREATE_PURCHASE": {
-      const supplierId = requireField(payload.supplierId, "supplier");
+      // Validate before creating anything, so a failed confirm cannot orphan rows.
       const quantity = requireField(payload.quantity, "quantity");
       const unitCost = requireField(payload.unitCost, "purchase price");
-      const productId = requireField(payload.productId, "product");
+      const supplierId = await resolveOrCreateSupplier(userId, payload);
+      const productId = await resolveOrCreateProduct(userId, payload);
 
       const stockBefore = await getProductWithStock(productId, userId);
       const suppliersBefore = await listSuppliersWithBalance(userId);
@@ -326,7 +397,7 @@ export async function performAction(
 
     // ── SUPPLIER PAYMENT ─────────────────────────────────────────────────
     case "SUPPLIER_PAYMENT": {
-      const supplierId = requireField(payload.supplierId, "supplier");
+      const supplierId = await resolveOrCreateSupplier(userId, payload);
       const amount = requireField(payload.amount, "amount");
       if (amount <= 0) throw new BadRequestError("A payment must be greater than zero.");
 
@@ -368,7 +439,7 @@ export async function performAction(
 
     // ── STOCK ────────────────────────────────────────────────────────────
     case "ADD_STOCK": {
-      const productId = requireField(payload.productId, "product");
+      const productId = await resolveOrCreateProduct(userId, payload);
       const quantity = requireField(payload.quantity, "quantity");
       if (quantity <= 0) throw new BadRequestError("Stock quantity must be greater than zero.");
 

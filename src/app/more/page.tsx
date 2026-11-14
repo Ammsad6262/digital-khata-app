@@ -131,6 +131,7 @@ export default function MorePage() {
         icon={Menu}
         tone="neutral"
         showMore={false}
+        showRefresh={false}
         title={t("nav.more")}
         subtitle={t("nav.moreDesc")}
       />

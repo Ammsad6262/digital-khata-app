@@ -129,5 +129,22 @@ const asAction = (m: RouteMatch | null): RouteAction | null =>
   ok(shouldEscalate(rq, urduQuery) === false, "Urdu query: answered from DB, no AI request");
 }
 
+// ── 13. A brand-new product the catalog has never seen ─────────────────────
+{
+  const m = asAction(route("Ahmed bought 25 marshmallows", ctx));
+  ok(!!m && m.action === "CREATE_SALE", "new product: CREATE_SALE", m?.action);
+  ok(/marshmallow/i.test(m?.fields.productName ?? ""), "new product: extracted 'marshmallows' (not 'the product')", m?.fields.productName);
+  ok(m?.fields.quantity === 25, "new product: quantity 25", String(m?.fields.quantity));
+  ok(m?.fields.customerName === "Ahmed", "new product: customer Ahmed", m?.fields.customerName);
+}
+
+// ── 14. Roman-Urdu sale is handled: rule-matched or escalated to the model ──
+{
+  const roman = "ahmed ne 25 kilo chawal kharide";
+  const r = route(roman, ctx);
+  const handled = (r?.type === "action" && r.action === "CREATE_SALE") || shouldEscalate(r, roman) === true;
+  ok(handled, "roman: handled by rules or escalated to AI");
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

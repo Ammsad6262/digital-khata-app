@@ -10,15 +10,18 @@
 
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { AppHeader } from "@/components/layout/AppHeader";
 import { ScreenContent } from "@/components/layout/Screen";
 import { OutstandingCustomersList } from "@/components/khata/OutstandingCustomersList";
+import { PullToRefresh } from "@/components/shared/PullToRefresh";
 import { useLanguage } from "@/providers/language-provider";
 
 export const dynamic = "force-dynamic";
 
 export default function OutstandingCustomersPage() {
   const { t } = useLanguage();
+  const queryClient = useQueryClient();
   return (
     <>
       <AppHeader
@@ -34,7 +37,9 @@ export default function OutstandingCustomersPage() {
         }
       />
       <ScreenContent>
-        <OutstandingCustomersList />
+        <PullToRefresh onRefresh={() => queryClient.invalidateQueries()}>
+          <OutstandingCustomersList />
+        </PullToRefresh>
       </ScreenContent>
     </>
   );

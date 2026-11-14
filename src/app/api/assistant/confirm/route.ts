@@ -23,45 +23,10 @@ import { requireActiveAccess } from "@/lib/auth/get-current-user";
 import { ok, fail, parseJsonBody } from "@/lib/utils/api";
 import { BadRequestError } from "@/lib/errors";
 import { confirmAction, toPublicReply } from "@/lib/assistant/service";
-import type { PlanPayload } from "@/lib/assistant/types";
+import { sanitizePatch } from "@/lib/assistant/patch";
 
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
-
-const ALLOWED_PATCH_KEYS: Array<keyof PlanPayload> = [
-  "customerId",
-  "supplierId",
-  "productId",
-  "quantity",
-  "unit",
-  "unitPrice",
-  "unitCost",
-  "total",
-  "paidAmount",
-  "discountAmount",
-  "method",
-  "date",
-  "dueDate",
-  "name",
-  "phone",
-  "address",
-  "openingBalance",
-  "category",
-  "expenseName",
-  "amount",
-  "notes",
-  "reminderTitle",
-  "reminderDueAt",
-  "reminderType",
-  "reminderPriority",
-  "batchName",
-  "purchasePrice",
-  "sellingPrice",
-  "openingStock",
-  "sku",
-  "lowStockThreshold",
-  "targetId",
-];
 
 type Body = {
   actionId?: unknown;
@@ -77,15 +42,7 @@ export async function POST(req: NextRequest) {
     const actionId = typeof body.actionId === "string" ? body.actionId : "";
     if (!actionId) throw new BadRequestError("actionId is required.");
 
-    const patch: Partial<PlanPayload> = {};
-    if (body.patch && typeof body.patch === "object") {
-      for (const key of ALLOWED_PATCH_KEYS) {
-        if (Object.prototype.hasOwnProperty.call(body.patch, key)) {
-          // The service re-validates everything through the normal schemas.
-          (patch as Record<string, unknown>)[key] = body.patch[key];
-        }
-      }
-    }
+    const patch = sanitizePatch(body.patch);
 
     const reply = await confirmAction(userId, actionId, patch);
     return ok(toPublicReply(reply));

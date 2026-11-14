@@ -4,32 +4,23 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState, type ReactNode } from "react";
 
 /**
- * TanStack Query provider — optimized for speed.
+ * TanStack Query provider.
  *
- * CACHE STRATEGY (performance-tuned):
- *   - staleTime: 60 seconds — data stays fresh for 60s. Long enough that
- *     navigating between pages doesn't trigger unnecessary refetches.
- *     Short enough that financial data stays reasonably current.
- *   - gcTime: 5 minutes — cache kept for 5 min for instant back-nav.
- *   - refetchOnMount: false — DON'T refetch when a component mounts if data
- *     is in cache. The cached data is shown immediately; if stale, a
- *     background refetch happens without blocking the UI.
- *   - refetchOnWindowFocus: false — DON'T refetch when user switches tabs.
- *     This was causing ALL queries to refetch simultaneously on every tab
- *     switch, creating a burst of API calls that froze the UI.
- *   - refetchOnReconnect: true — refetch when network reconnects (rare).
+ * CACHE STRATEGY (financial data):
+ *   - staleTime: 30 seconds — the screens feel instant while navigating, but
+ *     anything older than half a minute is refreshed in the background.
+ *   - gcTime: 5 minutes — cache kept for backward navigation.
+ *   - refetchOnMount: true — when a screen is opened with stale data, refetch
+ *     in the background (cached data still paints immediately).
+ *   - refetchOnWindowFocus: true — coming back to the tab refreshes the numbers.
+ *     A shopkeeper who records a payment on one phone and opens the dashboard
+ *     on another must not see yesterday's balance.
+ *   - refetchOnReconnect: true — refresh after a dropped connection.
  *   - retry: 1 — retry once on transient errors only.
  *
- * WHY THIS IS FASTER:
- *   Before: staleTime=30s, refetchOnMount=true, refetchOnWindowFocus=true
- *   → Every tab switch = 6+ queries refetching simultaneously
- *   → Every navigation = refetch even if data is 31s old
- *   → UI froze while waiting for all refetches to complete
- *
- *   After: staleTime=60s, refetchOnMount=false, refetchOnWindowFocus=false
- *   → Tab switch = instant (uses cached data)
- *   → Navigation = instant (uses cached data, background refetch if stale)
- *   → Mutations explicitly invalidate only the affected query keys
+ * Mutations (including the assistant's confirm step) invalidate the affected
+ * query keys explicitly, so a new sale/payment/expense appears on every screen
+ * without waiting for a poll.
  */
 export function QueryProvider({ children }: { children: ReactNode }) {
   const [client] = useState(
@@ -37,12 +28,12 @@ export function QueryProvider({ children }: { children: ReactNode }) {
       new QueryClient({
         defaultOptions: {
           queries: {
-            staleTime: 60 * 1000,           // 60 seconds (was 30s)
+            staleTime: 30 * 1000,           // 30 seconds
             gcTime: 5 * 60 * 1000,          // 5 minutes
             retry: 1,
-            refetchOnWindowFocus: false,     // OFF — was causing burst refetches
-            refetchOnMount: false,           // OFF — use cached data on mount
-            refetchOnReconnect: true,       // ON — refetch when network reconnects
+            refetchOnWindowFocus: true,      // refresh when the owner returns
+            refetchOnMount: true,            // refresh stale data on navigation
+            refetchOnReconnect: true,
           },
           mutations: {
             retry: 0,

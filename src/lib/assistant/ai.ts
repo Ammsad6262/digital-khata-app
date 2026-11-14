@@ -130,6 +130,9 @@ Rules:
 - "Ahmad bought 20 cartons of rice, paid 15000" → CREATE_SALE, customerName Ahmad, productName rice, quantity 20, unit carton, paidAmount 15000.
 - "I bought 10 bags sugar from Ali at 5500" → CREATE_PURCHASE, supplierName Ali, productName sugar, quantity 10, unit bag, unitPrice 5500.
 - "spent 500 on electricity" → CREATE_EXPENSE, expenseName electricity, amount 500, category electricity.
+- "add a product marshmallow" → CREATE_PRODUCT, name marshmallow. Leave prices null if the user did not say them, so the app asks.
+- "add product marshmallow 200 per kg" → CREATE_PRODUCT, name marshmallow, unitPrice 200, unit kg.
+- IMPORTANT: a product named in a sale ("Khalid bought marshmallow") is NOT a request to create the product. Use CREATE_SALE and leave productName as spoken; the app checks whether the product exists and warns the owner if it does not.
 - "add 50 kg rice stock at 900" → ADD_STOCK, productName rice, quantity 50, unit kg, unitPrice 900.
 - "kitna udhaar hai" → query RECEIVABLES.
 - "how much stock of rice" → query STOCK_LEVEL, entity rice.

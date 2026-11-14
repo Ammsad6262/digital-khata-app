@@ -107,6 +107,8 @@ export type PlanValues = {
   sellingPrice?: number;
   purchasePrice?: number;
   openingStock?: number;
+  lowStockThreshold?: number;
+  sku?: string;
   targetId?: string;
   category?: string;
   reminderTitle?: string;

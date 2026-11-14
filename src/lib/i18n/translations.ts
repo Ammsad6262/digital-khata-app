@@ -2118,6 +2118,7 @@ export const translations = {
   "plan.label.phone": { en: "Phone", ur: "فون" },
   "plan.label.sellingPrice": { en: "Selling price", ur: "فروخت قیمت" },
   "plan.label.purchasePrice": { en: "Purchase price", ur: "خرید قیمت" },
+  "plan.label.lowStockThreshold": { en: "Low stock alert", ur: "کم اسٹاک انتباہ" },
   "plan.label.openingStock": { en: "Opening stock", ur: "ابتدائی اسٹاک" },
   "plan.label.reminder": { en: "Reminder", ur: "یاد دہانی" },
   "plan.label.due": { en: "Due", ur: "تاریخ" },
@@ -2125,6 +2126,10 @@ export const translations = {
   "plan.label.target": { en: "Target", ur: "ہدف" },
   "plan.editValues": { en: "Check & change", ur: "چیک کریں اور تبدیل کریں" },
   "plan.chooseEntity": { en: "Choose a saved record", ur: "محفوظ ریکارڈ منتخب کریں" },
+  "plan.missingProductHint": {
+    en: "No product named “{name}” in your products. Add it first, then record this sale.",
+    ur: "آپ کے پروڈکٹس میں “{name}” نام کا کوئی پروڈکٹ نہیں۔ پہلے اسے شامل کریں، پھر یہ سیل درج کریں۔",
+  },
   "plan.createNew": { en: "Create new", ur: "نیا بنائیں" },
   "plan.createNewNamed": { en: "Create new: {name}", ur: "نیا بنائیں: {name}" },
   "plan.newEntityName": { en: "Name", ur: "نام" },

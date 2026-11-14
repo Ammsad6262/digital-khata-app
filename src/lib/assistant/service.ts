@@ -637,22 +637,28 @@ async function buildPlanFor(
       payload.name = f.name ?? f.productName ?? undefined;
       if (!payload.name) requires.push("name");
       payload.unit = f.unit ?? "piece";
+      // The card mirrors the manual "Add product" form, so the owner can check
+      // every value before it is saved: name, category, unit, both prices,
+      // opening stock and the low-stock alert.
       const selling = f.sellingPrice ?? f.unitPrice ?? f.total ?? null;
+      const purchase = f.purchasePrice ?? f.unitCost ?? selling ?? null;
       if (selling == null) requires.push("unitPrice");
       payload.sellingPrice = selling ?? undefined;
-      payload.purchasePrice = selling ?? undefined;
+      payload.purchasePrice = purchase ?? undefined;
+      payload.category = f.category;
+      payload.lowStockThreshold = f.lowStockThreshold ?? 5;
       if (f.quantity) payload.openingStock = f.quantity;
       return {
         payload,
         summary: `Add product ${payload.name ?? "?"}`,
         fields: [
           { label: "Name", value: payload.name ?? "—" },
+          { label: "Category", value: payload.category ?? "—" },
           { label: "Unit", value: payload.unit ?? "piece" },
           { label: "Selling price", value: money(payload.sellingPrice) },
           { label: "Purchase price", value: money(payload.purchasePrice) },
-          ...(payload.openingStock
-            ? [{ label: "Opening stock", value: `${payload.openingStock} ${payload.unit}` }]
-            : []),
+          { label: "Opening stock", value: `${payload.openingStock ?? 0} ${payload.unit}`.trim() },
+          { label: "Low stock alert", value: String(payload.lowStockThreshold ?? 5) },
         ],
         warnings,
         requires,
@@ -765,6 +771,8 @@ function valuesFromPayload(p: PlanPayload): PlanValues {
     sellingPrice: p.sellingPrice,
     purchasePrice: p.purchasePrice,
     openingStock: p.openingStock,
+    lowStockThreshold: p.lowStockThreshold,
+    sku: p.sku,
     targetId: p.targetId,
     category: p.category,
     reminderTitle: p.reminderTitle,

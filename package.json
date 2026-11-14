@@ -29,6 +29,7 @@
     "test:assistant-warnings": "tsx scripts/test-assistant-warnings.ts",
     "test:assistant-names": "tsx scripts/test-assistant-names.ts",
     "test:assistant-asr": "tsx scripts/test-assistant-asr.ts",
+    "test:assistant-product": "tsx scripts/test-assistant-product-intent.ts",
     "test:audit": "tsx scripts/audit-data-integrity.ts",
     "test:e2e": "tsx scripts/test-e2e.ts",
     "test:acceptance": "tsx scripts/test-acceptance-http.ts",

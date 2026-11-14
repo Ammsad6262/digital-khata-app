@@ -101,24 +101,16 @@ async function resolveOrCreateCustomer(userId: string, payload: PlanPayload): Pr
   return requireField(payload.customerId, "customer");
 }
 
-async function resolveOrCreateProduct(userId: string, payload: PlanPayload): Promise<string> {
+async function resolveOrCreateProduct(_userId: string, payload: PlanPayload): Promise<string> {
   if (payload.productId) return payload.productId;
-  if (payload.createMissing?.product && payload.productName) {
-    const price = payload.unitPrice ?? payload.unitCost ?? 0;
-    const created = await createProductWithOpeningStock(
-      {
-        name: payload.productName,
-        unit: payload.unit || "piece",
-        sellingPrice: price,
-        purchasePrice: price,
-        category: null,
-        sku: null,
-        lowStockThreshold: 5,
-        openingStock: 0,
-      },
-      userId,
+  // Never invent a product from a sale/purchase/stock command: selling a product
+  // the shop never stocked is a data error. The owner must add it explicitly
+  // ("add product marshmallow"), which opens the full product form. Customer and
+  // supplier names are safe to create in one tap; a product price is not.
+  if (payload.productName) {
+    throw new BadRequestError(
+      `No product named “${payload.productName}” in your products. Add it first, then record this sale.`,
     );
-    return created.product.id;
   }
   return requireField(payload.productId, "product");
 }

@@ -203,10 +203,12 @@ const EDITABLE: Partial<Record<ActionKind, Spec[]>> = {
   ],
   CREATE_PRODUCT: [
     { key: "name", label: "plan.label.name", type: "text" },
+    { key: "category", label: "plan.label.category", type: "text" },
     { key: "unit", label: "plan.label.unit", type: "text" },
     { key: "sellingPrice", label: "plan.label.sellingPrice", type: "number" },
     { key: "purchasePrice", label: "plan.label.purchasePrice", type: "number" },
     { key: "openingStock", label: "plan.label.openingStock", type: "number" },
+    { key: "lowStockThreshold", label: "plan.label.lowStockThreshold", type: "number" },
   ],
   CREATE_REMINDER: [{ key: "reminderTitle", label: "plan.label.reminder", type: "text" }],
   COMPLETE_REMINDER: [{ key: "targetId", label: "plan.label.target", type: "text" }],
@@ -432,7 +434,11 @@ export function PlanCard({
                 a.name.localeCompare(b.name),
             );
             const id = selectedId(kind);
-            const creating = !!wantsCreate[kind];
+            // A product must never be created inline from a sale/purchase/stock
+            // card — a guessed price would silently corrupt the catalog. The
+            // owner adds products explicitly, from the full product form.
+            const canCreate = kind !== "product";
+            const creating = canCreate && !!wantsCreate[kind];
             const spoken = plan.missing?.[kind] ?? entityName(kind);
             const resolvedName = id
               ? (list.find((option) => option.id === id)?.name ??
@@ -499,11 +505,13 @@ export function PlanCard({
                           {option.unit ? ` · ${option.unit}` : ""}
                         </option>
                       ))}
-                      <option value="__new__">
-                        {spoken
-                          ? tParams("plan.createNewNamed", { name: spoken })
-                          : t("plan.createNew")}
-                      </option>
+                      {canCreate ? (
+                        <option value="__new__">
+                          {spoken
+                            ? tParams("plan.createNewNamed", { name: spoken })
+                            : t("plan.createNew")}
+                        </option>
+                      ) : null}
                     </select>
                     <ChevronDown
                       className="pointer-events-none absolute end-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-ink-faint"
@@ -511,6 +519,11 @@ export function PlanCard({
                     />
                   </div>
                 </label>
+                {kind === "product" && !id && plan.missing?.product ? (
+                  <p className="mt-1 text-[11px] text-warning-ink">
+                    {tParams("plan.missingProductHint", { name: plan.missing.product })}
+                  </p>
+                ) : null}
                 {creating ? (
                   <input
                     type="text"
@@ -560,20 +573,6 @@ export function PlanCard({
               {tParams("plan.createCustomer", { name: plan.missing.customer })}
             </button>
           ) : null}
-          {plan.missing.product ? (
-            <button
-              type="button"
-              aria-pressed={!!wantsCreate.product}
-              onClick={() => toggleCreate("product")}
-              className={cn(
-                "flex max-w-full items-center gap-1 truncate rounded-full border px-2.5 py-1 text-xs font-medium",
-                wantsCreate.product ? "border-brand-600 bg-brand-600 text-white" : "border-brand-600 text-brand-700",
-              )}
-            >
-              <Plus className="h-3 w-3 shrink-0" />
-              {tParams("plan.createProduct", { name: plan.missing.product })}
-            </button>
-          ) : null}
           {plan.missing.supplier ? (
             <button
               type="button"
@@ -588,7 +587,7 @@ export function PlanCard({
               {tParams("plan.createSupplier", { name: plan.missing.supplier })}
             </button>
           ) : null}
-          {wantsCreate.customer || wantsCreate.product || wantsCreate.supplier ? (
+          {wantsCreate.customer || wantsCreate.supplier ? (
             <span className="w-full text-[11px] text-ink-subtle">{t("plan.willCreate")}</span>
           ) : null}
         </div>

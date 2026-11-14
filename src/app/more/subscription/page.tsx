@@ -218,8 +218,9 @@ function SubscriptionContent() {
   if (isError) return <EmptyState title={t("subscription.unableToCheck")} description={error instanceof Error ? error.message : ""} icon={<AlertCircle className="h-6 w-6" />} action={<Button onClick={() => refetch()} variant="outline" size="sm"><RefreshCw className="h-4 w-4" />{t("subscription.tryAgain")}</Button>} />;
   if (!subscription) return null;
 
-  // Billing is not connected. Say so plainly: there is nothing to buy and no
-  // feature is locked. No fake prices, no fake checkout, no trial pressure.
+  // No online checkout is connected: payment is arranged over WhatsApp and the
+  // owner issues an activation code. Plans, prices and the redeem entry are
+  // shown here; access itself is governed by the licensing entitlement above.
   if (!subscription.billingEnabled) {
     return (
       <div className="space-y-4">

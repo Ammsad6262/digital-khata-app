@@ -136,6 +136,11 @@ export async function registerUser(input: {
   name: string;
   email: string;
   password: string;
+  /**
+   * "trial" (default) starts the 30-day free trial; "paid" creates an
+   * unactivated account that must redeem a code before using the app.
+   */
+  plan?: "trial" | "paid";
 }): Promise<AuthResult> {
   const name = input.name.trim();
   const email = input.email.trim().toLowerCase();
@@ -157,21 +162,34 @@ export async function registerUser(input: {
       data: { name, email, passwordHash },
     });
 
-    // Create a 30-day free trial subscription
+    // Start the account either on the free trial or as an unactivated paid
+    // account (no trial). Both are stored as a core-only subscription; a
+    // product code later clears coreExpiresAt and makes core access permanent.
     const now = new Date();
-    const trialExpires = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
-    await tx.userSubscription.create({
-      data: {
-        userId: newUser.id,
-        status: "TRIAL_ACTIVE",
-        trialStartedAt: now,
-        trialExpiresAt: trialExpires,
-        // Preserve the 30-day trial as a core-only trial. A paid product
-        // redemption clears coreExpiresAt and makes core access permanent.
-        coreActivatedAt: now,
-        coreExpiresAt: trialExpires,
-      },
-    });
+    if (input.plan === "paid") {
+      await tx.userSubscription.create({
+        data: {
+          userId: newUser.id,
+          status: "UNACTIVATED",
+          trialStartedAt: now,
+          trialExpiresAt: now,
+        },
+      });
+    } else {
+      const trialExpires = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+      await tx.userSubscription.create({
+        data: {
+          userId: newUser.id,
+          status: "TRIAL_ACTIVE",
+          trialStartedAt: now,
+          trialExpiresAt: trialExpires,
+          // Preserve the 30-day trial as a core-only trial. A paid product
+          // redemption clears coreExpiresAt and makes core access permanent.
+          coreActivatedAt: now,
+          coreExpiresAt: trialExpires,
+        },
+      });
+    }
 
     return newUser;
   });

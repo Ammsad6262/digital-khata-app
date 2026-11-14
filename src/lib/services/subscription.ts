@@ -18,6 +18,7 @@ const CODE_CHARS = "ABCDEFGHJKLMNPQRTUVWXYZ2346789";
 const CODE_PREFIX = "DKH";
 const CODE_SEGMENT_LENGTH = 4;
 const CODE_SEGMENTS = 3;
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 /**
  * Billing is opt-in. Until a real payment provider is connected, this stays
@@ -27,12 +28,15 @@ const CODE_SEGMENTS = 3;
 export const BILLING_ENABLED = process.env.BILLING_ENABLED === "true";
 
 /**
- * Commercial licensing enforcement. Off by default so existing installs keep
- * working exactly as before; set LICENSING_ENFORCED=true to require an
- * activated core licence for the business APIs. Either way, the entitlement
- * service (`lib/services/entitlement.ts`) is the source of truth for access.
+ * Commercial licensing enforcement. On by default: a user needs an active core
+ * licence (a live free trial, a product code, or an owner/affiliate grant) to
+ * use the business app. When the trial ends — or a paid account signs up
+ * without a code — the app locks and asks for a redeem code. Set
+ * LICENSING_ENFORCED=false only to restore the legacy unrestricted behaviour.
+ * The entitlement service (`lib/services/entitlement.ts`) remains the single
+ * source of truth for access.
  */
-export const LICENSING_ENFORCED = process.env.LICENSING_ENFORCED === "true";
+export const LICENSING_ENFORCED = process.env.LICENSING_ENFORCED !== "false";
 
 export type SubscriptionStatus =
   | "TRIAL_ACTIVE"
@@ -100,13 +104,6 @@ function getEffectiveExpiry(sub: { trialExpiresAt: Date; accessExpiresAt: Date |
   return sub.trialExpiresAt;
 }
 
-function calcRemainingDays(expiresAt: Date): number {
-  const now = new Date();
-  const diff = expiresAt.getTime() - now.getTime();
-  if (diff <= 0) return 0;
-  return Math.floor(diff / (1000 * 60 * 60 * 24));
-}
-
 export async function createTrial(userId: string): Promise<void> {
   const now = new Date();
   const trialExpires = new Date(now.getTime() + TRIAL_DURATION_DAYS * 24 * 60 * 60 * 1000);
@@ -136,50 +133,68 @@ export async function getSubscriptionStatus(userId: string): Promise<Subscriptio
     );
   }
 
-  // No payment provider is connected. Report that plainly instead of showing
-  // a trial countdown that has no effect on access.
-  if (!BILLING_ENABLED) {
-    return {
-      status: "BILLING_DISABLED",
-      billingEnabled: false,
-      isTrial: false,
-      isActive: true,
-      isExpired: false,
-      trialStartedAt: sub.trialStartedAt,
-      trialExpiresAt: sub.trialExpiresAt,
-      accessStartedAt: sub.accessStartedAt,
-      accessExpiresAt: sub.accessExpiresAt,
-      effectiveExpiresAt: null,
-      remainingDays: null,
-      canRedeem: true,
-      licensingEnforced: LICENSING_ENFORCED,
-      licensing: computeEntitlement(userId, sub),
-    };
-  }
-
   const now = new Date();
-  const effectiveExpiry = getEffectiveExpiry(sub);
-  const isExpired = effectiveExpiry <= now;
-  const remainingDays = calcRemainingDays(effectiveExpiry);
-  const hasAccess = sub.accessExpiresAt && sub.accessExpiresAt > now;
+  const licensing = computeEntitlement(userId, sub);
+
+  // Commercial licensing is the single source of truth for access. When it is
+  // enforced (the default), an account needs an active core licence: a live
+  // trial, a permanent product code, or an owner/affiliate grant. An expired
+  // trial and a paid signup that has not redeemed a code are both locked and
+  // are sent to the redeem screen.
+  const legacyExpiry = getEffectiveExpiry(sub);
+  const legacyExpired = legacyExpiry <= now;
+  const isExpired = LICENSING_ENFORCED
+    ? !licensing.core.active
+    : BILLING_ENABLED
+      ? legacyExpired
+      : false;
+
+  const effectiveExpiresAt = licensing.core.trial
+    ? licensing.core.expiresAt
+    : licensing.premium.active && licensing.premium.expiresAt
+      ? licensing.premium.expiresAt
+      : null;
+  const remainingDays = effectiveExpiresAt
+    ? Math.max(
+        0,
+        Math.ceil((effectiveExpiresAt.getTime() - now.getTime()) / DAY_MS),
+      )
+    : null;
 
   let status: SubscriptionStatus;
-  if (hasAccess) status = "ACTIVE";
-  else if (sub.trialExpiresAt > now) status = "TRIAL_ACTIVE";
-  else if (sub.accessExpiresAt && sub.accessExpiresAt <= now) status = "EXPIRED";
-  else status = "TRIAL_EXPIRED";
+  if (LICENSING_ENFORCED) {
+    if (!licensing.core.active) status = "TRIAL_EXPIRED";
+    else if (licensing.category === "TRIAL") status = "TRIAL_ACTIVE";
+    else status = "ACTIVE";
+  } else if (!BILLING_ENABLED) {
+    status = "BILLING_DISABLED";
+  } else {
+    const hasAccess = Boolean(sub.accessExpiresAt && sub.accessExpiresAt > now);
+    if (hasAccess) status = "ACTIVE";
+    else if (sub.trialExpiresAt > now) status = "TRIAL_ACTIVE";
+    else if (sub.accessExpiresAt && sub.accessExpiresAt <= now) status = "EXPIRED";
+    else status = "TRIAL_EXPIRED";
+  }
+
+  const isTrial = LICENSING_ENFORCED
+    ? licensing.category === "TRIAL"
+    : status === "TRIAL_ACTIVE" || status === "TRIAL_EXPIRED";
 
   return {
-    status, isTrial: status === "TRIAL_ACTIVE" || status === "TRIAL_EXPIRED",
+    status,
     billingEnabled: BILLING_ENABLED,
-    isActive: status === "TRIAL_ACTIVE" || status === "ACTIVE",
-    isExpired: status === "TRIAL_EXPIRED" || status === "EXPIRED",
-    trialStartedAt: sub.trialStartedAt, trialExpiresAt: sub.trialExpiresAt,
-    accessStartedAt: sub.accessStartedAt, accessExpiresAt: sub.accessExpiresAt,
-    effectiveExpiresAt: effectiveExpiry,
-    remainingDays: isExpired ? 0 : remainingDays, canRedeem: true,
+    isTrial,
+    isActive: !isExpired,
+    isExpired,
+    trialStartedAt: sub.trialStartedAt,
+    trialExpiresAt: sub.trialExpiresAt,
+    accessStartedAt: sub.accessStartedAt,
+    accessExpiresAt: sub.accessExpiresAt,
+    effectiveExpiresAt,
+    remainingDays: isExpired ? 0 : remainingDays,
+    canRedeem: true,
     licensingEnforced: LICENSING_ENFORCED,
-    licensing: computeEntitlement(userId, sub),
+    licensing,
   };
 }
 

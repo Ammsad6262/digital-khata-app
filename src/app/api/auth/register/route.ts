@@ -41,10 +41,18 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { data, error } = await parseJsonBody<{ name: string; email: string; password: string }>(req);
+    const { data, error } = await parseJsonBody<{
+      name: string;
+      email: string;
+      password: string;
+      plan?: "trial" | "paid";
+    }>(req);
     if (error || !data) throw new BadRequestError(error || tServer("api.errors.invalidBody"));
 
-    const result = await registerUser(data);
+    const result = await registerUser({
+      ...data,
+      plan: data.plan === "paid" ? "paid" : "trial",
+    });
 
     recordSuccess(rateKey);
 

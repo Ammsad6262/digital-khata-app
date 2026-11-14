@@ -1,9 +1,8 @@
 # Commercial Licensing — Technical Handover
 
-Status: **implemented and verified on an isolated branch/worktree. Not committed,
-pushed, merged or deployed.** Licensing enforcement is **off by default**
-(`LICENSING_ENFORCED=false`); row-level security is opt-in via
-`LICENSING_RLS_ROLE=khata_app`.
+Status: **implemented, merged and deployed to production.** Licensing
+enforcement is **on by default** (disable only with `LICENSING_ENFORCED=false`);
+row-level security is opt-in via `LICENSING_RLS_ROLE=khata_app`.
 
 This document is for the developer who will integrate, deploy or extend the
 commercial licensing system. It describes what was built, how access is decided,
@@ -461,9 +460,9 @@ export async function POST(req: NextRequest) {
 
 ### `hasCoreAccess(userId): Promise<boolean>`
 
-Use this to gate non-AI business operations if licensing enforcement becomes
-mandatory. Today `hasActiveAccess()` only enforces it when
-`LICENSING_ENFORCED=true`.
+Use this to gate non-AI business operations. `hasActiveAccess()` uses it whenever
+licensing is enforced, which is the default (`LICENSING_ENFORCED` unset or any
+value other than `false`).
 
 ### `getEntitlement(userId): Promise<Entitlement>`
 
@@ -513,14 +512,14 @@ Guidance:
 
 | Variable | Default | Meaning |
 | --- | --- | --- |
-| `LICENSING_ENFORCED` | `false` | When `true`, `hasActiveAccess()` requires active core access (a trial counts as core). When `false`, the pre-licensing gate is preserved: billing off = open; billing on = legacy trial/access expiry. The entitlement service still computes and reports the real category in either case. |
+| `LICENSING_ENFORCED` | on (set `false` to disable) | When on, `hasActiveAccess()` and `/api/subscription` require an active core licence (a live trial counts as core). An expired trial, or a paid signup that has not redeemed a code, is locked and is sent to the redeem screen. Set `LICENSING_ENFORCED=false` to restore the pre-licensing gate: billing off = open; billing on = legacy trial/access expiry. |
 | `LICENSING_RLS_ROLE` | *(unset)* | The restricted Postgres role used to enforce row-level security on user-scoped licensing queries (e.g. `khata_app`, created by the `20261109170000_enforce_licensing_rls` migration). When set, user-scoped queries run `SET LOCAL ROLE <role>` inside a transaction. When unset, they run as the connection owner and RLS is not filtered. |
 | `ADMIN_SECRET` | — | Existing admin secret; must be ≥16 chars. Protects `/admin/licensing` and the admin APIs. |
 
 Exact `hasActiveAccess()` precedence:
 
 ```
-if LICENSING_ENFORCED      -> hasCoreAccess() (entitlement service)
+if LICENSING_ENFORCED      -> hasCoreAccess() (entitlement service)   [default]
 else if !BILLING_ENABLED   -> true (fully open, pre-licensing behaviour)
 else                       -> legacy subscription status gate
 ```
@@ -640,24 +639,28 @@ When deployment is approved:
    `npx prisma migrate resolve --applied 20261109153000_add_licensing_rls`,
    `npx prisma migrate resolve --applied 20261109160000_add_core_trial_expiry`, and
    `npx prisma migrate resolve --applied 20261109170000_enforce_licensing_rls`.
-5. Deploy the code with `LICENSING_ENFORCED=false`. Optionally set
-   `LICENSING_RLS_ROLE=khata_app` to switch on row-level security enforcement — the
-   production SQL creates the `khata_app` role and grants the connecting role
-   membership in it, so this is safe once the SQL above has been applied. Leaving
-   it unset keeps the previous (owner-connection) behaviour.
+5. Deploy the code with licensing enforced (the default; leave
+   `LICENSING_ENFORCED` unset). Optionally set `LICENSING_RLS_ROLE=khata_app` to
+   switch on row-level security enforcement — the production SQL creates the
+   `khata_app` role and grants the connecting role membership in it, so this is
+   safe once the SQL above has been applied. Leaving it unset keeps the previous
+   (owner-connection) behaviour.
 6. Distribute codes and spot-check categories in `/admin/licensing` (including
    the activation/renewal history and "who redeemed" views).
-7. Only then consider setting `LICENSING_ENFORCED=true`. Start with it `false`
-   so existing customers are not locked out while codes are distributed. A trial
-   counts as core, so new registrations keep working for 30 days.
+7. Before enforcing, grant the app owner(s) the owner role in `/admin/licensing`
+   (max 2) so they keep permanent access. Existing trial-expired accounts become
+   locked and must redeem a code — that is the intended behaviour. To stage the
+   rollout without lockouts, set `LICENSING_ENFORCED=false` until codes are
+   distributed, then remove it.
 
 ---
 
 ## 16. Limitations and deliberate non-goals
 
-- **Enforcement is off by default.** The system records and reports real
-  categories, but business APIs remain open until `LICENSING_ENFORCED=true`.
-  This protects existing users and avoids a surprise lockout.
+- **Enforcement is on by default.** New signups choose a 30-day free trial or a
+  paid account (no trial; enter a code after signing up). When a trial ends or a
+  paid account has no code, the app locks and asks for a redeem code. Set
+  `LICENSING_ENFORCED=false` to restore the old "everything is open" behaviour.
 - **AI gating is not implemented.** The contract exists; the AI workstream must
   wire `hasPremiumAccess()` into premium AI routes. No AI file was touched.
 - **RLS is enforced once `LICENSING_RLS_ROLE=khata_app` is set.** User-scoped

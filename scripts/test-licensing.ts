@@ -483,7 +483,7 @@ async function main() {
     overview.codes.some((c) => c.redemptions.length > 0),
   );
 
-  section("22. The 30-day trial is preserved as core-only access");
+  section("22. The 14-day trial is preserved as core-only access");
   const trialUser = await makeUser("trial");
   await createTrial(trialUser.id);
   let trialEnt = await getEntitlement(trialUser.id);

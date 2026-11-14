@@ -10,10 +10,10 @@ import {
   computeEntitlement,
   hasCoreAccess,
   redeemLicenseCode,
+  trialExpiry,
   type Entitlement,
 } from "@/lib/services/entitlement";
 
-const TRIAL_DURATION_DAYS = 30;
 const CODE_CHARS = "ABCDEFGHJKLMNPQRTUVWXYZ2346789";
 const CODE_PREFIX = "DKH";
 const CODE_SEGMENT_LENGTH = 4;
@@ -106,7 +106,7 @@ function getEffectiveExpiry(sub: { trialExpiresAt: Date; accessExpiresAt: Date |
 
 export async function createTrial(userId: string): Promise<void> {
   const now = new Date();
-  const trialExpires = new Date(now.getTime() + TRIAL_DURATION_DAYS * 24 * 60 * 60 * 1000);
+  const trialExpires = trialExpiry(now);
   await prisma.userSubscription.upsert({
     where: { userId },
     create: {
@@ -114,7 +114,7 @@ export async function createTrial(userId: string): Promise<void> {
       status: "TRIAL_ACTIVE",
       trialStartedAt: now,
       trialExpiresAt: trialExpires,
-      // Preserve the existing 30-day trial as a core-only trial.
+      // Preserve the free trial as a core-only trial.
       coreActivatedAt: now,
       coreExpiresAt: trialExpires,
     },

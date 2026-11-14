@@ -60,12 +60,12 @@ isolated database. Nothing was committed or pushed.
 | Premium | PKR 3,000 / month | 30 days, renewable | core + premium (AI) |
 | Affiliate | — | permanent | core + premium, **max 10 codes** |
 | Owner | — | permanent | full access, **max 2 accounts** |
-| Trial (legacy) | — | 30 days | core only, **no AI**; temporary, not a paid product |
+| Trial (free) | — | 14 days | core only, **no AI**; temporary, not a paid product |
 
 Rules enforced in code:
 
 - A **product** code activates permanent core access and never grants premium.
-  A user on the 30-day trial may redeem it to upgrade; an already-paid core
+  A user on the 14-day trial may redeem it to upgrade; an already-paid core
   cannot be activated twice.
 - A **premium** code requires an already-activated **paid** core product (not a
   trial). It adds 30 days to the current premium expiry if premium is still
@@ -74,7 +74,7 @@ Rules enforced in code:
 - An **affiliate** code grants permanent core + premium to the redeemer.
 - Owners and affiliates are already permanent; they cannot redeem product,
   premium or affiliate codes (the API rejects it).
-- The existing 30-day trial is preserved as a **core-only** trial. It expires,
+- The 14-day free trial is a **core-only** trial. It expires,
   does not grant AI/premium, and can be upgraded with a product code. New
   registrations and existing active trials receive this state.
 - At most **10 affiliate codes** may ever be generated (server + DB-serialised),
@@ -121,7 +121,7 @@ Key files:
 | `src/lib/services/entitlement.ts` | All entitlement logic, redemption, code issuance, admin actions, trial-aware derivation |
 | `src/lib/db/prisma.ts` | Prisma singleton + `withUserRls()` (transaction-local `SET LOCAL ROLE` + `app.user_id` for enforced RLS) |
 | `src/lib/services/subscription.ts` | Existing service; delegates `redeemCode`, `hasActiveAccess`; preserves the trial as core-only; fixes legacy code duration; adds `licensing`/`licensingEnforced` to the legacy status view |
-| `src/lib/services/auth.ts` | Minimal change: registration creates the 30-day trial with the core-trial fields |
+| `src/lib/services/auth.ts` | Minimal change: registration creates the 14-day trial with the core-trial fields |
 | `src/lib/services/audit.ts` | Added `licensing.affiliate_revoke` and `licensing.core_revoke` actions |
 | `src/app/api/licensing/route.ts` | `GET` the signed-in customer's entitlement |
 | `src/app/api/subscription/redeem/route.ts` | Existing redeem endpoint (now category-aware via the service) |
@@ -160,7 +160,7 @@ category        = OWNER > AFFILIATE > PREMIUM > TRIAL > REGULAR > UNACTIVATED
 Consequences:
 
 - `coreExpiresAt == null` means **permanent paid core**. A date means the
-  **30-day trial**; it expires on that date.
+  **free trial**; it expires on that date.
 - A trial is `TRIAL`: core access is active, premium/AI is not. It can be
   upgraded with a product code, which clears `coreExpiresAt`.
 - An expired trial is `UNACTIVATED`, but `core.trial` stays `true` so the UI can
@@ -217,12 +217,12 @@ revoke (admin) ──► only unused codes; redeemed codes are not silently undo
 2. Customer opens **More → Redeem code**, enters the code.
 3. Server sets `coreActivatedAt` and clears `coreExpiresAt`. Category becomes
    `REGULAR`. Premium stays off.
-4. A customer on the 30-day trial can upgrade; a paid core cannot be activated
+4. A customer on the 14-day trial can upgrade; a paid core cannot be activated
    twice; owners/affiliates cannot redeem product codes.
 
-### 30-day trial (legacy, preserved)
+### 14-day free trial (preserved)
 1. Registration creates a trial with `coreActivatedAt = now` and
-   `coreExpiresAt = now + 30 days`.
+   `coreExpiresAt = now + 14 days`.
 2. Category is `TRIAL`: core business features work, AI/premium does not.
 3. After expiry the category becomes `UNACTIVATED`; data is retained and the UI
    shows that the trial ended.
@@ -286,7 +286,7 @@ accessRevokedAt, accessRevokedReason
 ```
 
 `coreExpiresAt` is the trial boundary: `NULL` = permanent paid core; a date =
-the 30-day trial core.
+the trial core.
 
 `RedeemCode` gained `kind` (default `PREMIUM`), `label`, `revokedAt`,
 `revokedBy`, and an index on `kind`.
@@ -602,7 +602,7 @@ The 101 licensing checks cover:
     Hashed storage, no plaintext in listings, one-time maxRedemptions.
     Redemption history, per-customer activation/renewal history and admin
     overview (code redemptions expose the redeemer).
-22. The 30-day trial is preserved as core-only access: no premium, cannot buy
+22. The 14-day trial is preserved as core-only access: no premium, cannot buy
     premium, premium time on a trial is ignored, and a product code upgrades it
     to permanent core.
 23. An expired trial loses core access, keeps the trial flag for the UI, and can
@@ -657,7 +657,7 @@ When deployment is approved:
 
 ## 16. Limitations and deliberate non-goals
 
-- **Enforcement is on by default.** New signups choose a 30-day free trial or a
+- **Enforcement is on by default.** New signups choose a 14-day free trial or a
   paid account (no trial; enter a code after signing up). When a trial ends or a
   paid account has no code, the app locks and asks for a redeem code. Set
   `LICENSING_ENFORCED=false` to restore the old "everything is open" behaviour.

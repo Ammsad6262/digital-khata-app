@@ -30,10 +30,17 @@ export const LICENSE_KINDS = ["PRODUCT", "PREMIUM", "AFFILIATE"] as const;
 export type LicenseKind = (typeof LICENSE_KINDS)[number];
 
 export const PREMIUM_PERIOD_DAYS = 30;
+/** Length of the free trial offered to new signups. */
+export const TRIAL_DURATION_DAYS = 14;
 export const MAX_AFFILIATE_CODES = 10;
 export const MAX_OWNERS = 2;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** Expiry timestamp for a free trial that starts at `now`. */
+export function trialExpiry(now: Date = new Date()): Date {
+  return new Date(now.getTime() + TRIAL_DURATION_DAYS * DAY_MS);
+}
 const CODE_CHARS = "ABCDEFGHJKLMNPQRTUVWXYZ2346789";
 const CODE_SEGMENT_LENGTH = 4;
 const CODE_SEGMENTS = 3;
@@ -163,7 +170,7 @@ export function computeEntitlement(
     !accessRevoked &&
     (isOwner || isAffiliate || (coreActivated && coreTimeValid));
 
-  // A core with an expiry is the legacy 30-day trial, not a paid product.
+  // A core with an expiry is a free trial, not a paid product.
   // Owners and affiliates are always permanent.
   const coreIsTrial = Boolean(
     !isOwner && !isAffiliate && coreExpiresAt !== null,
@@ -255,9 +262,7 @@ async function ensureSubscriptionRow(
 ) {
   const existing = await tx.userSubscription.findUnique({ where: { userId } });
   if (existing) return existing;
-  const trialExpiresAt = new Date(
-    now.getTime() + PREMIUM_PERIOD_DAYS * DAY_MS,
-  );
+  const trialExpiresAt = trialExpiry(now);
   return tx.userSubscription.create({
     data: {
       userId,

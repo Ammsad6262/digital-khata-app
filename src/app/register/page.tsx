@@ -2,7 +2,7 @@
 
 /**
  * Register page — name + email + password + plan choice.
- * Trial plan → redirect to /dashboard (starts the 30-day free trial).
+ * Trial plan → redirect to /dashboard (starts the 14-day free trial).
  * Paid plan  → redirect to /more/redeem (account is unactivated until a code
  *              is redeemed).
  * Has a link to /login for existing users.

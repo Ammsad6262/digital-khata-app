@@ -10,6 +10,7 @@
 
 import { prisma } from "@/lib/db/prisma";
 import { NotFoundError, BadRequestError, UnauthorizedError } from "@/lib/errors";
+import { trialExpiry } from "@/lib/services/entitlement";
 
 const BCRYPT_ROUNDS = 10;
 const TOKEN_TTL_SECONDS = 7 * 24 * 60 * 60; // 7 days
@@ -137,7 +138,7 @@ export async function registerUser(input: {
   email: string;
   password: string;
   /**
-   * "trial" (default) starts the 30-day free trial; "paid" creates an
+   * "trial" (default) starts the 14-day free trial; "paid" creates an
    * unactivated account that must redeem a code before using the app.
    */
   plan?: "trial" | "paid";
@@ -176,14 +177,14 @@ export async function registerUser(input: {
         },
       });
     } else {
-      const trialExpires = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+      const trialExpires = trialExpiry(now);
       await tx.userSubscription.create({
         data: {
           userId: newUser.id,
           status: "TRIAL_ACTIVE",
           trialStartedAt: now,
           trialExpiresAt: trialExpires,
-          // Preserve the 30-day trial as a core-only trial. A paid product
+          // Preserve the trial as a core-only trial. A paid product
           // redemption clears coreExpiresAt and makes core access permanent.
           coreActivatedAt: now,
           coreExpiresAt: trialExpires,

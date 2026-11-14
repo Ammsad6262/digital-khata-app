@@ -11,7 +11,7 @@
  * server already produced and hands the diff back as a patch.
  */
 
-import { useEffect, useState } from "react";
+import { memo, useEffect, useState } from "react";
 import { Check, ChevronDown, Plus } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { useLanguage } from "@/providers/language-provider";
@@ -222,7 +222,7 @@ function displayLabel(label: string, t: (k: TranslationKey) => string): string {
   return k ? t(k) : label;
 }
 
-export function PlanCard({
+function PlanCardImpl({
   plan,
   busy,
   onConfirm,
@@ -698,3 +698,9 @@ export function PlanCard({
     </div>
   );
 }
+
+/**
+ * Memoised so typing in the transcript box or the typed-command input does not
+ * re-render every confirmation card in the conversation.
+ */
+export const PlanCard = memo(PlanCardImpl);

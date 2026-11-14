@@ -66,8 +66,15 @@ export function AuthGate({ children }: { children: ReactNode }) {
 
     async function init() {
       try {
-        // 1. Check account auth (JWT)
-        const meRes = await fetch("/api/auth/me", { cache: "no-store" });
+        // These three checks are independent. Running them sequentially cost
+        // three round-trips before the app could paint — very noticeable on a
+        // phone. Fire them together and read the results in order.
+        const [meRes, pinRes, subRes] = await Promise.all([
+          fetch("/api/auth/me", { cache: "no-store" }),
+          fetch("/api/auth/status", { cache: "no-store" }),
+          fetch("/api/subscription", { cache: "no-store" }).catch(() => null),
+        ]);
+
         const meJson = await meRes.json();
 
         if (!mounted) return;
@@ -80,8 +87,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
 
         setUser(meJson.data.user);
 
-        // 2. Check PIN status
-        const pinRes = await fetch("/api/auth/status", { cache: "no-store" });
+        // 2. PIN status (already fetched in parallel above)
         const pinJson = await pinRes.json();
 
         if (!mounted) return;
@@ -92,7 +98,9 @@ export function AuthGate({ children }: { children: ReactNode }) {
         } else {
           const s = pinJson.data as AuthStatus;
 
-          // If no PIN and not unlocked, auto-unlock
+          // If no PIN and not unlocked, auto-unlock. Do NOT return here: the
+          // subscription result is already in flight and must still be applied,
+          // otherwise an expired account could bypass the client paywall.
           if (!s.hasPin && !s.unlocked) {
             try {
               const unlockRes = await fetch("/api/auth/unlock", {
@@ -104,27 +112,30 @@ export function AuthGate({ children }: { children: ReactNode }) {
               const unlockJson = await unlockRes.json();
               if (mounted && unlockJson.ok) {
                 setPinStatus({ hasPin: false, unlocked: true, businessName: s.businessName });
-                return;
+              } else {
+                setPinStatus(s);
               }
             } catch {
               // Proceed even if unlock fails
+              setPinStatus(s);
             }
+          } else {
+            setPinStatus(s);
           }
-
-          setPinStatus(s);
         }
 
-        // 3. Check subscription status (don't block on failure — network errors
+        // 3. Subscription status (don't block on failure — network errors
         //    must NOT lock the user out of their account)
-        try {
-          const subRes = await fetch("/api/subscription", { cache: "no-store" });
-          const subJson = await subRes.json();
-          if (mounted && subJson.ok && subJson.data) {
-            setSubscriptionExpired(subJson.data.isExpired);
+        if (subRes) {
+          try {
+            const subJson = await subRes.json();
+            if (mounted && subJson.ok && subJson.data) {
+              setSubscriptionExpired(subJson.data.isExpired);
+            }
+          } catch {
+            // If subscription check fails, don't block — let the user in.
+            // The API layer enforces access server-side anyway.
           }
-        } catch {
-          // If subscription check fails, don't block — let the user in.
-          // The API layer enforces access server-side anyway.
         }
       } catch {
         if (mounted) setError(t("auth.serverUnreachable"));

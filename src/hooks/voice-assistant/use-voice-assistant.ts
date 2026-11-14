@@ -18,7 +18,8 @@
  *   - Pashto has no reliable browser recogniser, so the audio is recorded and
  *     transcribed+understood by the server model (`ps-AF` is attempted first,
  *     and we fall back automatically if the browser rejects it).
- *   - "Auto" follows the app UI language.
+ *   - The mic starts in the app's UI language. The owner can switch explicitly
+ *     with the language chips; there is no "Auto" button.
  */
 
 import { useCallback, useEffect, useState } from "react";
@@ -58,7 +59,10 @@ export function useVoiceAssistant() {
 
   const [transcript, setTranscript] = useState("");
   const [detected, setDetected] = useState<SpeechLanguage>("en");
-  const [languageMode, setLanguageMode] = useState<VoiceLanguageMode>("auto");
+  // No "auto" chip: the mic starts in the app's language and the owner can
+  // switch to English / Urdu / Pashto explicitly. This removes the confusing
+  // "Auto" button while keeping the same default behaviour.
+  const [languageMode, setLanguageMode] = useState<VoiceLanguageMode>(lang === "ur" ? "ur" : "en");
 
   const serverTranscribe = useCallback(
     (language?: SpeechLanguage) => {

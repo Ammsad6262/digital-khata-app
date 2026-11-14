@@ -10,10 +10,11 @@
  * → the shared engine answers or prepares a plan → confirm to save.
  *
  * It never shows Gemini model names, per-model counters, or provider details.
- * The microphone language is detected automatically; there is no dropdown.
+ * The mic starts in the app's language; the owner can switch with the language
+ * chips. There is no "Auto" button and no dropdown.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, Loader2, Mic, MicOff, RotateCcw, Send, Square, X } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { useVoiceAssistant, type VoiceLanguageMode } from "@/hooks/voice-assistant/use-voice-assistant";
@@ -55,7 +56,6 @@ const EXAMPLE_KEYS: TranslationKey[] = [
 
 /** Spoken language chips. Endonyms (اردو / پښتو) are shown as-is on purpose. */
 const LANGUAGE_MODES: Array<{ value: VoiceLanguageMode; label: string }> = [
-  { value: "auto", label: "assistant.langAuto" },
   { value: "en", label: "English" },
   { value: "ur", label: "اردو" },
   { value: "ps", label: "پښتو" },
@@ -122,6 +122,18 @@ export function VoiceAssistant() {
     setTyped("");
     voice.submit(text);
   }, [busy, typed, voice]);
+
+  // Stable callbacks so memoised reply cards do not re-render when the owner is
+  // simply typing in the transcript or command box.
+  const { confirm: confirmAction, cancel: cancelAction } = assistant;
+  const { retry: retryVoice, setTranscript } = voice;
+  const handleConfirm = useCallback(
+    (id: string, patch: Partial<PlanPayload>) => void confirmAction(id, patch),
+    [confirmAction],
+  );
+  const handleCancel = useCallback((id: string) => void cancelAction(id), [cancelAction]);
+  const handleRetry = useCallback((text: string) => retryVoice(text), [retryVoice]);
+  const handleEdit = useCallback((text: string) => setTranscript(text), [setTranscript]);
 
   const micErrorRaw = speech.error?.message ?? recorder.error ?? null;
   const micError =
@@ -228,10 +240,10 @@ export function VoiceAssistant() {
                     <VoiceReply
                       reply={turn.reply}
                       busy={busy}
-                      onConfirm={(id, patch) => void assistant.confirm(id, patch)}
-                      onCancel={(id) => void assistant.cancel(id)}
-                      onRetry={(text) => voice.retry(text)}
-                      onEdit={(text) => voice.setTranscript(text)}
+                      onConfirm={handleConfirm}
+                      onCancel={handleCancel}
+                      onRetry={handleRetry}
+                      onEdit={handleEdit}
                     />
                   </div>
                 </div>
@@ -423,7 +435,7 @@ const ANSWER_ITEM_KEYS: Record<string, TranslationKey> = {
   Adjustment: "assistant.item.adjustment",
 };
 
-function VoiceReply({
+function VoiceReplyImpl({
   reply,
   busy,
   onConfirm,
@@ -545,3 +557,6 @@ function VoiceReply({
 
   return <PlanCard key={reply.actionId} plan={reply} busy={busy} onConfirm={onConfirm} onCancel={onCancel} />;
 }
+
+/** Memoised: a new keystroke in the transcript box must not re-render old replies. */
+const VoiceReply = memo(VoiceReplyImpl);

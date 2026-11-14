@@ -5,7 +5,7 @@ import { useSubscription, useRedemptionHistory } from "@/hooks/use-subscription"
 import type { Entitlement } from "@/lib/services/entitlement";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/shared/EmptyState";
-import { getWhatsAppLink, getDefaultWhatsAppMessage, WHATSAPP_NUMBER_DISPLAY } from "@/lib/utils/whatsapp";
+import { getWhatsAppLink, getDefaultWhatsAppMessage, getPlanWhatsAppMessage, WHATSAPP_NUMBER_DISPLAY } from "@/lib/utils/whatsapp";
 import { formatDate } from "@/lib/utils/date";
 import { cn } from "@/lib/utils/cn";
 import { useLanguage } from "@/providers/language-provider";
@@ -124,6 +124,91 @@ function LicensingCard({ entitlement }: { entitlement: Entitlement }) {
   );
 }
 
+/**
+ * Commercial plans. Payment is arranged over WhatsApp (there is no online
+ * checkout in this build); the owner issues an activation code, which the
+ * customer redeems on /more/redeem.
+ *   Regular : Rs. 10,000 one-time  -> permanent core, no AI.
+ *   Premium : Rs. 3,000 / 30 days  -> adds the AI assistant (needs active core).
+ */
+function PlansSection() {
+  const { t } = useLanguage();
+  return (
+    <div className="space-y-3">
+      <div>
+        <h3 className="text-sm font-semibold text-ink">{t("subscription.plans.title")}</h3>
+        <p className="mt-0.5 text-xs text-ink-subtle">{t("subscription.plans.subtitle")}</p>
+      </div>
+      <PlanCard
+        plan="REGULAR"
+        name={t("subscription.plan.regular.name")}
+        price={t("subscription.plan.regular.price")}
+        period={t("subscription.plan.regular.period")}
+        tagline={t("subscription.plan.regular.tagline")}
+      />
+      <PlanCard
+        plan="PREMIUM"
+        name={t("subscription.plan.premium.name")}
+        price={t("subscription.plan.premium.price")}
+        period={t("subscription.plan.premium.period")}
+        tagline={t("subscription.plan.premium.tagline")}
+        note={t("subscription.plan.premium.requires")}
+        badge={t("subscription.plan.premium.badge")}
+      />
+    </div>
+  );
+}
+
+function PlanCard({
+  plan,
+  name,
+  price,
+  period,
+  tagline,
+  note,
+  badge,
+}: {
+  plan: "REGULAR" | "PREMIUM";
+  name: string;
+  price: string;
+  period: string;
+  tagline: string;
+  note?: string;
+  badge?: string;
+}) {
+  const { t } = useLanguage();
+  const highlight = plan === "PREMIUM";
+  return (
+    <div className={cn("rounded-card border bg-surface shadow-card p-4", highlight ? "border-brand-300" : "border-line")}>
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-ink">{name}</p>
+          <p className="mt-0.5 flex items-baseline gap-1">
+            <span className="text-xl font-bold text-ink">{price}</span>
+            <span className="text-xs text-ink-subtle">{period}</span>
+          </p>
+        </div>
+        {badge ? (
+          <span className="shrink-0 rounded-full bg-brand-50 px-2 py-0.5 text-[10px] font-semibold text-brand-700">
+            {badge}
+          </span>
+        ) : null}
+      </div>
+      <p className="mt-2 text-xs leading-relaxed text-ink-muted">{tagline}</p>
+      {note ? <p className="mt-1 text-[11px] text-ink-subtle">{note}</p> : null}
+      <a
+        href={getWhatsAppLink(getPlanWhatsAppMessage(plan))}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="mt-3 flex items-center justify-center gap-2 rounded-lg bg-[#25D366] px-3 py-2 text-xs font-semibold text-white"
+      >
+        <MessageCircle className="h-4 w-4" />
+        {t("subscription.plan.cta")}
+      </a>
+    </div>
+  );
+}
+
 function SubscriptionContent() {
   const { data: subscription, isLoading, isError, error, refetch } = useSubscription();
   const { data: history } = useRedemptionHistory();
@@ -139,39 +224,17 @@ function SubscriptionContent() {
     return (
       <div className="space-y-4">
 <LicensingCard entitlement={subscription.licensing} />
-        {subscription.licensingEnforced ? (
-          <div className="rounded-2xl border border-warning/25 bg-surface p-5 shadow-card">
-            <div className="flex items-start gap-3">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-warning text-white">
-                <KeyRound className="h-6 w-6" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-sm font-semibold text-ink">
-                  {t("subscription.licensingEnforcedTitle")}
-                </p>
-                <p className="mt-1 text-xs leading-relaxed text-ink-muted">
-                  {t("subscription.licensingEnforcedDesc")}
-                </p>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="rounded-2xl border border-brand-200 bg-surface p-5 shadow-card">
-            <div className="flex items-start gap-3">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-brand-600 text-white">
-                <CheckCircle2 className="h-6 w-6" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-sm font-semibold text-ink">
-                  {t("subscription.billingOffTitle")}
-                </p>
-                <p className="mt-1 text-xs leading-relaxed text-ink-muted">
-                  {t("subscription.billingOffDesc")}
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
+        <PlansSection />
+        <div className="space-y-2">
+          <Link
+            href="/more/redeem"
+            className="flex items-center justify-center gap-2 rounded-xl bg-brand-600 px-4 py-3 text-sm font-semibold text-white shadow-card transition-transform hover:scale-[1.02] active:scale-95"
+          >
+            <KeyRound className="h-5 w-5" />
+            {t("subscription.redeemCode")}
+          </Link>
+          <p className="text-center text-xs text-ink-subtle">{t("subscription.alreadyHaveCode")}</p>
+        </div>
         <div className="rounded-card border border-line bg-surface shadow-card p-4">
           <h3 className="mb-3 text-sm font-semibold text-ink">
             {t("subscription.whatsIncluded")}
@@ -185,11 +248,31 @@ function SubscriptionContent() {
             ))}
           </div>
         </div>
-{!subscription.licensingEnforced ? (
-          <p className="rounded-card border border-line bg-app px-3 py-2 text-[11px] leading-relaxed text-ink-subtle">
-            {t("subscription.billingOffNote")}
-          </p>
+        {history && history.length > 0 ? (
+          <div className="rounded-card border border-line bg-surface shadow-card p-4">
+            <h3 className="mb-3 text-sm font-semibold text-ink">{t("subscription.activationHistory")}</h3>
+            <div className="space-y-3">
+              {history.map((entry) => (
+                <div key={entry.id} className="border-t border-line pt-3 first:border-0 first:pt-0">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="font-medium text-ink">
+                      {entry.kind === "PREMIUM" ? `${entry.durationDays} days` : entry.kind === "PRODUCT" ? t("licensing.product") : t("licensing.affiliate")}
+                    </span>
+                    <span className="text-xs text-ink-subtle">{formatDate(new Date(entry.redeemedAt))}</span>
+                  </div>
+                  <div className="mt-1 flex items-center justify-between text-xs text-ink-subtle">
+                    <span>→ {formatDate(new Date(entry.newAccessExpiresAt))}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         ) : null}
+        <p className="rounded-card border border-line bg-app px-3 py-2 text-[11px] leading-relaxed text-ink-subtle">
+          {subscription.licensingEnforced
+            ? t("subscription.licensingEnforcedDesc")
+            : t("subscription.plans.payNote")}
+        </p>
       </div>
     );
   }
@@ -232,6 +315,7 @@ function SubscriptionContent() {
           {isActive && isExpiringSoon ? (<div className="rounded-lg bg-warning-soft p-3"><p className="text-xs font-medium text-warning-ink">{remainingDays} {remainingDays === 1 ? t("subscription.dayRemaining") : t("subscription.daysRemaining")}</p><p className="mt-0.5 text-xs text-warning-ink">{t("subscription.afterTrialDesc")}</p></div>) : null}
         </div>
       </div>
+      <PlansSection />
       <div className="space-y-2">
         <a href={getWhatsAppLink(getDefaultWhatsAppMessage())} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2 rounded-xl bg-[#25D366] px-4 py-3 text-sm font-semibold text-white shadow-card transition-transform hover:scale-[1.02] active:scale-95"><MessageCircle className="h-5 w-5" />{t("subscription.contactUs")}</a>
         <p className="text-center text-xs text-ink-subtle">{WHATSAPP_NUMBER_DISPLAY}</p>

@@ -10,6 +10,22 @@ export function getDefaultWhatsAppMessage(userName?: string): string {
 }
 
 /**
+ * Pre-filled purchase message for a specific plan, so the chat opens with the
+ * right product/price instead of a generic request.
+ */
+export function getPlanWhatsAppMessage(
+  plan: "REGULAR" | "PREMIUM",
+  userName?: string,
+): string {
+  const name = userName ? ` My name is ${userName}.` : "";
+  const text =
+    plan === "REGULAR"
+      ? "Hello Dukhata, I would like to buy the Regular plan (Rs. 10,000 one-time, lifetime). Please send me an activation code."
+      : "Hello Dukhata, I would like to buy the Premium plan (Rs. 3,000 / 30 days). Please send me an activation code.";
+  return `${text}${name}`;
+}
+
+/**
  * Convert a number typed however the shop owner likes ("0300 1234567",
  * "+92 300 1234567", "923001234567") into the digits WhatsApp expects.
  * Returns null when there is nothing usable.

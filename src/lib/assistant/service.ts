@@ -21,6 +21,7 @@ import { AIExhaustedError } from "@/lib/ai/model-registry";
 import { AIUnavailableError } from "@/lib/ai/gemini-client";
 import { route, looksLikeBusinessCommand, shouldEscalate } from "./router";
 import { aiUnderstand } from "./ai";
+import { correctTranscript } from "./asr";
 import { runQuery, NeedsEntityError, type ResolvedEntity } from "./queries";
 import { performAction, buildIdempotencyKey, type ActionResult } from "./actions";
 import { loadThread, saveThread } from "./context";
@@ -894,8 +895,21 @@ export async function handleMessage(
   const settings = await getSettings(userId);
   const symbol = settings.currencySymbol || "Rs.";
 
+  // The speech engine mishears shop words ("khalid boat" for "khalid bought")
+  // and names ("kalid" for "Khalid"). Repair verbs and snap entities to the
+  // shop's real data BEFORE routing, so a homophone never falls through to the
+  // model and produces an unrelated answer. Numbers are never touched.
+  const understanding = text
+    ? correctTranscript(text, {
+        customers: ctx.customers,
+        products: ctx.products,
+        suppliers: ctx.suppliers,
+        units: settings.customUnits,
+      }).text
+    : text;
+
   const ruleStarted = Date.now();
-  const ruleMatch: RouteMatch | null = text ? route(text, ctx) : null;
+  const ruleMatch: RouteMatch | null = understanding ? route(understanding, ctx) : null;
   const ruleMs = Date.now() - ruleStarted;
 
   // Rules resolve the common, formulaic commands. The model is consulted when
@@ -903,14 +917,14 @@ export async function handleMessage(
   // missing product/quantity — the bug that used to show "the product"), or
   // when the command is written in Urdu/Pashto script the rules cannot read.
   let match: RouteMatch | null = ruleMatch;
-  const needsAi = !ruleMatch || shouldEscalate(ruleMatch, text);
+  const needsAi = !ruleMatch || shouldEscalate(ruleMatch, understanding);
   if (needsAi) {
-    const businessLike = text ? looksLikeBusinessCommand(text) : true;
-    if (text && !businessLike && !ruleMatch) {
+    const businessLike = understanding ? looksLikeBusinessCommand(understanding) : true;
+    if (understanding && !businessLike && !ruleMatch) {
       return errorReply(
         "NOT_UNDERSTOOD",
         "I didn't catch a business command. Try “Ali paid 5,000” or “who owes me money?”.",
-        text,
+        understanding,
         { totalMs: Date.now() - started, ruleMs },
       );
     }
@@ -920,7 +934,7 @@ export async function handleMessage(
         ctx,
         input.audio
           ? { audio: input.audio, language: input.language }
-          : { text, language: input.language },
+          : { text: understanding, language: input.language },
       );
       requestsUsed += ai.requestsUsed;
       model = ai.model;
@@ -1050,7 +1064,7 @@ export async function handleMessage(
     // summary so an Urdu/Pashto owner sees the confirmation in their language.
     if (source === "ai" && aiSummary) build.summary = aiSummary;
 
-    const stored = await storePlan(userId, build, text || transcript || "");
+    const stored = await storePlan(userId, build, understanding || transcript || "");
     if (build.usedContext || stored.payload.customerId || stored.payload.supplierId || stored.payload.productId) {
       await saveThread(userId, threadPatchFromPayload(stored.payload, ctx));
     }
@@ -1070,7 +1084,7 @@ export async function handleMessage(
   return errorReply(
     "NOT_UNDERSTOOD",
     "I couldn't understand that one.",
-    text,
+    understanding,
     { totalMs: Date.now() - started, ruleMs, aiMs },
     { requestsUsed },
   );

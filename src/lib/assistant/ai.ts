@@ -135,6 +135,7 @@ Rules:
 - "how much stock of rice" → query STOCK_LEVEL, entity rice.
 - A pronoun like "he"/"us ne" refers to the last customer in context only when context is given.
 - Numbers written as words ("pachas hazar" = 50000) must be converted exactly. Never change a stated number.
+- The text may come from voice recognition and contain mishearings. Read likely business words in context: "boat" → "bought", "sole" → "sold", "payed" → "paid", "cartoon" → "carton", and a quantity followed by "rise" → "rice" when rice is in the product list. Never change a customer, product, or supplier name away from the shop list above.
 - The PRODUCT is the goods noun wherever it appears — right after the quantity/unit, after the verb, or before it. Never leave productName null when a product noun is present.
   - "Ahmed bought 25 kilo rice" → CREATE_SALE, customerName Ahmed, productName rice, quantity 25, unit kilo.
   - "sold 2 boxes soap to Bilal" → CREATE_SALE, customerName Bilal, productName soap, quantity 2, unit box.

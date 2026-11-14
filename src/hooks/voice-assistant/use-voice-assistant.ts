@@ -26,6 +26,7 @@ import { useAssistant } from "@/hooks/assistant/use-assistant";
 import { useSpeechRecognition } from "@/hooks/assistant/use-speech-recognition";
 import { useAudioRecorder } from "@/hooks/smart-entry/use-audio-recorder";
 import { useLanguage } from "@/providers/language-provider";
+import { correctVerbs } from "@/lib/assistant/asr";
 import {
   detectSpeechLanguage,
   defaultSpeechLocale,
@@ -71,7 +72,9 @@ export function useVoiceAssistant() {
   const speech = useSpeechRecognition({
     language: localeForMode(languageMode, lang),
     onFinal: (text) => {
-      const clean = text.trim();
+      // Repair business-word mishearings before the owner reviews the text, so
+      // "khalid boat" is shown as "khalid bought" instead of being sent wrong.
+      const clean = correctVerbs(text.trim()).text;
       setTranscript(clean);
       setDetected(hintForMode(languageMode, clean));
     },

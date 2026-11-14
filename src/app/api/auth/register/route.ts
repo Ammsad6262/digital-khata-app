@@ -21,6 +21,9 @@ export const dynamic = "force-dynamic";
 export async function POST(req: NextRequest) {
   const ip = getClientIp(req);
   const rateKey = `register:${ip}`;
+  // Separate counter for *successful* account creations. recordSuccess clears
+  // the failure counter above, so a creation counter must not share its key.
+  const creationKey = `register-created:${ip}`;
 
   try {
     // Prevent automated account-creation floods.
@@ -41,6 +44,24 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Cap how many accounts one address can create in the window.
+    const creationLimit = checkRateLimit(creationKey);
+    if (creationLimit.locked) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: {
+            code: "RATE_LIMITED",
+            message: tServer("api.auth.register.rateLimited", { seconds: creationLimit.retryAfter }),
+            messageKey: "api.auth.register.rateLimited",
+            translationKey: true,
+            params: { seconds: creationLimit.retryAfter },
+          },
+        },
+        { status: 429, headers: { "Retry-After": String(creationLimit.retryAfter) } },
+      );
+    }
+
     const { data, error } = await parseJsonBody<{
       name: string;
       email: string;
@@ -55,6 +76,8 @@ export async function POST(req: NextRequest) {
     });
 
     recordSuccess(rateKey);
+    // Count the account creation itself, so successes cannot reset the cap.
+    recordFailure(creationKey);
 
     const res = ok({ user: result.user });
     // Set httpOnly cookie with the JWT token

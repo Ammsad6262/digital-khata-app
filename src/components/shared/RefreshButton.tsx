@@ -9,17 +9,18 @@
  */
 
 import { useState } from "react";
-import { useIsFetching, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { RefreshCw } from "lucide-react";
 import { useLanguage } from "@/providers/language-provider";
 import { cn } from "@/lib/utils/cn";
 
 export function RefreshButton({ className }: { className?: string }) {
   const queryClient = useQueryClient();
-  const fetchingCount = useIsFetching();
   const [pulling, setPulling] = useState(false);
   const { t } = useLanguage();
-  const busy = pulling || fetchingCount > 0;
+  // Only this button's own refetch should spin it. The old global useIsFetching
+  // made the icon spin during unrelated background polls and look stuck.
+  const busy = pulling;
 
   return (
     <button

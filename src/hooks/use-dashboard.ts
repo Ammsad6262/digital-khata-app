@@ -11,10 +11,10 @@
  *     unnecessary refetches when navigating between dashboard and other
  *     pages (which happens frequently). 30s is short enough for financial
  *     data to be reasonably current.
- *   - refetchOnMount: false — use cached data on mount. The global config
- *     already does a background refetch if data is stale.
- *   - refetchOnWindowFocus: false — the global config handles this.
- *   - refetchInterval: 120 seconds (was 60s) — auto-refresh every 2 minutes.
+ *   - refetchOnMount / refetchOnWindowFocus: inherit the global `true`, so
+ *     returning to the dashboard re-checks the server instead of showing a
+ *     two-minute-old snapshot.
+ *   - refetchInterval: 120 seconds.
  *     60s was too aggressive — caused 2 API calls per minute even when
  *     the user was just reading the dashboard.
  *
@@ -34,10 +34,11 @@ export function useDashboard() {
   return useQuery<DashboardStats>({
     queryKey: DASHBOARD_QUERY_KEY,
     queryFn: () => apiGet<DashboardStats>("/api/dashboard"),
-    staleTime: 30 * 1000,       // 30 seconds (was 0)
-    refetchOnMount: false,        // use cached data (was true)
-    refetchOnWindowFocus: false, // global handles this (was true)
-    refetchInterval: 120 * 1000, // 2 minutes (was 1 minute)
+    staleTime: 30 * 1000,       // 30 seconds
+    // Inherit the global policy: refetch on mount and on window focus. The old
+    // overrides made the home screen keep showing cached numbers after a
+    // navigation or a refresh on another device.
+    refetchInterval: 120 * 1000, // 2 minutes
   });
 }
 
@@ -45,9 +46,7 @@ export function useProfitLoss() {
   return useQuery<ProfitLossStats>({
     queryKey: PROFIT_LOSS_QUERY_KEY,
     queryFn: () => apiGet<ProfitLossStats>("/api/dashboard/profit-loss"),
-    staleTime: 30 * 1000,       // 30 seconds (was 0)
-    refetchOnMount: false,        // use cached data (was true)
-    refetchOnWindowFocus: false, // global handles this (was true)
-    refetchInterval: 120 * 1000, // 2 minutes (was 1 minute)
+    staleTime: 30 * 1000,       // 30 seconds
+    refetchInterval: 120 * 1000, // 2 minutes
   });
 }

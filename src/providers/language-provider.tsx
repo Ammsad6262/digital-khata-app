@@ -3,12 +3,13 @@
 /**
  * LanguageProvider — manages app language (English/Urdu).
  *
- * - Stores choice in localStorage (persists across sessions)
+ * - Server-rendered from the `digital-khata-lang` cookie, so the first paint is
+ *   already in the owner's language (no English flash before hydration).
+ * - Stores the choice in localStorage AND the cookie.
  * - Applies `dir="rtl"` on <html> when Urdu is selected
  * - Applies `lang="ur"` on <html>
  * - Provides `t()` function for translations
  * - Provides `tParams()` for parameterised translations
- * - Anti-FOUC: inline script in layout.tsx sets dir before first paint
  */
 
 import {
@@ -35,17 +36,33 @@ const LanguageContext = createContext<LanguageContextValue | null>(null);
 
 const STORAGE_KEY = "digital-khata-lang";
 
-// interpolate() lives in @/lib/i18n/interpolate (shared with server.ts)
+/** Persist the choice for the server render (cookie) and offline (localStorage). */
+function persistLanguage(lang: Language): void {
+  try {
+    localStorage.setItem(STORAGE_KEY, lang);
+  } catch {}
+  try {
+    document.cookie = `${STORAGE_KEY}=${lang}; path=/; max-age=31536000; SameSite=Lax`;
+  } catch {}
+}
 
-export function LanguageProvider({ children }: { children: ReactNode }) {
-  const [lang, setLangState] = useState<Language>("en");
+export function LanguageProvider({
+  children,
+  initialLanguage = "en",
+}: {
+  children: ReactNode;
+  initialLanguage?: Language;
+}) {
+  const [lang, setLangState] = useState<Language>(initialLanguage);
 
-  // Load saved language on mount
+  // Adopt a choice saved before this deploy (localStorage only) and write the
+  // cookie so the next server render starts in the right language.
   useEffect(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEY) as Language | null;
       if (stored === "ur" || stored === "en") {
         setLangState(stored);
+        document.cookie = `${STORAGE_KEY}=${stored}; path=/; max-age=31536000; SameSite=Lax`;
       }
     } catch {}
   }, []);
@@ -64,9 +81,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
 
   const setLang = useCallback((newLang: Language) => {
     setLangState(newLang);
-    try {
-      localStorage.setItem(STORAGE_KEY, newLang);
-    } catch {}
+    persistLanguage(newLang);
   }, []);
 
   const t = useCallback(

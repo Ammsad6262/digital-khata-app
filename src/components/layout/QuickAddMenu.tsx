@@ -113,19 +113,20 @@ export function QuickAddMenu() {
 
   return (
     <>
-      {/* Floating + button — on the LEFT side of the dashboard.
-          Moved left to make room for the prominent Smart Khata microphone
-          button on the right. This button opens the manual "What happened?"
-          action sheet (Sale / Payment / Expense / Stock / Customer / Product).
-          On desktop, aligns to the left edge of the centered 1024px app shell. */}
+      {/* Floating + button — logical start side (left in English, right in
+          Urdu). The voice launchers use the logical end side, so the cluster
+          mirrors together and never overlaps. This button opens the manual
+          "What happened?" action sheet (Sale / Payment / Expense / Stock /
+          Customer / Product). On desktop it aligns to the app shell edge. */}
       <button
         type="button"
         onClick={() => setIsOpen(true)}
         className="fixed bottom-24 z-30 flex h-12 w-12 items-center justify-center rounded-full bg-brand-600 text-white shadow-brand ring-1 ring-white/10 transition-transform hover:scale-105 active:scale-95"
         style={{
-          // On mobile, 1rem from the left edge. On desktop, aligned to
-          // the left edge of the centered 1024px app shell.
-          left: "max(1rem, calc((100vw - 1024px) / 2 + 1rem))",
+          // Logical position: left in English, right in Urdu (RTL). The two
+          // voice launchers use `end-*`, so the three buttons always mirror
+          // together instead of overlapping on one edge.
+          insetInlineStart: "max(1rem, calc((100vw - 1024px) / 2 + 1rem))",
         }}
         aria-label={t("quickadd.ariaLabel")}
       >

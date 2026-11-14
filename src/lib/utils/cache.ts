@@ -29,6 +29,15 @@ type CacheEntry<T> = {
 const cache = new Map<string, CacheEntry<unknown>>();
 const DEFAULT_TTL_MS = 10_000; // 10 seconds
 
+/**
+ * Manual refresh must be authoritative. A per-process cache cannot guarantee
+ * that: a write invalidates only the lambda that served it, and the refresh can
+ * land on another instance that still holds a stale entry. Keep the code path
+ * for a future shared cache, but disable it so every read observes committed
+ * data (the served lists are indexed DB queries, not expensive aggregates).
+ */
+const CACHE_ENABLED = false;
+
 /** Get a cached value, or null if expired/not found. */
 export function getCached<T>(key: string): T | null {
   const entry = cache.get(key);
@@ -51,6 +60,8 @@ export async function cached<T>(
   compute: () => Promise<T>,
   ttlMs: number = DEFAULT_TTL_MS,
 ): Promise<T> {
+  if (!CACHE_ENABLED) return compute();
+
   const hit = getCached<T>(key);
   if (hit !== null) return hit;
 

@@ -73,6 +73,11 @@ export function useTransactionsList(options: {
 
   return useQuery<TransactionsResponse>({
     queryKey: transactionKeys.list(filter, type, from, to, customerId),
+    // The transaction feed is written by sales, payments, expenses, purchases
+    // and supplier payments. Always re-check when the screen opens instead of
+    // relying on every mutation remembering to invalidate ["transactions"].
+    staleTime: 0,
+    refetchOnMount: "always",
     queryFn: () => {
       const params = new URLSearchParams();
       params.set("filter", filter);

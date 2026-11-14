@@ -26,13 +26,14 @@
 
 import { Loader2, Save, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { useLanguage } from "@/providers/language-provider";
 import { cn } from "@/lib/utils/cn";
 
 export function StickyFormActions({
   onCancel,
   onSave,
-  saveLabel = "Save",
-  cancelLabel = "Cancel",
+  saveLabel,
+  cancelLabel,
   saveDisabled = false,
   isPending = false,
   saveVariant = "primary",
@@ -47,14 +48,20 @@ export function StickyFormActions({
   saveVariant?: "primary" | "secondary" | "danger";
   className?: string;
 }) {
+  const { t } = useLanguage();
   return (
     <div
       className={cn(
-        // Sticky bar above the floating bottom nav.
-        "sticky bottom-[5.5rem] z-20 -mx-4 mt-4 border-t border-line bg-surface/90 px-4 py-3 backdrop-blur-xl",
+        // Sticky bar above the floating bottom nav. The bottom offset must
+        // include the iPhone safe area, otherwise the Save row slides under
+        // the nav on notched devices.
+        "sticky z-20 -mx-4 mt-4 border-t border-line bg-surface/90 px-4 py-3 backdrop-blur-xl",
         className,
       )}
-      style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom))" }}
+      style={{
+        bottom: "calc(5.5rem + env(safe-area-inset-bottom))",
+        paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom))",
+      }}
     >
       <div className="flex gap-2">
         <Button
@@ -66,7 +73,7 @@ export function StickyFormActions({
           disabled={isPending}
         >
           <X className="h-4 w-4" />
-          {cancelLabel}
+          {cancelLabel ?? t("common.cancel")}
         </Button>
         <Button
           type="button"
@@ -79,12 +86,12 @@ export function StickyFormActions({
           {isPending ? (
             <>
               <Loader2 className="h-4 w-4 animate-spin" />
-              Saving...
+              {t("common.saving")}
             </>
           ) : (
             <>
               <Save className="h-4 w-4" />
-              {saveLabel}
+              {saveLabel ?? t("common.save")}
             </>
           )}
         </Button>

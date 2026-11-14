@@ -9,6 +9,7 @@
  */
 
 import { MoreButton } from "./MoreButton";
+import { RefreshButton } from "@/components/shared/RefreshButton";
 import { cn } from "@/lib/utils/cn";
 
 export function AppHeader({
@@ -32,6 +33,7 @@ export function AppHeader({
       </h1>
       <div className="flex shrink-0 items-center gap-1.5">
         {rightSlot}
+        <RefreshButton />
         <MoreButton />
       </div>
     </header>

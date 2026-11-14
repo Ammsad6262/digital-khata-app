@@ -55,18 +55,18 @@ function LicensingCard({ entitlement }: { entitlement: Entitlement }) {
             : t("licensing.unactivated");
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4">
-      <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
+    <div className="rounded-xl border border-line bg-surface p-4">
+      <p className="text-xs font-medium uppercase tracking-wide text-ink-faint">
         {t("licensing.currentAccess")}
       </p>
-      <p className="mt-0.5 text-lg font-bold text-slate-900">{category}</p>
+      <p className="mt-0.5 text-lg font-bold text-ink">{category}</p>
       <div className="mt-2 space-y-1.5">
         <div className="flex items-center justify-between text-sm">
-          <span className="text-slate-500">{t("licensing.product")}</span>
+          <span className="text-ink-subtle">{t("licensing.product")}</span>
           <span
             className={cn(
               "font-semibold",
-              e.core.active ? "text-brand-600" : "text-slate-400",
+              e.core.active ? "text-brand-600" : "text-ink-faint",
             )}
           >
             {e.core.trial
@@ -81,11 +81,11 @@ function LicensingCard({ entitlement }: { entitlement: Entitlement }) {
           </span>
         </div>
         <div className="flex items-center justify-between text-sm">
-          <span className="text-slate-500">{t("licensing.premium")}</span>
+          <span className="text-ink-subtle">{t("licensing.premium")}</span>
           <span
             className={cn(
               "font-semibold",
-              e.premium.active ? "text-brand-600" : "text-slate-400",
+              e.premium.active ? "text-brand-600" : "text-ink-faint",
             )}
           >
             {e.premium.active
@@ -99,8 +99,8 @@ function LicensingCard({ entitlement }: { entitlement: Entitlement }) {
         </div>
         {e.premium.active && !e.premium.permanent && e.premium.expiresAt ? (
           <div className="flex items-center justify-between text-sm">
-            <span className="text-slate-500">{t("licensing.expiresOn")}</span>
-            <span className="font-medium text-slate-900">
+            <span className="text-ink-subtle">{t("licensing.expiresOn")}</span>
+            <span className="font-medium text-ink">
               {formatDate(new Date(e.premium.expiresAt))}
             </span>
           </div>

@@ -18,6 +18,7 @@
  */
 
 import type { Metadata, Viewport } from "next";
+import { cookies } from "next/headers";
 import { Plus_Jakarta_Sans, Noto_Naskh_Arabic } from "next/font/google";
 import "./globals.css";
 import { Analytics } from "@vercel/analytics/next";
@@ -101,14 +102,20 @@ const initScript = `
 // context not being available during static generation).
 export const dynamic = "force-dynamic";
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  // Read the language cookie on the server so the first paint is already in the
+  // owner's language. The client provider writes this cookie on every change.
+  const cookieLang = (await cookies()).get("digital-khata-lang")?.value;
+  const initialLang: "en" | "ur" = cookieLang === "ur" ? "ur" : "en";
+
   return (
     <html
-      lang="en"
+      lang={initialLang}
+      dir={initialLang === "ur" ? "rtl" : "ltr"}
       translate="no"
       data-theme="ink"
       className={`${jakarta.variable} ${urduFont.variable}`}
@@ -122,7 +129,7 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: initScript }} />
       </head>
       <body>
-        <Providers>{children}</Providers>
+        <Providers initialLanguage={initialLang}>{children}</Providers>
         <Analytics />
       </body>
     </html>

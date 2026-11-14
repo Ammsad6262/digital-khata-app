@@ -25,6 +25,9 @@ export function useReport(query: ReportQuery) {
   return useQuery<ReportData>({
     queryKey: ["report", query],
     queryFn: () => apiGet<ReportData>(`/api/reports${reportQueryString(query)}`),
-    staleTime: 30_000,
+    // Reports are a read-after-write surface: always re-check when opened, so a
+    // sale recorded on another screen cannot leave yesterday's totals visible.
+    staleTime: 0,
+    refetchOnMount: "always",
   });
 }

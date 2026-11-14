@@ -17,6 +17,7 @@
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { MoreButton } from "./MoreButton";
+import { RefreshButton } from "@/components/shared/RefreshButton";
 import { useLanguage } from "@/providers/language-provider";
 import { cn } from "@/lib/utils/cn";
 import type { TranslationKey } from "@/lib/i18n/translations";
@@ -56,6 +57,7 @@ export function TranslatedHeader({
       </div>
       <div className="flex shrink-0 items-center gap-1.5">
         {rightSlot}
+        <RefreshButton />
         <MoreButton />
       </div>
     </header>

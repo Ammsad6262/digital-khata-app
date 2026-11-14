@@ -34,7 +34,13 @@ const RECEIPT_PATH = /^\/sales\/[^/]+\/receipt$/;
 // Developer style guide — renders the real components with mock data.
 const PREVIEW_PATH = "/preview";
 
-export function Providers({ children }: { children: ReactNode }) {
+export function Providers({
+  children,
+  initialLanguage = "en",
+}: {
+  children: ReactNode;
+  initialLanguage?: "en" | "ur";
+}) {
   const pathname = usePathname();
   const isPublicPage = PUBLIC_PAGES.some(
     (p) => pathname === p || pathname.startsWith(p + "/"),
@@ -46,7 +52,7 @@ export function Providers({ children }: { children: ReactNode }) {
 
   return (
     <ThemeProvider>
-      <LanguageProvider>
+      <LanguageProvider initialLanguage={initialLanguage}>
         <QueryProvider>
           <ToastProvider>
             {isPreviewPage ? (

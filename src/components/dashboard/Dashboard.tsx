@@ -114,7 +114,7 @@ export function Dashboard() {
     data.recentTransactions.length === 0;
 
   return (
-    <PullToRefresh onRefresh={async () => { await refetch(); }} className="-mx-4 px-4 sm:-mx-6 sm:px-6">
+    <PullToRefresh onRefresh={async () => { await queryClient.invalidateQueries(); }} className="-mx-4 px-4 sm:-mx-6 sm:px-6">
       <div className="space-y-4">
         {/* Global search — always at the very top for fast access */}
         <GlobalSearch />

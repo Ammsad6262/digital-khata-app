@@ -13,7 +13,7 @@
  *      pages remain accessible so the user can reactivate)
  */
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { PinUnlockScreen } from "@/components/auth/PinUnlockScreen";
 import { ExpiredAccessScreen } from "@/components/subscription/ExpiredAccessScreen";
@@ -54,13 +54,20 @@ export function AuthGate({ children }: { children: ReactNode }) {
   const [pinStatus, setPinStatus] = useState<AuthStatus | null>(null);
   const [subscriptionExpired, setSubscriptionExpired] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Boot the three auth checks once per signed-in session, not on every route
+  // change. The public pages reset it so logging out and back in re-checks.
+  const bootedRef = useRef(false);
 
   useEffect(() => {
     // Skip auth check entirely on login/register pages
     if (PUBLIC_PAGES.some((p) => pathname === p || pathname.startsWith(p + "/"))) {
+      bootedRef.current = false;
       setUser(null); // null = not checked, just render children
       return;
     }
+
+    if (bootedRef.current) return;
+    bootedRef.current = true;
 
     let mounted = true;
 
@@ -138,6 +145,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
           }
         }
       } catch {
+        bootedRef.current = false;
         if (mounted) setError(t("auth.serverUnreachable"));
       }
     }

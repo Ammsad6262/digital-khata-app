@@ -93,14 +93,14 @@ function AccessCard() {
     : t("licensing.inactive");
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4">
+    <div className="rounded-xl border border-line bg-surface p-4">
       <div className="flex items-start gap-3">
         <div
           className={cn(
             "flex h-11 w-11 shrink-0 items-center justify-center rounded-full",
             data.core.active
               ? "bg-brand-600 text-white"
-              : "bg-slate-100 text-slate-500",
+              : "bg-surface-2 text-ink-subtle",
           )}
         >
           {data.isOwner ? (
@@ -110,10 +110,10 @@ function AccessCard() {
           )}
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold text-slate-900">
+          <p className="text-sm font-semibold text-ink">
             {t("licensing.currentAccess")}: {categoryLabel(data.category, t)}
           </p>
-          <p className="mt-0.5 text-xs text-slate-500">
+          <p className="mt-0.5 text-xs text-ink-subtle">
             {t("licensing.product")}:{" "}
             {data.core.trial
               ? data.core.active && data.core.expiresAt
@@ -130,7 +130,7 @@ function AccessCard() {
           {data.premium.active &&
           !data.premium.permanent &&
           data.premium.expiresAt ? (
-            <p className="mt-0.5 text-xs text-slate-500">
+            <p className="mt-0.5 text-xs text-ink-subtle">
               {t("licensing.expiresOn")}:{" "}
               {formatDate(new Date(data.premium.expiresAt))}
             </p>
@@ -194,24 +194,24 @@ function RedeemContent() {
             <CheckCircle2 className="h-10 w-10 text-brand-600" />
           </div>
         </div>
-        <h2 className="text-lg font-bold text-slate-900">
+        <h2 className="text-lg font-bold text-ink">
           {t("subscription.redeemSuccess")} 🎉
         </h2>
-        <p className="mt-2 max-w-xs text-sm text-slate-500">{successTitle}</p>
-        <div className="mt-6 w-full max-w-xs space-y-2 rounded-xl border border-slate-200 bg-white p-4 text-left">
+        <p className="mt-2 max-w-xs text-sm text-ink-subtle">{successTitle}</p>
+        <div className="mt-6 w-full max-w-xs space-y-2 rounded-xl border border-line bg-surface p-4 text-left">
           <div className="flex items-center justify-between text-sm">
-            <span className="text-slate-500">{t("licensing.kind")}</span>
-            <span className="font-semibold text-slate-900">
+            <span className="text-ink-subtle">{t("licensing.kind")}</span>
+            <span className="font-semibold text-ink">
               {kindLabel(success.kind, t)}
             </span>
           </div>
           <div className="flex items-center justify-between text-sm">
-            <span className="text-slate-500">
+            <span className="text-ink-subtle">
               {success.kind === "PREMIUM"
                 ? t("subscription.accessUntil")
                 : t("licensing.currentAccess")}
             </span>
-            <span className="font-semibold text-slate-900">
+            <span className="font-semibold text-ink">
               {success.kind === "PREMIUM"
                 ? formatDate(
                     new Date(
@@ -243,10 +243,10 @@ function RedeemContent() {
         <div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-brand-50">
           <KeyRound className="h-8 w-8 text-brand-600" />
         </div>
-        <h2 className="text-base font-semibold text-slate-900">
+        <h2 className="text-base font-semibold text-ink">
           {t("subscription.redeemTitle")}
         </h2>
-        <p className="mt-1 text-sm text-slate-500">
+        <p className="mt-1 text-sm text-ink-subtle">
           {t("subscription.redeemDesc")}
         </p>
       </div>
@@ -256,7 +256,7 @@ function RedeemContent() {
           value={code}
           onChange={(e) => setCode(e.target.value.toUpperCase())}
           placeholder={t("subscription.codePlaceholder")}
-          className="w-full rounded-xl border border-slate-300 bg-white py-3.5 text-center text-lg font-mono font-semibold tracking-wider text-slate-900 placeholder:text-slate-300 placeholder:font-sans placeholder:text-sm placeholder:tracking-normal focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+          className="w-full rounded-xl border border-line-strong bg-surface py-3.5 text-center text-lg font-mono font-semibold tracking-wider text-ink placeholder:text-ink-faint placeholder:font-sans placeholder:text-sm placeholder:tracking-normal focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
           autoComplete="off"
           autoCapitalize="characters"
           spellCheck={false}
@@ -288,11 +288,11 @@ function RedeemContent() {
           )}
         </button>
       </form>
-      <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-center">
-        <p className="text-sm font-medium text-slate-700">
+      <div className="rounded-xl border border-line bg-surface-2 p-4 text-center">
+        <p className="text-sm font-medium text-ink-muted">
           {t("subscription.needCode")}
         </p>
-        <p className="mt-1 text-xs text-slate-500">
+        <p className="mt-1 text-xs text-ink-subtle">
           {t("subscription.contactUsDesc")}
         </p>
         <a
@@ -304,7 +304,7 @@ function RedeemContent() {
           <MessageCircle className="h-5 w-5" />
           {t("subscription.contactUs")}
         </a>
-        <p className="mt-1.5 text-xs text-slate-500">
+        <p className="mt-1.5 text-xs text-ink-subtle">
           {WHATSAPP_NUMBER_DISPLAY}
         </p>
       </div>
@@ -319,25 +319,25 @@ function RedemptionHistory() {
   if (!history || history.length === 0) return null;
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4">
-      <h3 className="mb-3 text-sm font-semibold text-slate-900">
+    <div className="rounded-xl border border-line bg-surface p-4">
+      <h3 className="mb-3 text-sm font-semibold text-ink">
         {t("subscription.activationHistory")}
       </h3>
       <div className="space-y-3">
         {history.slice(0, 8).map((entry) => (
           <div
             key={entry.id}
-            className="border-t border-slate-100 pt-3 first:border-0 first:pt-0"
+            className="border-t border-line pt-3 first:border-0 first:pt-0"
           >
             <div className="flex items-center justify-between text-sm">
-              <span className="font-medium text-slate-900">
+              <span className="font-medium text-ink">
                 {kindLabel(entry.kind, t)}
               </span>
-              <span className="text-xs text-slate-500">
+              <span className="text-xs text-ink-subtle">
                 {formatDate(new Date(entry.redeemedAt))}
               </span>
             </div>
-            <p className="mt-1 text-xs text-slate-500">
+            <p className="mt-1 text-xs text-ink-subtle">
               {entry.kind === "PREMIUM"
                 ? `→ ${formatDate(new Date(entry.newAccessExpiresAt))}`
                 : t("licensing.permanent")}

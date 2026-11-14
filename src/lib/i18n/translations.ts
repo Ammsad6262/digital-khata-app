@@ -2130,6 +2130,7 @@ export const translations = {
     en: "No product named “{name}” in your products. Add it first, then record this sale.",
     ur: "آپ کے پروڈکٹس میں “{name}” نام کا کوئی پروڈکٹ نہیں۔ پہلے اسے شامل کریں، پھر یہ سیل درج کریں۔",
   },
+  "plan.savedPrice": { en: "Saved price: {price}", ur: "محفوظ قیمت: {price}" },
   "plan.createNew": { en: "Create new", ur: "نیا بنائیں" },
   "plan.createNewNamed": { en: "Create new: {name}", ur: "نیا بنائیں: {name}" },
   "plan.newEntityName": { en: "Name", ur: "نام" },

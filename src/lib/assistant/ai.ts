@@ -133,11 +133,13 @@ Rules:
 - "add a product marshmallow" → CREATE_PRODUCT, name marshmallow. Leave prices null if the user did not say them, so the app asks.
 - "add product marshmallow 200 per kg" → CREATE_PRODUCT, name marshmallow, unitPrice 200, unit kg.
 - IMPORTANT: a product named in a sale ("Khalid bought marshmallow") is NOT a request to create the product. Use CREATE_SALE and leave productName as spoken; the app checks whether the product exists and warns the owner if it does not.
+- If the sentence contains a quantity and a product, the intent is CREATE_SALE (or ADD_STOCK with "add stock"), never CREATE_CUSTOMER. CREATE_CUSTOMER is only for an explicit "add a customer <name>" with no product or quantity. This applies in Pashto and Urdu too: "احمد ۲۵ کیلو وریجې واخیستې" is a SALE for the existing customer Ahmad, not a new customer.
 - "add 50 kg rice stock at 900" → ADD_STOCK, productName rice, quantity 50, unit kg, unitPrice 900.
 - "kitna udhaar hai" → query RECEIVABLES.
 - "how much stock of rice" → query STOCK_LEVEL, entity rice.
 - A pronoun like "he"/"us ne" refers to the last customer in context only when context is given.
-- Numbers written as words ("pachas hazar" = 50000) must be converted exactly. Never change a stated number.
+- Numbers are authoritative. If the transcript contains a digit (25), copy it exactly — never change 25 into 50. Convert words exactly: "pachas hazar" = 50000; Urdu "پچیس" = 25, "پچاس" = 50; Pashto "پنځه ویشت" = 25, "پنځوس" = 50. If you are unsure, keep the spoken value rather than guessing.
+- Names are authoritative too: keep the exact spelling from the transcript. The app matches it to the saved customer/product across scripts, so do not translate or respell a name.
 - The text may come from voice recognition and contain mishearings. Read likely business words in context: "boat" → "bought", "sole" → "sold", "payed" → "paid", "cartoon" → "carton", and a quantity followed by "rise" → "rice" when rice is in the product list. Never change a customer, product, or supplier name away from the shop list above.
 - The PRODUCT is the goods noun wherever it appears — right after the quantity/unit, after the verb, or before it. Never leave productName null when a product noun is present.
   - "Ahmed bought 25 kilo rice" → CREATE_SALE, customerName Ahmed, productName rice, quantity 25, unit kilo.

@@ -42,6 +42,7 @@ import type {
 } from "./types";
 import { warningKeysFromEnglish } from "./warnings";
 import { nameScore } from "./names";
+import { guardSpokenQuantity } from "./spoken-numbers";
 
 // ────────────────────────────────────────────────────────────────────────────
 // Context + entity helpers
@@ -245,6 +246,28 @@ type PlanBuild = {
   };
 };
 
+/**
+ * Refuse to create a duplicate when the name already exists under any spelling.
+ * This is the guard that stops "Ahmad" (spoken in Pashto) from being offered as
+ * a brand-new customer when "Ahmad" is already saved.
+ */
+function existingEntityReply(
+  kind: "customer" | "product" | "supplier",
+  existing: NamedEntity[],
+  match: RouteAction,
+): AssistantReply {
+  const label = kind === "customer" ? "Customer" : kind === "product" ? "Product" : "Supplier";
+  return {
+    kind: "clarify",
+    text: `${label} “${existing[0]!.name}” already exists. Pick the existing ${kind} or use a different name.`,
+    options: existing.map((entry) => ({ id: entry.id, name: entry.name })),
+    field: "entity",
+    source: match.matched === "ai" ? "ai" : "rules",
+    requestsUsed: 0,
+    timings: { totalMs: 0 },
+  };
+}
+
 async function buildPlanFor(
   userId: string,
   match: RouteAction,
@@ -376,8 +399,14 @@ async function buildPlanFor(
         candidates,
         usedContext,
         missing: {
-          customer: !customer.entity && f.customerName ? f.customerName : undefined,
-          product: !product.entity && f.productName ? f.productName : undefined,
+          customer:
+            !customer.entity && customer.candidates.length === 0 && f.customerName
+              ? f.customerName
+              : undefined,
+          product:
+            !product.entity && product.candidates.length === 0 && f.productName
+              ? f.productName
+              : undefined,
         },
         suggested: {
           total: total ?? undefined,
@@ -421,7 +450,10 @@ async function buildPlanFor(
         candidates,
         usedContext,
         missing: {
-          customer: !customer.entity && f.customerName ? f.customerName : undefined,
+          customer:
+            !customer.entity && customer.candidates.length === 0 && f.customerName
+              ? f.customerName
+              : undefined,
         },
       };
     }
@@ -459,7 +491,10 @@ async function buildPlanFor(
         candidates,
         usedContext,
         missing: {
-          supplier: !supplier.entity && f.supplierName ? f.supplierName : undefined,
+          supplier:
+            !supplier.entity && supplier.candidates.length === 0 && f.supplierName
+              ? f.supplierName
+              : undefined,
         },
       };
     }
@@ -529,7 +564,10 @@ async function buildPlanFor(
         candidates,
         usedContext,
         missing: {
-          product: !product.entity && f.productName ? f.productName : undefined,
+          product:
+            !product.entity && product.candidates.length === 0 && f.productName
+              ? f.productName
+              : undefined,
         },
       };
     }
@@ -596,14 +634,25 @@ async function buildPlanFor(
         candidates,
         usedContext,
         missing: {
-          supplier: !supplier.entity && f.supplierName ? f.supplierName : undefined,
-          product: !product.entity && f.productName ? f.productName : undefined,
+          supplier:
+            !supplier.entity && supplier.candidates.length === 0 && f.supplierName
+              ? f.supplierName
+              : undefined,
+          product:
+            !product.entity && product.candidates.length === 0 && f.productName
+              ? f.productName
+              : undefined,
         },
       };
     }
 
     case "CREATE_CUSTOMER": {
-      payload.name = f.name ?? f.customerName ?? undefined;
+      const name = (f.name ?? f.customerName ?? "").trim();
+      if (name) {
+        const existing = await findNamed(userId, "customer", name);
+        if (existing.length) return existingEntityReply("customer", existing, match);
+      }
+      payload.name = name || undefined;
       if (!payload.name) requires.push("name");
       return {
         payload,
@@ -620,7 +669,12 @@ async function buildPlanFor(
     }
 
     case "CREATE_SUPPLIER": {
-      payload.name = f.name ?? f.supplierName ?? undefined;
+      const name = (f.name ?? f.supplierName ?? "").trim();
+      if (name) {
+        const existing = await findNamed(userId, "supplier", name);
+        if (existing.length) return existingEntityReply("supplier", existing, match);
+      }
+      payload.name = name || undefined;
       if (!payload.name) requires.push("name");
       return {
         payload,
@@ -634,7 +688,12 @@ async function buildPlanFor(
     }
 
     case "CREATE_PRODUCT": {
-      payload.name = f.name ?? f.productName ?? undefined;
+      const name = (f.name ?? f.productName ?? "").trim();
+      if (name) {
+        const existing = await findNamed(userId, "product", name);
+        if (existing.length) return existingEntityReply("product", existing, match);
+      }
+      payload.name = name || undefined;
       if (!payload.name) requires.push("name");
       payload.unit = f.unit ?? "piece";
       // The card mirrors the manual "Add product" form, so the owner can check
@@ -950,7 +1009,7 @@ export async function handleMessage(
       aiSummary = ai.summary;
       if (ai.transcript && !transcript) transcript = ai.transcript;
       if (ai.match) {
-        match = ai.match;
+        match = guardSpokenQuantity(ai.match, ai.transcript ?? understanding);
         source = "ai";
       } else if (!ruleMatch) {
         return {

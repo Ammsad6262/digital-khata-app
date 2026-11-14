@@ -323,6 +323,20 @@ function PlanCardImpl({
   const missingEntity = (kind: EntityKind): boolean =>
     entityKinds.includes(kind) && !entitySatisfied(kind);
 
+  // Show the product's saved price as a small hint next to the editable price,
+  // so the owner can see what the catalog says (e.g. "Saved price: Rs. 2,000").
+  const selectedProductId = selectedId("product");
+  const selectedProduct = selectedProductId
+    ? options.products.find((option) => option.id === selectedProductId)
+    : undefined;
+  const savedPrice = selectedProduct
+    ? Number(
+        plan.action === "CREATE_SALE"
+          ? selectedProduct.sellingPrice
+          : (selectedProduct.purchasePrice ?? selectedProduct.sellingPrice),
+      )
+    : NaN;
+
   // Live total for a sale so the owner sees the effect of their edits.
   const liveTotal =
     plan.action === "CREATE_SALE"
@@ -630,6 +644,13 @@ function PlanCardImpl({
                     className="mt-0.5 w-full rounded-lg border border-line-strong bg-surface px-2 py-1.5 text-sm"
                   />
                 )}
+                {(spec.key === "unitPrice" || spec.key === "unitCost") &&
+                Number.isFinite(savedPrice) &&
+                savedPrice > 0 ? (
+                  <p className="mt-0.5 text-[10px] text-ink-faint">
+                    {tParams("plan.savedPrice", { price: money(savedPrice, symbol) })}
+                  </p>
+                ) : null}
               </label>
             ))}
           </div>

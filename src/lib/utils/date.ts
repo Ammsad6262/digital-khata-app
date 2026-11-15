@@ -12,6 +12,8 @@
  * timezone database, which is always correct.
  */
 
+import type { TranslationKey } from "@/lib/i18n/translations";
+
 // ────────────────────────────────────────────────────────────────────────────
 // Period start computation (used for date filtering in queries)
 // ────────────────────────────────────────────────────────────────────────────
@@ -335,8 +337,18 @@ export function formatTime(date: Date | string | number, timezone: string = "Asi
 }
 
 /** Relative time: "5 min ago", "2 hours ago", "Yesterday", or absolute date.
- *  Accepts Date, string (ISO), or number (epoch). */
-export function formatRelative(date: Date | string | number, timezone: string = "Asia/Karachi"): string {
+ *  Accepts Date, string (ISO), or number (epoch). When `tr` is given (the
+ *  app's tParams), the phrases are localised (English/Urdu). */
+export type RelativeTranslator = (
+  key: TranslationKey,
+  params: Record<string, string | number>,
+) => string;
+
+export function formatRelative(
+  date: Date | string | number,
+  timezone: string = "Asia/Karachi",
+  tr?: RelativeTranslator,
+): string {
   const d = typeof date === "string" || typeof date === "number" ? new Date(date) : date;
   const now = Date.now();
   const diffMs = now - d.getTime();
@@ -344,10 +356,10 @@ export function formatRelative(date: Date | string | number, timezone: string = 
   const diffHr = Math.floor(diffMin / 60);
   const diffDay = Math.floor(diffHr / 24);
 
-  if (diffMin < 1) return "just now";
-  if (diffMin < 60) return `${diffMin} min ago`;
-  if (diffHr < 24) return `${diffHr} hr ago`;
-  if (diffDay === 1) return "yesterday";
-  if (diffDay < 7) return `${diffDay} days ago`;
+  if (diffMin < 1) return tr ? tr("time.justNow", {}) : "just now";
+  if (diffMin < 60) return tr ? tr("time.minutesAgo", { n: diffMin }) : `${diffMin} min ago`;
+  if (diffHr < 24) return tr ? tr("time.hoursAgo", { n: diffHr }) : `${diffHr} hr ago`;
+  if (diffDay === 1) return tr ? tr("time.yesterday", {}) : "yesterday";
+  if (diffDay < 7) return tr ? tr("time.daysAgo", { n: diffDay }) : `${diffDay} days ago`;
   return formatDate(d, timezone);
 }

@@ -298,7 +298,7 @@ function TransactionRow({
   tx: TransactionListItem;
   isFirst: boolean;
 }) {
-  const { t } = useLanguage();
+  const { t, tParams } = useLanguage();
   const fallbackInfo: TxTypeInfo = {
     labelKey: "transactions.adjustments",
     icon: Scale,
@@ -363,7 +363,7 @@ function TransactionRow({
             {tx.productName ? <span> · {tx.productName}</span> : null}
           </p>
           <p className="shrink-0 text-[11px] text-ink-faint">
-            {formatRelative(new Date(tx.date))}
+            {formatRelative(new Date(tx.date), undefined, tParams)}
           </p>
         </div>
       </div>

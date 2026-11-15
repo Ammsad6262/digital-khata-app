@@ -1023,6 +1023,11 @@ export const translations = {
 
   // ─── Common ───
   "common.refresh": { en: "Refresh", ur: "تازہ کریں" },
+  "time.justNow": { en: "just now", ur: "ابھی" },
+  "time.minutesAgo": { en: "{n} min ago", ur: "{n} منٹ پہلے" },
+  "time.hoursAgo": { en: "{n} hr ago", ur: "{n} گھنٹے پہلے" },
+  "time.yesterday": { en: "yesterday", ur: "کل" },
+  "time.daysAgo": { en: "{n} days ago", ur: "{n} دن پہلے" },
   "common.showMore": { en: "Show more", ur: "مزید دکھائیں" },
   "common.retry": { en: "Retry", ur: "دوبارہ کوشش" },
   "common.cancel": { en: "Cancel", ur: "منسوخ" },

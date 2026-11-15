@@ -138,7 +138,7 @@ export function OutstandingCustomersList() {
       <div className="space-y-2.5">
         {data.slice(0, visible).map((c, idx) => {
           const lastActivity = c.lastActivityAt
-            ? formatRelative(new Date(c.lastActivityAt))
+            ? formatRelative(new Date(c.lastActivityAt), undefined, tParams)
             : "—";
           const since = formatDate(new Date(c.createdAt));
           const whatsappMessage = tParams("customer.followUpMessage", {

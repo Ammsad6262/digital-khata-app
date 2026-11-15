@@ -23,6 +23,7 @@
  */
 
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useState, useEffect } from "react";
 import { TextField } from "@/components/ui/TextField";
 import { StickyFormActions } from "@/components/ui/StickyFormActions";
@@ -309,9 +310,9 @@ export function ProductForm({
         <div className="rounded-lg bg-app px-3 py-2 text-xs text-ink-muted">
           <p>
             <strong>{t("product.openingStockEdit")}</strong>{" "}
-            <a href="/stock/adjust" className="font-medium text-brand-600 hover:underline">
+            <Link href="/stock/adjust" className="font-medium text-brand-600 hover:underline">
               {t("stock.adjustStock")}
-            </a>{" "}
+            </Link>{" "}
           </p>
         </div>
       ) : null}

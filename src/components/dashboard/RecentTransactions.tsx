@@ -108,7 +108,7 @@ export function RecentTransactions({
 }: {
   transactions: RecentTransaction[];
 }) {
-  const { t } = useLanguage();
+  const { t, tParams } = useLanguage();
   if (transactions.length === 0) return null;
 
   return (
@@ -172,7 +172,7 @@ export function RecentTransactions({
                     className="shrink-0 text-[10px] font-medium text-ink-faint"
                     suppressHydrationWarning
                   >
-                    {formatRelative(new Date(tx.date))}
+                    {formatRelative(new Date(tx.date), undefined, tParams)}
                   </p>
                 </div>
               </div>

@@ -102,9 +102,17 @@ export function useVoiceAssistant() {
     setTranscript("");
     setDetected(detectSpeechLanguage(""));
 
-    // Pashto: no reliable browser recogniser — always use the server model.
-    if (languageMode === "ps") {
-      serverTranscribe("ps");
+    const hint =
+      languageMode === "auto" ? undefined : (languageMode as SpeechLanguage);
+
+    // The server speech model hears names, products and accents far better than
+    // the on-device recogniser, so it is now the DEFAULT for every mic press.
+    // The recorder auto-stops after 2s of silence, so it still feels like one
+    // tap. The browser recogniser is only a fallback when the AI is unavailable
+    // (daily budget exhausted, or not configured on the server).
+    const serverReady = assistant.status ? assistant.status.ready : true;
+    if (serverReady) {
+      serverTranscribe(hint);
       return;
     }
 
@@ -113,10 +121,8 @@ export function useVoiceAssistant() {
       return;
     }
 
-    // No on-device recognition (e.g. Firefox desktop): record and let the
-    // server transcribe. This is the only path that costs an AI request.
-    serverTranscribe(languageMode === "auto" ? undefined : (languageMode as SpeechLanguage));
-  }, [assistant.busy, languageMode, serverTranscribe, speech]);
+    serverTranscribe(hint);
+  }, [assistant.busy, assistant.status, languageMode, serverTranscribe, speech]);
 
   const stop = useCallback(() => {
     if (speech.state === "listening") speech.stop();

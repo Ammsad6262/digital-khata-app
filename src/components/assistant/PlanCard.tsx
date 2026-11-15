@@ -465,6 +465,39 @@ function PlanCardImpl({
                 "")
               : "";
 
+            const applyChoice = (value: string) => {
+              if (value === "__new__") {
+                setPatch((p) => ({
+                  ...p,
+                  [ENTITY_ID_KEY[kind]]: "",
+                  createMissing: { ...p.createMissing, [kind]: true },
+                }));
+                return;
+              }
+              if (value === "") {
+                setPatch((p) => ({ ...p, [ENTITY_ID_KEY[kind]]: "" }));
+                return;
+              }
+              const picked = list.find((option) => option.id === value);
+              setPatch((p) => {
+                const next: Partial<PlanPayload> = {
+                  ...p,
+                  [ENTITY_ID_KEY[kind]]: value,
+                  createMissing: { ...p.createMissing, [kind]: false },
+                };
+                // Choosing a different product brings its catalog unit and
+                // price, so the card does not keep the previous product's rate.
+                if (kind === "product" && picked) {
+                  const selling = picked.sellingPrice != null ? Number(picked.sellingPrice) : NaN;
+                  const purchase = picked.purchasePrice != null ? Number(picked.purchasePrice) : NaN;
+                  if (Number.isFinite(selling) && selling > 0) next.unitPrice = selling;
+                  if (Number.isFinite(purchase) && purchase > 0) next.unitCost = purchase;
+                  if (picked.unit) next.unit = picked.unit;
+                }
+                return next;
+              });
+            };
+
             return (
               <div key={kind}>
                 <label className="block">
@@ -474,40 +507,7 @@ function PlanCardImpl({
                   <div className="relative mt-0.5">
                     <select
                       value={creating ? "__new__" : id}
-                      onChange={(e) => {
-                        const value = e.target.value;
-                        if (value === "__new__") {
-                          setPatch((p) => ({
-                            ...p,
-                            [ENTITY_ID_KEY[kind]]: "",
-                            createMissing: { ...p.createMissing, [kind]: true },
-                          }));
-                        } else if (value === "") {
-                          setPatch((p) => ({ ...p, [ENTITY_ID_KEY[kind]]: "" }));
-                        } else {
-                          const picked = list.find((option) => option.id === value);
-                          setPatch((p) => {
-                            const next: Partial<PlanPayload> = {
-                              ...p,
-                              [ENTITY_ID_KEY[kind]]: value,
-                              createMissing: { ...p.createMissing, [kind]: false },
-                            };
-                            // Choosing a different product brings its catalog
-                            // unit and price, so the card does not keep the
-                            // previous product's rate.
-                            if (kind === "product" && picked) {
-                              const selling =
-                                picked.sellingPrice != null ? Number(picked.sellingPrice) : NaN;
-                              const purchase =
-                                picked.purchasePrice != null ? Number(picked.purchasePrice) : NaN;
-                              if (Number.isFinite(selling) && selling > 0) next.unitPrice = selling;
-                              if (Number.isFinite(purchase) && purchase > 0) next.unitCost = purchase;
-                              if (picked.unit) next.unit = picked.unit;
-                            }
-                            return next;
-                          });
-                        }
-                      }}
+                      onChange={(e) => applyChoice(e.target.value)}
                       className="w-full appearance-none rounded-lg border border-line-strong bg-surface px-2 py-1.5 pe-8 text-sm"
                     >
                       {!id && !creating ? (
@@ -537,6 +537,28 @@ function PlanCardImpl({
                     />
                   </div>
                 </label>
+                {/* One-tap matches: when a name was misheard, the real record
+                    is a single tap away instead of a dropdown hunt. */}
+                {ordered.length > 0 ? (
+                  <div className="mt-1.5 flex flex-wrap gap-1.5">
+                    {ordered.slice(0, 3).map((option) => (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => applyChoice(option.id)}
+                        aria-pressed={id === option.id}
+                        className={cn(
+                          "max-w-full truncate rounded-full border px-2.5 py-1 text-xs font-medium",
+                          id === option.id
+                            ? "border-brand-600 bg-brand-50 text-brand-700"
+                            : "border-line text-ink-muted hover:bg-surface-2",
+                        )}
+                      >
+                        {option.name}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
                 {kind === "product" && !id && plan.missing?.product ? (
                   <p className="mt-1 text-[11px] text-warning-ink">
                     {tParams("plan.missingProductHint", { name: plan.missing.product })}

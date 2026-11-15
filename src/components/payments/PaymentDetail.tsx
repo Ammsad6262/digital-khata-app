@@ -30,6 +30,7 @@ import { formatMoney } from "@/lib/utils/money";
 import { formatDateTime } from "@/lib/utils/date";
 import { cn } from "@/lib/utils/cn";
 import { useLanguage } from "@/providers/language-provider";
+import { useToast } from "@/providers/toast-provider";
 
 type MethodLabelKey = "payment.cash" | "payment.bank" | "payment.cheque" | "payment.jazzcash" | "payment.easypaisa" | "payment.other";
 const METHOD_LABELS: Record<string, MethodLabelKey> = {
@@ -45,6 +46,7 @@ export function PaymentDetail({ paymentId }: { paymentId: string }) {
   const { data: payment, isLoading, isError, error, refetch } = usePayment(paymentId);
   const voidPayment = useVoidPayment();
   const [confirmVoid, setConfirmVoid] = useState(false);
+  const toast = useToast();
   const { t } = useLanguage();
 
   if (isLoading) {
@@ -75,7 +77,7 @@ export function PaymentDetail({ paymentId }: { paymentId: string }) {
         action={
           <Link href="/payments">
             <Button variant="outline" size="sm">
-              <ArrowLeft className="h-4 w-4" />
+              <ArrowLeft className="h-4 w-4 rtl-flip" />
               {t("common.back")}
             </Button>
           </Link>
@@ -204,6 +206,14 @@ export function PaymentDetail({ paymentId }: { paymentId: string }) {
               disabled={voidPayment.isPending}
               onClick={() => {
                 voidPayment.mutate(payment.id, {
+                  onError: (err: unknown) => {
+
+                    setConfirmVoid(false);
+
+                    toast.error(err instanceof Error ? err.message : t("common.failed"));
+
+                  },
+
                   onSuccess: () => {
                     setConfirmVoid(false);
                     refetch();

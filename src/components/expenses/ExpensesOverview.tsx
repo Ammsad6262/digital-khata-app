@@ -344,7 +344,7 @@ function RecentExpenseRow({
       <div className="shrink-0 text-right">
         <p className="text-sm font-bold tabular-nums text-danger-ink">-{formatMoney(expense.amount)}</p>
       </div>
-      <ChevronRight className="h-4 w-4 shrink-0 text-ink-faint" />
+      <ChevronRight className="h-4 w-4 shrink-0 text-ink-faint rtl-flip" />
     </Link>
   );
 }

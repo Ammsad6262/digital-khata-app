@@ -28,6 +28,7 @@ import { Button } from "@/components/ui/Button";
 import { formatDateTime } from "@/lib/utils/date";
 import { cn } from "@/lib/utils/cn";
 import { useLanguage } from "@/providers/language-provider";
+import { useToast } from "@/providers/toast-provider";
 
 type CategoryKey = "expense.transport" | "expense.shop" | "expense.electricity" | "expense.packaging" | "expense.salary" | "expense.rent" | "payment.other";
 const CATEGORY_LABELS: Record<string, { labelKey: CategoryKey; icon: string }> = {
@@ -44,6 +45,7 @@ export function ExpenseDetail({ expenseId }: { expenseId: string }) {
   const { data: expense, isLoading, isError, error, refetch } = useExpense(expenseId);
   const voidExpense = useVoidExpense();
   const [confirmVoid, setConfirmVoid] = useState(false);
+  const toast = useToast();
   const { t } = useLanguage();
 
   if (isLoading) {
@@ -74,7 +76,7 @@ export function ExpenseDetail({ expenseId }: { expenseId: string }) {
         action={
           <Link href="/more/expenses">
             <Button variant="outline" size="sm">
-              <ArrowLeft className="h-4 w-4" />
+              <ArrowLeft className="h-4 w-4 rtl-flip" />
               {t("common.back")}
             </Button>
           </Link>
@@ -185,6 +187,14 @@ export function ExpenseDetail({ expenseId }: { expenseId: string }) {
               disabled={voidExpense.isPending}
               onClick={() => {
                 voidExpense.mutate(expense.id, {
+                  onError: (err: unknown) => {
+
+                    setConfirmVoid(false);
+
+                    toast.error(err instanceof Error ? err.message : t("common.failed"));
+
+                  },
+
                   onSuccess: () => {
                     setConfirmVoid(false);
                     refetch();

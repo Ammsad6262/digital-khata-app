@@ -742,6 +742,10 @@ function PlanCardImpl({
         </div>
       ) : null}
 
+      {blocked && !busy ? (
+        <p className="mt-2 text-[11px] text-warning-ink">{t("plan.blockedHint")}</p>
+      ) : null}
+
       <div className="mt-3 flex gap-2">
         <button
           type="button"

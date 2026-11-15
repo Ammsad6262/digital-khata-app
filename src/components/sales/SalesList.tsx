@@ -12,7 +12,7 @@
  */
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AlertCircle, ShoppingCart, Receipt, Plus, ArrowRight, Calendar, CalendarDays, CalendarRange, LayoutGrid, Search, X } from "lucide-react";
 import { useSalesList } from "@/hooks/use-sales";
 import type { SaleFilter } from "@/lib/services/sales";
@@ -57,6 +57,12 @@ export function SalesList() {
   const [search, setSearch] = useState("");
   const { data, isLoading, isError, error, refetch } = useSalesList(filter);
   const { t } = useLanguage();
+  // Progressive render: 50 rows first, then "Show more". The summary below
+  // still uses the full filtered set.
+  const [visible, setVisible] = useState(50);
+  useEffect(() => {
+    setVisible(50);
+  }, [filter, status, search]);
 
   const filtered = useMemo(() => {
     if (!data) return [];
@@ -220,9 +226,18 @@ export function SalesList() {
         />
       ) : (
         <div className="overflow-hidden rounded-card border border-line bg-surface shadow-card">
-          {filtered.map((sale, idx) => (
+          {filtered.slice(0, visible).map((sale, idx) => (
             <SaleRow key={sale.id} sale={sale} isFirst={idx === 0} />
           ))}
+          {filtered.length > visible ? (
+            <button
+              type="button"
+              onClick={() => setVisible((v) => v + 50)}
+              className="w-full border-t border-line bg-surface py-2.5 text-xs font-medium text-brand-600 hover:bg-app active:bg-surface-2"
+            >
+              {t("common.showMore")} ({visible} / {filtered.length})
+            </button>
+          ) : null}
         </div>
       )}
       </div>

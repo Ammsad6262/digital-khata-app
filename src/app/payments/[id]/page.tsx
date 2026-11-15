@@ -32,7 +32,7 @@ export default function PaymentDetailPage({
             className="rounded-lg p-1.5 text-ink-subtle hover:bg-surface-2"
             aria-label={t("common.back")}
           >
-            <ArrowLeft className="h-5 w-5" />
+            <ArrowLeft className="h-5 w-5 rtl-flip" />
           </Link>
         }
       />

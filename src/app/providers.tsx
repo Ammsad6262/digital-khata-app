@@ -49,6 +49,11 @@ export function Providers({
   const isPreviewPage = pathname === PREVIEW_PATH;
 
   const showQuickAdd = !isPublicPage && pathname === DASHBOARD_PATH;
+  // Form screens pin a Save/Cancel bar above the bottom nav. The two assistant
+  // launchers sit in that same band, so hide them here rather than cover the
+  // primary action (their panels are still available from list/detail screens).
+  const isFormPage =
+    /\/(new|edit)$/.test(pathname) || /^\/stock\/(add|adjust)$/.test(pathname);
 
   return (
     <ThemeProvider>
@@ -72,8 +77,8 @@ export function Providers({
                     <BottomNav />
                     {showQuickAdd ? <QuickAddMenu /> : null}
                     {/* Two separate products: voice actions + business intelligence. */}
-                    <VoiceAssistant />
-                    <KhataAssistant />
+                    {isFormPage ? null : <VoiceAssistant />}
+                    {isFormPage ? null : <KhataAssistant />}
                   </Screen>
                 )}
               </AuthGate>

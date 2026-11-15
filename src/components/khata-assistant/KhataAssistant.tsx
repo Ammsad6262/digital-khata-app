@@ -260,7 +260,7 @@ function QuestionList({
                   )}
                 >
                   <span>{questionLabel(question, uiLanguage)}</span>
-                  <ChevronRight className="h-4 w-4 shrink-0 text-ink-faint" />
+                  <ChevronRight className="h-4 w-4 shrink-0 text-ink-faint rtl-flip" />
                 </button>
               ))}
             </div>
@@ -279,7 +279,7 @@ function AnswerView({ answer, onAskAnother }: { answer: KhataAnswer; onAskAnothe
         onClick={onAskAnother}
         className="flex items-center gap-1 text-xs font-medium text-ink-subtle hover:text-ink"
       >
-        <ArrowLeft className="h-3.5 w-3.5" />
+        <ArrowLeft className="h-3.5 w-3.5 rtl-flip" />
         Ask another question
       </button>
 

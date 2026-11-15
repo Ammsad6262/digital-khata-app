@@ -164,7 +164,7 @@ export function CustomerPicker({
                   {t("common.tapToCreate")}
                 </p>
               </div>
-              <ChevronRight className="h-4 w-4 shrink-0 text-brand-400" />
+              <ChevronRight className="h-4 w-4 shrink-0 text-brand-400 rtl-flip" />
             </button>
           ) : (
             <p className="px-2 py-3 text-xs text-ink-faint">
@@ -198,7 +198,7 @@ export function CustomerPicker({
                     <Money value={customer.balance} />
                   </span>
                 ) : null}
-                <ChevronRight className="h-4 w-4 shrink-0 text-ink-faint" />
+                <ChevronRight className="h-4 w-4 shrink-0 text-ink-faint rtl-flip" />
               </button>
             ))}
             {data.length > 5 ? (

@@ -311,7 +311,7 @@ function AccountSection() {
       {!showChangePassword ? (
         <button type="button" onClick={() => setShowChangePassword(true)} className="flex w-full items-center justify-between rounded-lg border border-line px-3 py-2.5 text-sm text-ink-muted hover:bg-app">
           <span>{t("settings.changePassword")}</span>
-          <ChevronRight className="h-4 w-4 text-ink-faint" />
+          <ChevronRight className="h-4 w-4 text-ink-faint rtl-flip" />
         </button>
       ) : (
         <div className="space-y-2 mb-3 rounded-lg border border-line p-3">
@@ -1145,7 +1145,7 @@ function BackupSection() {
             {t("settings.backupDesc")}
           </p>
         </div>
-        <ChevronRight className="h-4 w-4 shrink-0 text-ink-faint" />
+        <ChevronRight className="h-4 w-4 shrink-0 text-ink-faint rtl-flip" />
       </div>
     </Link>
   );
@@ -1170,7 +1170,7 @@ function SubscriptionCard() {
           <p className="text-sm font-semibold text-ink">{t("subscription.title")}</p>
           <p className="text-[11px] text-ink-subtle">{t("subscription.subtitle")}</p>
         </div>
-        <ChevronRight className="h-4 w-4 shrink-0 text-ink-faint" />
+        <ChevronRight className="h-4 w-4 shrink-0 text-ink-faint rtl-flip" />
       </div>
     </Link>
   );

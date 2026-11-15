@@ -40,11 +40,13 @@ import { formatMoney, formatQuantity } from "@/lib/utils/money";
 import { formatDateTime, formatDate } from "@/lib/utils/date";
 import { cn } from "@/lib/utils/cn";
 import { useLanguage } from "@/providers/language-provider";
+import { useToast } from "@/providers/toast-provider";
 
 export function SaleDetail({ saleId }: { saleId: string }) {
   const { data: sale, isLoading, isError, error, refetch } = useSale(saleId);
   const voidSale = useVoidSale();
   const [confirmVoid, setConfirmVoid] = useState(false);
+  const toast = useToast();
   const { t, tParams } = useLanguage();
   const symbol = useCurrencySymbol();
   const { data: settings } = useSettings();
@@ -352,6 +354,14 @@ export function SaleDetail({ saleId }: { saleId: string }) {
               disabled={voidSale.isPending}
               onClick={() => {
                 voidSale.mutate(sale.id, {
+                  onError: (err: unknown) => {
+
+                    setConfirmVoid(false);
+
+                    toast.error(err instanceof Error ? err.message : t("common.failed"));
+
+                  },
+
                   onSuccess: () => {
                     setConfirmVoid(false);
                     refetch();

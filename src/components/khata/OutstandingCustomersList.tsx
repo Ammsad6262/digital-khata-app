@@ -18,6 +18,7 @@
  */
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import {
   AlertCircle,
   ChevronRight,
@@ -44,6 +45,12 @@ export function OutstandingCustomersList() {
     useOutstandingCustomers();
   const { t, tParams, lang } = useLanguage();
   const symbol = useCurrencySymbol();
+  // Progressive render: these cards are heavy (stats + contact buttons), and
+  // the server returns every debtor. Render 50 first, then "Show more".
+  const [visible, setVisible] = useState(50);
+  useEffect(() => {
+    setVisible(50);
+  }, [data]);
 
   // ── Loading skeleton ──────────────────────────────────────────────────────
   if (isLoading) {
@@ -129,7 +136,7 @@ export function OutstandingCustomersList() {
 
       {/* Customer cards — sorted by balance descending (server already sorts) */}
       <div className="space-y-2.5">
-        {data.map((c, idx) => {
+        {data.slice(0, visible).map((c, idx) => {
           const lastActivity = c.lastActivityAt
             ? formatRelative(new Date(c.lastActivityAt))
             : "—";
@@ -232,6 +239,15 @@ export function OutstandingCustomersList() {
             </div>
           );
         })}
+        {data.length > visible ? (
+          <button
+            type="button"
+            onClick={() => setVisible((v) => v + 50)}
+            className="w-full rounded-xl border border-line bg-surface py-2.5 text-xs font-medium text-brand-600 hover:bg-app active:bg-surface-2"
+          >
+            {t("common.showMore")} ({visible} / {data.length})
+          </button>
+        ) : null}
       </div>
     </div>
   );

@@ -125,8 +125,11 @@ export function GlobalSearch() {
               setIsOpen(false);
               (e.target as HTMLInputElement).blur();
             }
-            if (e.key === "Enter" && results && results.customers[0]) {
-              handleNavigate(`/khata/${results.customers[0]!.id}`);
+            if (e.key === "Enter" && results) {
+              const customer = results.customers[0];
+              const product = results.products[0];
+              if (customer) handleNavigate(`/khata/${customer.id}`);
+              else if (product) handleNavigate(`/more/products/${product.id}`);
             }
           }}
           placeholder={t("dashboard.searchPlaceholder")}

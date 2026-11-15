@@ -88,7 +88,7 @@ export function CustomerDetail({ customerId }: { customerId: string }) {
         action={
           <Link href="/khata">
             <Button variant="outline" size="sm">
-              <ArrowLeft className="h-4 w-4" />
+              <ArrowLeft className="h-4 w-4 rtl-flip" />
               {t("common.back")}
             </Button>
           </Link>

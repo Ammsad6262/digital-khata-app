@@ -1023,6 +1023,7 @@ export const translations = {
 
   // ─── Common ───
   "common.refresh": { en: "Refresh", ur: "تازہ کریں" },
+  "common.showMore": { en: "Show more", ur: "مزید دکھائیں" },
   "common.retry": { en: "Retry", ur: "دوبارہ کوشش" },
   "common.cancel": { en: "Cancel", ur: "منسوخ" },
   "common.save": { en: "Save", ur: "محفوظ" },
@@ -2134,6 +2135,10 @@ export const translations = {
   "plan.missingProductHint": {
     en: "No product named “{name}” in your products. Add it first, then record this sale.",
     ur: "آپ کے پروڈکٹس میں “{name}” نام کا کوئی پروڈکٹ نہیں۔ پہلے اسے شامل کریں، پھر یہ سیل درج کریں۔",
+  },
+  "plan.blockedHint": {
+    en: "Fill the highlighted fields above to confirm.",
+    ur: "تصدیق کرنے کے لیے اوپر نمایاں خانے پُر کریں۔",
   },
   "plan.savedPrice": { en: "Saved price: {price}", ur: "محفوظ قیمت: {price}" },
   "plan.createNew": { en: "Create new", ur: "نیا بنائیں" },

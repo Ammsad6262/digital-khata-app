@@ -16,7 +16,7 @@
 
 import { Search, X, Users, AlertCircle, UserPlus, UserPlus2, Plus, Lightbulb, ChevronRight, ArrowDownWideNarrow } from "lucide-react";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useCustomerSearch } from "@/hooks/use-customers";
 import { CustomerRow } from "@/components/khata/CustomerRow";
 import { EmptyState } from "@/components/shared/EmptyState";
@@ -40,6 +40,12 @@ export function KhataList() {
     useCustomerSearch();
   const { t } = useLanguage();
   const [sort, setSort] = useState<CustomerSort>("name");
+  // Progressive render: a customer list can be large; render 50 first and let
+  // the owner pull in the rest. All rows stay accessible.
+  const [visible, setVisible] = useState(50);
+  useEffect(() => {
+    setVisible(50);
+  }, [sort, query]);
 
   const isShortQuery = query.trim().length > 0 && query.trim().length < 2;
   const isEmpty = !data || data.length === 0;
@@ -174,7 +180,7 @@ export function KhataList() {
               </p>
             </div>
             <div className="overflow-hidden rounded-card border border-line bg-surface shadow-card">
-              {sorted.map((customer, idx) => (
+              {sorted.slice(0, visible).map((customer, idx) => (
                 <div
                   key={customer.id}
                   className={idx > 0 ? "border-t border-line" : ""}
@@ -182,6 +188,15 @@ export function KhataList() {
                   <CustomerRow customer={customer} />
                 </div>
               ))}
+              {sorted.length > visible ? (
+                <button
+                  type="button"
+                  onClick={() => setVisible((v) => v + 50)}
+                  className="w-full border-t border-line bg-surface py-2.5 text-xs font-medium text-brand-600 hover:bg-app active:bg-surface-2"
+                >
+                  {t("common.showMore")} ({visible} / {sorted.length})
+                </button>
+              ) : null}
             </div>
           </>
         )}
@@ -266,7 +281,7 @@ function EmptyCustomersState() {
         <span className="flex-1">
           {t("customer.createFromTransactionHint")}
         </span>
-        <ChevronRight className="h-3.5 w-3.5 shrink-0 text-ink-faint" />
+        <ChevronRight className="h-3.5 w-3.5 shrink-0 text-ink-faint rtl-flip" />
       </Link>
     </div>
   );

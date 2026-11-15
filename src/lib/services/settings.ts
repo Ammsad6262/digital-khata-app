@@ -41,6 +41,29 @@ export async function getSettings(userId: string): Promise<SettingView> {
   return toView(setting);
 }
 
+/**
+ * Write the user's Setting row WITHOUT Postgres `ON CONFLICT`.
+ *
+ * The production Setting table can predate its unique index, and Prisma's
+ * upsert then fails with an internal error (`there is no unique or exclusion
+ * constraint matching the ON CONFLICT specification`). A find + update/create
+ * works whether or not that index exists.
+ */
+async function writeSetting(
+  userId: string,
+  update: Prisma.SettingUncheckedUpdateInput,
+  create: Omit<Prisma.SettingUncheckedCreateInput, "userId">,
+): Promise<Prisma.SettingGetPayload<{}>> {
+  const existing = await prisma.setting.findUnique({
+    where: { userId },
+    select: { id: true },
+  });
+  if (existing) {
+    return prisma.setting.update({ where: { userId }, data: update });
+  }
+  return prisma.setting.create({ data: { ...create, userId } });
+}
+
 /** Get the raw owner PIN hash (for auth). Returns null if no PIN is set. */
 export async function getOwnerPinHash(userId: string): Promise<string | null> {
   const setting = await prisma.setting.findUnique({ where: { userId } });
@@ -52,20 +75,12 @@ export async function getOwnerPinHash(userId: string): Promise<string | null> {
 
 /** Set the owner PIN hash (called by the auth flow after bcrypt hashing). */
 export async function setOwnerPinHash(userId: string, hash: string): Promise<void> {
-  await prisma.setting.upsert({
-    where: { userId },
-    create: { userId, ownerPinHash: hash },
-    update: { ownerPinHash: hash },
-  });
+  await writeSetting(userId, { ownerPinHash: hash }, { ownerPinHash: hash });
 }
 
 /** Remove the owner PIN (disables PIN lock). */
 export async function clearOwnerPinHash(userId: string): Promise<void> {
-  await prisma.setting.upsert({
-    where: { userId },
-    create: { userId, ownerPinHash: null },
-    update: { ownerPinHash: null },
-  });
+  await writeSetting(userId, { ownerPinHash: null }, { ownerPinHash: null });
 }
 
 /**
@@ -155,25 +170,21 @@ export async function updateSettings(
     theme?: string;
   },
 ): Promise<SettingView> {
-  const updated = await prisma.setting.upsert({
-    where: { userId },
-    create: {
-      userId,
-      businessName: input.businessName ?? null,
-      currency: input.currency ?? "PKR",
-      currencySymbol: input.currencySymbol ?? "Rs.",
-      timezone: input.timezone ?? "Asia/Karachi",
-      customUnits: input.customUnits ?? [],
-      theme: input.theme ?? "ink",
-    },
-    update: {
-      ...(input.businessName !== undefined && { businessName: input.businessName }),
-      ...(input.currency !== undefined && { currency: input.currency }),
-      ...(input.currencySymbol !== undefined && { currencySymbol: input.currencySymbol }),
-      ...(input.timezone !== undefined && { timezone: input.timezone }),
-      ...(input.customUnits !== undefined && { customUnits: input.customUnits }),
-      ...(input.theme !== undefined && { theme: input.theme }),
-    },
+  const updateFields: Prisma.SettingUncheckedUpdateInput = {
+    ...(input.businessName !== undefined && { businessName: input.businessName }),
+    ...(input.currency !== undefined && { currency: input.currency }),
+    ...(input.currencySymbol !== undefined && { currencySymbol: input.currencySymbol }),
+    ...(input.timezone !== undefined && { timezone: input.timezone }),
+    ...(input.customUnits !== undefined && { customUnits: input.customUnits }),
+    ...(input.theme !== undefined && { theme: input.theme }),
+  };
+  const updated = await writeSetting(userId, updateFields, {
+    businessName: input.businessName ?? null,
+    currency: input.currency ?? "PKR",
+    currencySymbol: input.currencySymbol ?? "Rs.",
+    timezone: input.timezone ?? "Asia/Karachi",
+    customUnits: input.customUnits ?? [],
+    theme: input.theme ?? "ink",
   });
 
   await recordAudit(userId, {

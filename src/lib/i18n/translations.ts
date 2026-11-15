@@ -1790,6 +1790,10 @@ export const translations = {
 
   // Stock
   "api.stockMove.notFound": { en: "StockMove not found.", ur: "اسٹاک موومنٹ نہیں ملا۔" },
+  "api.stockMove.cannotVoidConsumedStock": {
+    en: "This batch has already been sold, so it can't be voided. Void the sale first.",
+    ur: "یہ بیچ فروخت ہو چکا ہے، اس لیے منسوخ نہیں ہو سکتا۔ پہلے سیل منسوخ کریں۔",
+  },
   "api.stockMove.alreadyVoided": { en: "StockMove is already voided.", ur: "اسٹاک موومنٹ پہلے منسوخ ہے۔" },
 
   // Auth / account

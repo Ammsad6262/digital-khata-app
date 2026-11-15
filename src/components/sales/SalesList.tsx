@@ -390,7 +390,7 @@ function EmptySalesState({ filter }: { filter: SaleFilter }) {
       >
         <ShoppingCart className="h-4 w-4" strokeWidth={2.25} />
         {t("action.newSale")}
-        <ArrowRight className="h-4 w-4" strokeWidth={2.25} />
+        <ArrowRight className="h-4 w-4 rtl-flip" strokeWidth={2.25} />
       </Link>
     </div>
   );

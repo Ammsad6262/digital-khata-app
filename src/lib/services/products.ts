@@ -74,7 +74,7 @@ export async function listProductsWithStock(userId?: string | null): Promise<Pro
     });
 
     // Batch compute stock for all products at once to avoid N+1.
-    const stockByProduct = await computeStockForAllProducts();
+    const stockByProduct = await computeStockForAllProducts(userId);
 
     return products.map((p) => {
       const stock = stockByProduct.get(p.id) ?? new Decimal(0);
@@ -157,7 +157,7 @@ export async function searchProducts(
   });
 
   // Batch-compute stock for all matching products (avoids N+1).
-  const stockByProduct = await computeStockForAllProducts();
+  const stockByProduct = await computeStockForAllProducts(userId);
 
   return products.map((p) => {
     const stock = stockByProduct.get(p.id) ?? new Decimal(0);

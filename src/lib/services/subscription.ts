@@ -107,9 +107,16 @@ function getEffectiveExpiry(sub: { trialExpiresAt: Date; accessExpiresAt: Date |
 export async function createTrial(userId: string): Promise<void> {
   const now = new Date();
   const trialExpires = trialExpiry(now);
-  await prisma.userSubscription.upsert({
+  // Avoid Prisma's upsert (Postgres ON CONFLICT): the production
+  // UserSubscription table may predate its unique index, in which case the
+  // upsert fails. Only create when the row is actually missing.
+  const existing = await prisma.userSubscription.findUnique({
     where: { userId },
-    create: {
+    select: { id: true },
+  });
+  if (existing) return;
+  await prisma.userSubscription.create({
+    data: {
       userId,
       status: "TRIAL_ACTIVE",
       trialStartedAt: now,
@@ -118,7 +125,6 @@ export async function createTrial(userId: string): Promise<void> {
       coreActivatedAt: now,
       coreExpiresAt: trialExpires,
     },
-    update: {},
   });
 }
 

@@ -169,6 +169,14 @@ export async function voidStockMove(id: string, userId?: string | null): Promise
     }
     if (move.voidedAt) throw new BadRequestError("api.stockMove.alreadyVoided");
 
+    // A batch that has been sold cannot be voided — that would drive stock
+    // negative (mirrors the purchase void guard).
+    const consumed = await tx.saleItem.findFirst({
+      where: { stockMoveId: id, sale: { voidedAt: null } },
+      select: { id: true },
+    });
+    if (consumed) throw new BadRequestError("api.stockMove.cannotVoidConsumedStock");
+
     const now = new Date();
     await tx.stockMove.update({
       where: { id },

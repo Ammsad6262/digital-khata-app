@@ -15,7 +15,9 @@ export const saleItemInputSchema = z.object({
     .refine((v) => Number.isFinite(v) && v > 0, "Quantity must be a positive number."),
   unitPrice: z
     .union([z.number(), z.string()])
-    .transform((v) => (typeof v === "string" ? Number(v) : v))
+    .transform((v) =>
+      typeof v === "string" ? (v.trim() === "" ? Number.NaN : Number(v)) : v,
+    )
     .refine((v) => Number.isFinite(v) && v >= 0, "Unit price must be a non-negative number."),
   // ── Batch tracking ──────────────────────────────────────────────────────
   // Optional: ID of the StockMove (purchase batch) this sale line is sold from.

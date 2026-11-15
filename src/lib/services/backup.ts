@@ -497,11 +497,17 @@ export async function importBackup(
           ...deserializeSetting(firstSetting),
           ownerPinHash: currentPinHash,
         };
-        await tx.setting.upsert({
+        // Avoid ON CONFLICT (the production Setting table may predate its
+        // unique index): find then update/create.
+        const existingSetting = await tx.setting.findUnique({
           where: { userId },
-          create: { ...deserialized, userId },
-          update: { ...deserialized, userId },
+          select: { id: true },
         });
+        if (existingSetting) {
+          await tx.setting.update({ where: { userId }, data: deserialized });
+        } else {
+          await tx.setting.create({ data: { ...deserialized, userId } });
+        }
       }
     }
 

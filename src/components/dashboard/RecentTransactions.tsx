@@ -123,7 +123,7 @@ export function RecentTransactions({
         </Link>
       </div>
 
-      <div className="overflow-hidden rounded-card border border-line bg-surface shadow-card shadow-card">
+      <div className="overflow-hidden rounded-card border border-line bg-surface shadow-card">
         {transactions.map((tx, idx) => {
           const info = TX_TYPE_INFO[tx.type];
           const Icon = info.icon;

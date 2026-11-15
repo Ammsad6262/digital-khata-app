@@ -171,7 +171,7 @@ export function ProfitLossCard() {
       </div>
 
       {/* Breakdown card */}
-      <div className="overflow-hidden rounded-card border border-line bg-surface shadow-card shadow-card">
+      <div className="overflow-hidden rounded-card border border-line bg-surface shadow-card">
         <Row
           label={t("pnl.revenue")}
           value={p.revenue}

@@ -338,15 +338,15 @@ export async function createSale(input: unknown, userId?: string | null): Promis
     const items = data.items.map((i) => ({
       productId: i.productId,
       quantity: new Decimal(i.quantity),
-      unitPrice: new Decimal(i.unitPrice),
-      total: new Decimal(i.quantity).times(new Decimal(i.unitPrice)),
+      unitPrice: new Decimal(i.unitPrice).toDecimalPlaces(2),
+      total: new Decimal(i.quantity).times(new Decimal(i.unitPrice)).toDecimalPlaces(2),
       batchId: i.batchId ?? null,
     }));
     const itemsTotal = items.reduce(
       (sum, i) => sum.plus(i.total),
       new Decimal(0),
     );
-    const discountAmount = new Decimal(data.discountAmount);
+    const discountAmount = new Decimal(data.discountAmount).toDecimalPlaces(2);
 
     // A discount can never be larger than the goods themselves, otherwise the
     // customer would be billed a negative amount.
@@ -359,7 +359,7 @@ export async function createSale(input: unknown, userId?: string | null): Promis
     }
 
     const totalAmount = itemsTotal.minus(discountAmount);
-    const paidAmount = new Decimal(data.paidAmount);
+    const paidAmount = new Decimal(data.paidAmount).toDecimalPlaces(2);
 
     // 4. Verify paidAmount <= the discounted total
     if (paidAmount.gt(totalAmount)) {
@@ -371,6 +371,22 @@ export async function createSale(input: unknown, userId?: string | null): Promis
     }
 
     const outstanding = totalAmount.minus(paidAmount);
+
+    // 5. Double-submit guard: an identical active sale within 60s is a
+    // duplicate (double-tap / retry). Same rule purchases already enforce, so a
+    // second Save cannot double the customer's balance.
+    const recentSale = await tx.sale.findFirst({
+      where: {
+        customerId: data.customerId,
+        totalAmount,
+        paidAmount,
+        voidedAt: null,
+        createdAt: { gte: new Date(Date.now() - 60_000) },
+        ...(userId && { userId }),
+      },
+      select: { id: true },
+    });
+    if (recentSale) throw new BadRequestError("api.duplicateTransaction");
     const saleDate = data.date ? new Date(data.date) : new Date();
 
     // Optional "pay by" date. A bare YYYY-MM-DD is treated as midnight in the

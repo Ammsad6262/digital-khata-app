@@ -215,6 +215,21 @@ export async function recordPayment(input: unknown, userId?: string | null): Pro
       throw new NotFoundError("api.resource.customer", data.customerId);
     }
 
+    // Double-submit guard: an identical active payment within 60s is a
+    // duplicate (double-tap / retry). Prevents the customer's balance being
+    // credited twice from one payment.
+    const recentPayment = await tx.payment.findFirst({
+      where: {
+        customerId: data.customerId,
+        amount: new Decimal(data.amount),
+        voidedAt: null,
+        createdAt: { gte: new Date(Date.now() - 60_000) },
+        ...(userId && { userId }),
+      },
+      select: { id: true },
+    });
+    if (recentPayment) throw new BadRequestError("api.duplicateTransaction");
+
     if (data.saleId) {
       // Tenant isolation: sale must belong to the authenticated user.
       const sale = await tx.sale.findFirst({

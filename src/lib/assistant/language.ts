@@ -21,7 +21,7 @@
 export type SpeechLanguage = "en" | "ur" | "ps" | "roman-ur" | "mixed";
 
 /** Locales the browser speech engine understands, chosen automatically. */
-export type SpeechLocale = "en-PK" | "ur-PK" | "ps-AF";
+export type SpeechLocale = "en-PK" | "en-IN" | "ur-PK" | "ps-AF";
 
 const ARABIC_SCRIPT = /[\u0600-\u06FF\u0750-\u077F\uFB50-\uFDFF\uFE70-\uFEFF]/u;
 const LATIN_LETTER = /[a-zA-Z]/;
@@ -78,7 +78,10 @@ export function detectSpeechLanguage(text: string): SpeechLanguage {
 export function speechLocaleFor(language: SpeechLanguage): SpeechLocale {
   if (language === "ur") return "ur-PK";
   if (language === "ps") return "ps-AF";
-  return "en-PK";
+  // en-IN is a well-supported locale and closest to Pakistani English. en-PK
+  // is often rejected by the on-device recogniser, which then falls back to a
+  // US model that mishears South Asian accents ("bought" -> "board").
+  return "en-IN";
 }
 
 /**
@@ -87,7 +90,7 @@ export function speechLocaleFor(language: SpeechLanguage): SpeechLocale {
  * else gets the Pakistani English/Roman-Urdu locale.
  */
 export function defaultSpeechLocale(appLang: "en" | "ur"): SpeechLocale {
-  return appLang === "ur" ? "ur-PK" : "en-PK";
+  return appLang === "ur" ? "ur-PK" : "en-IN";
 }
 
 /**

@@ -300,13 +300,24 @@ export function VoiceAssistant() {
                   <Send className="h-4 w-4" />
                   {t("assistant.send")}
                 </button>
+              </div>
+              <div className="mt-1.5 flex gap-2">
                 <button
                   type="button"
                   onClick={() => voice.start()}
-                  className="flex items-center justify-center gap-1.5 rounded-xl border border-line-strong px-3 py-2 text-sm font-medium"
+                  className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-line-strong px-3 py-2 text-xs font-medium"
                 >
                   <Mic className="h-4 w-4" />
                   {t("assistant.rerecord")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => voice.startServer()}
+                  title={t("assistant.accurateHint")}
+                  className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-brand-600/40 bg-brand-50 px-3 py-2 text-xs font-medium text-brand-700"
+                >
+                  <Mic className="h-4 w-4" />
+                  {t("assistant.accurate")}
                 </button>
               </div>
             </div>

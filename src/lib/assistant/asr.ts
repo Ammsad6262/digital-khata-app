@@ -61,17 +61,32 @@ const WORD_FIXES: Readonly<Record<string, string>> = {
   bot: "bought",
   bort: "bought",
   bough: "bought",
+  bord: "bought",
+  boart: "bought",
+  bawt: "bought",
+  bowt: "bought",
+  baught: "bought",
+  // "board" / "both" / "bored" are real words, so they are only treated as the
+  // verb when a quantity follows ("ahmad board 5 rice"). A product literally
+  // named "Board" ("10 board") is left untouched. See AMBIGUOUS_VERB_HEADS.
+  board: "bought",
+  both: "bought",
+  bored: "bought",
   sole: "sold",
+  soul: "sold",
   sould: "sold",
   soled: "sold",
+  solt: "sold",
   payed: "paid",
   pade: "paid",
+  payd: "paid",
   recieved: "received",
   reciept: "receipt",
   cartoon: "carton",
   cartoons: "cartons",
   kartoon: "carton",
   kartoons: "cartons",
+  kartone: "carton",
   // Roman Urdu verbs
   karida: "kharida",
   kareeda: "kharida",
@@ -80,6 +95,9 @@ const WORD_FIXES: Readonly<Record<string, string>> = {
   dya: "diya",
   dia: "diya",
 };
+
+/** Real English words that are only the verb when a quantity follows them. */
+const AMBIGUOUS_VERB_HEADS = new Set(["board", "both", "bored"]);
 
 const TOKEN_CORE = /^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu;
 
@@ -107,11 +125,21 @@ export function correctVerbs(input: string): CorrectedTranscript {
   const corrections: AsrCorrection[] = [];
   if (!input) return { text: input, corrections };
 
-  const text = input.replace(/\S+/g, (raw) => {
+  const text = input.replace(/\S+/g, (raw: string, offset: number, whole: string) => {
     const core = coreOf(raw);
     if (!core) return raw;
-    const fixed = WORD_FIXES[core.toLowerCase()];
-    if (!fixed || fixed === core.toLowerCase()) return raw;
+    const key = core.toLowerCase();
+    const fixed = WORD_FIXES[key];
+    if (!fixed || fixed === key) return raw;
+
+    // "board" / "both" are ordinary words: only fix them when a quantity
+    // follows, so a product called "Board" is not turned into "bought".
+    if (AMBIGUOUS_VERB_HEADS.has(key)) {
+      const rest = whole.slice(offset + raw.length);
+      const nextToken = rest.match(/\S+/)?.[0] ?? "";
+      if (!/^\d/.test(coreOf(nextToken))) return raw;
+    }
+
     const at = raw.indexOf(core);
     corrections.push({ from: core, to: fixed, kind: "verb" });
     return `${raw.slice(0, at)}${fixed}${raw.slice(at + core.length)}`;

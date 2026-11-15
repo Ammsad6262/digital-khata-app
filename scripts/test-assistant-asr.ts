@@ -25,6 +25,11 @@ const ok = (cond: boolean, label: string, detail?: string) => {
 
 const verbCases: Array<[string, string, string]> = [
   ["khalid boat 5 rice", "khalid bought 5 rice", "boat -> bought"],
+  ["ahmad board 5 rice", "ahmad bought 5 rice", "board -> bought before a quantity"],
+  ["ahmad both 5 rice", "ahmad bought 5 rice", "both -> bought before a quantity"],
+  ["ahmad bord 5 rice", "ahmad bought 5 rice", "bord -> bought"],
+  ["10 board", "10 board", "a product named Board is not changed"],
+  ["both customers", "both customers", "both without a quantity is not changed"],
   ["Ali sole 2 cartoons", "Ali sold 2 cartons", "sole -> sold, cartoon -> carton"],
   ["he payed 5000", "he paid 5000", "payed -> paid"],
   ["Khalid bort 20 bags", "Khalid bought 20 bags", "bort -> bought"],

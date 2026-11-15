@@ -2068,6 +2068,11 @@ export const translations = {
   "assistant.transcript": { en: "Speech transcript", ur: "گفتگو کا متن" },
   "assistant.startListening": { en: "Start listening", ur: "سنا شروع کریں" },
   "assistant.stopListening": { en: "Stop listening", ur: "سنا بند کریں" },
+  "assistant.accurate": { en: "Accurate", ur: "درست" },
+  "assistant.accurateHint": {
+    en: "Records again and uses the server speech model — try this when a word was heard wrong.",
+    ur: "دوبارہ ریکارڈ کر کے سرور کا اسپیچ ماڈل استعمال کرتا ہے — جب کوئی لفظ غلط سنا جائے تو یہ آزمائیں۔",
+  },
   "assistant.send": { en: "Send", ur: "بھیجیں" },
   "assistant.rerecord": { en: "Re-record", ur: "دوبارہ ریکارڈ کریں" },
   "assistant.tapNameHint": { en: "Tap a name to put it in the box below.", ur: "نام کو نیچے والے خانے میں ڈالنے کے لیے اُس پر ٹیپ کریں۔" },

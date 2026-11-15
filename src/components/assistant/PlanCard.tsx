@@ -67,9 +67,9 @@ const PAYMENT_METHODS: PaymentMethod[] = ["cash", "bank", "cheque", "jazzcash", 
 
 /** Actions that always involve an entity, even when it already resolved. */
 const ENTITY_ACTIONS: Record<EntityKind, ActionKind[]> = {
-  customer: ["CREATE_SALE", "RECORD_PAYMENT"],
+  customer: ["CREATE_SALE", "RECORD_PAYMENT", "CREATE_CUSTOMER"],
   product: ["CREATE_SALE", "CREATE_PURCHASE", "ADD_STOCK"],
-  supplier: ["CREATE_PURCHASE", "SUPPLIER_PAYMENT"],
+  supplier: ["CREATE_PURCHASE", "SUPPLIER_PAYMENT", "CREATE_SUPPLIER"],
 };
 
 type EntityOption = {
@@ -437,12 +437,16 @@ function PlanCardImpl({
           {entityKinds.map((kind) => {
             const group = ENTITY_GROUP[kind];
             const list = options[group];
-            // Put the server's candidates at the top of the dropdown; the rest
-            // stay available for a manual change.
-            const candidateIds = new Set(
-              (plan.candidates[group] ?? []).map((candidate) => candidate.id),
-            );
-            const ordered = [...list].sort(
+            // The server's own matches must always be selectable, even if the
+            // /options request is slow or failed. Merge them into the list.
+            const candidateList = plan.candidates[group] ?? [];
+            const candidateIds = new Set(candidateList.map((candidate) => candidate.id));
+            const merged = new Map<string, EntityOption>();
+            for (const candidate of candidateList) {
+              merged.set(candidate.id, { id: candidate.id, name: candidate.name });
+            }
+            for (const option of list) merged.set(option.id, option);
+            const ordered = [...merged.values()].sort(
               (a, b) =>
                 Number(candidateIds.has(b.id)) - Number(candidateIds.has(a.id)) ||
                 a.name.localeCompare(b.name),

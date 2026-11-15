@@ -39,7 +39,7 @@ import {
 export type VoiceLanguageMode = "auto" | "en" | "ur" | "ps";
 
 function localeForMode(mode: VoiceLanguageMode, appLang: "en" | "ur"): SpeechLocale {
-  if (mode === "en") return "en-PK";
+  if (mode === "en") return "en-IN";
   if (mode === "ur") return "ur-PK";
   if (mode === "ps") return "ps-AF";
   return defaultSpeechLocale(appLang);
@@ -144,6 +144,17 @@ export function useVoiceAssistant() {
     [assistant, languageMode],
   );
 
+  /**
+   * Record again and let the SERVER model transcribe, instead of the on-device
+   * recogniser. Used when the browser mishears a word ("bought" -> "board"):
+   * one tap gives the accurate transcript at the cost of one AI request.
+   */
+  const startServer = useCallback(() => {
+    if (assistant.busy) return;
+    setTranscript("");
+    serverTranscribe(languageMode === "ps" ? "ps" : languageMode === "ur" ? "ur" : "en");
+  }, [assistant.busy, languageMode, serverTranscribe]);
+
   const reset = useCallback(() => {
     assistant.reset();
     speech.reset();
@@ -167,6 +178,7 @@ export function useVoiceAssistant() {
     stop,
     submit,
     retry,
+    startServer,
     reset,
   };
 }

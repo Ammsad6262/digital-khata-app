@@ -268,6 +268,20 @@ export async function performAction(
 
     // ── PEOPLE ───────────────────────────────────────────────────────────
     case "CREATE_CUSTOMER": {
+      // The card now offers "pick an existing customer" as well as a new name.
+      // Choosing an existing one must not create a duplicate.
+      if (payload.customerId) {
+        const existing = await getCustomerWithBalance(payload.customerId, userId);
+        return {
+          ok: true,
+          message: `Customer ${existing.name} already exists.`,
+          entityId: existing.id,
+          entityType: "customer",
+          href: `/khata/${existing.id}`,
+          verified: true,
+          data: existing,
+        };
+      }
       const name = requireField(payload.name, "customer name");
       const customer = await createCustomer(
         {
@@ -290,6 +304,21 @@ export async function performAction(
     }
 
     case "CREATE_SUPPLIER": {
+      if (payload.supplierId) {
+        const all = await listSuppliersWithBalance(userId);
+        const existing = all.find((s) => s.id === payload.supplierId);
+        if (existing) {
+          return {
+            ok: true,
+            message: `Supplier ${existing.name} already exists.`,
+            entityId: existing.id,
+            entityType: "supplier",
+            href: `/suppliers/${existing.id}`,
+            verified: true,
+            data: existing,
+          };
+        }
+      }
       const name = requireField(payload.name, "supplier name");
       const supplier = await createSupplier(
         { name, phone: payload.phone, address: payload.address, openingBalance: payload.openingBalance ?? 0 },

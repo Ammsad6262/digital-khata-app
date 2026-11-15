@@ -82,6 +82,7 @@ async function findNamed(
   userId: string,
   kind: "customer" | "product" | "supplier",
   name: string,
+  minScore = 70,
 ): Promise<NamedEntity[]> {
   const needle = name.trim();
   if (!needle) return [];
@@ -111,7 +112,7 @@ async function findNamed(
 
   return rows
     .map((row) => ({ row, score: nameScore(needle, row.name) }))
-    .filter((m) => m.score >= 70)
+    .filter((m) => m.score >= minScore)
     .sort((a, b) => b.score - a.score || a.row.name.localeCompare(b.row.name))
     .slice(0, 8)
     .map((m) => m.row);
@@ -649,7 +650,7 @@ async function buildPlanFor(
     case "CREATE_CUSTOMER": {
       const name = (f.name ?? f.customerName ?? "").trim();
       if (name) {
-        const existing = await findNamed(userId, "customer", name);
+        const existing = await findNamed(userId, "customer", name, 60);
         if (existing.length) return existingEntityReply("customer", existing, match);
       }
       payload.name = name || undefined;
@@ -671,7 +672,7 @@ async function buildPlanFor(
     case "CREATE_SUPPLIER": {
       const name = (f.name ?? f.supplierName ?? "").trim();
       if (name) {
-        const existing = await findNamed(userId, "supplier", name);
+        const existing = await findNamed(userId, "supplier", name, 60);
         if (existing.length) return existingEntityReply("supplier", existing, match);
       }
       payload.name = name || undefined;
@@ -690,7 +691,7 @@ async function buildPlanFor(
     case "CREATE_PRODUCT": {
       const name = (f.name ?? f.productName ?? "").trim();
       if (name) {
-        const existing = await findNamed(userId, "product", name);
+        const existing = await findNamed(userId, "product", name, 60);
         if (existing.length) return existingEntityReply("product", existing, match);
       }
       payload.name = name || undefined;

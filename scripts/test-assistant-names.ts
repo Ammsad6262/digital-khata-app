@@ -43,6 +43,9 @@ const pairs: Array<[string, string, string]> = [
   ["مُحَمَّد", "محمد", "diacritics are ignored"],
   ["  Ahmed  ", "ahmed", "case/space are ignored"],
   ["Ahmed Khan", "احمد", "short form matches a full saved name"],
+  ["ډګه", "Daga", "Daga/ډګه (Pashto final ه)"],
+  ["دګه", "Daga", "Daga/دګه"],
+  ["ډگه", "Daga", "Daga/ډگه (Pashto ګ)"],
 ];
 
 for (const [a, b, label] of pairs) {
@@ -54,6 +57,7 @@ const negatives: Array<[string, string]> = [
   ["احمد", "بلال"],
   ["Rice", "Ahmed"],
   ["Sugar", "Wheat"],
+  ["dhaaga", "Daga"],
 ];
 for (const [a, b] of negatives) {
   ok(!namesMatch(a, b), `different names: ${a} / ${b}`, `${nameScore(a, b)}`);

@@ -78,6 +78,30 @@ async function loadRouterContext(userId: string): Promise<RouterContext> {
 
 type NamedEntity = { id: string; name: string };
 
+/** Bounded read of the owner's own list for in-memory cross-script matching. */
+async function namedRows(
+  userId: string,
+  kind: "customer" | "product" | "supplier",
+): Promise<NamedEntity[]> {
+  return kind === "customer"
+    ? prisma.customer.findMany({
+        where: { userId, isDeleted: false },
+        select: { id: true, name: true },
+        take: 500,
+      })
+    : kind === "product"
+      ? prisma.product.findMany({
+          where: { userId, isDeleted: false },
+          select: { id: true, name: true },
+          take: 500,
+        })
+      : prisma.supplier.findMany({
+          where: { userId, isDeleted: false },
+          select: { id: true, name: true },
+          take: 300,
+        });
+}
+
 async function findNamed(
   userId: string,
   kind: "customer" | "product" | "supplier",
@@ -91,30 +115,35 @@ async function findNamed(
   // list (bounded) and match in memory with the cross-script scorer. 500 rows
   // is a few milliseconds and guarantees the confirmation card never asks to
   // create a customer/product that already exists under another spelling.
-  const rows =
-    kind === "customer"
-      ? await prisma.customer.findMany({
-          where: { userId, isDeleted: false },
-          select: { id: true, name: true },
-          take: 500,
-        })
-      : kind === "product"
-        ? await prisma.product.findMany({
-            where: { userId, isDeleted: false },
-            select: { id: true, name: true },
-            take: 500,
-          })
-        : await prisma.supplier.findMany({
-            where: { userId, isDeleted: false },
-            select: { id: true, name: true },
-            take: 300,
-          });
+  const rows = await namedRows(userId, kind);
 
   return rows
     .map((row) => ({ row, score: nameScore(needle, row.name) }))
     .filter((m) => m.score >= minScore)
     .sort((a, b) => b.score - a.score || a.row.name.localeCompare(b.row.name))
     .slice(0, 8)
+    .map((m) => m.row);
+}
+
+/**
+ * The nearest saved records even when none clears the strict match threshold,
+ * so the confirmation card can still offer the real "Daga" for the owner to
+ * pick instead of claiming it does not exist.
+ */
+async function findClosest(
+  userId: string,
+  kind: "customer" | "product" | "supplier",
+  name: string,
+  limit = 5,
+): Promise<NamedEntity[]> {
+  const needle = name.trim();
+  if (!needle) return [];
+  const rows = await namedRows(userId, kind);
+  return rows
+    .map((row) => ({ row, score: nameScore(needle, row.name) }))
+    .filter((m) => m.score >= 40)
+    .sort((a, b) => b.score - a.score || a.row.name.localeCompare(b.row.name))
+    .slice(0, limit)
     .map((m) => m.row);
 }
 
@@ -137,7 +166,15 @@ async function resolveNamed(
 
   const matches = await findNamed(userId, kind, opts.name);
   if (matches.length === 1) return { entity: matches[0]!, candidates: [] };
-  if (matches.length === 0) return { entity: null, candidates: [] };
+  if (matches.length === 0) {
+    // No strict match. Offer the nearest saved records so the card can show the
+    // real one ("Daga") instead of claiming it does not exist.
+    const closest = await findClosest(userId, kind, opts.name);
+    return {
+      entity: null,
+      candidates: closest.map((m) => ({ id: m.id, name: m.name })),
+    };
+  }
 
   return {
     entity: null,

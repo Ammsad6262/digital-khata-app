@@ -123,6 +123,25 @@ function coreScore(a: string, b: string): number {
   // are never merged.
   if (ca.length >= 2 && ca === cb && hasArabic(a) !== hasArabic(b)) return 90;
 
+  // A short name written in Arabic/Pashto often carries an extra "h" (final ه
+  // or a breathed consonant): "Daga" is written "ډګه", whose consonant key is
+  // "dgh" while the Latin key is "dg". Treat a single "h" as optional across
+  // scripts so a saved Latin product matches its Pashto pronunciation.
+  if (hasArabic(a) !== hasArabic(b) && ca.length >= 2 && cb.length >= 2) {
+    const ha = ca.replace(/h/g, "");
+    const hb = cb.replace(/h/g, "");
+    if (ha.length >= 2 && ha === hb) return 86;
+    // One extra consonant at the end ("dg" vs "dgn"), still cross-script only.
+    if (
+      ha.length >= 3 &&
+      hb.length >= 3 &&
+      Math.abs(ha.length - hb.length) === 1 &&
+      (ha.startsWith(hb) || hb.startsWith(ha))
+    ) {
+      return 80;
+    }
+  }
+
   // Same-script spelling variants: "Bilal"/"Belal", "Umar"/"Omar".
   if (!hasArabic(a) && !hasArabic(b) && Math.min(ka.length, kb.length) >= 4) {
     if (levenshtein(ka, kb) <= 1) return 90;

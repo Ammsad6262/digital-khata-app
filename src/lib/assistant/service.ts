@@ -102,48 +102,34 @@ async function namedRows(
         });
 }
 
+/** All saved rows scored against the spoken name, best first. */
+async function scoredNamed(
+  userId: string,
+  kind: "customer" | "product" | "supplier",
+  name: string,
+): Promise<Array<{ row: NamedEntity; score: number }>> {
+  const needle = name.trim();
+  if (!needle) return [];
+  // A SQL `contains` cannot join "احمد" to "Ahmed", so read the owner's own
+  // list (bounded) and match in memory with the cross-script scorer. 500 rows
+  // is a few milliseconds and guarantees the confirmation card never asks to
+  // create a customer/product that already exists under another spelling.
+  const rows = await namedRows(userId, kind);
+  return rows
+    .map((row) => ({ row, score: nameScore(needle, row.name) }))
+    .sort((a, b) => b.score - a.score || a.row.name.localeCompare(b.row.name));
+}
+
 async function findNamed(
   userId: string,
   kind: "customer" | "product" | "supplier",
   name: string,
   minScore = 70,
 ): Promise<NamedEntity[]> {
-  const needle = name.trim();
-  if (!needle) return [];
-
-  // A SQL `contains` cannot join "احمد" to "Ahmed", so read the owner's own
-  // list (bounded) and match in memory with the cross-script scorer. 500 rows
-  // is a few milliseconds and guarantees the confirmation card never asks to
-  // create a customer/product that already exists under another spelling.
-  const rows = await namedRows(userId, kind);
-
-  return rows
-    .map((row) => ({ row, score: nameScore(needle, row.name) }))
+  const scored = await scoredNamed(userId, kind, name);
+  return scored
     .filter((m) => m.score >= minScore)
-    .sort((a, b) => b.score - a.score || a.row.name.localeCompare(b.row.name))
     .slice(0, 8)
-    .map((m) => m.row);
-}
-
-/**
- * The nearest saved records even when none clears the strict match threshold,
- * so the confirmation card can still offer the real "Daga" for the owner to
- * pick instead of claiming it does not exist.
- */
-async function findClosest(
-  userId: string,
-  kind: "customer" | "product" | "supplier",
-  name: string,
-  limit = 5,
-): Promise<NamedEntity[]> {
-  const needle = name.trim();
-  if (!needle) return [];
-  const rows = await namedRows(userId, kind);
-  return rows
-    .map((row) => ({ row, score: nameScore(needle, row.name) }))
-    .filter((m) => m.score >= 40)
-    .sort((a, b) => b.score - a.score || a.row.name.localeCompare(b.row.name))
-    .slice(0, limit)
     .map((m) => m.row);
 }
 
@@ -164,21 +150,42 @@ async function resolveNamed(
 
   if (!opts.name) return { entity: null, candidates: [] };
 
-  const matches = await findNamed(userId, kind, opts.name);
-  if (matches.length === 1) return { entity: matches[0]!, candidates: [] };
-  if (matches.length === 0) {
-    // No strict match. Offer the nearest saved records so the card can show the
-    // real one ("Daga") instead of claiming it does not exist.
-    const closest = await findClosest(userId, kind, opts.name);
+  const scored = await scoredNamed(userId, kind, opts.name);
+  if (scored.length === 0) return { entity: null, candidates: [] };
+
+  const best = scored[0]!;
+  const second = scored[1];
+
+  // A clear strict match. If several saved names clear the bar, make the owner
+  // choose between them instead of guessing.
+  if (best.score >= 70) {
+    const strict = scored.filter((m) => m.score >= 70);
+    if (strict.length === 1) return { entity: strict[0]!.row, candidates: [] };
     return {
       entity: null,
-      candidates: closest.map((m) => ({ id: m.id, name: m.name })),
+      candidates: strict
+        .slice(0, 8)
+        .map((m) => ({ id: m.row.id, name: m.row.name })),
     };
   }
 
+  // Near match: auto-select it when it is clearly the best ("aramony" →
+  // "Aramoni"), or when it is the only plausible record. This is the fix for
+  // "I said the name but it did not pick the customer".
+  if (best.score >= 55 && (!second || best.score - second.score >= 10)) {
+    return { entity: best.row, candidates: [] };
+  }
+  if (scored.length === 1 && best.score >= 50) {
+    return { entity: best.row, candidates: [] };
+  }
+
+  // Otherwise offer the nearest few so the card can show the real record.
   return {
     entity: null,
-    candidates: matches.map((m) => ({ id: m.id, name: m.name })),
+    candidates: scored
+      .filter((m) => m.score >= 40)
+      .slice(0, 5)
+      .map((m) => ({ id: m.row.id, name: m.row.name })),
   };
 }
 

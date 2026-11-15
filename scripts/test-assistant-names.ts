@@ -46,6 +46,8 @@ const pairs: Array<[string, string, string]> = [
   ["ډګه", "Daga", "Daga/ډګه (Pashto final ه)"],
   ["دګه", "Daga", "Daga/دګه"],
   ["ډگه", "Daga", "Daga/ډگه (Pashto ګ)"],
+  ["aramony", "Aramoni", "Aramoni/aramony (y→i)"],
+  ["ارموني", "Aramoni", "Aramoni/ارموني"],
 ];
 
 for (const [a, b, label] of pairs) {

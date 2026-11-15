@@ -8,11 +8,11 @@
 import { NextRequest } from "next/server";
 import { getBusinessInsights } from "@/lib/services/insights";
 import { ok, fail } from "@/lib/utils/api";
-import { requireActiveAccess } from "@/lib/auth/get-current-user";
+import { requireAiAccess } from "@/lib/auth/get-current-user";
 
 export async function GET(req: NextRequest) {
   try {
-    const userId = await requireActiveAccess(req);
+    const userId = await requireAiAccess(req);
     const data = await getBusinessInsights(userId);
     return ok(data);
   } catch (error) {

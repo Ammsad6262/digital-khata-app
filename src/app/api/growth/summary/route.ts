@@ -11,13 +11,13 @@
 import { NextRequest } from "next/server";
 import { narrateGrowthPlan } from "@/lib/services/growth-narration";
 import { ok, fail } from "@/lib/utils/api";
-import { requireActiveAccess } from "@/lib/auth/get-current-user";
+import { requireAiAccess } from "@/lib/auth/get-current-user";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
   try {
-    const userId = await requireActiveAccess(req);
+    const userId = await requireAiAccess(req);
     const data = await narrateGrowthPlan(userId);
     return ok(data);
   } catch (error) {

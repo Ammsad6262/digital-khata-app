@@ -8,13 +8,13 @@
 import { NextRequest } from "next/server";
 import { getGrowthPlan } from "@/lib/services/growth";
 import { ok, fail } from "@/lib/utils/api";
-import { requireActiveAccess } from "@/lib/auth/get-current-user";
+import { requireAiAccess } from "@/lib/auth/get-current-user";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   try {
-    const userId = await requireActiveAccess(req);
+    const userId = await requireAiAccess(req);
     const data = await getGrowthPlan(userId);
     return ok(data);
   } catch (error) {

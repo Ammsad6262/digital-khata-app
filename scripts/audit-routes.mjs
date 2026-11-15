@@ -3,7 +3,7 @@
  *
  * Every /api route must either:
  *   - be in the middleware PUBLIC_ROUTES allowlist (and prove identity itself), or
- *   - call requireUserId()/requireActiveAccess()/requireAdmin(), or
+ *   - call requireUserId()/requireActiveAccess()/requireAiAccess()/requireAdmin(), or
  *   - rely on middleware + derive identity from the verified JWT (getCurrentUserId).
  *
  * It also flags any route that reads an identity from client input
@@ -48,6 +48,7 @@ const toPath = (f) =>
 const GUARDS = [
   ["requireUserId", /requireUserId\s*\(/],
   ["requireActiveAccess", /requireActiveAccess\s*\(/],
+  ["requireAiAccess", /requireAiAccess\s*\(/],
   ["requireAdmin", /requireAdmin\s*\(/],
   ["getCurrentUserId", /getCurrentUserId\s*\(/],
 ];

@@ -1852,6 +1852,10 @@ export const translations = {
   "api.subscription.codeExpired": { en: "This activation code has expired. Please contact us for a new code.", ur: "یہ ایکٹیویشن کوڈ ختم ہو گیا ہے۔ نئے کوڈ کے لیے ہم سے رابطہ کریں۔" },
   "api.subscription.codeExhausted": { en: "This code has already been fully redeemed.", ur: "یہ کوڈ پہلے ہی مکمل استعمال ہو چکا ہے۔" },
   "api.subscription.invalidDuration": { en: "Duration must be between 1 and 3650 days.", ur: "مدت ۱ سے ۳۶۵۰ دن کے درمیان ہونی چاہیے۔" },
+  "api.subscription.aiRequiresPremium": {
+    en: "AI features are part of Premium. Your current plan doesn't include them.",
+    ur: "اے آئی فیچرز پریمیم کا حصہ ہیں۔ آپ کے موجودہ پلان میں شامل نہیں ہیں۔",
+  },
   "api.subscription.trialEnded": { en: "Your free trial has ended. Please redeem an activation code to continue.", ur: "آپ کی مفت آزمائش ختم ہو گئی ہے۔ جاری رکھنے کے لیے ایکٹیویشن کوڈ ریڈیم کریں۔" },
 
   // Transactions

@@ -9,7 +9,7 @@
  */
 
 import { NextRequest } from "next/server";
-import { requireActiveAccess } from "@/lib/auth/get-current-user";
+import { requireAiAccess } from "@/lib/auth/get-current-user";
 import { ok, fail } from "@/lib/utils/api";
 import { prisma } from "@/lib/db/prisma";
 
@@ -18,7 +18,7 @@ export const fetchCache = "force-no-store";
 
 export async function GET(req: NextRequest) {
   try {
-    const userId = await requireActiveAccess(req);
+    const userId = await requireAiAccess(req);
 
     const [customers, products, suppliers] = await Promise.all([
       prisma.customer.findMany({

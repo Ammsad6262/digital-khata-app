@@ -7,7 +7,7 @@
  */
 
 import { NextRequest } from "next/server";
-import { requireActiveAccess } from "@/lib/auth/get-current-user";
+import { requireAiAccess } from "@/lib/auth/get-current-user";
 import { ok, fail } from "@/lib/utils/api";
 import { getKhataCatalog } from "@/lib/khata-assistant/service";
 import type { KhataLanguage } from "@/lib/khata-assistant/types";
@@ -19,7 +19,7 @@ const LANGUAGES: KhataLanguage[] = ["en", "ur", "roman-ur", "mixed"];
 
 export async function GET(req: NextRequest) {
   try {
-    await requireActiveAccess(req);
+    await requireAiAccess(req);
     const raw = req.nextUrl.searchParams.get("lang");
     const language =
       raw && (LANGUAGES as string[]).includes(raw) ? (raw as KhataLanguage) : "en";

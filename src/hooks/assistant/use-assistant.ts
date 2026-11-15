@@ -28,6 +28,8 @@ export type AssistantTurn =
 export type AssistantStatus = {
   ready: boolean;
   retryAt?: string;
+  /** False for a permanent REGULAR licence (no Premium): AI is hidden. */
+  aiEnabled?: boolean;
 };
 
 let counter = 0;

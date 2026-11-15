@@ -254,6 +254,23 @@ export async function hasPremiumAccess(userId: string): Promise<boolean> {
   return (await getEntitlement(userId)).premium.active;
 }
 
+/**
+ * Pure rule: which categories may use AI features (voice assistant, smart
+ * entry, growth/insights narration).
+ *
+ * AI is a PREMIUM feature. The one-time REGULAR licence (Rs 10,000) buys
+ * permanent core accounting only and must NOT reach any AI route. The free
+ * trial and PREMIUM/OWNER/AFFILIATE do get AI.
+ */
+export function aiAllowed(entitlement: Entitlement): boolean {
+  return entitlement.core.active && entitlement.category !== "REGULAR";
+}
+
+/** Authoritative server-side check for every AI route. */
+export async function hasAiAccess(userId: string): Promise<boolean> {
+  return aiAllowed(await getEntitlement(userId));
+}
+
 /** Ensure the user has a subscription row; returns the full row. */
 async function ensureSubscriptionRow(
   tx: Prisma.TransactionClient,

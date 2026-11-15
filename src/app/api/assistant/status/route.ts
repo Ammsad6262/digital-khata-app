@@ -8,6 +8,7 @@
 
 import { NextRequest } from "next/server";
 import { requireActiveAccess } from "@/lib/auth/get-current-user";
+import { hasAiAccess } from "@/lib/services/entitlement";
 import { ok, fail } from "@/lib/utils/api";
 import { getAssistantStatus } from "@/lib/assistant/service";
 
@@ -16,9 +17,12 @@ export const fetchCache = "force-no-store";
 
 export async function GET(req: NextRequest) {
   try {
-    await requireActiveAccess(req);
-    const status = await getAssistantStatus();
-    return ok(status);
+    const userId = await requireActiveAccess(req);
+    const [status, aiEnabled] = await Promise.all([
+      getAssistantStatus(),
+      hasAiAccess(userId),
+    ]);
+    return ok({ ...status, aiEnabled });
   } catch (error) {
     return fail(error);
   }

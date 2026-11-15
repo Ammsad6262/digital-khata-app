@@ -14,7 +14,7 @@
  * developer details; those live at /admin/diagnostics.
  */
 
-import { type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import { QueryProvider } from "@/providers/query-provider";
 import { ToastProvider } from "@/providers/toast-provider";
@@ -33,6 +33,33 @@ const DASHBOARD_PATH = "/dashboard";
 const RECEIPT_PATH = /^\/sales\/[^/]+\/receipt$/;
 // Developer style guide — renders the real components with mock data.
 const PREVIEW_PATH = "/preview";
+
+/**
+ * AI is a premium feature. Ask the server once whether this account may use it;
+ * a permanent REGULAR licence (Rs 10,000 one-time) reports `aiEnabled: false`,
+ * so the launchers are hidden. The real gate is server-side — every AI route
+ * calls `requireAiAccess` — so hiding the button is only cosmetic.
+ */
+function useAiAccess(): boolean {
+  const [enabled, setEnabled] = useState(true);
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/assistant/status", { cache: "no-store" })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((json: { data?: { aiEnabled?: boolean } } | null) => {
+        if (alive && json?.data && typeof json.data.aiEnabled === "boolean") {
+          setEnabled(json.data.aiEnabled);
+        }
+      })
+      .catch(() => {
+        /* keep the default; a network blip must not hide a paid feature */
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
+  return enabled;
+}
 
 export function Providers({
   children,
@@ -54,6 +81,9 @@ export function Providers({
   // primary action (their panels are still available from list/detail screens).
   const isFormPage =
     /\/(new|edit)$/.test(pathname) || /^\/stock\/(add|adjust)$/.test(pathname);
+  // AI is premium-only: hide the launchers for a REGULAR (Rs 10,000) licence.
+  const aiEnabled = useAiAccess();
+  const showAi = !isFormPage && aiEnabled;
 
   return (
     <ThemeProvider>
@@ -77,8 +107,8 @@ export function Providers({
                     <BottomNav />
                     {showQuickAdd ? <QuickAddMenu /> : null}
                     {/* Two separate products: voice actions + business intelligence. */}
-                    {isFormPage ? null : <VoiceAssistant />}
-                    {isFormPage ? null : <KhataAssistant />}
+                    {showAi ? <VoiceAssistant /> : null}
+                    {showAi ? <KhataAssistant /> : null}
                   </Screen>
                 )}
               </AuthGate>

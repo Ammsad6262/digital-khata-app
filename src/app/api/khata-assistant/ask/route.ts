@@ -16,7 +16,7 @@
  */
 
 import { NextRequest } from "next/server";
-import { requireActiveAccess } from "@/lib/auth/get-current-user";
+import { requireAiAccess } from "@/lib/auth/get-current-user";
 import { ok, fail, parseJsonBody } from "@/lib/utils/api";
 import { BadRequestError } from "@/lib/errors";
 import { askKhataAssistant } from "@/lib/khata-assistant/service";
@@ -35,7 +35,7 @@ type Body = {
 
 export async function POST(req: NextRequest) {
   try {
-    const userId = await requireActiveAccess(req);
+    const userId = await requireAiAccess(req);
 
     const { data: body } = await parseJsonBody<Body>(req);
     if (!body) throw new BadRequestError("A request body is required.");

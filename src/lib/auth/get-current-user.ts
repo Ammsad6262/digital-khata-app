@@ -24,6 +24,7 @@ import { NextRequest } from "next/server";
 import { verifyToken, AUTH_COOKIE_NAME } from "@/lib/services/auth";
 import { UnauthorizedError, ForbiddenError } from "@/lib/errors";
 import { hasActiveAccess } from "@/lib/services/subscription";
+import { hasAiAccess } from "@/lib/services/entitlement";
 import { setUserContext } from "@/lib/db/prisma";
 
 /**
@@ -51,6 +52,7 @@ export async function getCurrentUserId(req: NextRequest): Promise<string | null>
 // status doesn't change within 60 seconds — even if the user redeems a code,
 // the next request (after cache expiry) will see the updated status.
 const subCache = new Map<string, { active: boolean; expiresAt: number }>();
+const aiCache = new Map<string, { active: boolean; expiresAt: number }>();
 const SUB_CACHE_TTL_MS = 60 * 1000; // 60 seconds
 
 /**
@@ -103,6 +105,34 @@ export async function requireUserId(
 /** Drop a user's cached entitlement after a redeem so access starts at once. */
 export function invalidateActiveAccessCache(userId: string): void {
   subCache.delete(userId);
+  aiCache.delete(userId);
+}
+
+/**
+ * Require core access AND AI entitlement. Every AI route (voice assistant,
+ * smart entry, Khata assistant, growth/insights narration) must use this.
+ *
+ * A permanent REGULAR licence (Rs 10,000 one-time) has core access but no AI:
+ * it is rejected here with a clear "AI needs Premium" error. The check runs on
+ * the server for every request, so hiding the UI button is not the control.
+ */
+export async function requireAiAccess(req: NextRequest): Promise<string> {
+  const userId = await requireUserId(req); // core/trial licence still required
+
+  const cached = aiCache.get(userId);
+  if (cached && Date.now() < cached.expiresAt) {
+    if (!cached.active) {
+      throw new ForbiddenError("api.subscription.aiRequiresPremium");
+    }
+    return userId;
+  }
+
+  const allowed = await hasAiAccess(userId);
+  aiCache.set(userId, { active: allowed, expiresAt: Date.now() + SUB_CACHE_TTL_MS });
+  if (!allowed) {
+    throw new ForbiddenError("api.subscription.aiRequiresPremium");
+  }
+  return userId;
 }
 
 /**

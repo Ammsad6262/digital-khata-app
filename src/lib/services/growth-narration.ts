@@ -43,6 +43,13 @@ export function numbersAreSupported(candidate: string, facts: string): boolean {
 const cache = new Map<string, { text: string; at: number }>();
 const CACHE_TTL_MS = 10 * 60 * 1000;
 
+/** Cheap stable hash of the facts, so the cache key changes with the data. */
+function factsKey(userId: string, facts: string): string {
+  let hash = 5381;
+  for (let i = 0; i < facts.length; i++) hash = ((hash << 5) + hash + facts.charCodeAt(i)) | 0;
+  return `${userId}:${hash}`;
+}
+
 // When the AI is down (503 / daily quota), don't hammer it on every page
 // load — the free tier allows only 20 requests per model per day. A short
 // backoff keeps the page instant and leaves the quota for Smart Entry.
@@ -65,13 +72,18 @@ export function tidyNarration(text: string): string | null {
 }
 
 export async function narrateGrowthPlan(userId: string): Promise<GrowthNarration> {
-  const cached = cache.get(userId);
+  // Compute the facts first, then key the cache on them: the narration only
+  // regenerates when the numbers change, never on a fixed timer. (A 10-minute
+  // per-user cache used to keep serving yesterday's advice after a sale.)
+  const plan = await getGrowthPlan(userId);
+  const facts = growthFactsForNarration(plan);
+  const key = factsKey(userId, facts);
+
+  const cached = cache.get(key);
   if (cached && Date.now() - cached.at < CACHE_TTL_MS) {
     return { text: cached.text, source: "ai" };
   }
 
-  const plan = await getGrowthPlan(userId);
-  const facts = growthFactsForNarration(plan);
   const fallback: GrowthNarration = { text: plan.summary, source: "deterministic" };
 
   if (plan.recommendations.length === 0) {
@@ -111,6 +123,6 @@ export async function narrateGrowthPlan(userId: string): Promise<GrowthNarration
   }
 
   failures.delete(userId);
-  cache.set(userId, { text: clean, at: Date.now() });
+  cache.set(key, { text: clean, at: Date.now() });
   return { text: clean, source: "ai" };
 }

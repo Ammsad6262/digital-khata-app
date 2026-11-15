@@ -380,11 +380,16 @@
   /* RTL: ensure <pre>, <code>, and number-prefixed text stays LTR */
   html[dir="rtl"] [dir="ltr"] { direction: ltr; }
 
-  /* Prevent iOS zoom-on-focus by enforcing 16px font on inputs */
-  input,
-  select,
-  textarea {
-    font-size: 16px;
+  /* Prevent iOS zoom-on-focus: iOS zooms when a focused field is under 16px.
+     Tailwind utilities (text-sm, text-[13px]) would otherwise win over this
+     base rule, so on phones it is enforced explicitly. Desktop keeps its
+     designed sizes. */
+  @media (max-width: 767px) {
+    input,
+    select,
+    textarea {
+      font-size: 16px !important;
+    }
   }
 
   /* Larger touch targets on mobile */

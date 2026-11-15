@@ -16,6 +16,7 @@ import { Check, ChevronDown, Plus } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { useLanguage } from "@/providers/language-provider";
 import { useCurrencySymbol } from "@/hooks/use-currency-symbol";
+import { rememberAlias } from "@/lib/assistant/aliases";
 import type { TranslationKey } from "@/lib/i18n/translations";
 import type {
   ActionKind,
@@ -378,6 +379,27 @@ function PlanCardImpl({
     confirmPatch.paidAmount = paidNow;
   }
 
+  // When the owner picks an existing record after a misheard name, remember the
+  // mapping so the next utterance resolves it without the model.
+  const rememberConfirmedNames = () => {
+    (["customer", "product", "supplier"] as EntityKind[]).forEach((kind) => {
+      const id = selectedId(kind);
+      if (!id) return;
+      const group = ENTITY_GROUP[kind];
+      const canonical =
+        options[group].find((option) => option.id === id)?.name ??
+        plan.candidates[group]?.find((candidate) => candidate.id === id)?.name;
+      const spoken =
+        (patch[ENTITY_NAME_KEY[kind]] as string | undefined) ??
+        plan.values?.[ENTITY_NAME_KEY[kind]] ??
+        plan.missing?.[kind] ??
+        "";
+      if (canonical && spoken && String(spoken).toLowerCase() !== canonical.toLowerCase()) {
+        rememberAlias(String(spoken), canonical);
+      }
+    });
+  };
+
   const blocked =
     missingEntity("customer") ||
     missingEntity("product") ||
@@ -724,7 +746,10 @@ function PlanCardImpl({
         <button
           type="button"
           disabled={busy || blocked}
-          onClick={() => onConfirm(plan.actionId, confirmPatch)}
+          onClick={() => {
+            rememberConfirmedNames();
+            onConfirm(plan.actionId, confirmPatch);
+          }}
           className={cn(
             "flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-brand-600 px-3 py-2 text-sm font-semibold text-white",
             (busy || blocked) && "opacity-50",

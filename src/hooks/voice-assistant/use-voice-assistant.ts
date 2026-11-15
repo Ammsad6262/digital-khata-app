@@ -28,6 +28,7 @@ import { useSpeechRecognition } from "@/hooks/assistant/use-speech-recognition";
 import { useAudioRecorder } from "@/hooks/smart-entry/use-audio-recorder";
 import { useLanguage } from "@/providers/language-provider";
 import { correctVerbs } from "@/lib/assistant/asr";
+import { applyAliases } from "@/lib/assistant/aliases";
 import {
   detectSpeechLanguage,
   defaultSpeechLocale,
@@ -76,9 +77,10 @@ export function useVoiceAssistant() {
   const speech = useSpeechRecognition({
     language: localeForMode(languageMode, lang),
     onFinal: (text) => {
-      // Repair business-word mishearings before the owner reviews the text, so
-      // "khalid boat" is shown as "khalid bought" instead of being sent wrong.
-      const clean = correctVerbs(text.trim()).text;
+      // Repair business-word mishearings and remembered names before the owner
+      // reviews the text, so "khalid boat" is shown as "khalid bought" and a
+      // name the owner already corrected is fixed automatically.
+      const clean = applyAliases(correctVerbs(text.trim()).text);
       setTranscript(clean);
       setDetected(hintForMode(languageMode, clean));
     },
@@ -131,7 +133,7 @@ export function useVoiceAssistant() {
 
   const submit = useCallback(
     (text?: string) => {
-      const value = (text ?? transcript).trim();
+      const value = applyAliases((text ?? transcript).trim());
       if (!value || assistant.busy) return;
       const language = hintForMode(languageMode, value);
       setTranscript("");
@@ -143,7 +145,7 @@ export function useVoiceAssistant() {
 
   const retry = useCallback(
     (text: string) => {
-      const value = text.trim();
+      const value = applyAliases(text.trim());
       if (!value || assistant.busy) return;
       void assistant.send({ text: value, language: hintForMode(languageMode, value) });
     },

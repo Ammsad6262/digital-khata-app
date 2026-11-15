@@ -101,6 +101,44 @@ function levenshtein(a: string, b: string): number {
   return prev[b.length] ?? Math.max(a.length, b.length);
 }
 
+const VOWELS = "aeiou";
+
+/**
+ * Classify a single same-script edit:
+ *   - "vowel": a vowel substitution, or one extra/missing vowel (Umar/Omar,
+ *     Bilal/Belal) — a strong spelling variant, auto-selectable.
+ *   - "h": a silent-aspiration h insertion/removal (kalid/Khalid) — a good
+ *     match, but kept as a candidate so two similar products are not merged.
+ *   - null: a consonant edit (dhaga/Daga, Ahad/Ahmad, Daga/Kaga) — different word.
+ */
+function singleEditType(a: string, b: string): "vowel" | "h" | null {
+  if (Math.abs(a.length - b.length) > 1) return null;
+  if (a.length === b.length) {
+    let diff = -1;
+    for (let i = 0; i < a.length; i++) {
+      if (a[i] !== b[i]) {
+        if (diff !== -1) return null;
+        diff = i;
+      }
+    }
+    if (diff === -1) return null;
+    const ca = a[diff]!;
+    const cb = b[diff]!;
+    if (VOWELS.includes(ca) && VOWELS.includes(cb)) return "vowel";
+    if (ca === "h" || cb === "h") return "h";
+    return null;
+  }
+  const short = a.length < b.length ? a : b;
+  const long = a.length < b.length ? b : a;
+  let i = 0;
+  while (i < short.length && short[i] === long[i]) i++;
+  const inserted = long[i] ?? "";
+  if (short.slice(i) !== long.slice(i + 1)) return null;
+  if (VOWELS.includes(inserted)) return "vowel";
+  if (inserted === "h") return "h";
+  return null;
+}
+
 function hasArabic(input: string): boolean {
   return /[\u0600-\u06ff]/.test(input);
 }
@@ -142,9 +180,13 @@ function coreScore(a: string, b: string): number {
     }
   }
 
-  // Same-script spelling variants: "Bilal"/"Belal", "Umar"/"Omar".
+  // Same-script spelling variants: a vowel edit auto-selects ("Bilal"/"Belal",
+  // "Umar"/"Omar"); a silent-h variant is a candidate ("kalid"/"Khalid"), so
+  // two similar products are not silently merged.
   if (!hasArabic(a) && !hasArabic(b) && Math.min(ka.length, kb.length) >= 4) {
-    if (levenshtein(ka, kb) <= 1) return 90;
+    const kind = singleEditType(ka, kb);
+    if (kind === "vowel") return 90;
+    if (kind === "h") return 84;
   }
 
   if (ca.length >= 3 && cb.length >= 3) {

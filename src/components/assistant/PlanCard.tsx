@@ -383,7 +383,9 @@ function PlanCardImpl({
   // mapping so the next utterance resolves it without the model.
   const rememberConfirmedNames = () => {
     (["customer", "product", "supplier"] as EntityKind[]).forEach((kind) => {
-      const id = selectedId(kind);
+      // Only an EXPLICIT pick (patch id set by the dropdown/chip) is learned.
+      // A server-side auto-match must not poison the alias memory with a guess.
+      const id = patch[ENTITY_ID_KEY[kind]] as string | undefined;
       if (!id) return;
       const group = ENTITY_GROUP[kind];
       const canonical =

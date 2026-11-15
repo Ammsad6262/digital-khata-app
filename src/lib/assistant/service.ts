@@ -43,6 +43,7 @@ import type {
 import { warningKeysFromEnglish } from "./warnings";
 import { nameScore } from "./names";
 import { guardSpokenQuantity } from "./spoken-numbers";
+import { pickEntity } from "./entity-pick";
 
 // ────────────────────────────────────────────────────────────────────────────
 // Context + entity helpers
@@ -141,51 +142,33 @@ async function resolveNamed(
   if (opts.id) {
     const found =
       kind === "customer"
-        ? await prisma.customer.findFirst({ where: { id: opts.id, userId }, select: { id: true, name: true } })
+        ? await prisma.customer.findFirst({
+            where: { id: opts.id, userId, isDeleted: false },
+            select: { id: true, name: true },
+          })
         : kind === "product"
-          ? await prisma.product.findFirst({ where: { id: opts.id, userId }, select: { id: true, name: true } })
-          : await prisma.supplier.findFirst({ where: { id: opts.id, userId }, select: { id: true, name: true } });
-    if (found) return { entity: found, candidates: [] };
+          ? await prisma.product.findFirst({
+              where: { id: opts.id, userId, isDeleted: false },
+              select: { id: true, name: true },
+            })
+          : await prisma.supplier.findFirst({
+              where: { id: opts.id, userId, isDeleted: false },
+              select: { id: true, name: true },
+            });
+    // A router-supplied id is only trusted when the spoken name agrees with the
+    // record it matched; otherwise fall through to name-based disambiguation.
+    if (found && (!opts.name || nameScore(opts.name, found.name) >= 70)) {
+      return { entity: found, candidates: [] };
+    }
   }
 
   if (!opts.name) return { entity: null, candidates: [] };
 
   const scored = await scoredNamed(userId, kind, opts.name);
-  if (scored.length === 0) return { entity: null, candidates: [] };
-
-  const best = scored[0]!;
-  const second = scored[1];
-
-  // A clear strict match. If several saved names clear the bar, make the owner
-  // choose between them instead of guessing.
-  if (best.score >= 70) {
-    const strict = scored.filter((m) => m.score >= 70);
-    if (strict.length === 1) return { entity: strict[0]!.row, candidates: [] };
-    return {
-      entity: null,
-      candidates: strict
-        .slice(0, 8)
-        .map((m) => ({ id: m.row.id, name: m.row.name })),
-    };
-  }
-
-  // Near match: auto-select it when it is clearly the best ("aramony" →
-  // "Aramoni"), or when it is the only plausible record. This is the fix for
-  // "I said the name but it did not pick the customer".
-  if (best.score >= 55 && (!second || best.score - second.score >= 10)) {
-    return { entity: best.row, candidates: [] };
-  }
-  if (scored.length === 1 && best.score >= 50) {
-    return { entity: best.row, candidates: [] };
-  }
-
-  // Otherwise offer the nearest few so the card can show the real record.
+  const picked = pickEntity(scored);
   return {
-    entity: null,
-    candidates: scored
-      .filter((m) => m.score >= 40)
-      .slice(0, 5)
-      .map((m) => ({ id: m.row.id, name: m.row.name })),
+    entity: picked.entity,
+    candidates: picked.candidates.map((row) => ({ id: row.id, name: row.name })),
   };
 }
 
@@ -694,7 +677,7 @@ async function buildPlanFor(
     case "CREATE_CUSTOMER": {
       const name = (f.name ?? f.customerName ?? "").trim();
       if (name) {
-        const existing = await findNamed(userId, "customer", name, 60);
+        const existing = await findNamed(userId, "customer", name, 86);
         if (existing.length) return existingEntityReply("customer", existing, match);
       }
       payload.name = name || undefined;
@@ -716,7 +699,7 @@ async function buildPlanFor(
     case "CREATE_SUPPLIER": {
       const name = (f.name ?? f.supplierName ?? "").trim();
       if (name) {
-        const existing = await findNamed(userId, "supplier", name, 60);
+        const existing = await findNamed(userId, "supplier", name, 86);
         if (existing.length) return existingEntityReply("supplier", existing, match);
       }
       payload.name = name || undefined;
@@ -735,7 +718,7 @@ async function buildPlanFor(
     case "CREATE_PRODUCT": {
       const name = (f.name ?? f.productName ?? "").trim();
       if (name) {
-        const existing = await findNamed(userId, "product", name, 60);
+        const existing = await findNamed(userId, "product", name, 86);
         if (existing.length) return existingEntityReply("product", existing, match);
       }
       payload.name = name || undefined;

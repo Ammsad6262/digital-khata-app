@@ -32,6 +32,7 @@
     "test:assistant-product": "tsx scripts/test-assistant-product-intent.ts",
     "test:assistant-numbers": "tsx scripts/test-assistant-numbers.ts",
   "test:assistant-aliases": "tsx scripts/test-assistant-aliases.ts",
+  "test:assistant-entity-pick": "tsx scripts/test-assistant-entity-pick.ts",
     "test:audit": "tsx scripts/audit-data-integrity.ts",
     "test:e2e": "tsx scripts/test-e2e.ts",
     "test:acceptance": "tsx scripts/test-acceptance-http.ts",

@@ -60,6 +60,8 @@ const negatives: Array<[string, string]> = [
   ["Rice", "Ahmed"],
   ["Sugar", "Wheat"],
   ["dhaaga", "Daga"],
+  ["Ahad", "Ahmad"],
+  ["Daga", "Kaga"],
 ];
 for (const [a, b] of negatives) {
   ok(!namesMatch(a, b), `different names: ${a} / ${b}`, `${nameScore(a, b)}`);

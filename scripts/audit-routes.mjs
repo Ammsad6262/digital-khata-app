@@ -77,6 +77,21 @@ for (const f of files) {
   if (needsAdmin && !guards.includes("requireAdmin")) {
     status = "MISSING ADMIN GUARD";
   }
+
+  // AI is premium-only: every AI route must call requireAiAccess, not just
+  // requireUserId/requireActiveAccess. assistant/status only reports aiEnabled
+  // (no model call) so it is exempt.
+  const aiRoute =
+    /^\/api\/(assistant|smart-entry|khata-assistant|growth|insights)\b/.test(path) ||
+    /from\s+["']@\/lib\/ai\//.test(src) ||
+    /from\s+["']@\/lib\/smart-entry\//.test(src) ||
+    /from\s+["']@\/lib\/khata-assistant\//.test(src) ||
+    /from\s+["']@\/lib\/services\/growth-narration["']/.test(src);
+  if (aiRoute && !needsAdmin && path !== "/api/assistant/status" && !guards.includes("requireAiAccess")) {
+    status = "MISSING AI GUARD";
+    notes.push("AI route must call requireAiAccess");
+  }
+
   if (!isPublic && guards.length === 0) {
     status = "NO GUARD";
     notes.push("relies on middleware only");

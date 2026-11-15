@@ -247,8 +247,10 @@ export async function hasCoreAccess(userId: string): Promise<boolean> {
 }
 
 /**
- * Does this user have active premium (AI) entitlement right now? This is the
- * function the AI workstream should call before serving a premium AI feature.
+ * Lower-level check: is the time-bound/permanent PREMIUM entitlement active?
+ * NOTE: this is false for a TRIAL user. AI routes must use `hasAiAccess` /
+ * `requireAiAccess`, which allow TRIAL + PREMIUM + OWNER + AFFILIATE and deny
+ * the permanent REGULAR licence.
  */
 export async function hasPremiumAccess(userId: string): Promise<boolean> {
   return (await getEntitlement(userId)).premium.active;
@@ -258,12 +260,12 @@ export async function hasPremiumAccess(userId: string): Promise<boolean> {
  * Pure rule: which categories may use AI features (voice assistant, smart
  * entry, growth/insights narration).
  *
- * AI is a PREMIUM feature. The one-time REGULAR licence (Rs 10,000) buys
- * permanent core accounting only and must NOT reach any AI route. The free
- * trial and PREMIUM/OWNER/AFFILIATE do get AI.
+ * AI is the PREMIUM feature. The one-time REGULAR licence (Rs 10,000) and the
+ * free trial are CORE-ONLY and must not reach any AI route; PREMIUM, OWNER and
+ * AFFILIATE do. This matches docs/COMMERCIAL_LICENSING.md.
  */
 export function aiAllowed(entitlement: Entitlement): boolean {
-  return entitlement.core.active && entitlement.category !== "REGULAR";
+  return entitlement.premium.active;
 }
 
 /** Authoritative server-side check for every AI route. */

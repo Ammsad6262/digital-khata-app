@@ -29,9 +29,13 @@ purchasing, expense, backup or audit systems. The existing `User`,
 `UserSubscription`, `RedeemCode`, `RedeemCodeRedemption` and `ADMIN_SECRET`
 infrastructure is reused and extended.
 
-It **does not** modify any AI code: Voice Assistant, STT, prompts, Khata
-Assistant, premium AI tools or AI usage accounting. The entitlement service
-exposes a contract for the AI developer, but no AI feature reads it yet.
+AI features (Voice Assistant, STT, prompts, Khata Assistant, growth/insights
+narration) now enforce this contract server-side: every AI route calls
+`requireAiAccess`, which allows **PREMIUM, OWNER and AFFILIATE** only and
+rejects the **REGULAR** (Rs 10,000) licence and the **free trial** with
+`api.subscription.aiRequiresPremium`. The client hides the assistant launchers
+when `/api/assistant/status` reports `aiEnabled: false`, but that is cosmetic —
+the server check is the control.
 
 ---
 

@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
       getAssistantStatus(),
       hasAiAccess(userId),
     ]);
-    return ok({ ...status, aiEnabled });
+    return ok({ ready: status.ready, retryAt: status.retryAt, aiEnabled });
   } catch (error) {
     return fail(error);
   }

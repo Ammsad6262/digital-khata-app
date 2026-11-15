@@ -62,7 +62,8 @@ const ent = (over: Partial<NonNullable<SubscriptionSnapshot>>) =>
 
 {
   const e = ent({ coreActivatedAt: ago(1), coreExpiresAt: ahead(13) });
-  ok(e.category === "TRIAL" && aiAllowed(e), "free trial can use AI", e.category);
+  ok(e.category === "TRIAL" && e.core.active, "free trial is an active core", e.category);
+  ok(!aiAllowed(e), "free trial is core-only: no AI");
 }
 
 {

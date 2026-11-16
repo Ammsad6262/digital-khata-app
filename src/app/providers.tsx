@@ -29,6 +29,10 @@ import { KhataAssistant } from "@/components/khata-assistant/KhataAssistant";
 
 const PUBLIC_PAGES = ["/login", "/register", "/reset-password", "/admin"];
 const DASHBOARD_PATH = "/dashboard";
+// The public marketing page. It must NOT go through AuthGate: signed-out
+// visitors need to read it (that is what search engines index), and signed-in
+// owners are redirected to /dashboard by the page itself, server-side.
+const LANDING_PATH = "/";
 // Printable receipts render without the app chrome, so the paper is the page.
 const RECEIPT_PATH = /^\/sales\/[^/]+\/receipt$/;
 // Developer style guide — renders the real components with mock data.
@@ -72,6 +76,7 @@ export function Providers({
   const isPublicPage = PUBLIC_PAGES.some(
     (p) => pathname === p || pathname.startsWith(p + "/"),
   );
+  const isLandingPage = pathname === LANDING_PATH;
   const isReceiptPage = RECEIPT_PATH.test(pathname);
   const isPreviewPage = pathname === PREVIEW_PATH;
 
@@ -95,7 +100,7 @@ export function Providers({
                 {children}
                 <BottomNav />
               </Screen>
-            ) : isPublicPage ? (
+            ) : isPublicPage || isLandingPage ? (
               <Screen>{children}</Screen>
             ) : (
               <AuthGate>

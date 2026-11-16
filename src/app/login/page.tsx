@@ -129,6 +129,16 @@ export default function LoginPage() {
             t("auth.login")
           )}
         </Button>
+
+        <p className="pt-1 text-center text-xs">
+          <Link href="/terms" className="text-ink-subtle underline-offset-2 hover:underline">
+            {t("legal.termsLink")}
+          </Link>
+          <span className="px-1.5 text-ink-faint">·</span>
+          <Link href="/privacy" className="text-ink-subtle underline-offset-2 hover:underline">
+            {t("legal.privacyLink")}
+          </Link>
+        </p>
       </form>
     </AuthLayout>
   );

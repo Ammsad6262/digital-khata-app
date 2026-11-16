@@ -183,6 +183,17 @@ export default function RegisterPage() {
             t("auth.signUp")
           )}
         </Button>
+
+        <p className="pt-1 text-center text-xs text-ink-subtle">{t("auth.agreeTerms")}</p>
+        <p className="text-center text-xs">
+          <Link href="/terms" className="text-brand-600 underline-offset-2 hover:underline">
+            {t("legal.termsLink")}
+          </Link>
+          <span className="px-1.5 text-ink-faint">·</span>
+          <Link href="/privacy" className="text-brand-600 underline-offset-2 hover:underline">
+            {t("legal.privacyLink")}
+          </Link>
+        </p>
       </form>
     </AuthLayout>
   );

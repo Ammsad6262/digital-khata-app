@@ -24,7 +24,8 @@ import { NextRequest } from "next/server";
 import { verifyToken, AUTH_COOKIE_NAME } from "@/lib/services/auth";
 import { UnauthorizedError, ForbiddenError } from "@/lib/errors";
 import { hasActiveAccess } from "@/lib/services/subscription";
-import { hasAiAccess } from "@/lib/services/entitlement";
+import { aiAllowed, getEntitlement } from "@/lib/services/entitlement";
+import { type AiKeyPool, poolForCategory, setAiKeyPool } from "@/lib/ai/key-pool";
 import { setUserContext } from "@/lib/db/prisma";
 
 /**
@@ -52,7 +53,7 @@ export async function getCurrentUserId(req: NextRequest): Promise<string | null>
 // status doesn't change within 60 seconds — even if the user redeems a code,
 // the next request (after cache expiry) will see the updated status.
 const subCache = new Map<string, { active: boolean; expiresAt: number }>();
-const aiCache = new Map<string, { active: boolean; expiresAt: number }>();
+const aiCache = new Map<string, { active: boolean; pool: AiKeyPool; expiresAt: number }>();
 const SUB_CACHE_TTL_MS = 60 * 1000; // 60 seconds
 
 /**
@@ -124,14 +125,20 @@ export async function requireAiAccess(req: NextRequest): Promise<string> {
     if (!cached.active) {
       throw new ForbiddenError("api.subscription.aiRequiresPremium");
     }
+    // Bind the key pool for the rest of this request.
+    setAiKeyPool(cached.pool);
     return userId;
   }
 
-  const allowed = await hasAiAccess(userId);
-  aiCache.set(userId, { active: allowed, expiresAt: Date.now() + SUB_CACHE_TTL_MS });
+  const entitlement = await getEntitlement(userId);
+  const allowed = aiAllowed(entitlement);
+  // OWNER/AFFILIATE spend the owner key; PREMIUM/TRIAL spend the customer key.
+  const pool = poolForCategory(entitlement.category);
+  aiCache.set(userId, { active: allowed, pool, expiresAt: Date.now() + SUB_CACHE_TTL_MS });
   if (!allowed) {
     throw new ForbiddenError("api.subscription.aiRequiresPremium");
   }
+  setAiKeyPool(pool);
   return userId;
 }
 

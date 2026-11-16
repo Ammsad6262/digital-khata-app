@@ -19,6 +19,7 @@ import { requireAdmin } from "@/lib/auth/admin";
 import { ok, fail } from "@/lib/utils/api";
 import { getRotationStatus } from "@/lib/ai/model-registry";
 import { attemptTimeoutMs, deadlineMs, httpTimeoutMs } from "@/lib/ai/gemini-client";
+import { aiKeyStatus } from "@/lib/ai/key-pool";
 import { prisma } from "@/lib/db/prisma";
 
 export const dynamic = "force-dynamic";
@@ -28,7 +29,13 @@ export async function GET(req: NextRequest) {
   try {
     requireAdmin(req);
 
-    const rotation = await getRotationStatus();
+    // Both pools report their own counters so the owner can see that their
+    // testing is not consuming the customer key's daily budget.
+    const [customerRotation, ownerRotation] = await Promise.all([
+      getRotationStatus("user"),
+      getRotationStatus("owner"),
+    ]);
+    const rotation = customerRotation;
 
     let recentFailures: Array<{ action: string; error: string | null; at: string }> = [];
     try {
@@ -50,11 +57,14 @@ export async function GET(req: NextRequest) {
 
     return ok({
       rotation,
+      ownerRotation,
       config: {
         attemptTimeoutMs: attemptTimeoutMs(),
         deadlineMs: deadlineMs(),
         httpTimeoutMs: httpTimeoutMs(),
-        apiKeyConfigured: Boolean(process.env.GEMINI_API_KEY),
+        // Booleans only — never the key values.
+        keys: aiKeyStatus(),
+        apiKeyConfigured: aiKeyStatus().user,
       },
       recentFailures,
     });

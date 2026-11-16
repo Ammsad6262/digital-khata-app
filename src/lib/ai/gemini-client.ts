@@ -21,8 +21,14 @@
 
 import { GoogleGenAI } from "@google/genai";
 import { runWithRotation } from "./model-registry";
+import {
+  type AiKeyPool,
+  apiKeyForPool,
+  currentAiKeyPool,
+  hasDedicatedOwnerKey,
+} from "./key-pool";
 
-let client: GoogleGenAI | null = null;
+const clients = new Map<AiKeyPool, GoogleGenAI>();
 
 export class AIUnavailableError extends Error {
   constructor(message: string) {
@@ -67,24 +73,35 @@ export function httpTimeoutMs(): number {
   return Math.max(10_000, envInt("GEMINI_HTTP_TIMEOUT_MS", 30_000));
 }
 
-export function getGeminiClient(): GoogleGenAI {
-  if (client) return client;
-  const apiKey = process.env.GEMINI_API_KEY;
+export function getGeminiClient(pool: AiKeyPool = currentAiKeyPool()): GoogleGenAI {
+  const cached = clients.get(pool);
+  if (cached) return cached;
+  const apiKey = apiKeyForPool(pool);
   if (!apiKey) {
     throw new AIUnavailableError(
       "GEMINI_API_KEY is not configured. Set it in .env to enable the AI assistant.",
     );
   }
-  client = new GoogleGenAI({
+  if (pool === "owner" && !hasDedicatedOwnerKey()) {
+    console.warn(
+      "[ai] GEMINI_OWNER_API_KEY is not set — owner/affiliate requests are using the customer key.",
+    );
+  }
+  const instance = new GoogleGenAI({
     apiKey,
     httpOptions: { timeout: httpTimeoutMs() },
   });
-  return client;
+  clients.set(pool, instance);
+  return instance;
 }
 
-/** Test-only: inject/replace the SDK client. */
-export function _setGeminiClientForTesting(value: GoogleGenAI | null): void {
-  client = value;
+/** Test-only: inject/replace the SDK client for a pool. */
+export function _setGeminiClientForTesting(
+  value: GoogleGenAI | null,
+  pool: AiKeyPool = "user",
+): void {
+  if (value) clients.set(pool, value);
+  else clients.delete(pool);
 }
 
 /**
@@ -148,12 +165,15 @@ export type GenerateOptions<T> = {
   timeoutMs?: number;
   /** Override the whole-call deadline (ms). */
   deadlineLimitMs?: number;
+  /** Which API key pool to spend from. Defaults to the request's pool. */
+  pool?: AiKeyPool;
 };
 
 export async function generateStructured<T>(
   options: GenerateOptions<T>,
 ): Promise<{ value: T; model: string; attempts: number; ms: number }> {
-  const genai = getGeminiClient();
+  const pool = options.pool ?? currentAiKeyPool();
+  const genai = getGeminiClient(pool);
   const started = Date.now();
   const tag = options.requestTag ?? "ai";
   let selectedModel = "";
@@ -168,9 +188,10 @@ export async function generateStructured<T>(
     preferredId: options.preferredId,
     maxOutputRetries: options.maxOutputRetries,
     deadlineAt,
+    pool,
     onModelSelected: (model) => {
       selectedModel = model;
-      console.log(`[${tag}] calling ${model}`);
+      console.log(`[${tag}] calling ${model} (pool=${pool})`);
     },
     operation: async (model) => {
       const remaining = deadlineAt - Date.now();
@@ -248,6 +269,8 @@ export type GenerateTextOptions = {
   temperature?: number;
   maxOutputTokens?: number;
   requestTag?: string;
+  /** Which API key pool to spend from. Defaults to the request's pool. */
+  pool?: AiKeyPool;
 };
 
 /**
@@ -261,7 +284,8 @@ export type GenerateTextOptions = {
 export async function generateText(
   options: GenerateTextOptions,
 ): Promise<{ text: string; model: string; attempts: number; ms: number }> {
-  const genai = getGeminiClient();
+  const pool = options.pool ?? currentAiKeyPool();
+  const genai = getGeminiClient(pool);
   const started = Date.now();
   const tag = options.requestTag ?? "ai:text";
   const perAttempt = attemptTimeoutMs();
@@ -270,6 +294,7 @@ export async function generateText(
 
   const result = await runWithRotation({
     deadlineAt,
+    pool,
     operation: async (model) => {
       const remaining = deadlineAt - Date.now();
       if (remaining <= 250) {

@@ -22,6 +22,7 @@ import {
   getGeminiClient,
   AIUnavailableError,
 } from "@/lib/ai/gemini-client";
+import { apiKeyForPool } from "@/lib/ai/key-pool";
 
 export { AIUnavailableError };
 
@@ -235,8 +236,8 @@ export class GeminiProvider implements AIProvider {
         "GEMINI_API_KEY is not set. Smart Khata Entry cannot function.",
       );
     }
-    // Ensure the SDK client exists even if the caller passes a key directly.
-    if (!process.env.GEMINI_API_KEY) process.env.GEMINI_API_KEY = apiKey;
+    // The key pool is resolved per request inside generateStructured(), so this
+    // only validates configuration up front.
     getGeminiClient();
   }
 
@@ -290,7 +291,7 @@ let _provider: GeminiProvider | null = null;
 
 export function getAIProvider(): GeminiProvider {
   if (_provider) return _provider;
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = apiKeyForPool("user");
   if (!apiKey) {
     throw new AIUnavailableError(
       "GEMINI_API_KEY is not configured. Set it in .env to enable Smart Khata Entry.",

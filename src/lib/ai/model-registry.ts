@@ -24,6 +24,7 @@
 
 import { prisma } from "@/lib/db/prisma";
 import { dateStringInTz } from "@/lib/utils/date";
+import { type AiKeyPool, usageKeyFor } from "./key-pool";
 
 export type ModelConfig = {
   id: string;
@@ -189,8 +190,12 @@ export type UsageRow = {
 const memory = new Map<string, UsageRow>();
 let dbUnavailable = false;
 
-function memKey(day: string, model: string) {
-  return `${day}::${model}`;
+/**
+ * Memory/DB key for one model's daily row. Pool-prefixed: the owner key and the
+ * customer key have separate quotas, so their counters must not be shared.
+ */
+function storeKey(day: string, pool: AiKeyPool, model: string) {
+  return `${day}::${usageKeyFor(pool, model)}`;
 }
 
 function emptyRow(day: string, model: string): UsageRow {
@@ -211,16 +216,17 @@ function isMissingTable(error: unknown): boolean {
   return code === "P2021" || code === "P2022" || /does not exist in the current database/i.test(String(error));
 }
 
-async function readRow(day: string, model: string): Promise<UsageRow> {
+async function readRow(day: string, model: string, pool: AiKeyPool = "user"): Promise<UsageRow> {
+  const key = usageKeyFor(pool, model);
   if (!dbUnavailable) {
     try {
       const row = await prisma.aIUsageDaily.findUnique({
-        where: { day_model: { day, model } },
+        where: { day_model: { day, model: key } },
       });
       if (row) {
         const result: UsageRow = {
           day: row.day,
-          model: row.model,
+          model,
           attempts: row.attempts,
           successes: row.successes,
           rateLimited: row.rateLimited,
@@ -228,7 +234,7 @@ async function readRow(day: string, model: string): Promise<UsageRow> {
           cooldownUntil: row.cooldownUntil,
           lastError: row.lastError,
         };
-        memory.set(memKey(day, model), result);
+        memory.set(storeKey(day, pool, model), result);
         return result;
       }
       return emptyRow(day, model);
@@ -241,18 +247,19 @@ async function readRow(day: string, model: string): Promise<UsageRow> {
       }
     }
   }
-  return memory.get(memKey(day, model)) ?? emptyRow(day, model);
+  return memory.get(storeKey(day, pool, model)) ?? emptyRow(day, model);
 }
 
-async function writeRow(row: UsageRow): Promise<void> {
-  memory.set(memKey(row.day, row.model), row);
+async function writeRow(row: UsageRow, pool: AiKeyPool = "user"): Promise<void> {
+  memory.set(storeKey(row.day, pool, row.model), row);
   if (dbUnavailable) return;
+  const key = usageKeyFor(pool, row.model);
   try {
     await prisma.aIUsageDaily.upsert({
-      where: { day_model: { day: row.day, model: row.model } },
+      where: { day_model: { day: row.day, model: key } },
       create: {
         day: row.day,
-        model: row.model,
+        model: key,
         attempts: row.attempts,
         successes: row.successes,
         rateLimited: row.rateLimited,
@@ -291,11 +298,14 @@ export type UsableModel = ModelConfig & {
 };
 
 /** Models that may be called right now, in preference order. */
-export async function getUsableModels(preferredId?: string): Promise<UsableModel[]> {
+export async function getUsableModels(
+  preferredId?: string,
+  pool: AiKeyPool = "user",
+): Promise<UsableModel[]> {
   const chain = getModelChain();
   const day = currentDay();
   const now = Date.now();
-  const rows = await Promise.all(chain.map((m) => readRow(day, m.id)));
+  const rows = await Promise.all(chain.map((m) => readRow(day, m.id, pool)));
 
   const usable: UsableModel[] = [];
   chain.forEach((config, index) => {
@@ -320,32 +330,36 @@ export async function getUsableModels(preferredId?: string): Promise<UsableModel
   return usable;
 }
 
-export async function markAttempt(model: string): Promise<void> {
+export async function markAttempt(model: string, pool: AiKeyPool = "user"): Promise<void> {
   const day = currentDay();
-  const row = await readRow(day, model);
+  const row = await readRow(day, model, pool);
   row.attempts += 1;
-  await writeRow(row);
+  await writeRow(row, pool);
 }
 
 /** A 429 did not consume provider budget — give the attempt back. */
-async function refundAttempt(model: string): Promise<void> {
+async function refundAttempt(model: string, pool: AiKeyPool = "user"): Promise<void> {
   const day = currentDay();
-  const row = await readRow(day, model);
+  const row = await readRow(day, model, pool);
   row.attempts = Math.max(0, row.attempts - 1);
-  await writeRow(row);
+  await writeRow(row, pool);
 }
 
-export async function markSuccess(model: string): Promise<void> {
+export async function markSuccess(model: string, pool: AiKeyPool = "user"): Promise<void> {
   const day = currentDay();
-  const row = await readRow(day, model);
+  const row = await readRow(day, model, pool);
   row.successes += 1;
   row.cooldownUntil = null;
-  await writeRow(row);
+  await writeRow(row, pool);
 }
 
-export async function markRateLimited(model: string, failure: ClassifiedFailure): Promise<void> {
+export async function markRateLimited(
+  model: string,
+  failure: ClassifiedFailure,
+  pool: AiKeyPool = "user",
+): Promise<void> {
   const day = currentDay();
-  const row = await readRow(day, model);
+  const row = await readRow(day, model, pool);
   row.rateLimited += 1;
   row.lastError = failure.message.slice(0, 500);
 
@@ -355,25 +369,30 @@ export async function markRateLimited(model: string, failure: ClassifiedFailure)
     row.attempts = Math.max(row.attempts, limit);
     row.cooldownUntil = null;
   } else {
-    await refundAttempt(model);
+    await refundAttempt(model, pool);
     row.cooldownUntil = new Date(Date.now() + failure.cooldownMs);
   }
-  await writeRow(row);
+  await writeRow(row, pool);
 }
 
-export async function markFailure(model: string, failure: ClassifiedFailure): Promise<void> {
+export async function markFailure(
+  model: string,
+  failure: ClassifiedFailure,
+  pool: AiKeyPool = "user",
+): Promise<void> {
   const day = currentDay();
-  const row = await readRow(day, model);
+  const row = await readRow(day, model, pool);
   row.failures += 1;
   row.lastError = failure.message.slice(0, 500);
   if (failure.cooldownMs > 0) {
     row.cooldownUntil = new Date(Date.now() + failure.cooldownMs);
   }
-  await writeRow(row);
+  await writeRow(row, pool);
 }
 
 export type RotationStatus = {
   day: string;
+  pool: AiKeyPool;
   models: Array<{
     id: string;
     used: number;
@@ -385,10 +404,10 @@ export type RotationStatus = {
   total: { used: number; limit: number; remaining: number };
 };
 
-export async function getRotationStatus(): Promise<RotationStatus> {
+export async function getRotationStatus(pool: AiKeyPool = "user"): Promise<RotationStatus> {
   const day = currentDay();
   const chain = getModelChain();
-  const rows = await Promise.all(chain.map((m) => readRow(day, m.id)));
+  const rows = await Promise.all(chain.map((m) => readRow(day, m.id, pool)));
   const now = Date.now();
 
   const models = chain.map((config, index) => {
@@ -406,6 +425,7 @@ export async function getRotationStatus(): Promise<RotationStatus> {
 
   return {
     day,
+    pool,
     models,
     total: {
       used: models.reduce((s, m) => s + m.used, 0),
@@ -428,10 +448,10 @@ export class AIExhaustedError extends Error {
   }
 }
 
-async function nextRetryAt(): Promise<Date | null> {
+async function nextRetryAt(pool: AiKeyPool = "user"): Promise<Date | null> {
   const day = currentDay();
   const chain = getModelChain();
-  const rows = await Promise.all(chain.map((m) => readRow(day, m.id)));
+  const rows = await Promise.all(chain.map((m) => readRow(day, m.id, pool)));
   const now = Date.now();
   const candidates: number[] = [];
 
@@ -474,13 +494,16 @@ export async function runWithRotation<T>(options: {
    * a fast, honest timeout instead of waiting on another model.
    */
   deadlineAt?: number;
+  /** Which API key pool's daily budget this call spends from. */
+  pool?: AiKeyPool;
 }): Promise<{ value: T; model: string; attempts: number }> {
   const { operation, preferredId, onModelSelected, deadlineAt } = options;
+  const pool: AiKeyPool = options.pool ?? "user";
   const maxOutputRetries = options.maxOutputRetries ?? 1;
 
-  const usable = await getUsableModels(preferredId);
+  const usable = await getUsableModels(preferredId, pool);
   if (usable.length === 0) {
-    const retryAt = await nextRetryAt();
+    const retryAt = await nextRetryAt(pool);
     throw new AIExhaustedError(
       "All AI models are temporarily unavailable or have reached today's request limit.",
       retryAt,
@@ -499,40 +522,40 @@ export async function runWithRotation<T>(options: {
       break;
     }
     attempts += 1;
-    await markAttempt(candidate.id);
+    await markAttempt(candidate.id, pool);
     onModelSelected?.(candidate.id);
 
     try {
       const value = await operation(candidate.id);
-      await markSuccess(candidate.id);
+      await markSuccess(candidate.id, pool);
       return { value, model: candidate.id, attempts };
     } catch (error) {
       lastError = error;
       const failure = classifyGeminiError(error);
 
       if (failure.kind === "rate_limit") {
-        await markRateLimited(candidate.id, failure);
+        await markRateLimited(candidate.id, failure, pool);
         continue;
       }
       if (failure.kind === "transient") {
-        await markFailure(candidate.id, failure);
+        await markFailure(candidate.id, failure, pool);
         continue;
       }
       if (failure.kind === "deterministic") {
         // Our parser rejected the output: one different model may behave
         // better, but never burn the whole chain on it.
-        await markFailure(candidate.id, failure);
+        await markFailure(candidate.id, failure, pool);
         outputRetries += 1;
         if (outputRetries > maxOutputRetries) break;
         continue;
       }
       // Auth problems affect the key, not the model — stop.
-      await markFailure(candidate.id, failure);
+      await markFailure(candidate.id, failure, pool);
       break;
     }
   }
 
-  const retryAt = await nextRetryAt();
+  const retryAt = await nextRetryAt(pool);
 
   const timedOut =
     deadlineHit || (lastError as { name?: string } | null)?.name === "AITimeoutError";

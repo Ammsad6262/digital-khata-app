@@ -1,11 +1,13 @@
 "use client";
 import Link from "next/link";
-import { Lock, MessageCircle, KeyRound } from "lucide-react";
+import { Lock, MessageCircle, KeyRound, LogOut } from "lucide-react";
 import { getWhatsAppLink, getDefaultWhatsAppMessage, WHATSAPP_NUMBER_DISPLAY } from "@/lib/utils/whatsapp";
 import { useLanguage } from "@/providers/language-provider";
+import { useLogout } from "@/hooks/use-auth";
 
 export function ExpiredAccessScreen() {
   const { t } = useLanguage();
+  const logout = useLogout();
   return (
     <div className="flex min-h-[100dvh] items-center justify-center bg-app p-4">
       <div className="w-full max-w-sm space-y-6 text-center">
@@ -35,6 +37,26 @@ export function ExpiredAccessScreen() {
           <KeyRound className="h-5 w-5" />{t("subscription.enterCode")}
         </Link>
         <p className="text-xs text-ink-faint">{t("subscription.enterActivationCode")}</p>
+
+        {/* Without this, an owner whose trial ended had no way to leave the
+            screen: no sign out, and no route back to the public site. */}
+        <div className="space-y-2 border-t border-line pt-5">
+          <button
+            type="button"
+            onClick={() => logout.mutate()}
+            disabled={logout.isPending}
+            className="mx-auto flex items-center justify-center gap-2 rounded-control px-3 py-2 text-xs font-semibold text-ink-subtle transition-colors hover:text-ink disabled:opacity-60"
+          >
+            <LogOut className="h-3.5 w-3.5" />
+            {t("auth.logout")}
+          </button>
+          <Link
+            href="/"
+            className="block text-xs text-ink-faint underline-offset-2 hover:text-ink-subtle hover:underline"
+          >
+            Dukhata
+          </Link>
+        </div>
       </div>
     </div>
   );

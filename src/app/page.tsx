@@ -139,8 +139,11 @@ export default async function HomePage() {
     "@context": "https://schema.org",
     "@type": "Organization",
     name: "Dukhata",
+    alternateName: ["Dukhata app", "Dukhata digital khata", "Dukhata khata app"],
     url: "https://dukhata.com/",
     logo: "https://dukhata.com/icon-512.png",
+    description:
+      "Dukhata is a digital khata app for shops in Pakistan: record sales, udhaar, payments, stock and expenses, with voice entry in Urdu and Roman Urdu.",
     contactPoint: {
       "@type": "ContactPoint",
       contactType: "customer support",
@@ -149,9 +152,23 @@ export default async function HomePage() {
     },
   };
 
+  // Tells Google the site itself is "Dukhata", which is what a brand search
+  // ("dukhata") has to resolve to. alternateName carries the near-spellings
+  // people actually type.
+  const siteSchema = {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    name: "Dukhata",
+    alternateName: ["Dukhata app", "Dukhata khata", "dukhata.com"],
+    url: "https://dukhata.com/",
+    inLanguage: ["en", "ur"],
+    publisher: { "@type": "Organization", name: "Dukhata", url: "https://dukhata.com/" },
+  };
+
   return (
     <main className="mx-auto w-full max-w-3xl px-5 pb-16 pt-6">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(orgSchema) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(siteSchema) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(appSchema) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }} />
 
@@ -167,7 +184,7 @@ export default async function HomePage() {
 
       <section className="mt-10">
         <h1 className="text-3xl font-semibold leading-tight tracking-[-0.02em] text-ink sm:text-4xl">
-          The digital khata app for Pakistani shops
+          Dukhata — the digital khata app for Pakistani shops
         </h1>
         <p className="mt-4 text-base leading-relaxed text-ink-muted">
           Dukhata keeps your shop&apos;s khata on your phone. Record a sale, an udhaar or a payment in

@@ -65,6 +65,14 @@ export const metadata: Metadata = {
     "اردو کھاتہ ایپ",
   ],
   category: "business",
+  // Set GOOGLE_SITE_VERIFICATION (and BING_SITE_VERIFICATION) in Vercel to
+  // complete Search Console / Bing Webmaster verification without a code change.
+  verification: {
+    google: process.env.GOOGLE_SITE_VERIFICATION,
+    other: process.env.BING_SITE_VERIFICATION
+      ? { "msvalidate.01": process.env.BING_SITE_VERIFICATION }
+      : undefined,
+  },
   robots: {
     index: true,
     follow: true,

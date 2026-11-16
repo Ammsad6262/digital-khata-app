@@ -14,9 +14,9 @@
 
 export const OPERATOR = {
   /** The business or person customers are contracting with. */
-  legalName: "Attendas",
-  /** A mailbox you actually read. See docs/legal/COMPLIANCE_CHECKLIST.md. */
-  contactEmail: "support@dukhata.com",
+  legalName: "Dukhata",
+  /** Support address, confirmed by the owner. */
+  contactEmail: "dukhata.app@gmail.com",
   /** City whose courts hear disputes. */
   city: "Karachi",
   country: "Pakistan",

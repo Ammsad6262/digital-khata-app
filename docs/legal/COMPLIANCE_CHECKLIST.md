@@ -17,30 +17,19 @@ The text lives in `src/content/legal.ts` and is rendered by
 `src/components/legal/LegalPageView.tsx`. Edit the strings there; the pages
 update on the next deploy.
 
-## Operator details (pre-filled — check these three)
+## Operator details (confirmed by the owner)
 
-They live in one block at the top of `src/content/legal.ts` (`OPERATOR`). I filled
-them from what I could see in the project; confirm or correct each one:
+They live in one block at the top of `src/content/legal.ts` (`OPERATOR`):
 
-| Value | Currently set to | Why | Action |
-| --- | --- | --- | --- |
-| `legalName` | **Attendas** | Taken from the `attendas.pk@gmail.com` account created on the site. | Change if that is not the business customers contract with. |
-| `contactEmail` | **support@dukhata.com** | Matches the domain and reads professionally. | **Must be set up** — see below. |
-| `city` | **Karachi** | Governing-law city. | Change to your city if needed. |
-| `country` | Pakistan | | |
+| Value | Set to | Notes |
+| --- | --- | --- |
+| `legalName` | **Dukhata** | Confirmed by the owner. |
+| `contactEmail` | **dukhata.app@gmail.com** | Confirmed by the owner; a working mailbox, so no forwarding setup is needed. |
+| `city` | **Karachi** | Governing-law city. Change if you would rather use another city. |
+| `country` | Pakistan | |
 
-### Set up support@dukhata.com (2 minutes, do this first)
-
-Your domain already has Namecheap email forwarding (the `eforward` MX records),
-so no new mailbox is needed:
-
-1. Namecheap -> Domain List -> `dukhata.com` -> **Manage**
-2. Open the **Mail Settings** tab (or "Email Forwarding")
-3. Add a forwarding rule: `support@dukhata.com` -> your Gmail
-4. Save
-
-Until that exists, the address published in the policies will not receive mail.
-Prefer a different address? Change `contactEmail` in `src/content/legal.ts`.
+No email forwarding or mailbox setup is required: the published address is a real
+Gmail account.
 
 Do **not** invent a postal address. If a lawyer or a payment provider later asks
 for one, add it to the same `OPERATOR` block.
@@ -80,20 +69,19 @@ Mumbai `ap-south-1`), Google (Gemini API).
 
 ## Still to do before launch
 
-1. **Fill the placeholders** above and redeploy.
-2. **Google Play Data Safety form**: declare account data (name, email) and
+1. **Google Play Data Safety form**: declare account data (name, email) and
    "app activity" (page views via analytics), state that data is encrypted in
    transit, and give the `/delete-account` URL for deletion requests.
-3. **Processor agreements**: Supabase, Vercel and Google each publish standard
+2. **Processor agreements**: Supabase, Vercel and Google each publish standard
    data-processing terms. Accept or download them so you can show a lawful basis
    for processing if asked.
-4. **Customer data requests**: your customers are not Dukhata users. Add the
+3. **Customer data requests**: your customers are not Dukhata users. Add the
    sentence in `/privacy` section 1 to your own shop policy so they know to ask
    you, not us.
-5. **Payments**: if you accept card payments, your gateway will require the
+4. **Payments**: if you accept card payments, your gateway will require the
    Terms, Privacy Policy and Refund Policy URLs. They are ready for that.
-6. **Business registration and tax**: invoicing for licence sales is a separate
+5. **Business registration and tax**: invoicing for licence sales is a separate
    legal and tax question — confirm with your accountant.
-7. **Trademark**: consider registering "Dukhata" if you will invest in the brand.
-8. **Lawyer review**: one review pass before launch, and again if you start
+6. **Trademark**: consider registering "Dukhata" if you will invest in the brand.
+7. **Lawyer review**: one review pass before launch, and again if you start
    serving customers outside Pakistan (GDPR/CCPA would then apply).

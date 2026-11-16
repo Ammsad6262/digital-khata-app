@@ -178,10 +178,12 @@ export default function RegisterPage() {
         </div>
 
         <div className="space-y-1.5">
-          <div
+          <label
+            htmlFor="agree-terms"
             onAnimationEnd={() => setShake(false)}
             className={cn(
-              "flex items-start gap-2.5 rounded-control border bg-surface p-3 transition-colors",
+              "flex cursor-pointer items-start gap-2.5 rounded-control border bg-surface p-3 transition-colors",
+              "focus-within:ring-2 focus-within:ring-brand-500/40 focus-within:ring-offset-2 focus-within:ring-offset-app",
               agreedError ? "border-danger" : "border-line",
               shake && "animate-shake",
             )}
@@ -198,14 +200,13 @@ export default function RegisterPage() {
               }}
               aria-invalid={agreedError}
               aria-describedby={agreedError ? "agree-terms-error" : undefined}
-              className="peer sr-only"
+              className="sr-only"
             />
             <span
               aria-hidden="true"
               className={cn(
                 "mt-0.5 flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded border",
                 "transition-colors duration-150 ease-out",
-                "peer-focus-visible:ring-2 peer-focus-visible:ring-brand-500/50 peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-app",
                 agreed
                   ? "border-brand-600 bg-brand-600 text-white"
                   : cn("bg-surface", agreedError ? "border-danger" : "border-line-strong"),
@@ -219,15 +220,11 @@ export default function RegisterPage() {
                 strokeWidth={3}
               />
             </span>
-            <label
-              htmlFor="agree-terms"
-              className="cursor-pointer text-[13px] font-medium leading-snug text-ink-muted"
-            >
+            <span className="text-[13px] font-medium leading-snug text-ink-muted">
               {t("auth.agreePrefix")}{" "}
               <Link
                 href="/terms"
                 className="text-brand-600 underline-offset-2 hover:underline"
-                onClick={(e) => e.stopPropagation()}
               >
                 {t("legal.termsLink")}
               </Link>{" "}
@@ -235,13 +232,12 @@ export default function RegisterPage() {
               <Link
                 href="/privacy"
                 className="text-brand-600 underline-offset-2 hover:underline"
-                onClick={(e) => e.stopPropagation()}
               >
                 {t("legal.privacyLink")}
               </Link>
               {t("auth.agreeSuffix")}
-            </label>
-          </div>
+            </span>
+          </label>
           {agreedError ? (
             <p
               id="agree-terms-error"

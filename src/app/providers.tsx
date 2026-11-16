@@ -29,10 +29,17 @@ import { KhataAssistant } from "@/components/khata-assistant/KhataAssistant";
 
 const PUBLIC_PAGES = ["/login", "/register", "/reset-password", "/admin"];
 const DASHBOARD_PATH = "/dashboard";
-// The public marketing page. It must NOT go through AuthGate: signed-out
-// visitors need to read it (that is what search engines index), and signed-in
-// owners are redirected to /dashboard by the page itself, server-side.
-const LANDING_PATH = "/";
+// The public marketing pages. They must NOT go through AuthGate: signed-out
+// visitors need to read them (that is what search engines index), and signed-in
+// owners are redirected to /dashboard by the page itself, server-side. They also
+// render OUTSIDE the app's phone-width shell, so the marketing layout can use the
+// full viewport instead of being boxed into a device column.
+const MARKETING_PAGES = ["/", "/about", "/contact"];
+// Public legal documents. They MUST render signed-out: app-store reviewers and
+// payment providers fetch these URLs without an account, and search engines
+// index them. Behind AuthGate they redirected to /login after hydration, which
+// made them unreadable to both.
+const DOCUMENT_PAGES = ["/privacy", "/terms", "/refund-policy", "/delete-account"];
 // Printable receipts render without the app chrome, so the paper is the page.
 const RECEIPT_PATH = /^\/sales\/[^/]+\/receipt$/;
 // Developer style guide — renders the real components with mock data.
@@ -76,7 +83,8 @@ export function Providers({
   const isPublicPage = PUBLIC_PAGES.some(
     (p) => pathname === p || pathname.startsWith(p + "/"),
   );
-  const isLandingPage = pathname === LANDING_PATH;
+  const isLandingPage = MARKETING_PAGES.includes(pathname);
+  const isDocumentPage = DOCUMENT_PAGES.includes(pathname);
   const isReceiptPage = RECEIPT_PATH.test(pathname);
   const isPreviewPage = pathname === PREVIEW_PATH;
 
@@ -100,8 +108,13 @@ export function Providers({
                 {children}
                 <BottomNav />
               </Screen>
-            ) : isPublicPage || isLandingPage ? (
+            ) : isPublicPage ? (
               <Screen>{children}</Screen>
+            ) : isDocumentPage ? (
+              <Screen>{children}</Screen>
+            ) : isLandingPage ? (
+              // Marketing pages render full-width with their own chrome.
+              <>{children}</>
             ) : (
               <AuthGate>
                 {isReceiptPage ? (

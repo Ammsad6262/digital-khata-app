@@ -542,6 +542,12 @@
     text-wrap: balance;
   }
 
+  /* Force the Urdu face on a block even when the document language is English
+     (e.g. the Urdu section on the public marketing page). */
+  .font-urdu {
+    font-family: var(--font-urdu), "Noto Naskh Arabic", "Noto Nastaliq Urdu", serif;
+  }
+
   .no-scrollbar {
     -ms-overflow-style: none;
     scrollbar-width: none;

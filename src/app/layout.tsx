@@ -45,8 +45,49 @@ const urduFont = Noto_Naskh_Arabic({
 });
 
 export const metadata: Metadata = {
-  title: "Dukhata",
-  description: "Digital khata & wholesale business management",
+  metadataBase: new URL("https://dukhata.com"),
+  title: {
+    default: "Dukhata — digital khata app for Pakistani shops",
+    template: "%s · Dukhata",
+  },
+  description:
+    "Record sales, udhaar and payments in seconds. Dukhata is a simple digital khata app for kiryana, wholesale and general stores in Pakistan. Free 14-day trial.",
+  applicationName: "Dukhata",
+  keywords: [
+    "digital khata",
+    "khata app",
+    "udhaar khata",
+    "khata book Pakistan",
+    "shop ledger app",
+    "customer balance app",
+    "kiryana store app",
+    "wholesale business management",
+    "اردو کھاتہ ایپ",
+  ],
+  category: "business",
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: { index: true, follow: true },
+  },
+  alternates: { canonical: "/" },
+  openGraph: {
+    type: "website",
+    siteName: "Dukhata",
+    locale: "en_PK",
+    url: "/",
+    title: "Dukhata — digital khata app for Pakistani shops",
+    description:
+      "Record sales, udhaar and payments in seconds, by typing or speaking in Urdu. Free 14-day trial.",
+    images: [{ url: "/icon-512.png", width: 512, height: 512, alt: "Dukhata" }],
+  },
+  twitter: {
+    card: "summary",
+    title: "Dukhata — digital khata app for Pakistani shops",
+    description:
+      "Record sales, udhaar and payments in seconds, by typing or speaking in Urdu. Free 14-day trial.",
+    images: ["/icon-512.png"],
+  },
   manifest: "/manifest.json",
   icons: {
     icon: [

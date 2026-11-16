@@ -8,10 +8,10 @@
  * Has a link to /login for existing users.
  */
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { User, Mail, Lock, Loader2, AlertCircle } from "lucide-react";
+import { User, Mail, Lock, Loader2, AlertCircle, Check } from "lucide-react";
 import { AuthLayout } from "@/components/auth/AuthLayout";
 import { TextField } from "@/components/ui/TextField";
 import { Button } from "@/components/ui/Button";
@@ -30,6 +30,10 @@ export default function RegisterPage() {
   const [plan, setPlan] = useState<"trial" | "paid">("trial");
   const [isPending, setIsPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [agreed, setAgreed] = useState(false);
+  const [agreedError, setAgreedError] = useState(false);
+  const [shake, setShake] = useState(false);
+  const agreeRef = useRef<HTMLInputElement>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,6 +46,13 @@ export default function RegisterPage() {
 
     if (password.length < 8) {
       setError(t("auth.passwordTooShort"));
+      return;
+    }
+
+    if (!agreed) {
+      setAgreedError(true);
+      setShake(true);
+      agreeRef.current?.focus();
       return;
     }
 
@@ -166,6 +177,82 @@ export default function RegisterPage() {
           </div>
         </div>
 
+        <div className="space-y-1.5">
+          <div
+            onAnimationEnd={() => setShake(false)}
+            className={cn(
+              "flex items-start gap-2.5 rounded-control border bg-surface p-3 transition-colors",
+              agreedError ? "border-danger" : "border-line",
+              shake && "animate-shake",
+            )}
+          >
+            <input
+              ref={agreeRef}
+              id="agree-terms"
+              name="agreeTerms"
+              type="checkbox"
+              checked={agreed}
+              onChange={(e) => {
+                setAgreed(e.target.checked);
+                if (e.target.checked) setAgreedError(false);
+              }}
+              aria-invalid={agreedError}
+              aria-describedby={agreedError ? "agree-terms-error" : undefined}
+              className="peer sr-only"
+            />
+            <span
+              aria-hidden="true"
+              className={cn(
+                "mt-0.5 flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded border",
+                "transition-colors duration-150 ease-out",
+                "peer-focus-visible:ring-2 peer-focus-visible:ring-brand-500/50 peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-app",
+                agreed
+                  ? "border-brand-600 bg-brand-600 text-white"
+                  : cn("bg-surface", agreedError ? "border-danger" : "border-line-strong"),
+              )}
+            >
+              <Check
+                className={cn(
+                  "h-3 w-3 transition-transform duration-200 ease-out",
+                  agreed ? "scale-100" : "scale-0",
+                )}
+                strokeWidth={3}
+              />
+            </span>
+            <label
+              htmlFor="agree-terms"
+              className="cursor-pointer text-[13px] font-medium leading-snug text-ink-muted"
+            >
+              {t("auth.agreePrefix")}{" "}
+              <Link
+                href="/terms"
+                className="text-brand-600 underline-offset-2 hover:underline"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {t("legal.termsLink")}
+              </Link>{" "}
+              {t("auth.agreeAnd")}{" "}
+              <Link
+                href="/privacy"
+                className="text-brand-600 underline-offset-2 hover:underline"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {t("legal.privacyLink")}
+              </Link>
+              {t("auth.agreeSuffix")}
+            </label>
+          </div>
+          {agreedError ? (
+            <p
+              id="agree-terms-error"
+              role="alert"
+              className="text-xs font-medium text-danger"
+            >
+              {t("auth.agreeRequired")}
+            </p>
+          ) : null}
+        </div>
+
         <Button
           type="submit"
           size="lg"
@@ -183,17 +270,6 @@ export default function RegisterPage() {
             t("auth.signUp")
           )}
         </Button>
-
-        <p className="pt-1 text-center text-xs text-ink-subtle">{t("auth.agreeTerms")}</p>
-        <p className="text-center text-xs">
-          <Link href="/terms" className="text-brand-600 underline-offset-2 hover:underline">
-            {t("legal.termsLink")}
-          </Link>
-          <span className="px-1.5 text-ink-faint">·</span>
-          <Link href="/privacy" className="text-brand-600 underline-offset-2 hover:underline">
-            {t("legal.privacyLink")}
-          </Link>
-        </p>
       </form>
     </AuthLayout>
   );

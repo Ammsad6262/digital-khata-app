@@ -126,6 +126,13 @@ const config: Config = {
           from: { transform: "translateY(100%)" },
           to: { transform: "translateY(0)" },
         },
+        shake: {
+          "0%, 100%": { transform: "translateX(0)" },
+          "20%": { transform: "translateX(-4px)" },
+          "40%": { transform: "translateX(4px)" },
+          "60%": { transform: "translateX(-3px)" },
+          "80%": { transform: "translateX(2px)" },
+        },
       },
       animation: {
         "rise-in": "rise-in .38s cubic-bezier(.2,.8,.2,1) both",
@@ -133,6 +140,7 @@ const config: Config = {
         "pop-in": "pop-in .18s ease-out both",
         shimmer: "shimmer 1.6s linear infinite",
         "slide-up": "slide-up .26s cubic-bezier(.2,.8,.2,1) both",
+        shake: "shake .4s cubic-bezier(.36,.07,.19,.97) both",
       },
       maxWidth: {
         app: "480px",

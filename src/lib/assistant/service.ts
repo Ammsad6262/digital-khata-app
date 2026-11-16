@@ -19,6 +19,7 @@ import { getSettings } from "@/lib/services/settings";
 import { formatMoney } from "@/lib/utils/money";
 import { AIExhaustedError } from "@/lib/ai/model-registry";
 import { AIUnavailableError } from "@/lib/ai/gemini-client";
+import { resolvePoolForUser } from "@/lib/ai/key-pool";
 import { route, looksLikeBusinessCommand, shouldEscalate } from "./router";
 import { aiUnderstand } from "./ai";
 import { correctTranscript } from "./asr";
@@ -1028,11 +1029,13 @@ export async function handleMessage(
     }
 
     try {
+      const pool = await resolvePoolForUser(userId);
       const ai = await aiUnderstand(
         ctx,
         input.audio
           ? { audio: input.audio, language: input.language }
           : { text: understanding, language: input.language },
+        pool,
       );
       requestsUsed += ai.requestsUsed;
       model = ai.model;

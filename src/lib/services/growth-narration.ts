@@ -7,6 +7,7 @@
  */
 
 import { generateNarration } from "@/lib/ai/gemini-narrate";
+import { resolvePoolForUser } from "@/lib/ai/key-pool";
 import { getGrowthPlan, growthFactsForNarration } from "@/lib/services/growth";
 
 const SYSTEM_INSTRUCTION = `You are a business analyst for a small Pakistani wholesale shop.
@@ -100,6 +101,7 @@ export async function narrateGrowthPlan(userId: string): Promise<GrowthNarration
     text = await generateNarration(
       SYSTEM_INSTRUCTION,
       `FACTS:\n${facts}\n\nRewrite these facts for the shop owner.`,
+      await resolvePoolForUser(userId),
     );
   } catch (error) {
     console.warn(

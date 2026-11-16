@@ -12,6 +12,7 @@
 
 import { z } from "zod";
 import { generateStructured } from "@/lib/ai/gemini-client";
+import type { AiKeyPool } from "@/lib/ai/key-pool";
 import type { ActionKind, QueryKind, RouteMatch, RouterContext } from "./types";
 import type { SpeechLanguage } from "./language";
 
@@ -246,6 +247,7 @@ function daysFromNow(days: number): string {
 export async function aiUnderstand(
   ctx: RouterContext,
   input: { text?: string; audio?: { base64: string; mimeType: string }; language?: SpeechLanguage },
+  pool?: AiKeyPool,
 ): Promise<AssistantAiResult> {
   const systemInstruction = buildPrompt(ctx, input.language);
 
@@ -264,6 +266,7 @@ export async function aiUnderstand(
     responseSchema: RESPONSE_SCHEMA as unknown as Record<string, unknown>,
     temperature: 0.1,
     requestTag: "assistant:understand",
+    pool,
     parse: (json) => {
       const result = assistantSchema.safeParse(json);
       if (!result.success) {

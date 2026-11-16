@@ -22,7 +22,7 @@ import {
   getGeminiClient,
   AIUnavailableError,
 } from "@/lib/ai/gemini-client";
-import { apiKeyForPool } from "@/lib/ai/key-pool";
+import { apiKeyForPool, type AiKeyPool } from "@/lib/ai/key-pool";
 
 export { AIUnavailableError };
 
@@ -241,13 +241,18 @@ export class GeminiProvider implements AIProvider {
     getGeminiClient();
   }
 
-  async interpretText(text: string, context: AIContext): Promise<AiInterpretation> {
+  async interpretText(
+    text: string,
+    context: AIContext,
+    pool?: AiKeyPool,
+  ): Promise<AiInterpretation> {
     const { value, model } = await generateStructured({
       systemInstruction: buildSystemPrompt(context),
       contents: `<USER_INPUT>\n${text}\n</USER_INPUT>`,
       responseSchema: buildResponseSchema(),
       parse: parseInterpretation,
       requestTag: "gemini:interpret",
+      pool,
     });
     lastModelName = model;
     return value;
@@ -257,6 +262,7 @@ export class GeminiProvider implements AIProvider {
     audio: Uint8Array,
     mimeType: string,
     context: AIContext,
+    pool?: AiKeyPool,
   ): Promise<{ transcript: string; interpretation: AiInterpretation }> {
     const { value, model } = await generateStructured({
       systemInstruction: buildSystemPrompt(context),
@@ -271,6 +277,7 @@ export class GeminiProvider implements AIProvider {
       responseSchema: buildResponseSchema(),
       parse: parseInterpretation,
       requestTag: "gemini:audio",
+      pool,
     });
     lastModelName = model;
     return { transcript: value.transcript ?? "", interpretation: value };

@@ -82,6 +82,34 @@ export function aiKeyStatus(): { user: boolean; owner: boolean; ownerDedicated: 
 }
 
 /**
+ * Resolve the pool for a user directly from their entitlement.
+ *
+ * This is the explicit, framework-independent path: services that already know
+ * the userId ask for the pool and pass it to `generateStructured` /
+ * `generateText`, instead of relying on request-scoped state surviving Next.js
+ * chunk boundaries. Cached per process for 60s (the same window the auth guard
+ * caches entitlement).
+ */
+const userCacheRegistry = globalThis as typeof globalThis & {
+  __dkAiKeyPoolUserCache?: Map<string, { pool: AiKeyPool; expiresAt: number }>;
+};
+
+const userCache: Map<string, { pool: AiKeyPool; expiresAt: number }> =
+  userCacheRegistry.__dkAiKeyPoolUserCache ??
+  (userCacheRegistry.__dkAiKeyPoolUserCache = new Map());
+
+export async function resolvePoolForUser(userId: string): Promise<AiKeyPool> {
+  const cached = userCache.get(userId);
+  if (cached && cached.expiresAt > Date.now()) return cached.pool;
+
+  // Imported lazily so this module stays usable from tests without a database.
+  const { getEntitlement } = await import("@/lib/services/entitlement");
+  const pool = poolForCategory((await getEntitlement(userId)).category);
+  userCache.set(userId, { pool, expiresAt: Date.now() + 60_000 });
+  return pool;
+}
+
+/**
  * Storage key for a model's daily usage row. Pool-prefixed so the owner's
  * testing cannot consume a customer's daily budget, even though both pools run
  * the same three-model rotation.

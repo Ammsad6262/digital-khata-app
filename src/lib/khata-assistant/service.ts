@@ -17,6 +17,7 @@ import { BadRequestError } from "@/lib/errors";
 import { loadKhataFacts } from "./facts";
 import { actionGuidanceAnswer, guidanceAnswer, runIntent } from "./engine";
 import { classifyQuestion, explainAnswer } from "./ai";
+import { resolvePoolForUser } from "@/lib/ai/key-pool";
 import { matchCustomQuestion, detectActionRequest } from "./match";
 import {
   CATEGORY_ORDER,
@@ -91,7 +92,7 @@ export async function askKhataAssistant(
   let intent = matchCustomQuestion(text);
 
   if (!intent && useAi) {
-    const classified = await classifyQuestion(text);
+    const classified = await classifyQuestion(text, await resolvePoolForUser(userId));
     if (classified.intent !== "unknown") intent = classified.intent;
   }
 
@@ -104,7 +105,7 @@ export async function askKhataAssistant(
 
   // Re-word the answer in the owner's words — best effort, never adds figures.
   if (useAi) {
-    const explanation = await explainAnswer(answer, language);
+    const explanation = await explainAnswer(answer, language, await resolvePoolForUser(userId));
     if (explanation) {
       // Keep the computed headline and figures as the source of truth; the AI
       // only adds a subordinate sentence.

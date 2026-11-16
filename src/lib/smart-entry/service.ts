@@ -48,6 +48,7 @@ import { getFollowUpCandidates } from "@/lib/services/follow-ups";
 import { invalidateCache } from "@/lib/utils/cache";
 import { tServer } from "@/lib/i18n/server";
 import { getAIProvider, AIUnavailableError } from "./gemini-provider";
+import { resolvePoolForUser } from "@/lib/ai/key-pool";
 import type { AIContext } from "./ai-provider";
 import {
   aiInterpretationSchema,
@@ -297,6 +298,10 @@ export async function interpretInput(
   // Build context (names only — never IDs sent to AI)
   const context = await buildAIContext(userId);
 
+  // Resolve the key pool explicitly (owner/affiliate vs customer). This does not
+  // rely on request-scoped state surviving Next.js chunk boundaries.
+  const pool = await resolvePoolForUser(userId);
+
   // Call AI (with friendly failure if AI unavailable — geo-blocked dev env, etc.)
   let provider;
   try {
@@ -321,7 +326,7 @@ export async function interpretInput(
 
   try {
     if (input.type === "text") {
-      interpretation = await provider.interpretText(input.text, context);
+      interpretation = await provider.interpretText(input.text, context, pool);
       transcript = input.text;
     } else {
       if (input.audio.byteLength > MAX_AUDIO_BYTES) {
@@ -335,6 +340,7 @@ export async function interpretInput(
         input.audio,
         input.mimeType,
         context,
+        pool,
       );
       interpretation = result.interpretation;
       transcript = result.transcript;

@@ -13,19 +13,27 @@ AI layer at all: `requireAiAccess` rejects them before a key is chosen.
 
 ## How the pool is chosen
 
-`requireAiAccess()` (src/lib/auth/get-current-user.ts) resolves the eligibility
-once per request, then binds the pool for that request with `AsyncLocalStorage`:
+Each AI service resolves the pool from the user's entitlement and passes it
+explicitly to `generateStructured`/`generateText`. This is deliberate: Next.js
+inlines `key-pool.ts` into every route chunk (16 copies seen in `.next/server`),
+and request-scoped state is not a reliable way to carry the choice across chunk
+boundaries.
 
 ```
 OWNER / AFFILIATE  → owner pool
 PREMIUM / TRIAL    → user pool
-everything else    → rejected
+everything else    → rejected by requireAiAccess before any key is chosen
 ```
 
-The low-level client (src/lib/ai/gemini-client.ts) and the usage counters
-(src/lib/ai/model-registry.ts) read the bound pool. No client input can choose a
-key, and no module may read a Gemini key directly — `npm run test:ai-keys` fails
-the build if one does.
+- `requireAiAccess()` (src/lib/auth/get-current-user.ts) still binds the pool with
+  `AsyncLocalStorage` as a convenience default.
+- `resolvePoolForUser(userId)` (src/lib/ai/key-pool.ts) is the authoritative path:
+  services call it with the userId they already have, and pass `pool` down.
+- The `AsyncLocalStorage` instance is pinned on `globalThis` so the many inlined
+  copies share one store.
+
+No module may read a Gemini key directly — `npm run test:ai-keys` fails the build
+if one does.
 
 If `GEMINI_OWNER_API_KEY` is not set, owners fall back to the customer key and a
 warning is logged. The owner experience never breaks because of a missing

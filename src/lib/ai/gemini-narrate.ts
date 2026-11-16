@@ -8,16 +8,19 @@
  */
 
 import { generateText } from "./gemini-client";
+import type { AiKeyPool } from "./key-pool";
 
 export async function generateNarration(
   systemInstruction: string,
   prompt: string,
+  pool?: AiKeyPool,
 ): Promise<string> {
   const { text, model } = await generateText({
     systemInstruction,
     prompt,
     temperature: 0.2,
     maxOutputTokens: 2048,
+    pool,
     requestTag: "gemini:narrate",
   });
 

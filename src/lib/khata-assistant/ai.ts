@@ -16,6 +16,7 @@
  */
 
 import { generateStructured, generateText } from "@/lib/ai/gemini-client";
+import type { AiKeyPool } from "@/lib/ai/key-pool";
 import { PREPARED_QUESTIONS } from "./questions";
 import type { KhataAnswer, KhataLanguage, KhataQuestionId } from "./types";
 
@@ -63,6 +64,7 @@ const QUESTION_MENU = PREPARED_QUESTIONS.map(
  */
 export async function classifyQuestion(
   text: string,
+  pool?: AiKeyPool,
 ): Promise<{ intent: KhataIntent; model?: string }> {
   try {
     const { value, model } = await generateStructured<{ questionId: KhataIntent }>({
@@ -80,6 +82,7 @@ export async function classifyQuestion(
       temperature: 0,
       requestTag: "khata.classify",
       maxOutputRetries: 1,
+      pool,
       parse: (raw) => {
         const id = (raw as { questionId?: unknown })?.questionId;
         return {
@@ -113,6 +116,7 @@ function factsForPrompt(answer: KhataAnswer): string {
 export async function explainAnswer(
   answer: KhataAnswer,
   language: KhataLanguage,
+  pool?: AiKeyPool,
 ): Promise<string | null> {
   if (!answer.headline) return null;
   try {
@@ -127,6 +131,7 @@ export async function explainAnswer(
       ].join("\n"),
       prompt: factsForPrompt(answer),
       temperature: 0.2,
+      pool,
       maxOutputTokens: 320,
       requestTag: "khata.explain",
     });

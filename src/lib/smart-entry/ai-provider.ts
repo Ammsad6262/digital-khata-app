@@ -17,6 +17,7 @@
  */
 
 import type { AiInterpretation } from "./schema";
+import type { AiKeyPool } from "@/lib/ai/key-pool";
 
 export interface AIProvider {
   /** Provider name for audit logging (e.g. "gemini-3.5-flash"). */
@@ -29,9 +30,10 @@ export interface AIProvider {
    * @param context      The user's customer names + product names + units (NO IDs).
    *                     Used by the AI to recognize named entities. The AI sees
    *                     only names — never IDs, prices, balances, or counts.
+   * @param pool         Which API key pool to spend from (owner vs customer).
    * @returns            Validated, schema-conformant AI interpretation.
    */
-  interpretText(text: string, context: AIContext): Promise<AiInterpretation>;
+  interpretText(text: string, context: AIContext, pool?: AiKeyPool): Promise<AiInterpretation>;
 
   /**
    * Transcribe audio AND interpret it in one call.
@@ -42,11 +44,13 @@ export interface AIProvider {
    * @param audio        Raw audio bytes.
    * @param mimeType     e.g. "audio/webm", "audio/mp4", "audio/wav"
    * @param context      Same as interpretText.
+   * @param pool         Same as interpretText.
    */
   transcribeAndInterpret(
     audio: Uint8Array,
     mimeType: string,
     context: AIContext,
+    pool?: AiKeyPool,
   ): Promise<{ transcript: string; interpretation: AiInterpretation }>;
 }
 

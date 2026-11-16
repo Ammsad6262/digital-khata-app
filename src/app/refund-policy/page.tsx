@@ -3,7 +3,7 @@ import { LegalPageView } from "@/components/legal/LegalPageView";
 import { REFUND_POLICY } from "@/content/legal";
 
 export const metadata: Metadata = {
-  title: "Refund Policy · Dukhata",
+  title: "Refund Policy",
   description: "When a Dukhata licence can be refunded, and how to ask.",
 };
 

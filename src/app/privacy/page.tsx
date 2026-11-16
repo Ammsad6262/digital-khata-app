@@ -3,7 +3,7 @@ import { LegalPageView } from "@/components/legal/LegalPageView";
 import { PRIVACY_POLICY } from "@/content/legal";
 
 export const metadata: Metadata = {
-  title: "Privacy Policy · Dukhata",
+  title: "Privacy Policy",
   description: "What Dukhata collects, why, who else sees it, and how to delete it.",
 };
 

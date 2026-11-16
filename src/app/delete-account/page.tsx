@@ -3,7 +3,7 @@ import { LegalPageView } from "@/components/legal/LegalPageView";
 import { DATA_DELETION } from "@/content/legal";
 
 export const metadata: Metadata = {
-  title: "Delete Your Account · Dukhata",
+  title: "Delete Your Account",
   description: "How to delete your Dukhata account and the records inside it.",
 };
 

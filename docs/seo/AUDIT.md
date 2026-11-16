@@ -127,11 +127,28 @@ that as invalid and it can suppress both.
    back to the site.
 7. **A designed Open Graph image** (1200×630) instead of the square app icon.
 
-## What was verified
+## What was verified (live, after deploy `9a1d429`)
 
 | Check | Result |
 | --- | --- |
-| `/robots.txt` served from the app | see deploy verification |
-| `/sitemap.xml` returns valid XML | see deploy verification |
-| Landing page title / description / canonical / OG / JSON-LD | see deploy verification |
-| Signed-in redirect to `/dashboard` | preserved (session cookie checked server-side) |
+| `/robots.txt` | Serves the new policy: `/` allowed, app and API blocked, sitemap declared. The old static file was deleted. |
+| `/sitemap.xml` | 200, `application/xml`, 5 URLs |
+| Landing `/` | 200, ~50 KB of server-rendered HTML, **one H1** — "The digital khata app for Pakistani shops" — plus hero CTA, features, pricing (Rs 10,000 / Rs 3,000), FAQ and the Urdu RTL section |
+| Structured data | 3 JSON-LD blocks (Organization, SoftwareApplication, FAQPage) |
+| `/privacy` `/terms` `/refund-policy` `/delete-account` | Unique titles with the brand template applied once, `index, follow` |
+| `/login` `/register` | `noindex, follow` |
+| Signed-in visitor on `/` | Redirected to `/dashboard`; marketing page not shown |
+| Signed-out visitor on `/` | Sees the landing page |
+| Local production build | Re-checked before deploy: 1 H1, hero, RTL section, features, pricing, FAQ all present in the server HTML |
+
+## Notable finding while verifying
+
+The first deploy rendered the landing page **empty**: `<body>` contained only
+the providers' shell and the RSC payload. `Providers` (src/app/providers.tsx)
+routed every path that was not in an explicit public list through `AuthGate`, and
+`/` was not in that list, so the server rendered nothing and the page was
+invisible to both crawlers and signed-out visitors. `/` is now treated as a
+public page; the page itself still redirects signed-in owners server-side.
+
+Anyone adding a public page later must add it to that list, or it will render as
+an empty shell.

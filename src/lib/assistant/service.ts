@@ -833,11 +833,14 @@ function valuesFromPayload(p: PlanPayload): PlanValues {
     (quantity && unitPrice
       ? Math.round((quantity * unitPrice - (p.discountAmount ?? 0)) * 100) / 100
       : undefined);
-  // "Paid now" defaults to the full amount; the owner can still change it to 0
-  // (on credit) or a part payment before confirming. An explicit 0 is kept.
+  // "Paid now" is only pre-filled when the user actually stated a payment.
+  // Otherwise default to 0 (on credit): recording an unpaid sale as fully paid
+  // would silently erase money the shopkeeper is owed, whereas a credit sale is
+  // visible in the khata and can be settled later. The owner can still tap
+  // "Full payment" on the card (and an explicit 0 is kept).
   const paidAmount =
     p.paidAmount ??
-    (p.action === "CREATE_SALE" || p.action === "CREATE_PURCHASE" ? total : undefined);
+    (p.action === "CREATE_SALE" || p.action === "CREATE_PURCHASE" ? 0 : undefined);
 
   return {
     customerId: p.customerId,
@@ -1299,11 +1302,11 @@ export async function confirmAction(
   // Never let a patch overwrite the action kind.
   payload.action = stored.action;
 
-  // The confirmation card prefills values the owner did not speak — most
-  // importantly "Paid now" (the full sale total). If the client did not send
-  // an explicit patch for them, apply the same defaults here so confirming
-  // does not fail with "How much did the customer pay?" for an amount that was
-  // visible on screen.
+  // The confirmation card prefills values the owner did not speak — notably
+  // "Paid now", which defaults to 0 (on credit) unless a payment was stated.
+  // If the client did not send an explicit patch for them, apply the same
+  // defaults here so confirming does not fail with "How much did the customer
+  // pay?" for an amount that was visible on screen.
   const derived = valuesFromPayload(payload);
   if (payload.paidAmount === null || payload.paidAmount === undefined) {
     if (derived.paidAmount !== undefined) payload.paidAmount = derived.paidAmount;

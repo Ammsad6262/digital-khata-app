@@ -479,7 +479,7 @@ function detectAction(text: string, entities: Entities, ctx: RouterContext): Rou
     );
   }
 
-  if (mentionsCustomer && paidMe) {
+  if (mentionsCustomer && paidMe && entities.products.length === 0) {
     const customer = entities.customers[0]!.entity;
     return action(
       "RECORD_PAYMENT",
@@ -496,7 +496,12 @@ function detectAction(text: string, entities: Entities, ctx: RouterContext): Rou
   }
 
   // "Record 10,000 received from Ali" (no "paid me" wording but has received)
-  if (mentionsCustomer && /\b(received|receive|got|jama|wasool|record)\b/.test(text) && paid) {
+  if (
+    mentionsCustomer &&
+    entities.products.length === 0 &&
+    /\b(received|receive|got|jama|wasool|record)\b/.test(text) &&
+    paid
+  ) {
     const customer = entities.customers[0]!.entity;
     return action(
       "RECORD_PAYMENT",

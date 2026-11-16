@@ -62,6 +62,16 @@ const asAction = (m: RouteMatch | null): RouteAction | null =>
   ok(shouldEscalate(m, "Ahmed paid me 5000") === false, "payment: complete → no AI needed");
 }
 
+// ── 3b. A product named with purchase wording is a SALE, not a payment ─────
+{
+  const text = "Ahmed ne 2 kg rice liya 500 diye";
+  const m = asAction(route(text, ctx));
+  ok(m?.action === "CREATE_SALE", "product + 'diye' → CREATE_SALE (not RECORD_PAYMENT)", m?.action);
+  ok(m?.fields.customerName === "Ahmed", "product + 'diye': customer Ahmed", m?.fields.customerName);
+  ok(m?.fields.productName === "Rice", "product + 'diye': product Rice", m?.fields.productName);
+  ok(m?.fields.quantity === 2, "product + 'diye': quantity 2", String(m?.fields.quantity));
+}
+
 // ── 3. "sold 2 boxes soap to Bilal" (product before 'to') ───────────────────
 {
   const m = asAction(route("sold 2 boxes soap to Bilal", ctx));

@@ -17,23 +17,40 @@ The text lives in `src/content/legal.ts` and is rendered by
 `src/components/legal/LegalPageView.tsx`. Edit the strings there; the pages
 update on the next deploy.
 
-## Facts you must fill in (search for `{{`)
+## Operator details (pre-filled — check these three)
 
-| Placeholder | What to put |
-| --- | --- |
-| `{{LEGAL_NAME}}` | Your registered business name, or your own name if you trade as a sole proprietor |
-| `{{CONTACT_EMAIL}}` | A support address you actually read, e.g. support@dukhata.com |
-| `{{CITY}}` | The city whose courts should hear disputes |
-| effective date | Already set to 16 November 2026 |
+They live in one block at the top of `src/content/legal.ts` (`OPERATOR`). I filled
+them from what I could see in the project; confirm or correct each one:
 
-Also confirm these statements are true for you:
+| Value | Currently set to | Why | Action |
+| --- | --- | --- | --- |
+| `legalName` | **Attendas** | Taken from the `attendas.pk@gmail.com` account created on the site. | Change if that is not the business customers contract with. |
+| `contactEmail` | **support@dukhata.com** | Matches the domain and reads professionally. | **Must be set up** — see below. |
+| `city` | **Karachi** | Governing-law city. | Change to your city if needed. |
+| `country` | Pakistan | | |
+
+### Set up support@dukhata.com (2 minutes, do this first)
+
+Your domain already has Namecheap email forwarding (the `eforward` MX records),
+so no new mailbox is needed:
+
+1. Namecheap -> Domain List -> `dukhata.com` -> **Manage**
+2. Open the **Mail Settings** tab (or "Email Forwarding")
+3. Add a forwarding rule: `support@dukhata.com` -> your Gmail
+4. Save
+
+Until that exists, the address published in the policies will not receive mail.
+Prefer a different address? Change `contactEmail` in `src/content/legal.ts`.
+
+Do **not** invent a postal address. If a lawyer or a payment provider later asks
+for one, add it to the same `OPERATOR` block.
+
+Also confirm these statements are true for you (they are in the Terms):
 
 - Premium is **PKR 3,000 per 30 days** and Regular is **PKR 10,000 one-time**.
 - The Regular licence does **not** include the AI assistant; the 14-day trial
   does.
 - You can refund to the same payment method you were paid with.
-
-If any of that is wrong, change `src/content/legal.ts` before launch.
 
 ## Data inventory (what the software really stores)
 

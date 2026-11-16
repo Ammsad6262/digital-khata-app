@@ -4,15 +4,32 @@
  * Source of truth for the published text. Edit the strings here and the pages
  * update on the next deploy.
  *
- * PLACEHOLDERS to fill before launch (search for "{{"):
- *   {{LEGAL_NAME}}     - registered business / sole proprietor name
- *   {{CONTACT_EMAIL}}  - support address that you actually read
- *   {{CITY}}           - city for governing law
- *   {{EFFECTIVE_DATE}} - date these documents take effect
+ * ─────────────────────────────────────────────────────────────────────────────
+ * OPERATOR DETAILS - THE ONLY BLOCK YOU SHOULD NEED TO EDIT
  *
- * These are plain-language drafts prepared from what the software actually does.
- * They are not legal advice: have a Pakistani lawyer review them before launch.
+ * These were filled in automatically. Check the three values below and change
+ * any that are wrong; nothing else in this file needs editing.
+ * ─────────────────────────────────────────────────────────────────────────────
  */
+
+export const OPERATOR = {
+  /** The business or person customers are contracting with. */
+  legalName: "Attendas",
+  /** A mailbox you actually read. See docs/legal/COMPLIANCE_CHECKLIST.md. */
+  contactEmail: "support@dukhata.com",
+  /** City whose courts hear disputes. */
+  city: "Karachi",
+  country: "Pakistan",
+};
+
+/** Replaces {{TOKENS}} in the document text with the operator details above. */
+export function fillPlaceholders(text: string): string {
+  return text
+    .replaceAll("{{LEGAL_NAME}}", OPERATOR.legalName)
+    .replaceAll("{{CONTACT_EMAIL}}", OPERATOR.contactEmail)
+    .replaceAll("{{CITY}}", OPERATOR.city)
+    .replaceAll("{{COUNTRY}}", OPERATOR.country);
+}
 
 export type LegalBlock =
   | { kind: "p"; text: string }

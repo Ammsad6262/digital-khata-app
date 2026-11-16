@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { LegalDocument } from "@/content/legal";
+import { fillPlaceholders, type LegalDocument } from "@/content/legal";
 
 /**
  * Renders a legal document. Deliberately plain and readable: these pages are
@@ -29,7 +29,7 @@ export function LegalPageView({ doc }: { doc: LegalDocument }) {
       </Link>
 
       <h1 className="mt-4 text-2xl font-semibold text-ink">{doc.title}</h1>
-      <p className="mt-2 text-sm text-ink-subtle">{doc.summary}</p>
+      <p className="mt-2 text-sm text-ink-subtle">{fillPlaceholders(doc.summary)}</p>
       <p className="mt-1 text-xs text-ink-faint">Effective {doc.effectiveDate}</p>
 
       <div className="mt-8 space-y-5">
@@ -49,7 +49,7 @@ export function LegalPageView({ doc }: { doc: LegalDocument }) {
                     <span aria-hidden="true" className="text-ink-faint">
                       •
                     </span>
-                    <span>{withBold(item)}</span>
+                    <span>{withBold(fillPlaceholders(item))}</span>
                   </li>
                 ))}
               </ul>
@@ -61,13 +61,13 @@ export function LegalPageView({ doc }: { doc: LegalDocument }) {
                 key={index}
                 className="rounded-card border border-line bg-surface-2 px-4 py-3 text-sm leading-relaxed text-ink"
               >
-                {withBold(block.text)}
+                {withBold(fillPlaceholders(block.text))}
               </p>
             );
           }
           return (
             <p key={index} className="text-sm leading-relaxed text-ink-muted">
-              {withBold(block.text)}
+              {withBold(fillPlaceholders(block.text))}
             </p>
           );
         })}

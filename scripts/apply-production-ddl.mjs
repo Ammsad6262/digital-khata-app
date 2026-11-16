@@ -29,6 +29,7 @@ const FILES = [
   "prisma/production/20261102_ai_assistant_tables.sql",
   "prisma/production/20261102_transaction_voided_at.sql",
   "prisma/production/20261109_commercial_licensing.sql",
+  "prisma/production/20261116_integrity_repair.sql",
 ];
 
 const log = (msg) => console.log(`[ddl] ${msg}`);

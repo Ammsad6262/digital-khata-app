@@ -55,6 +55,13 @@ If `20261020_stage2_3_delta.sql` was already applied, re-running it is harmless
 | 8 | `20261025_purchase_due_date.sql` |
 | 9 | `20261102_ai_assistant_tables.sql` |
 | 10 | `20261102_transaction_voided_at.sql` |
+| 11 | `20261116_integrity_repair.sql` |
+
+`20261116_integrity_repair.sql` restores the six foreign keys and five indexes
+that exist in the baseline migration but were never created by the hand-rolled
+deltas. Without it, settings/PIN saves hit a missing unique index, and deleted
+accounts leave orphan `Setting` / `UserSubscription` rows. It is idempotent and
+was applied to production on 2026-11-16.
 
 ### Option A — psql (one command)
 
@@ -71,7 +78,8 @@ psql "$DIRECT_URL" -v ON_ERROR_STOP=1 \
   -f prisma/production/20261025_password_reset_codes.sql \
   -f prisma/production/20261025_purchase_due_date.sql \
   -f prisma/production/20261102_ai_assistant_tables.sql \
-  -f prisma/production/20261102_transaction_voided_at.sql
+  -f prisma/production/20261102_transaction_voided_at.sql \
+  -f prisma/production/20261116_integrity_repair.sql
 ```
 
 ### Option B — Supabase SQL editor

@@ -51,9 +51,23 @@ udhaar khata, shop ledger app, customer balance app, kiryana store app.
 
 ## Structured data — ADDED
 
-Three JSON-LD blocks on the landing page: `Organization`, `SoftwareApplication`
+Four JSON-LD blocks on the landing page: `Organization`, `WebSite` (with
+`alternateName` so a brand query resolves to this site), `SoftwareApplication`
 (with PKR offers for the Regular and Premium licences) and `FAQPage` (built from
 the same array the page renders, so the two cannot drift).
+
+## Getting indexed — DONE and REMAINING
+
+| Action | Status |
+| --- | --- |
+| Crawling unblocked | Done |
+| Sitemap published | Done |
+| IndexNow key + submission (Bing, Yandex, partners) | Done — accepted 202 on 16 Nov 2026, `npm run seo:indexnow` |
+| Brand entity signals (H1 contains "Dukhata", WebSite/Organization `alternateName`) | Done |
+| Verification hooks (`GOOGLE_SITE_VERIFICATION`, `BING_SITE_VERIFICATION`) | Done — set the env var, no code change |
+| **Google Search Console verification + sitemap submit** | **Owner action — the blocker** |
+| Bing Webmaster Tools property | Owner action |
+| Play Store listing, social profiles, backlinks | Owner action |
 
 ## Metadata — FIXED
 
@@ -110,22 +124,55 @@ that as invalid and it can suppress both.
 
 ## Next steps (need your access or decisions)
 
-1. **Google Search Console** — verify `dukhata.com` (DNS TXT record), then submit
-   `https://dukhata.com/sitemap.xml`. Nothing can be measured without this.
-2. **Bing Webmaster Tools** — same verification, feeds Bing and ChatGPT-style
-   answer engines.
-3. **Google Business Profile** — if the business is verifiable, this is the
-   single highest-value local signal for "khata app near me" style queries.
-4. **Content plan** — one page per real search intent, e.g. "how to keep a khata
-   on your phone", "udhaar khata template", "how to chase a customer's payment
-   politely". This is what earns non-branded traffic; the landing page only
-   converts it.
-5. **Backlinks** — get listed where Pakistani shopkeepers already read: business
-   directories, local startup lists, app-store listings, and a YouTube demo. No
-   paid link schemes.
-6. **App store listings** — the Play Store listing ranks in search too, and links
-   back to the site.
-7. **A designed Open Graph image** (1200×630) instead of the square app icon.
+### 1. Google Search Console — THE blocker, 2 minutes
+
+Nothing can rank until Google is told about the site. Only the owner's Google
+account can do this.
+
+1. Go to **https://search.google.com/search-console** and sign in.
+2. **Add property** → choose **URL prefix** → enter `https://dukhata.com`.
+3. Pick the **HTML tag** method. Google shows a line like
+   `<meta name="google-site-verification" content="ABC123..." />`.
+4. Copy only the `content="..."` value (the token) and send it to me — I set it
+   in Vercel as `GOOGLE_SITE_VERIFICATION` and redeploy, and the tag appears
+   automatically. (Or paste the whole file into Vercel yourself; no code change
+   is needed, the hook is already in `src/app/layout.tsx`.)
+5. Back in Search Console, click **Verify**.
+6. Open **Sitemaps** and submit `https://dukhata.com/sitemap.xml`.
+7. Use **URL Inspection** on `https://dukhata.com/` and click **Request indexing**.
+
+**What to expect, honestly:** indexing usually takes a few hours to a few days
+after this. A brand search for "dukhata" should then resolve to this site — the
+domain, the H1, and the WebSite structured data all say "Dukhata". It will not be
+instant, and nobody can force it: Google decides when to crawl and index.
+
+### 2. Bing Webmaster Tools
+
+Sign in at **https://www.bing.com/webmasters** and add the same property (it can
+import from Search Console). IndexNow is already working without verification:
+Bing accepted the five URLs on 16 Nov 2026 (`npm run seo:indexnow` to resubmit
+after big changes). Bing also feeds the answer engines.
+
+### 3. The name space is crowded — expect a fight for the term
+
+A Google search for "dukhata" currently returns a Bhojpuri song, a Sanskrit
+dictionary entry, and Google's own AI summary suggesting **DigiKhata** and
+**DukaanKhata** as the likely intent. Two of those are established Pakistani
+khata apps. To win the brand term:
+
+- Get the **Play Store listing** live — store listings rank and link back.
+- Create the social profiles (Instagram, Facebook, YouTube) with the link in the
+  bio; they occupy the results page for the brand term.
+- Never brand as "digital khata" alone: always **Dukhata**, so Google learns the
+  entity. The H1 and titles now do this.
+- A Google Business Profile if the business can be verified.
+
+### 4. Content and links
+
+- One page per real search intent ("how to keep a khata on your phone", "udhaar
+  khata template", "how to ask a customer for payment politely").
+- Get listed where shopkeepers already read: business directories, local startup
+  lists, and a short YouTube demo. No paid link schemes.
 
 ## What was verified (live, after deploy `9a1d429`)
 

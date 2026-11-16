@@ -1,5 +1,7 @@
 # Digital Khata
 
+**Live at https://dukhata.com**
+
 A mobile-first web app for small wholesale businesses — replaces paper khata
 registers with auto-calculated customer balances, stock, sales, payments,
 and expenses.

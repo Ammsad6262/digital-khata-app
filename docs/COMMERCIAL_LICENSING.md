@@ -30,12 +30,13 @@ purchasing, expense, backup or audit systems. The existing `User`,
 infrastructure is reused and extended.
 
 AI features (Voice Assistant, STT, prompts, Khata Assistant, growth/insights
-narration) now enforce this contract server-side: every AI route calls
-`requireAiAccess`, which allows **PREMIUM, OWNER and AFFILIATE** only and
-rejects the **REGULAR** (Rs 10,000) licence and the **free trial** with
-`api.subscription.aiRequiresPremium`. The client hides the assistant launchers
-when `/api/assistant/status` reports `aiEnabled: false`, but that is cosmetic —
-the server check is the control.
+narration) enforce this contract server-side: every AI route calls
+`requireAiAccess`, which allows **TRIAL, PREMIUM, OWNER and AFFILIATE** and
+rejects only the **REGULAR** (Rs 10,000) licence with
+`api.subscription.aiRequiresPremium`. The 14-day free trial includes the
+premium features so trial customers can evaluate the assistant before paying.
+The client hides the assistant launchers when `/api/assistant/status` reports
+`aiEnabled: false`, but that is cosmetic — the server check is the control.
 
 ---
 
@@ -64,7 +65,7 @@ isolated database. Nothing was committed or pushed.
 | Premium | PKR 3,000 / month | 30 days, renewable | core + premium (AI) |
 | Affiliate | — | permanent | core + premium, **max 10 codes** |
 | Owner | — | permanent | full access, **max 2 accounts** |
-| Trial (free) | — | 14 days | core only, **no AI**; temporary, not a paid product |
+| Trial (free) | — | 14 days | core + premium (AI) for 14 days; temporary, not a paid product |
 
 Rules enforced in code:
 
@@ -78,9 +79,10 @@ Rules enforced in code:
 - An **affiliate** code grants permanent core + premium to the redeemer.
 - Owners and affiliates are already permanent; they cannot redeem product,
   premium or affiliate codes (the API rejects it).
-- The 14-day free trial is a **core-only** trial. It expires,
-  does not grant AI/premium, and can be upgraded with a product code. New
-  registrations and existing active trials receive this state.
+- The 14-day free trial includes the **premium features (AI)**. When it
+  expires the account becomes unactivated (data kept) and can be upgraded with
+  a product code. New registrations and existing active trials receive this
+  state.
 - At most **10 affiliate codes** may ever be generated (server + DB-serialised),
   not only in the UI.
 - At most **2 active owners**. The last owner cannot be revoked. Owner status is
@@ -310,12 +312,13 @@ idempotent data migration:
   This prevents existing paying customers from being locked out when enforcement
   is turned on.
 - any row with a future legacy `trialExpiresAt` and no paid access becomes a
-  core-only trial (`coreActivatedAt = trialStartedAt`,
+  time-limited trial (`coreActivatedAt = trialStartedAt`,
   `coreExpiresAt = trialExpiresAt`).
 - users with no paid access and an expired trial stay `UNACTIVATED`.
 
-The business decision: the trial is core-only. It does not grant AI/premium and
-is not a substitute for the Regular product.
+The business decision: the 14-day trial grants the premium features (AI) for its
+duration. It is still not a substitute for the Regular product, and it expires
+back to `UNACTIVATED` unless a product code is redeemed.
 
 ### Migrations
 
@@ -606,8 +609,9 @@ The 101 licensing checks cover:
     Hashed storage, no plaintext in listings, one-time maxRedemptions.
     Redemption history, per-customer activation/renewal history and admin
     overview (code redemptions expose the redeemer).
-22. The 14-day trial is preserved as core-only access: no premium, cannot buy
-    premium, premium time on a trial is ignored, and a product code upgrades it
+22. The 14-day trial includes the premium features (AI) for its duration: it
+    cannot buy premium, premium time is still tracked separately, and a product
+    code upgrades it
     to permanent core.
 23. An expired trial loses core access, keeps the trial flag for the UI, and can
     activate a product.
@@ -632,8 +636,8 @@ When deployment is approved:
 1. Review and commit the worktree changes on `feat/commercial-licensing`.
 2. Apply `prisma/production/20261109_commercial_licensing.sql` to the production
    database with `DIRECT_URL` (manual, deliberate). It adds `coreExpiresAt` and
-   grandfathers legacy paid users while preserving active trials as core-only
-   trials.
+   grandfathers legacy paid users while preserving active trials as time-limited
+   trials with the premium features.
 3. Verify the backfill:
    - paying users (`accessExpiresAt IS NOT NULL`) have `coreExpiresAt IS NULL`;
    - active trials have `coreExpiresAt = trialExpiresAt`;
@@ -686,8 +690,8 @@ When deployment is approved:
   no longer accepted. Codes issued **before** this fix keep their stored
   `durationDays`; review/revoke any unused outliers in `/admin/codes` if you
   need a strict 30-day policy.
-- **Trial is core-only and time-limited.** It does not grant AI/premium and is
-  not a paid Regular product. This is a product decision; the backfill preserves
+- **Trial includes the premium features (AI) and is time-limited.** It is not a
+  paid Regular product. This is a product decision; the backfill preserves
   existing active trials and grandfathers paying users.
 - **Owner/affiliate revocation semantics.** `revokeAffiliate` demotes to regular
   and keeps the permanent core; use `revokeCore` afterwards to remove

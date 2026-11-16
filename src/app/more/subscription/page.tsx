@@ -42,6 +42,7 @@ export default function SubscriptionPage() {
 function LicensingCard({ entitlement }: { entitlement: Entitlement }) {
   const { t, tParams } = useLanguage();
   const e = entitlement;
+  const trialPremium = e.category === "TRIAL";
   const category = e.isOwner
     ? t("licensing.owner")
     : e.isAffiliate
@@ -85,7 +86,7 @@ function LicensingCard({ entitlement }: { entitlement: Entitlement }) {
           <span
             className={cn(
               "font-semibold",
-              e.premium.active ? "text-brand-600" : "text-ink-faint",
+              e.premium.active || trialPremium ? "text-brand-600" : "text-ink-faint",
             )}
           >
             {e.premium.active
@@ -94,7 +95,9 @@ function LicensingCard({ entitlement }: { entitlement: Entitlement }) {
                 : tParams("licensing.daysLeft", {
                     days: e.premium.remainingDays ?? 0,
                   })
-              : t("licensing.inactive")}
+              : trialPremium
+                ? t("licensing.includedWithTrial")
+                : t("licensing.inactive")}
           </span>
         </div>
         {e.premium.active && !e.premium.permanent && e.premium.expiresAt ? (

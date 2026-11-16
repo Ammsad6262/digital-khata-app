@@ -63,7 +63,12 @@ const ent = (over: Partial<NonNullable<SubscriptionSnapshot>>) =>
 {
   const e = ent({ coreActivatedAt: ago(1), coreExpiresAt: ahead(13) });
   ok(e.category === "TRIAL" && e.core.active, "free trial is an active core", e.category);
-  ok(!aiAllowed(e), "free trial is core-only: no AI");
+  ok(aiAllowed(e), "free trial includes AI (premium features)");
+}
+
+{
+  const e = ent({ coreActivatedAt: ago(20), coreExpiresAt: ago(6) });
+  ok(e.category === "UNACTIVATED" && !aiAllowed(e), "expired trial => no AI", e.category);
 }
 
 {

@@ -84,13 +84,16 @@ function AccessCard() {
   const { t, tParams } = useLanguage();
   if (isLoading || !data) return null;
 
+  const trialPremium = data.category === "TRIAL";
   const premiumText = data.premium.active
     ? data.premium.permanent
       ? t("licensing.permanent")
       : tParams("licensing.daysLeft", {
           days: data.premium.remainingDays ?? 0,
         })
-    : t("licensing.inactive");
+    : trialPremium
+      ? t("licensing.includedWithTrial")
+      : t("licensing.inactive");
 
   return (
     <div className="rounded-xl border border-line bg-surface p-4">

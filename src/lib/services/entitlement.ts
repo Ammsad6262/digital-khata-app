@@ -258,14 +258,14 @@ export async function hasPremiumAccess(userId: string): Promise<boolean> {
 
 /**
  * Pure rule: which categories may use AI features (voice assistant, smart
- * entry, growth/insights narration).
+ * entry, growth/insights narration) and the other premium tools.
  *
- * AI is the PREMIUM feature. The one-time REGULAR licence (Rs 10,000) and the
- * free trial are CORE-ONLY and must not reach any AI route; PREMIUM, OWNER and
- * AFFILIATE do. This matches docs/COMMERCIAL_LICENSING.md.
+ * The 14-day free trial includes the premium features, so it gets AI.
+ * The one-time REGULAR licence (Rs 10,000) is core-only and must NOT reach any
+ * AI route; PREMIUM, OWNER and AFFILIATE also get it.
  */
 export function aiAllowed(entitlement: Entitlement): boolean {
-  return entitlement.premium.active;
+  return entitlement.premium.active || entitlement.category === "TRIAL";
 }
 
 /** Authoritative server-side check for every AI route. */

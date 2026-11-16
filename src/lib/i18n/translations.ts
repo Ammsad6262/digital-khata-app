@@ -2250,6 +2250,7 @@ export const translations = {
 
   "licensing.currentAccess": { en: "Your access", ur: "آپ کی رسائی" },
   "licensing.product": { en: "Product access", ur: "پروڈکٹ رسائی" },
+  "licensing.includedWithTrial": { en: "Included with trial", ur: "ٹرائل میں شامل" },
   "licensing.premium": { en: "Premium (AI)", ur: "پریمیم (AI)" },
   "licensing.affiliate": { en: "Affiliate", ur: "ایفیلیئٹ" },
   "licensing.owner": { en: "Owner", ur: "مالک" },

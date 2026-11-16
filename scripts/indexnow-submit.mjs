@@ -25,6 +25,8 @@ const key = path.basename(keyFile, ".txt");
 
 const urls = [
   `${HOST}/`,
+  `${HOST}/about`,
+  `${HOST}/contact`,
   `${HOST}/privacy`,
   `${HOST}/terms`,
   `${HOST}/refund-policy`,

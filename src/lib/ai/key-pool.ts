@@ -22,7 +22,21 @@ import { AsyncLocalStorage } from "node:async_hooks";
 
 export type AiKeyPool = "owner" | "user";
 
-const storage = new AsyncLocalStorage<AiKeyPool>();
+/**
+ * Next.js inlines this module into each route's server chunk (verified: the
+ * marker appeared in 17 chunks in `.next/server`). A plain module-level
+ * `new AsyncLocalStorage()` therefore gives every chunk its own store, and a
+ * pool bound by the auth guard is invisible to the AI client in another chunk —
+ * which silently falls back to the customer key. Pinning the instance on
+ * `globalThis` makes all chunks in one process share the same store.
+ */
+const globalRegistry = globalThis as typeof globalThis & {
+  __dkAiKeyPoolStorage?: AsyncLocalStorage<AiKeyPool>;
+};
+
+const storage: AsyncLocalStorage<AiKeyPool> =
+  globalRegistry.__dkAiKeyPoolStorage ??
+  (globalRegistry.__dkAiKeyPoolStorage = new AsyncLocalStorage<AiKeyPool>());
 
 /** OWNER and AFFILIATE spend the owner key; everyone else spends the user key. */
 export function poolForCategory(category: string): AiKeyPool {

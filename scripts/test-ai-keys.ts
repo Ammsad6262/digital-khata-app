@@ -85,6 +85,11 @@ restore();
 
 const before = currentAiKeyPool();
 ok(before === "user" || before === "owner", "current pool is always a valid pool", before);
+const registry = globalThis as typeof globalThis & { __dkAiKeyPoolStorage?: unknown };
+ok(
+  registry.__dkAiKeyPoolStorage !== undefined,
+  "pool storage is pinned on globalThis (Next.js inlines this module into many chunks)",
+);
 setAiKeyPool("owner");
 ok(currentAiKeyPool() === "owner", "pool binding is visible in the same async context");
 setAiKeyPool("user");

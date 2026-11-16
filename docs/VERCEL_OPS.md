@@ -15,6 +15,33 @@
 Functions run next to the database. The build machine is in `iad1`, which is
 normal and does not affect request latency.
 
+## Domains
+
+| Domain | Behaviour |
+| --- | --- |
+| `dukhata.com` | Primary production domain |
+| `www.dukhata.com` | 308 redirect to `dukhata.com` |
+| `digital-khata-app-two.vercel.app` | Vercel default alias, kept as a working fallback |
+
+DNS is managed at **Namecheap** (registrar) — not delegated to Vercel, so the
+existing MX records for `@dukhata.com` email forwarding keep working.
+
+### Records to keep in Namecheap Advanced DNS
+
+| Type | Host | Value | TTL |
+| --- | --- | --- | --- |
+| A | `@` | `216.198.79.1` | Automatic |
+| A | `@` | `64.29.17.1` | Automatic |
+| CNAME | `www` | `0b4d1fd4ad8c651e.vercel-dns-017.com` | Automatic |
+
+Delete Namecheap's parking records (`A @ 162.255.119.12`, and the `www` CNAME to
+`parkingpage.namecheap.com`). Do **not** touch the `MX` and `SPF` records.
+
+Vercel issues the TLS certificate automatically once the records resolve. Check
+Project -> Settings -> Domains: it should read *Valid Configuration*.
+
+`APP_URL` is set to `https://dukhata.com` for production and preview.
+
 ## Environment variables
 
 | Key | Targets | Notes |

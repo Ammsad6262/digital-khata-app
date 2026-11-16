@@ -50,25 +50,29 @@ export function CustomerRow({ customer }: { customer: CustomerSearchResult }) {
           ) : null}
           {customer.phone ? (
             <p className="flex items-center gap-1 text-xs text-ink-subtle">
-              <Phone className="h-3 w-3" />
-              {customer.phone}
+              <Phone className="h-3 w-3 shrink-0" />
+              <span className="truncate">{customer.phone}</span>
             </p>
           ) : (
             <p className="text-xs text-ink-faint">{t("common.noPhone")}</p>
           )}
         </div>
-
-        <BalanceBadge balance={customer.balance} />
       </Link>
 
-      {owesMoney ? (
-        <ContactActions
-          phone={customer.phone}
-          whatsappMessage={whatsappMessage}
-          compact
-          iconOnly
-        />
-      ) : null}
+      {/* Balance and follow-up buttons live in their own column so the balance
+          can never sit on top of the phone number, and the name keeps the full
+          width of the text column on narrow screens. */}
+      <div className="flex shrink-0 flex-col items-end gap-1.5">
+        <BalanceBadge balance={customer.balance} className="whitespace-nowrap" />
+        {owesMoney ? (
+          <ContactActions
+            phone={customer.phone}
+            whatsappMessage={whatsappMessage}
+            compact
+            iconOnly
+          />
+        ) : null}
+      </div>
     </div>
   );
 }

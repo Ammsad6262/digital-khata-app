@@ -221,7 +221,6 @@ export function VoiceAssistant() {
                     <li key={key}>{t(key)}</li>
                   ))}
                 </ul>
-                <p className="pt-1 text-xs">{t("assistant.introLangs")}</p>
               </div>
             ) : null}
 

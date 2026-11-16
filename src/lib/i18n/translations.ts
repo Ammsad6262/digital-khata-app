@@ -2068,7 +2068,6 @@ export const translations = {
   "assistant.khataSubtitle": { en: "Understand your business from your own records", ur: "اپنے ہی ریکارڈ سے اپنا کاروبار سمجھیں" },
   "assistant.clearChat": { en: "Clear conversation", ur: "گفتگو صاف کریں" },
   "assistant.introSpeak": { en: "Tap the microphone and speak naturally.", ur: "مائیک پر ٹیپ کریں اور قدرتی انداز میں بولیں۔" },
-  "assistant.introLangs": { en: "You can speak Urdu, English, Roman Urdu, or a mix. No language selection is needed.", ur: "آپ اردو، انگریزی، رومن اردو یا ملا جلا بول سکتے ہیں۔ زبان چننے کی ضرورت نہیں۔" },
   "assistant.youSaid": { en: "You said:", ur: "آپ نے کہا:" },
   "assistant.iHeard": { en: "I heard", ur: "میں نے سنا" },
   "assistant.listeningTapStop": { en: "Listening... tap to stop", ur: "سن رہا ہوں... روکنے کے لیے ٹیپ کریں" },

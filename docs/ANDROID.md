@@ -11,7 +11,7 @@ app immediately.
 | Concern | How a TWA answers it |
 | --- | --- |
 | "Fast and good on Android" | Rendering runs in the system Chrome/WebView the phone already has and keeps updated — no bundled engine, tiny download (~1 MB). |
-| "Nearly all Android versions" | `minSdkVersion 21` = Android 5.0 (2014) upward. Devices without a TWA-capable browser fall back to a Chrome Custom Tab, then a WebView. |
+| "Nearly all Android versions" | `minSdkVersion 24` = Android 7.0 (2016) upward. This floor is set by `com.google.androidbrowserhelper` itself (the TWA library declares minSdk 24); it still covers ~99% of active Android devices. Devices without a TWA-capable browser fall back to a Chrome Custom Tab. |
 | One codebase | The site *is* the app. No duplicated logic, no drift between web and mobile. |
 | Login | The app shares Chrome's cookies, so a signed-in user stays signed in. |
 

@@ -15,6 +15,12 @@ import {
   recordSuccess,
 } from "@/lib/auth/rate-limiter";
 import { BadRequestError } from "@/lib/errors";
+import {
+  isEmailVerificationEnforced,
+  issueVerificationCode,
+} from "@/lib/services/email-verification";
+import { buildVerificationEmail } from "@/lib/email/templates";
+import { sendEmail } from "@/lib/email/send-email";
 
 export const dynamic = "force-dynamic";
 
@@ -79,7 +85,38 @@ export async function POST(req: NextRequest) {
     // Count the account creation itself, so successes cannot reset the cap.
     recordFailure(creationKey);
 
-    const res = ok({ user: result.user });
+    // Verification is BEST-EFFORT: the account already exists, so a provider
+    // outage must never turn a successful sign-up into an error. The user can
+    // always resend from /verify-email (or verify voluntarily later).
+    let verificationSent = false;
+    try {
+      const issued = await issueVerificationCode(result.user.id);
+      const content = buildVerificationEmail({
+        name: issued.user.name,
+        code: issued.code,
+        expiresInMinutes: 10,
+      });
+      const delivery = await sendEmail({
+        to: issued.user.email,
+        subject: content.subject,
+        text: content.text,
+        html: content.html,
+        template: "email-verification",
+      });
+      verificationSent = delivery.sent;
+    } catch (error) {
+      // Never log the code (it is not in the error) and never rethrow.
+      console.error(
+        "[register] verification email skipped:",
+        error instanceof Error ? error.name : "unknown",
+      );
+    }
+
+    const res = ok({
+      user: result.user,
+      emailVerificationEnforced: isEmailVerificationEnforced(),
+      verificationSent,
+    });
     // Set httpOnly cookie with the JWT token
     res.cookies.set(AUTH_COOKIE_NAME, result.token, {
       httpOnly: true,

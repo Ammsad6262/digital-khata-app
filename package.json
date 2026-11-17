@@ -21,6 +21,7 @@
   "vercel:audit": "node scripts/vercel-audit.mjs",
   "seo:indexnow": "node scripts/indexnow-submit.mjs",
     "test:foundation": "tsx scripts/test-foundation.ts",
+    "test:email-verification": "tsx scripts/test-email-verification.ts",
     "test:charts": "tsx scripts/test-charts.ts",
     "audit:i18n": "tsx scripts/check-i18n.ts",
     "audit:i18n-keys": "node scripts/audit-i18n-keys.mjs",

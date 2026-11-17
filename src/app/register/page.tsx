@@ -70,7 +70,37 @@ export default function RegisterPage() {
       }
 
       toast.success(t("auth.accountCreated"));
-      router.push(plan === "paid" ? "/more/redeem" : "/dashboard");
+
+      // Verification is pending when the account has no emailVerifiedAt.
+      // Route to /verify-email only when a code was actually delivered (or
+      // enforcement is on) — otherwise a user whose provider is not configured
+      // would land on a page with no way to get a code. This keeps the flow
+      // honest while the feature ships behind an OFF flag.
+      const createdUser = json.data?.user as
+        | { id?: string; emailVerifiedAt?: string | null }
+        | undefined;
+      const verificationPending = createdUser?.emailVerifiedAt == null;
+      const codeDelivered = json.data?.verificationSent === true;
+      const enforced = json.data?.emailVerificationEnforced === true;
+
+      if (verificationPending && createdUser?.id) {
+        try {
+          // The verify page reads this to start its 60-second resend countdown
+          // without sending a second code.
+          sessionStorage.setItem(
+            `dk_verify_sent_at:${createdUser.id}`,
+            String(Date.now()),
+          );
+        } catch {
+          /* private mode — the page falls back to ?sent=1 */
+        }
+      }
+
+      if (verificationPending && (codeDelivered || enforced) && plan !== "paid") {
+        router.push("/verify-email?sent=1");
+      } else {
+        router.push(plan === "paid" ? "/more/redeem" : "/dashboard");
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : t("auth.registerFailed"));
     } finally {

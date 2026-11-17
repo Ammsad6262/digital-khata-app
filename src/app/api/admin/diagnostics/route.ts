@@ -20,6 +20,8 @@ import { ok, fail } from "@/lib/utils/api";
 import { getRotationStatus } from "@/lib/ai/model-registry";
 import { attemptTimeoutMs, deadlineMs, httpTimeoutMs } from "@/lib/ai/gemini-client";
 import { aiKeyStatus } from "@/lib/ai/key-pool";
+import { isEmailVerificationEnforced } from "@/lib/services/email-verification";
+import { isEmailProviderConfigured } from "@/lib/email/send-email";
 import { prisma } from "@/lib/db/prisma";
 
 export const dynamic = "force-dynamic";
@@ -67,6 +69,11 @@ export async function GET(req: NextRequest) {
         apiKeyConfigured: aiKeyStatus().user,
       },
       recentFailures,
+      // Booleans only — never the key value, never a recipient address.
+      emailVerification: {
+        enforced: isEmailVerificationEnforced(),
+        providerConfigured: isEmailProviderConfigured(),
+      },
     });
   } catch (error) {
     return fail(error);

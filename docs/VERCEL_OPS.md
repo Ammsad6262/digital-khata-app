@@ -52,6 +52,9 @@ Project -> Settings -> Domains: it should read *Valid Configuration*.
 | `ADMIN_SECRET` | production | Admin code issuance; **production only on purpose** |
 | `GEMINI_API_KEY` | production, preview | Customer key (PREMIUM/TRIAL) |
 | `GEMINI_OWNER_API_KEY` | production, preview, development | Owner/affiliate key |
+| `RESEND_API_KEY` | production, preview | Send-only key for verification emails (domain `dukhata.com`, region Tokyo) |
+| `EMAIL_FROM` | production, preview | `Dukhata <no-reply@dukhata.com>` |
+| `EMAIL_VERIFICATION_ENFORCED` | production, preview | `false` until delivery is proven on a real signup, then `true` |
 | `APP_URL` | production, preview | Absolute URL for links |
 | `NODE_ENV` | production, preview | |
 | `SKIP_PRODUCTION_DDL` | preview | Previews never run schema DDL |

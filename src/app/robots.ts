@@ -40,6 +40,7 @@ export default function robots(): MetadataRoute.Robots {
           "/expenses",
           "/payments",
           "/more",
+          "/verify-email",
         ],
       },
     ],

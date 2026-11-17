@@ -27,7 +27,7 @@ import { QuickAddMenu } from "@/components/layout/QuickAddMenu";
 import { VoiceAssistant } from "@/components/voice-assistant/VoiceAssistant";
 import { KhataAssistant } from "@/components/khata-assistant/KhataAssistant";
 
-const PUBLIC_PAGES = ["/login", "/register", "/reset-password", "/admin"];
+const PUBLIC_PAGES = ["/login", "/register", "/reset-password", "/verify-email", "/admin"];
 const DASHBOARD_PATH = "/dashboard";
 // The public marketing pages. They must NOT go through AuthGate: signed-out
 // visitors need to read them (that is what search engines index), and signed-in

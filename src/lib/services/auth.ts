@@ -125,6 +125,8 @@ export type AuthUser = {
   id: string;
   name: string;
   email: string;
+  /** NULL = the address has not been confirmed with a 6-digit code yet. */
+  emailVerifiedAt: Date | null;
   createdAt: Date;
 };
 
@@ -198,7 +200,13 @@ export async function registerUser(input: {
   const token = await signToken({ userId: user.id });
 
   return {
-    user: { id: user.id, name: user.name, email: user.email, createdAt: user.createdAt },
+    user: {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      emailVerifiedAt: user.emailVerifiedAt,
+      createdAt: user.createdAt,
+    },
     token,
   };
 }
@@ -226,7 +234,13 @@ export async function loginUser(input: {
   const token = await signToken({ userId: user.id });
 
   return {
-    user: { id: user.id, name: user.name, email: user.email, createdAt: user.createdAt },
+    user: {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      emailVerifiedAt: user.emailVerifiedAt,
+      createdAt: user.createdAt,
+    },
     token,
   };
 }
@@ -234,7 +248,7 @@ export async function loginUser(input: {
 export async function getUserById(userId: string): Promise<AuthUser | null> {
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { id: true, name: true, email: true, createdAt: true },
+    select: { id: true, name: true, email: true, emailVerifiedAt: true, createdAt: true },
   });
   return user;
 }

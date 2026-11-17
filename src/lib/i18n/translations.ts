@@ -1176,6 +1176,30 @@ export const translations = {
   "auth.pleaseLoginContinue": { en: "Please log in to continue.", ur: "جاری رکھنے کے لیے لاگ ان کریں۔" },
   "auth.requestTimeout": { en: "Request timed out. Please retry.", ur: "درخواست کا وقت ختم ہو گیا۔ دوبارہ کوشش کریں۔" },
 
+  // ─── Email verification ───
+  "verify.subtitle": { en: "Verify your email address", ur: "اپنا ای میل پتہ تصدیق کریں" },
+  "verify.title": { en: "Check your email", ur: "اپنی ای میل دیکھیں" },
+  "verify.sentTo": { en: "We sent a 6-digit code to {email}.", ur: "ہم نے {email} پر 6 ہندسوں کا کوڈ بھیجا ہے۔" },
+  "verify.enterCode": { en: "Enter the 6-digit code", ur: "6 ہندسوں کا کوڈ درج کریں" },
+  "verify.digitLabel": { en: "Digit {index} of {total}", ur: "ہندسہ {index} از {total}" },
+  "verify.submit": { en: "Verify email", ur: "ای میل کی تصدیق کریں" },
+  "verify.verifying": { en: "Checking code...", ur: "کوڈ چیک ہو رہا ہے..." },
+  "verify.sending": { en: "Sending code...", ur: "کوڈ بھیجا جا رہا ہے..." },
+  "verify.resend": { en: "Resend code", ur: "کوڈ دوبارہ بھیجیں" },
+  "verify.resendIn": { en: "Resend in {seconds}s", ur: "{seconds} سیکنڈ بعد دوبارہ بھیجیں" },
+  "verify.resendSent": { en: "A new code is on its way.", ur: "نیا کوڈ بھیجا جا رہا ہے۔" },
+  "verify.verified": { en: "Email verified.", ur: "ای میل تصدیق ہو گئی۔" },
+  "verify.networkError": { en: "We couldn't reach the server. Check your connection and try again.", ur: "سرور تک رسائی نہیں ہو سکی۔ اپنا کنکشن چیک کریں اور دوبارہ کوشش کریں۔" },
+  "verify.spamHint": { en: "It can take a minute. Check your spam folder before resending.", ur: "ایک منٹ لگ سکتا ہے۔ دوبارہ بھیجنے سے پہلے اپنا اسپام فولڈر چیک کریں۔" },
+  "verify.notDelivered": { en: "The email could not be sent right now. Please try again in a minute.", ur: "اس وقت ای میل نہیں بھیجی جا سکی۔ ایک منٹ بعد دوبارہ کوشش کریں۔" },
+  "verify.useDifferentAccount": { en: "Use a different account", ur: "کسی دوسرے اکاؤنٹ سے لاگ ان کریں" },
+  "verify.wallTitle": { en: "Verify your email to continue", ur: "جاری رکھنے کے لیے اپنی ای میل کی تصدیق کریں" },
+  "verify.wallBody": { en: "Confirm {email} before using the app. It only takes a minute.", ur: "ایپ استعمال کرنے سے پہلے {email} کی تصدیق کریں۔ اس میں صرف ایک منٹ لگتا ہے۔" },
+  "verify.wallCta": { en: "Verify email", ur: "ای میل کی تصدیق کریں" },
+  "verify.wallAvailable": { en: "You can still open:", ur: "آپ اب بھی یہ کھول سکتے ہیں:" },
+  "verify.bannerText": { en: "Your email is not verified yet.", ur: "آپ کی ای میل کی ابھی تصدیق نہیں ہوئی۔" },
+  "verify.bannerCta": { en: "Verify now", ur: "ابھی تصدیق کریں" },
+
   // ─── Password reset (admin-issued code) ───
   "reset.title": { en: "Reset your password", ur: "اپنا پاس ورڈ دوبارہ سیٹ کریں" },
   "reset.subtitle": { en: "Enter the one-time code from your administrator.", ur: "اپنے ایڈمن سے ملنے والا ایک بار استعمال ہونے والا کوڈ درج کریں۔" },
@@ -2230,6 +2254,16 @@ export const translations = {
   // ─── Auth brute-force responses ───
   "api.auth.login.rateLimited": { en: "Too many login attempts. Try again in {seconds} seconds.", ur: "بہت زیادہ لاگ ان کوششیں۔ {seconds} سیکنڈ بعد دوبارہ کوشش کریں۔" },
   "api.auth.register.rateLimited": { en: "Too many sign-up attempts. Try again in {seconds} seconds.", ur: "بہت زیادہ اکاؤنٹ بنانے کی کوششیں۔ {seconds} سیکنڈ بعد دوبارہ کوشش کریں۔" },
+
+  // ─── Email verification ───
+  "api.verify.rateLimited": { en: "Too many code requests. Try again in {seconds} seconds.", ur: "بہت زیادہ کوڈ کی درخواستیں۔ {seconds} سیکنڈ بعد دوبارہ کوشش کریں۔" },
+  "api.verify.cooldown": { en: "Please wait {seconds} seconds before requesting another code.", ur: "دوبارہ کوڈ منگوانے سے پہلے {seconds} سیکنڈ انتظار کریں۔" },
+  "api.verify.dailyLimit": { en: "You have requested too many codes today. Try again later.", ur: "آپ آج بہت زیادہ کوڈ منگوا چکے ہیں۔ بعد میں دوبارہ کوشش کریں۔" },
+  "api.verify.codeRequired": { en: "Enter the 6-digit code.", ur: "6 ہندسوں کا کوڈ درج کریں۔" },
+  "api.verify.invalidCode": { en: "That code isn't right. Check the email and try again.", ur: "یہ کوڈ درست نہیں۔ ای میل دیکھ کر دوبارہ کوشش کریں۔" },
+  "api.verify.codeExpired": { en: "That code has expired. Send a new one.", ur: "اس کوڈ کی مدت ختم ہو گئی ہے۔ نیا کوڈ بھیجیں۔" },
+  "api.verify.tooManyAttempts": { en: "Too many wrong attempts. Send a new code.", ur: "بہت زیادہ غلط کوششیں ہوئیں۔ نیا کوڈ بھیجیں۔" },
+  "api.verify.alreadyVerified": { en: "This email is already verified.", ur: "یہ ای میل پہلے ہی تصدیق شدہ ہے۔" },
 
   // ─── Commercial licensing ───
 

@@ -6,18 +6,31 @@
  * codes and password-reset codes can be issued even when the owner is locked
  * out of their account.
  *
- * The secret is compared in constant time and must be at least 16 characters.
- * If it is missing or too short, every admin request is rejected.
+ * Hardening notes (from the licensing security review):
+ *   - The secret is compared in constant time AND both sides are hashed first,
+ *     so the comparison never leaks the secret's length through timing.
+ *   - Guessing is rate-limited per IP exactly like account login. Without this,
+ *     the header could be brute-forced at full speed, and a successful guess
+ *     carries full admin authority (mint codes, grant owners, read every user).
+ *   - Fails closed: a missing or short secret rejects every admin request.
  */
 
-import { timingSafeEqual } from "crypto";
+import { createHash, timingSafeEqual } from "crypto";
 import type { NextRequest } from "next/server";
-import { UnauthorizedError } from "@/lib/errors";
+import { AppError, ErrorCode, UnauthorizedError } from "@/lib/errors";
+import { checkRateLimit, getClientIp, recordFailure, recordSuccess } from "./rate-limiter";
+
+const MIN_SECRET_LENGTH = 16;
 
 function getAdminSecret(): string | null {
   const secret = process.env.ADMIN_SECRET;
-  if (!secret || secret.length < 16) return null;
+  if (!secret || secret.length < MIN_SECRET_LENGTH) return null;
   return secret;
+}
+
+/** Fixed-length digest, so equal-length comparison cannot leak secret length. */
+function digest(value: string): Buffer {
+  return createHash("sha256").update(value, "utf8").digest();
 }
 
 /** True only when the request carries the exact configured admin secret. */
@@ -28,16 +41,24 @@ export function isAdminRequest(req: NextRequest): boolean {
   const provided = req.headers.get("x-admin-secret");
   if (!provided) return false;
 
-  const providedBytes = Buffer.from(provided, "utf8");
-  const secretBytes = Buffer.from(secret, "utf8");
-  if (providedBytes.length !== secretBytes.length) return false;
-
-  return timingSafeEqual(providedBytes, secretBytes);
+  return timingSafeEqual(digest(provided), digest(secret));
 }
 
 /** Throw the standard 401 response when the admin secret is missing/wrong. */
 export function requireAdmin(req: NextRequest): void {
+  const rateKey = `admin:${getClientIp(req)}`;
+
+  const { locked, retryAfter } = checkRateLimit(rateKey);
+  if (locked) {
+    throw new AppError("api.admin.rateLimited", ErrorCode.BAD_REQUEST, 429, undefined, {
+      seconds: retryAfter,
+    });
+  }
+
   if (!isAdminRequest(req)) {
+    recordFailure(rateKey);
     throw new UnauthorizedError("api.admin.unauthorized");
   }
+
+  recordSuccess(rateKey);
 }

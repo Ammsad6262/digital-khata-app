@@ -337,7 +337,18 @@ export async function redeemLicenseCode(
     const kind = normalizeKind(code.kind);
     const now = new Date();
     const sub = await ensureSubscriptionRow(tx, userId, now);
-    const before = computeEntitlement(userId, sub, now);
+
+    // Serialise concurrent redemptions for THIS user. The per-code guard below
+    // only serialises attempts on the same code; without this row lock two
+    // DIFFERENT codes both read the same premiumExpiresAt, and the second write
+    // overwrites the first — burning a paid code without extending access.
+    await tx.$queryRawUnsafe(
+      `SELECT 1 FROM "UserSubscription" WHERE "userId" = $1 FOR UPDATE`,
+      userId,
+    );
+    const current =
+      (await tx.userSubscription.findUnique({ where: { userId } })) ?? sub;
+    const before = computeEntitlement(userId, current, now);
 
     let previousAccessExpiresAt: Date | null = null;
     let newAccessExpiresAt: Date;
@@ -363,20 +374,20 @@ export async function redeemLicenseCode(
         throw new BadRequestError("api.licensing.productRequired");
       durationDays =
         code.durationDays > 0 ? code.durationDays : PREMIUM_PERIOD_DAYS;
-      previousAccessExpiresAt = sub.premiumExpiresAt;
+      previousAccessExpiresAt = current.premiumExpiresAt;
       const stillRunning =
         before.premium.active &&
         !before.premium.permanent &&
-        sub.premiumExpiresAt !== null &&
-        sub.premiumExpiresAt.getTime() > now.getTime();
+        current.premiumExpiresAt !== null &&
+        current.premiumExpiresAt.getTime() > now.getTime();
       const base = stillRunning
-        ? (sub.premiumExpiresAt as Date)
+        ? (current.premiumExpiresAt as Date)
         : now;
       newAccessExpiresAt = new Date(
         base.getTime() + durationDays * DAY_MS,
       );
       data = {
-        premiumStartedAt: sub.premiumStartedAt ?? now,
+        premiumStartedAt: current.premiumStartedAt ?? now,
         premiumExpiresAt: newAccessExpiresAt,
         premiumRevokedAt: null,
       };
@@ -568,15 +579,23 @@ export async function listLicenseCodes() {
 
 /** Revoke a code that has not been redeemed. Redeemed codes are not touched. */
 export async function revokeLicenseCode(codeId: string) {
-  const code = await prisma.redeemCode.findUnique({ where: { id: codeId } });
-  if (!code) throw new NotFoundError("api.resource.code");
-  if (!code.active) return { updated: true as const };
-  if (code.redemptionCount > 0)
-    throw new BadRequestError("api.licensing.codeAlreadyRedeemed");
-  await prisma.redeemCode.update({
-    where: { id: codeId },
+  // Conditional update instead of read-then-write: a concurrent redemption can
+  // commit between a separate read and this write, which used to let an admin
+  // "revoke" a code that had just been redeemed and report success.
+  const updated = await prisma.redeemCode.updateMany({
+    where: { id: codeId, active: true, redemptionCount: 0 },
     data: { active: false, revokedAt: new Date(), revokedBy: "admin" },
   });
+  if (updated.count === 1) return { updated: true as const };
+
+  const code = await prisma.redeemCode.findUnique({
+    where: { id: codeId },
+    select: { active: true, redemptionCount: true },
+  });
+  if (!code) throw new NotFoundError("api.resource.code");
+  if (code.redemptionCount > 0)
+    throw new BadRequestError("api.licensing.codeAlreadyRedeemed");
+  // Already inactive: report success without touching it.
   return { updated: true as const };
 }
 

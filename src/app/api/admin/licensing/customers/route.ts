@@ -11,6 +11,7 @@ import {
   revokeCore,
 } from "@/lib/services/entitlement";
 import { requireAdmin } from "@/lib/auth/admin";
+import { invalidateActiveAccessCache } from "@/lib/auth/get-current-user";
 import { ok, fail, parseJsonBody } from "@/lib/utils/api";
 import { BadRequestError } from "@/lib/errors";
 
@@ -62,20 +63,44 @@ export async function POST(req: NextRequest) {
     const parsed = actionSchema.parse(data);
 
     switch (parsed.action) {
-      case "grantOwner":
-        return ok(await grantOwner(parsed.userId));
-      case "revokeOwner":
-        return ok(await revokeOwner(parsed.userId, parsed.confirm));
-      case "revokePremium":
-        return ok(await revokePremium(parsed.userId));
-      case "revokeAffiliate":
-        return ok(await revokeAffiliate(parsed.userId, parsed.confirm));
-      case "revokeCore":
-        return ok(await revokeCore(parsed.userId, parsed.confirm));
-      case "revokeAccess":
-        return ok(await revokeAccess(parsed.userId, parsed.reason ?? ""));
-      case "restoreAccess":
-        return ok(await restoreAccess(parsed.userId));
+      // Every branch that changes entitlement must drop the 60-second
+      // per-process entitlement cache, or a revoked user keeps full access
+      // (and a restored user stays locked out) until that cache expires.
+      case "grantOwner": {
+        const result = await grantOwner(parsed.userId);
+        invalidateActiveAccessCache(parsed.userId);
+        return ok(result);
+      }
+      case "revokeOwner": {
+        const result = await revokeOwner(parsed.userId, parsed.confirm);
+        invalidateActiveAccessCache(parsed.userId);
+        return ok(result);
+      }
+      case "revokePremium": {
+        const result = await revokePremium(parsed.userId);
+        invalidateActiveAccessCache(parsed.userId);
+        return ok(result);
+      }
+      case "revokeAffiliate": {
+        const result = await revokeAffiliate(parsed.userId, parsed.confirm);
+        invalidateActiveAccessCache(parsed.userId);
+        return ok(result);
+      }
+      case "revokeCore": {
+        const result = await revokeCore(parsed.userId, parsed.confirm);
+        invalidateActiveAccessCache(parsed.userId);
+        return ok(result);
+      }
+      case "revokeAccess": {
+        const result = await revokeAccess(parsed.userId, parsed.reason ?? "");
+        invalidateActiveAccessCache(parsed.userId);
+        return ok(result);
+      }
+      case "restoreAccess": {
+        const result = await restoreAccess(parsed.userId);
+        invalidateActiveAccessCache(parsed.userId);
+        return ok(result);
+      }
       default:
         throw new BadRequestError("api.licensing.invalidAction");
     }

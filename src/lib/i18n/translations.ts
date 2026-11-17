@@ -1976,6 +1976,7 @@ export const translations = {
 
   // Admin
   "api.admin.unauthorized": { en: "Unauthorized.", ur: "غیر مجاز۔" },
+  "api.admin.rateLimited": { en: "Too many admin attempts. Try again in {seconds} seconds.", ur: "بہت زیادہ کوششیں۔ {seconds} سیکنڈ بعد دوبارہ کوشش کریں۔" },
 
   // Health
   "api.health.circuitOpen": { en: "Database circuit breaker is open. Please retry in a few seconds.", ur: "ڈیٹابیس سرکٹ بریکر کھلا ہے۔ براہ کرم چند سیکنڈ میں دوبارہ آزمائیں۔" },

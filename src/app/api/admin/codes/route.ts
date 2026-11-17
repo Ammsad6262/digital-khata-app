@@ -42,7 +42,10 @@ export async function POST(req: NextRequest) {
       count: parsed.count,
     });
 
-    return ok(codes);
+    // The body holds one-time plaintext codes: never let anything cache it.
+    const res = ok(codes);
+    res.headers.set("Cache-Control", "no-store");
+    return res;
   } catch (error) {
     return fail(error);
   }

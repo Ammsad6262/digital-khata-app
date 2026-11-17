@@ -17,6 +17,8 @@ const generateSchema = z.object({
   count: z.number().int().min(1).max(100).default(1),
   label: z.string().max(80).nullable().optional(),
   expiresAt: z.string().datetime().nullable().optional(),
+  // PREMIUM only: 30 = 1 month, 60 = 2 months ... 365 = 12 months.
+  durationDays: z.number().int().min(1).max(730).optional(),
 });
 
 const revokeSchema = z.object({
@@ -43,6 +45,7 @@ export async function POST(req: NextRequest) {
       count: parsed.count,
       label: parsed.label ?? null,
       expiresAt: parsed.expiresAt ? new Date(parsed.expiresAt) : null,
+      durationDays: parsed.durationDays,
     });
     return ok(codes);
   } catch (error) {

@@ -87,6 +87,17 @@ type Tab = "codes" | "customers" | "subscriptions";
 
 type Translate = ReturnType<typeof useLanguage>["t"];
 
+/** Premium lengths offered in the admin panel. 1 month is the default plan. */
+const PREMIUM_DURATIONS = [
+  { months: 1, days: 30 },
+  { months: 2, days: 60 },
+  { months: 3, days: 90 },
+  { months: 4, days: 120 },
+  { months: 5, days: 150 },
+  { months: 6, days: 180 },
+  { months: 12, days: 365 },
+];
+
 function kindLabel(kind: LicenseKind, t: Translate): string {
   switch (kind) {
     case "PRODUCT":
@@ -136,6 +147,7 @@ export default function AdminLicensingPage() {
 
   const [kind, setKind] = useState<LicenseKind>("PRODUCT");
   const [count, setCount] = useState(1);
+  const [premiumMonths, setPremiumMonths] = useState(1);
   const [label, setLabel] = useState("");
   const [generated, setGenerated] = useState<GeneratedCode[]>([]);
   const [copied, setCopied] = useState<string | null>(null);
@@ -188,7 +200,17 @@ export default function AdminLicensingPage() {
           "Content-Type": "application/json",
           "x-admin-secret": adminSecret,
         },
-        body: JSON.stringify({ kind, count, label: label.trim() || null }),
+        body: JSON.stringify({
+          kind,
+          count,
+          label: label.trim() || null,
+          ...(kind === "PREMIUM"
+            ? {
+                durationDays:
+                  PREMIUM_DURATIONS.find((d) => d.months === premiumMonths)?.days ?? 30,
+              }
+            : {}),
+        }),
       });
       const json = await res.json();
       if (!res.ok || !json.ok) {
@@ -445,6 +467,29 @@ export default function AdminLicensingPage() {
                   </select>
                 </div>
               </div>
+              {kind === "PREMIUM" ? (
+                <div className="mt-2">
+                  <label className="mb-1 block text-xs text-slate-500">
+                    {t("licensing.duration")}
+                  </label>
+                  <select
+                    value={premiumMonths}
+                    onChange={(event) => setPremiumMonths(Number(event.target.value))}
+                    className="w-full rounded-lg border border-slate-300 bg-white px-2 py-2 text-sm"
+                  >
+                    {PREMIUM_DURATIONS.map((option) => (
+                      <option key={option.months} value={option.months}>
+                        {option.months === 1
+                          ? t("licensing.oneMonth")
+                          : tParams("licensing.nMonths", { count: option.months })}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="mt-1 text-[11px] text-slate-400">
+                    {t("licensing.durationHint")}
+                  </p>
+                </div>
+              ) : null}
               <div className="mt-2">
                 <label className="mb-1 block text-xs text-slate-500">
                   {t("licensing.label")}

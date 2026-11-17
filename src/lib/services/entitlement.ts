@@ -453,6 +453,12 @@ export type GenerateLicenseInput = {
   count?: number;
   label?: string | null;
   expiresAt?: Date | null;
+  /**
+   * Length of a PREMIUM licence, in days. Ignored for PRODUCT and AFFILIATE
+   * (both permanent). Defaults to one month; the admin panel offers
+   * 1/2/3/4/5/6/12-month codes so a customer can prepay several months.
+   */
+  durationDays?: number;
 };
 
 export type GeneratedLicenseCode = {
@@ -475,7 +481,16 @@ export async function generateLicenseCodes(
 
   const kind = input.kind;
   const count = Math.min(Math.max(input.count ?? 1, 1), 100);
-  const durationDays = kind === "PREMIUM" ? PREMIUM_PERIOD_DAYS : 0;
+  // Premium can be prepaid: the admin panel offers 1/2/3/4/5/6 and 12 months.
+  // Clamp rather than trust the caller — a bad duration must not mint a
+  // 10-year licence. PRODUCT and AFFILIATE are permanent by definition.
+  const durationDays =
+    kind === "PREMIUM"
+      ? Math.min(
+          Math.max(Math.round(input.durationDays ?? PREMIUM_PERIOD_DAYS), 1),
+          730,
+        )
+      : 0;
   const results: GeneratedLicenseCode[] = [];
 
   await prisma.$transaction(

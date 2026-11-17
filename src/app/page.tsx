@@ -1,6 +1,4 @@
 import type { Metadata } from "next";
-import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
 import Link from "next/link";
 import {
   ShieldCheck,
@@ -14,7 +12,6 @@ import {
   TrendingUp,
   Phone,
 } from "lucide-react";
-import { AUTH_COOKIE_NAME, verifyToken } from "@/lib/services/auth";
 import { CONTACT_EMAIL, HOME_FAQ, HOME_DETAILS } from "@/content/marketing";
 import { SiteHeader } from "@/components/marketing/SiteHeader";
 import { SiteFooter } from "@/components/marketing/SiteFooter";
@@ -171,13 +168,6 @@ const PLANS = [
 ];
 
 export default async function HomePage() {
-  // Keep the old behaviour for owners who are already signed in.
-  const token = (await cookies()).get(AUTH_COOKIE_NAME)?.value;
-  if (token) {
-    const session = await verifyToken(token).catch(() => null);
-    if (session) redirect("/dashboard");
-  }
-
   const faqSchema = {
     "@context": "https://schema.org",
     "@type": "FAQPage",

@@ -32,27 +32,61 @@ project and a signing keystore must never be committed to the web repository.
 
 ## Toolchain
 
-Bubblewrap (`@bubblewrap/cli`) needs **JDK 17** and the **Android SDK with
-command-line tools**. On this machine:
+Bubblewrap (`@bubblewrap/cli`) needs **JDK 17** and an **Android SDK**. On this
+machine:
 
 ```
 JDK 17        C:\Users\user\Documents\Default Project\android-tools\jdk-17
-Android SDK   C:\Users\user\AppData\Local\Android\Sdk   (cmdline-tools\latest installed)
-Bubblewrap    npm i -g @bubblewrap/cli
-Config        C:\Users\user\.bubblewrap\config.json     (jdkPath + androidSdkPath)
+Android SDK   C:\Users\user\AppData\Local\Android\Sdk
+Bubblewrap    npm i -g @bubblewrap/cli          (1.27.0)
+Config        C:\Users\user\.bubblewrap\config.json   (jdkPath + androidSdkPath)
+Project       C:\Users\user\Documents\Default Project\dukhata-android
 ```
 
-`~/.bubblewrap/config.json` is what stops Bubblewrap prompting for those paths.
+Three quirks worth knowing, all already handled:
+
+1. **Bubblewrap's `androidSdkPath` wants either `tools/` or `bin/` inside it.**
+   The stock SDK from Android Studio has neither, so an (empty) `bin` folder was
+   created at the SDK root to satisfy `AndroidSdkTools.validatePath`.
+2. **Bubblewrap pins build-tools `36.1.0`**, which is not installed here. Rather
+   than let it run its own *interactive* `sdkmanager` install mid-build, a
+   `build-tools\36.1.0` folder was created alongside the real `36.0.0`, and
+   `app/build.gradle` was pinned with `buildToolsVersion "36.0.0"` so Gradle
+   uses the genuine one.
+3. **The Android command-line tools are not required** — nothing on this path
+   needs `sdkmanager`.
+
+Signing uses `dukhata-android/dukhata.keystore` (alias `dukhata`); the passwords
+are in the sibling `KEYSTORE-CREDENTIALS.txt`. **Back both up.** They are
+outside the web repo on purpose and must never be committed. Losing the keystore
+means you can never publish an update to the same Play listing under that key.
 
 ## Build
 
 ```powershell
-# from the web repo, to bake the signing fingerprint into the served assetlinks
-node scripts/android-write-assetlinks.mjs <keystore> <alias> <storepass>
+# 1. put the signing fingerprint where the site can serve it
+cd "C:\Users\user\Documents\Default Project\digital-khata-app\digital-khata-app-main"
+node scripts/android-write-assetlinks.mjs `
+  "C:\Users\user\Documents\Default Project\dukhata-android\dukhata.keystore" `
+  dukhata "<storepass>"
+# then commit + push that change so /.well-known/assetlinks.json is live
 
-# then build the app
+# 2. build the app
 cd "C:\Users\user\Documents\Default Project\dukhata-android"
+$env:JAVA_HOME="C:\Users\user\Documents\Default Project\android-tools\jdk-17"
+$env:ANDROID_HOME="C:\Users\user\AppData\Local\Android\Sdk"
+$env:BUBBLEWRAP_KEYSTORE_PASSWORD="<storepass>"
+$env:BUBBLEWRAP_KEY_PASSWORD="<keypass>"
 bubblewrap build --skipPwaValidation
+```
+
+Because `twa-manifest.json` is the single source of truth, regenerating the
+whole Gradle project (after changing any setting in it) is:
+
+```powershell
+cd "C:\Users\user\Documents\Default Project\dukhata-android"
+bubblewrap update --skipVersionUpgrade   # no prompts
+# then re-apply the buildToolsVersion pin in app/build.gradle
 ```
 
 Outputs (in the project directory):

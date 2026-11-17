@@ -1,8 +1,8 @@
 import * as Sentry from "@sentry/nextjs";
-import { SENTRY_BASE_OPTIONS, redactSentryEvent } from "./src/lib/monitoring/redact";
+import { SENTRY_BASE_OPTIONS, redactSentryEvent } from "./lib/monitoring/redact";
 
 /**
- * Sentry — browser runtime.
+ * Sentry — browser runtime. Must live in `src/` because the app uses `src/app`.
  *
  * NEXT_PUBLIC_ is required because this file runs in the browser. Sending goes
  * through the tunnel route configured in next.config.mjs, so it is same-origin

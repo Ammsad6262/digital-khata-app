@@ -46,7 +46,7 @@ export function SiteHeader() {
     >
       <div className="mx-auto flex h-16 w-full max-w-6xl items-center gap-3 px-4 sm:px-6 lg:px-8">
         <Link href="/" aria-label="Dukhata — home" className="focus-ring -ms-1 rounded-control p-1">
-          <Logo />
+          <Logo priority />
         </Link>
 
         <nav aria-label="Primary" className="ms-3 hidden items-center md:flex">

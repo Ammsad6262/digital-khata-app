@@ -1,65 +1,57 @@
 #!/usr/bin/env python3
 """
-Generate Dukhata's icon set and social image from the ledger mark.
+Generate Dukhata's icon set, header mark and social card FROM THE OWNER'S LOGO.
 
-Why this exists: the previous favicon was a small mark inside a large black
-square, which renders as an unreadable smudge at the 16-32px size a browser tab
-or a Google result uses, and there was no /favicon.ico at all (Google's
-fallback). These are generated at 4x and downsampled so edges stay clean, with a
-full-bleed background and a bold mark that survives 16px.
+Source of truth: `public/logo.png` (the owner's artwork — a light mark on a black
+tile). The original issue was that the mark occupies only ~55% x 33% of that
+canvas, so scaling the file as-is produced an almost-empty square at 16-32px.
+
+This script trims to the mark's actual bounds, then re-pads it against a black
+background so the glyph fills the frame at every size.
 
 Run from the repository root:
     python scripts/generate_icons.py
-Requires Pillow (already used by the project's tooling).
+Requires Pillow.
 """
 
 from PIL import Image, ImageDraw, ImageFont
 import os
 
-EMERALD = (5, 150, 105, 255)      # brand-600 (emerald theme)
-CREAM = (250, 248, 244, 255)      # app background "paper"
-INK = (41, 37, 36, 255)           # brand-700 (ink theme)
+HERE = os.path.dirname(os.path.abspath(__file__))
+OUT = os.path.normpath(os.path.join(HERE, "..", "public"))
+SOURCE = os.path.join(OUT, "logo.png")
+
+BLACK = (0, 0, 0, 255)
 WHITE = (255, 255, 255, 255)
-
-OUT = os.path.join(os.path.dirname(__file__), "..", "public")
+GREY = (170, 170, 170, 255)
+# The green used by the mark itself, sampled from the artwork.
+ACCENT = (144, 240, 120, 255)
 SUPERSAMPLE = 4
+GLYPH_THRESHOLD = 45  # luminance above which a pixel belongs to the mark
 
 
-def draw_mark(size: int, bg=EMERALD, fg=WHITE, maskable: bool = False) -> Image.Image:
-    """Square icon: rounded background + ledger mark, drawn at 4x then shrunk."""
+def load_mark() -> Image.Image:
+    """Trim the owner's logo to the mark's real bounds (keeps colour + alpha)."""
+    logo = Image.open(SOURCE).convert("RGBA")
+    mask = logo.convert("L").point(lambda v: 255 if v > GLYPH_THRESHOLD else 0)
+    box = mask.getbbox()
+    if not box:
+        raise SystemExit("logo.png appears to be blank")
+    return logo.crop(box)
+
+
+def icon(size: int, mark: Image.Image, fill: float = 0.88, maskable: bool = False) -> Image.Image:
+    """Black square with the mark centred, sized to `fill` of the width."""
     w = size * SUPERSAMPLE
-    img = Image.new("RGBA", (w, w), (0, 0, 0, 0))
-    d = ImageDraw.Draw(img)
-
-    if maskable:
-        # Full bleed: the platform applies its own mask.
-        d.rectangle([0, 0, w, w], fill=bg)
-    else:
-        d.rounded_rectangle([0, 0, w - 1, w - 1], radius=int(w * 0.22), fill=bg)
-
-    k = w / 512.0  # design space is 512
-
-    def xy(x, y):
-        return (x * k, y * k)
-
-    def lw(v):
-        return max(1, int(round(v * k)))
-
-    # Book cover
-    d.rounded_rectangle(
-        [120 * k, 96 * k, 392 * k, 416 * k],
-        radius=int(36 * k),
-        outline=fg,
-        width=lw(26),
+    img = Image.new("RGBA", (w, w), BLACK)
+    scale = (w * (0.66 if maskable else fill)) / mark.width
+    if mark.height * scale > w * 0.92:
+        scale = (w * 0.92) / mark.height
+    resized = mark.resize(
+        (max(1, round(mark.width * scale)), max(1, round(mark.height * scale))),
+        Image.LANCZOS,
     )
-    # Spine
-    d.line([xy(196, 96), xy(196, 416)], fill=fg, width=lw(26))
-    # Ruled ledger lines
-    d.line([xy(238, 188), xy(352, 188)], fill=fg, width=lw(22))
-    d.line([xy(238, 250), xy(352, 250)], fill=fg, width=lw(22))
-    # Ticked entry
-    d.line([xy(232, 330), xy(268, 366), xy(348, 272)], fill=fg, width=lw(32), joint="curve")
-
+    img.paste(resized, ((w - resized.width) // 2, (w - resized.height) // 2), resized)
     return img.resize((size, size), Image.LANCZOS)
 
 
@@ -75,54 +67,56 @@ def load_font(bold: bool, size: int) -> ImageFont.FreeTypeFont:
     return ImageFont.load_default()
 
 
-def make_social_card() -> Image.Image:
-    """1200x630 Open Graph / Twitter card."""
+def header_mark(mark: Image.Image) -> Image.Image:
+    """Wide tile for the site header: the mark gets room without being squashed."""
+    W, H = 336, 200
+    img = Image.new("RGBA", (W, H), BLACK)
+    scale = (W * 0.88) / mark.width
+    resized = mark.resize(
+        (max(1, round(mark.width * scale)), max(1, round(mark.height * scale))),
+        Image.LANCZOS,
+    )
+    img.paste(resized, ((W - resized.width) // 2, (H - resized.height) // 2), resized)
+    return img
+
+
+def social_card(mark: Image.Image) -> Image.Image:
+    """1200x630 Open Graph / Twitter card on the brand's black."""
     W, H = 1200, 630
-    img = Image.new("RGB", (W, H), CREAM)
+    img = Image.new("RGB", (W, H), BLACK[:3])
     d = ImageDraw.Draw(img)
 
-    # Thin emerald rule along the top for a little identity.
-    d.rectangle([0, 0, W, 10], fill=EMERALD)
+    tile = icon(200, mark)
+    img.paste(tile, (90, 215), tile)
 
-    icon = draw_mark(180)
-    img.paste(icon, (90, 225), icon)
-
-    title_font = load_font(True, 92)
-    body_font = load_font(False, 38)
-    small_font = load_font(False, 28)
-
-    d.text((310, 214), "Dukhata", font=title_font, fill=INK)
-    d.text((312, 330), "Digital khata for Pakistani shops", font=body_font, fill=(87, 83, 78))
-    d.text((312, 392), "Record a sale by speaking. Balances stay correct.", font=small_font, fill=(102, 96, 92))
-    d.text((312, 470), "Free 14-day trial  ·  dukhata.com", font=small_font, fill=EMERALD)
-
+    d.text((330, 214), "Dukhata", font=load_font(True, 92), fill=WHITE[:3])
+    d.text((332, 330), "Digital khata for Pakistani shops", font=load_font(False, 38), fill=GREY[:3])
+    d.text((332, 392), "Record a sale by speaking. Balances stay correct.", font=load_font(False, 28), fill=GREY[:3])
+    d.text((332, 470), "Free 14-day trial  ·  dukhata.com", font=load_font(False, 28), fill=ACCENT[:3])
     return img
 
 
 def main() -> None:
-    os.makedirs(OUT, exist_ok=True)
+    mark = load_mark()
+    print(f"mark trimmed to {mark.size[0]}x{mark.size[1]}")
 
-    # Google asks for a favicon that is a multiple of 48px; browsers use 16-32.
     for size in (48, 96, 144, 192, 512):
-        draw_mark(size).save(os.path.join(OUT, f"icon-{size}.png"))
+        icon(size, mark).save(os.path.join(OUT, f"icon-{size}.png"))
         print(f"icon-{size}.png")
 
-    # Compatibility names the app's metadata already used.
-    draw_mark(512).save(os.path.join(OUT, "icon.png"))
-    draw_mark(64).save(os.path.join(OUT, "favicon.png"))
-    draw_mark(180).save(os.path.join(OUT, "apple-icon.png"))
-    print("icon.png, favicon.png, apple-icon.png")
+    icon(512, mark).save(os.path.join(OUT, "icon.png"))
+    icon(64, mark).save(os.path.join(OUT, "favicon.png"))
+    icon(180, mark).save(os.path.join(OUT, "apple-icon.png"))
+    icon(512, mark, maskable=True).save(os.path.join(OUT, "icon-maskable-512.png"))
+    print("icon.png, favicon.png, apple-icon.png, icon-maskable-512.png")
 
-    # /favicon.ico — the fallback Google and old browsers request directly.
-    ico_sizes = [(16, 16), (32, 32), (48, 48)]
-    draw_mark(48).save(os.path.join(OUT, "favicon.ico"), format="ICO", sizes=ico_sizes)
+    icon(48, mark).save(os.path.join(OUT, "favicon.ico"), format="ICO", sizes=[(16, 16), (32, 32), (48, 48)])
     print("favicon.ico")
 
-    # Maskable variant (safe zone: content within the inner 80%).
-    draw_mark(512, maskable=True).save(os.path.join(OUT, "icon-maskable-512.png"))
-    print("icon-maskable-512.png")
+    header_mark(mark).save(os.path.join(OUT, "logo-mark.png"))
+    print("logo-mark.png (header/footer tile)")
 
-    make_social_card().save(os.path.join(OUT, "opengraph-image.png"), optimize=True)
+    social_card(mark).save(os.path.join(OUT, "opengraph-image.png"), optimize=True)
     print("opengraph-image.png (1200x630)")
 
 

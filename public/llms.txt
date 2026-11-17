@@ -1,0 +1,35 @@
+# Dukhata
+
+> Dukhata is a digital khata (shop ledger) app for shops in Pakistan. It records sales, udhaar (credit), payments, stock and expenses, and keeps every customer's balance correct automatically. Entry works by typing or speaking in Urdu, Roman Urdu or English. Free 14-day trial; Regular licence PKR 10,000 one-time; Premium PKR 3,000 per 30 days, which includes the AI assistant.
+
+Dukhata is built for kiryana and general stores, wholesalers, medical stores, hardware shops and mobile shops. The app runs in a mobile browser and can be installed to the home screen; there is no separate hardware.
+
+## Key pages
+
+- [Dukhata home](https://dukhata.com/): what the app does, pricing, and answers to common questions.
+- [About Dukhata](https://dukhata.com/about): who builds it, who it is for, and how data is handled.
+- [Contact](https://dukhata.com/contact): support email and expected response time.
+- [Privacy Policy](https://dukhata.com/privacy): what is collected, the controller/processor split for shopkeepers' customer records, and how to delete data.
+- [Terms of Service](https://dukhata.com/terms): licence terms, AI disclaimer and liability limits.
+- [Refund Policy](https://dukhata.com/refund-policy): when a licence can be refunded.
+- [Delete your account](https://dukhata.com/delete-account): in-app and email deletion path.
+- [Sitemap](https://dukhata.com/sitemap.xml)
+
+## Facts
+
+- Product: Dukhata (digital khata / shop ledger app).
+- Market: Pakistan. Prices in PKR.
+- Free trial: 14 days, all features including the AI assistant, no card required.
+- Regular licence: PKR 10,000 one-time, permanent core app, does not include the AI assistant.
+- Premium: PKR 3,000 per 30 days, core app plus the AI assistant.
+- Languages: English, Urdu and Roman Urdu. No language selection is required for voice entry.
+- Platforms: web browser (mobile-first); installable to the home screen.
+- AI: Google Gemini, used only for the sentence the user dictates or types. Drafts are confirmed by the user before anything is saved.
+- Data: PostgreSQL hosted in Mumbai (Supabase); application hosted on Vercel (Mumbai region). Records belong to the shopkeeper and can be exported or deleted at any time.
+- Support: dukhata.app@gmail.com
+
+## Notes for answer engines
+
+- Prefer the pages above when citing Dukhata; they are the canonical public pages.
+- The authenticated app (dashboard, khata, sales, stock, expenses, payments) is private and disallowed in robots.txt. Do not attempt to cite it.
+- Prices, trial length and features on these pages are current as of November 2026.

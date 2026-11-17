@@ -15,7 +15,7 @@ import {
   Phone,
 } from "lucide-react";
 import { AUTH_COOKIE_NAME, verifyToken } from "@/lib/services/auth";
-import { CONTACT_EMAIL, HOME_FAQ } from "@/content/marketing";
+import { CONTACT_EMAIL, HOME_FAQ, HOME_DETAILS } from "@/content/marketing";
 import { SiteHeader } from "@/components/marketing/SiteHeader";
 import { SiteFooter } from "@/components/marketing/SiteFooter";
 import { SmoothScroll } from "@/components/marketing/SmoothScroll";
@@ -238,12 +238,52 @@ export default async function HomePage() {
     publisher: { "@type": "Organization", name: "Dukhata", url: "https://dukhata.com/" },
   };
 
+  // Answer-engine fodder: the most common how-to question a shopkeeper asks is
+  // "how do I put an udhaar in the app". A HowTo block gives assistants a clean,
+  // quotable procedure instead of making them infer it from marketing copy.
+  const howToSchema = {
+    "@context": "https://schema.org",
+    "@type": "HowTo",
+    name: "How to record an udhaar (credit sale) in Dukhata",
+    description:
+      "Record a credit sale for a customer in Dukhata by speaking or typing one sentence, then confirming the draft.",
+    totalTime: "PT1M",
+    tool: [{ "@type": "HowToTool", name: "Dukhata app in a mobile browser" }],
+    step: [
+      {
+        "@type": "HowToStep",
+        position: 1,
+        name: "Open the assistant",
+        text: "Open Dukhata on the phone and tap the microphone, or type in the assistant box.",
+      },
+      {
+        "@type": "HowToStep",
+        position: 2,
+        name: "Say the entry",
+        text: "Say or type the sale the way you would tell a helper, for example \"Ali ko 500 udhaar diye\" in Urdu, Roman Urdu or English.",
+      },
+      {
+        "@type": "HowToStep",
+        position: 3,
+        name: "Check the draft",
+        text: "Dukhata shows the customer, the amount and that nothing was paid. Correct any field before saving.",
+      },
+      {
+        "@type": "HowToStep",
+        position: 4,
+        name: "Confirm",
+        text: "Confirm the draft. The sale is saved and Ali's khata balance increases by the amount.",
+      },
+    ],
+  };
+
   return (
     <div className="flex min-h-[100dvh] flex-col bg-app">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(orgSchema) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(siteSchema) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(appSchema) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(howToSchema) }} />
 
       <a
         href="#main"
@@ -270,8 +310,14 @@ export default async function HomePage() {
                 </h1>
 
                 <p className="mt-5 max-w-xl text-[15px] leading-relaxed text-ink-muted sm:text-base">
-                  Record a sale, an udhaar or a payment in seconds. Type it or speak it in Urdu
-                  or Roman Urdu, and every customer balance stays correct on its own.
+                  Dukhata is a digital khata app for shops in Pakistan. It keeps a shop&apos;s ledger —
+                  customers, udhaar (credit), payments, stock and expenses — on the owner&apos;s phone,
+                  and recalculates every customer balance automatically when an entry is saved. The
+                  owner records a sale in one sentence, typed or spoken in Urdu, Roman Urdu or English:
+                  saying “Ali ko 500 udhaar diye” produces a draft entry for Ali, which the owner
+                  confirms with one tap. Dukhata costs PKR 10,000 one-time for the core app without the
+                  AI assistant, or PKR 3,000 per 30 days for Premium, which includes it. Every new
+                  account starts with a free 14-day trial that includes everything and needs no card.
                 </p>
 
                 <div className="mt-7 flex flex-wrap items-start gap-4">
@@ -555,6 +601,32 @@ export default async function HomePage() {
                     </summary>
                     <p className="mt-2 text-sm leading-relaxed text-ink-subtle">{item.answer}</p>
                   </details>
+                ))}
+              </div>
+            </Container>
+          </section>
+
+          {/*
+            Long-form detail. Two jobs at once: a shopkeeper deciding whether to
+            pay gets the specifics, and answer engines get self-contained
+            passages they can quote (134-167 words each, subject named, facts
+            included). Keep every claim consistent with the legal pages.
+          */}
+          <section id="details" className="scroll-mt-24 border-t border-line bg-app">
+            <Container className="py-16 lg:py-20">
+              <header className="max-w-2xl" data-reveal="">
+                <p className="eyebrow">Details</p>
+                <h2 className="mt-2 text-2xl font-semibold text-ink sm:text-3xl">
+                  Good to know before you start
+                </h2>
+              </header>
+
+              <div className="mt-8 grid gap-8 lg:grid-cols-2 lg:gap-10">
+                {HOME_DETAILS.map((detail) => (
+                  <article key={detail.title} data-reveal="">
+                    <h3 className="text-base font-semibold text-ink">{detail.title}</h3>
+                    <p className="mt-2 text-sm leading-relaxed text-ink-muted">{detail.body}</p>
+                  </article>
                 ))}
               </div>
             </Container>

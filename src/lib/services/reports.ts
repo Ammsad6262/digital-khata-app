@@ -215,7 +215,12 @@ export type ReportData = {
   limitations: ReportLimitation[];
 };
 
-const MAX_RANGE_DAYS = 366;
+/**
+ * Upper bound on a single report window. Ten years: generous enough that
+ * "All time" is a real lifetime report for any shop, still bounded so one
+ * request cannot scan an unbounded date range.
+ */
+const MAX_RANGE_DAYS = 3660;
 
 export type ReportPreset =
   | "today"
@@ -224,6 +229,7 @@ export type ReportPreset =
   | "lastMonth"
   | "last7"
   | "last30"
+  | "all"
   | "year";
 
 /**
@@ -819,11 +825,40 @@ export async function getReportForPreset(
   preset: string,
   timezone: string = "Asia/Karachi",
 ): Promise<ReportData> {
+  // "All time" is the owner's whole history, so the window starts at their
+  // earliest record rather than at a made-up date. Falls back to today when the
+  // shop has nothing recorded yet.
+  if (preset === "all") {
+    const earliest = await earliestRecordDate(userId, timezone);
+    const today = todayDateStringInTz(timezone);
+    return getReportForRange(userId, earliest ?? today, today, timezone);
+  }
+
   const resolved = rangeForPreset(preset, timezone);
   if (!resolved) {
     throw new BadRequestError("api.report.invalidPreset", { preset });
   }
   return getReportForRange(userId, resolved.from, resolved.to, timezone);
+}
+
+/** The earliest date the owner has any dated record for, or null when empty. */
+async function earliestRecordDate(
+  userId: string,
+  timezone: string,
+): Promise<string | null> {
+  const [sale, expense, purchase] = await Promise.all([
+    prisma.sale.findFirst({ where: { userId }, orderBy: { date: "asc" }, select: { date: true } }),
+    prisma.expense.findFirst({ where: { userId }, orderBy: { date: "asc" }, select: { date: true } }),
+    prisma.purchase.findFirst({ where: { userId }, orderBy: { date: "asc" }, select: { date: true } }),
+  ]);
+
+  const dates = [sale?.date, expense?.date, purchase?.date].filter(
+    (d): d is Date => d instanceof Date,
+  );
+  if (dates.length === 0) return null;
+
+  const earliest = new Date(Math.min(...dates.map((d) => d.getTime())));
+  return dateStringInTz(earliest, timezone);
 }
 
 /** Current-month range, used as the default when the page first loads. */

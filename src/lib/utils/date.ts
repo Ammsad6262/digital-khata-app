@@ -39,103 +39,101 @@ export function startOfMonthInTz(timezone: string = "Asia/Karachi"): Date {
 }
 
 /**
- * Core: compute the start of a period (day/week/month) in a given timezone.
+ * Which day the week starts on.
  *
- * Uses Intl.DateTimeFormat to get the current date components in the target
- * TZ, then constructs a UTC Date for midnight of that day, then converts
- * back to the correct UTC moment by applying the TZ offset.
+ * Sunday, not Monday. The owner reported that a sale made on Sunday did not
+ * appear under "This week", which is exactly what a Monday-start week does in
+ * Pakistan's calendar (the week people read on a wall calendar begins Sunday).
+ * Change this single line to "mon" to go back to an ISO week.
+ */
+export const WEEK_STARTS_ON: "sun" | "mon" = "sun";
+
+/** Wall-clock parts of an instant, in the business timezone. */
+function wallParts(
+  instant: Date,
+  timezone: string,
+): { year: number; month: number; day: number; hour: number; minute: number; weekday: number } {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: timezone,
+    weekday: "short",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(instant);
+
+  const get = (type: string): number =>
+    parseInt(parts.find((p) => p.type === type)?.value ?? "0", 10);
+  const weekdayName = parts.find((p) => p.type === "weekday")?.value ?? "Sun";
+  // 0 = Sunday ... 6 = Saturday
+  const weekdayMap: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+
+  return {
+    year: get("year"),
+    month: get("month"),
+    day: get("day"),
+    hour: get("hour"),
+    minute: get("minute"),
+    weekday: weekdayMap[weekdayName] ?? 0,
+  };
+}
+
+/**
+ * The UTC instant at which a civil date begins in `timezone`.
  *
- * This is more robust than the previous approach because:
- * 1. No manual offset arithmetic (which had sign errors in edge cases)
- * 2. Uses the V8 engine's built-in TZ database (always correct)
- * 3. Works the same in Node.js, Vercel serverless, and Edge runtime
+ * Solved by measuring, not by assuming a sign. The previous version assumed a
+ * positive UTC offset (it read the time-of-day at midnight UTC and subtracted
+ * it), which is right for Karachi and exactly one day wrong for any zone west of
+ * Greenwich — e.g. New York reported yesterday's midnight as today's. Here we
+ * format a guess in the target zone, measure the real difference, and correct,
+ * refining once so daylight-saving transitions land right too.
+ */
+function zonedMidnight(year: number, month: number, day: number, timezone: string): Date {
+  const civilAsUtc = Date.UTC(year, month - 1, day);
+  let offsetMs = 0;
+
+  for (let pass = 0; pass < 3; pass += 1) {
+    const guess = civilAsUtc - offsetMs;
+    const wall = wallParts(new Date(guess), timezone);
+    const wallAsUtc = Date.UTC(wall.year, wall.month - 1, wall.day, wall.hour, wall.minute);
+    const measured = wallAsUtc - guess;
+    if (measured === offsetMs) break;
+    offsetMs = measured;
+  }
+
+  return new Date(civilAsUtc - offsetMs);
+}
+
+/**
+ * Core: the start of a period (day/week/month/year) in a given timezone, as a
+ * UTC Date that can go straight into a Prisma `gte` clause.
  */
 function startOfPeriodInTz(
   timezone: string,
   period: "day" | "week" | "month" | "year",
 ): Date {
-  const now = new Date();
-
-  // Get current date parts in the target timezone
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: timezone,
-    weekday: "short",  // "Mon", "Tue", etc.
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(now);
-
-  const get = (type: string): number =>
-    parseInt(parts.find((p) => p.type === type)?.value ?? "0", 10);
-
-  const year = get("year");
-  const month = get("month");  // 1-12
-  const day = get("day");      // 1-31
-  const weekday = parts.find((p) => p.type === "weekday")?.value ?? "Mon";
-
-  // Compute the target day (for week, go back to Monday)
-  let targetDay = day;
-  let targetMonth = month;
-  let targetYear = year;
+  const wall = wallParts(new Date(), timezone);
+  let year = wall.year;
+  let month = wall.month;
+  let day = wall.day;
 
   if (period === "week") {
-    // Day of week: Mon=0, Tue=1, ..., Sun=6
-    const dayMap: Record<string, number> = {
-      Mon: 0, Tue: 1, Wed: 2, Thu: 3, Fri: 4, Sat: 5, Sun: 6,
-    };
-    const dow = dayMap[weekday] ?? 0;
-
-    if (dow > 0) {
-      // Go back `dow` days to reach Monday
-      // We construct a Date in UTC (treating the TZ date as if it were UTC),
-      // subtract days, then convert back.
-      const asIfUtc = Date.UTC(year, month - 1, day);
-      const mondayMs = asIfUtc - dow * 24 * 60 * 60 * 1000;
-      const monday = new Date(mondayMs);
-      targetYear = monday.getUTCFullYear();
-      targetMonth = monday.getUTCMonth() + 1;
-      targetDay = monday.getUTCDate();
-    }
+    // Days elapsed since the start of the week. Sunday-start: Sunday is day 0.
+    const elapsed = WEEK_STARTS_ON === "sun" ? wall.weekday : (wall.weekday + 6) % 7;
+    const start = new Date(Date.UTC(year, month - 1, day - elapsed));
+    year = start.getUTCFullYear();
+    month = start.getUTCMonth() + 1;
+    day = start.getUTCDate();
   } else if (period === "month") {
-    targetDay = 1;
+    day = 1;
   } else if (period === "year") {
-    targetDay = 1;
-    targetMonth = 1;
+    day = 1;
+    month = 1;
   }
-  // For "day", targetDay stays as-is
 
-  // Now construct midnight for the target date IN the target timezone.
-  // We need to figure out what UTC moment corresponds to midnight in the TZ.
-  //
-  // Strategy: create a Date for "midnight UTC" of the target date, then
-  // check what time that is in the target TZ. The difference tells us
-  // the offset, which we apply to get the correct UTC moment.
-  //
-  // Example: target = Sep 22, Karachi (UTC+5)
-  //   midnight UTC Sep 22 = Sep 22 00:00 UTC
-  //   In Karachi, that's Sep 22 05:00 (ahead of midnight)
-  //   So midnight Karachi = Sep 21 19:00 UTC
-  //   Offset = +5h → we subtract 5h from midnight UTC
-
-  // Format midnight-UTC in the target TZ to find the offset
-  const midnightUtc = new Date(Date.UTC(targetYear, targetMonth - 1, targetDay));
-  const tzAtMidnightUtc = new Intl.DateTimeFormat("en-US", {
-    timeZone: timezone,
-    year: "numeric", month: "2-digit", day: "2-digit",
-    hour: "2-digit", minute: "2-digit",
-    hourCycle: "h23",
-  }).formatToParts(midnightUtc);
-
-  const tzHour = parseInt(tzAtMidnightUtc.find(p => p.type === "hour")?.value ?? "0", 10);
-  const tzMinute = parseInt(tzAtMidnightUtc.find(p => p.type === "minute")?.value ?? "0", 10);
-
-  // How many minutes ahead/behind is the TZ at midnight UTC?
-  // If TZ shows 05:00 at midnight UTC, the TZ is 5 hours ahead.
-  // Midnight in TZ = midnight UTC - 5 hours.
-  const tzMinutesFromMidnight = tzHour * 60 + tzMinute;
-  const offsetMinutes = tzMinutesFromMidnight;
-
-  return new Date(midnightUtc.getTime() - offsetMinutes * 60000);
+  return zonedMidnight(year, month, day, timezone);
 }
 
 /** Returns the start of `n` days ago in the given timezone. */
@@ -174,10 +172,16 @@ export function endOfLastWeekInTz(timezone: string = "Asia/Karachi"): Date {
 
 /** Returns the start of last month (first day of previous month) in the given TZ. */
 export function startOfLastMonthInTz(timezone: string = "Asia/Karachi"): Date {
-  const thisMonthStart = startOfMonthInTz(timezone);
-  const lastMonthStart = new Date(thisMonthStart);
-  lastMonthStart.setUTCMonth(lastMonthStart.getUTCMonth() - 1);
-  return lastMonthStart;
+  // Computed from the calendar month, NOT by subtracting a month from this
+  // month's start. That older approach was off by one day: the start of this
+  // month is a UTC instant that already falls in the PREVIOUS UTC month
+  // (Nov 1 Karachi = Oct 31 UTC), so subtracting a UTC month rolled over an
+  // extra day and "Last month" began on the 2nd instead of the 1st.
+  const wall = wallParts(new Date(), timezone);
+  const previous = wall.month - 1; // 1-based
+  const year = previous === 0 ? wall.year - 1 : wall.year;
+  const month = previous === 0 ? 12 : previous;
+  return zonedMidnight(year, month, 1, timezone);
 }
 
 /** Returns the end of last month (start of this month, exclusive) in the given TZ. */
@@ -219,21 +223,7 @@ export function startOfDayInTz(
     return null;
   }
 
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: timezone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    hourCycle: "h23",
-  }).formatToParts(asUtc);
-
-  const get = (type: string): number =>
-    parseInt(parts.find((p) => p.type === type)?.value ?? "0", 10);
-
-  const offsetMinutes = get("hour") * 60 + get("minute");
-  return new Date(asUtc.getTime() - offsetMinutes * 60000);
+  return zonedMidnight(year, month, day, timezone);
 }
 
 /** `YYYY-MM-DD` for a given instant, in the business timezone. */

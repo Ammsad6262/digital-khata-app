@@ -798,6 +798,7 @@ export const translations = {
   "reports.preset.today": { en: "Today", ur: "آج" },
   "reports.preset.week": { en: "This week", ur: "اس ہفتے" },
   "reports.preset.month": { en: "This month", ur: "اس مہینے" },
+  "reports.preset.all": { en: "All time", ur: "ہر وقت" },
   "reports.preset.lastMonth": { en: "Last month", ur: "پچھلا مہینہ" },
   "reports.preset.last7": { en: "Last 7 days", ur: "پچھلے 7 دن" },
   "reports.preset.last30": { en: "Last 30 days", ur: "پچھلے 30 دن" },

@@ -49,9 +49,7 @@ const PRESETS: Array<{ preset: string; labelKey: TranslationKey }> = [
   { preset: "today", labelKey: "reports.preset.today" },
   { preset: "week", labelKey: "reports.preset.week" },
   { preset: "month", labelKey: "reports.preset.month" },
-  { preset: "lastMonth", labelKey: "reports.preset.lastMonth" },
-  { preset: "last7", labelKey: "reports.preset.last7" },
-  { preset: "last30", labelKey: "reports.preset.last30" },
+  { preset: "all", labelKey: "reports.preset.all" },
 ];
 
 function prettyDate(value: string): string {

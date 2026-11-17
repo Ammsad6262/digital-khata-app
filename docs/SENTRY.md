@@ -9,15 +9,41 @@ nothing. Shipping it cannot break a deployment.
 
 | File | Purpose |
 | --- | --- |
-| `instrumentation-client.ts` | Browser SDK init + router transition breadcrumbs |
-| `instrumentation.ts` | `register()` loads the Node or Edge config; forwards `onRequestError` |
+| `src/instrumentation-client.ts` | Browser SDK init + router transition breadcrumbs |
+| `src/instrumentation.ts` | `register()` loads the Node or Edge config; forwards `onRequestError` |
 | `sentry.server.config.ts` | Node runtime (API routes, server components, Prisma) |
 | `sentry.edge.config.ts` | Edge runtime (middleware) |
 | `src/lib/monitoring/redact.ts` | PII scrubbing + shared init options |
 | `src/app/global-error.tsx` | Reports root-layout crashes (the only boundary outside providers) |
 | `next.config.mjs` | `withSentryConfig`, tunnel route, source-map handling |
 
+### Gotcha that cost a deploy
+
+`instrumentation.ts` and `instrumentation-client.ts` must sit at the **root of
+`src/`** when the app lives in `src/app`. Placed at the repository root they are
+silently ignored: the bundle contains the DSN, the tunnel answers 200, and still
+no SDK initialises, so nothing is ever sent. If a future refactor moves the app
+directory, move these with it.
+
+`withSentryConfig` also had to be required from `@sentry/nextjs/config` (not the
+package root) and via `createRequire`, because this config is ESM and the helper
+is only exported from a CommonJS subpath.
+
 ## Configuration choices
+
+### Live project (17 Nov 2026)
+
+| | |
+| --- | --- |
+| Sentry org | `dukhata` |
+| Project | `dukhata-web` |
+| DSN host | `o4512445071753216.ingest.de.sentry.io` (EU region) |
+| Env vars set in Vercel | `NEXT_PUBLIC_SENTRY_DSN`, `SENTRY_DSN`, `SENTRY_ORG`, `SENTRY_PROJECT` (production + preview) |
+| Verified | client error captured through the tunnel as `DUKHATA-WEB-1` |
+| Source maps | **disabled** — no `SENTRY_AUTH_TOKEN` yet, so traces are minified |
+
+The first captured issue is a deliberate smoke test ("Dukhata Sentry smoke test —
+safe to ignore"); resolve or delete it in Sentry.
 
 - **Tunnel route `/monitoring`**: events go to the app's own origin and are
   proxied to Sentry. This is required because the CSP allows only

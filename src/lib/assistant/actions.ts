@@ -286,8 +286,10 @@ export async function performAction(
       const customer = await createCustomer(
         {
           name,
+          companyName: payload.companyName,
           phone: payload.phone,
           address: payload.address,
+          notes: payload.notes,
           openingBalance: payload.openingBalance ?? 0,
         },
         userId,

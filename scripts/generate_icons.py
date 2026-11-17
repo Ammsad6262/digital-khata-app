@@ -177,6 +177,16 @@ def build_tile(
         th = round(S * 0.72)
         tw = round(mark.width * th / mark.height)
     m2 = mark.resize((tw, th), Image.LANCZOS)
+    if tw > mark.width:
+        # The owner's artwork is 246px wide, so the 512px icon and the social
+        # card upscale it. A light unsharp pass restores edge definition that
+        # plain LANCZOS softens. Applied to colour only — sharpening the alpha
+        # band would ring around the glyph.
+        r, g, b, a = m2.split()
+        rgb = Image.merge("RGB", (r, g, b)).filter(
+            ImageFilter.UnsharpMask(radius=1.1, percent=60, threshold=3)
+        )
+        m2 = Image.merge("RGBA", (*rgb.split(), a))
     canvas = Image.new("RGBA", (S, S), (0, 0, 0, 0))
     ox, oy = (S - tw) // 2, (S - th) // 2
     canvas.paste(m2, (ox, oy), m2)
@@ -257,8 +267,9 @@ VARIANTS: dict[str, dict] = {
 
 ALL_VARIANTS = list(VARIANTS)
 
-#: The look the owner asked for: the first page's paper finish.
-DEFAULT_VARIANT = "paper"
+#: The look the owner asked for: the dark tile with their green mark (the
+#: original "black" logo), rebuilt crisply rather than the flat source file.
+DEFAULT_VARIANT = "graphite"
 
 
 def variant_tile(name: str, S: int, fill: float = 0.70) -> Image.Image:

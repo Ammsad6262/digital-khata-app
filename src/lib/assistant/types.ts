@@ -101,8 +101,12 @@ export type PlanValues = {
   amount?: number;
   discountAmount?: number;
   name?: string;
+  companyName?: string;
   expenseName?: string;
   phone?: string;
+  address?: string;
+  notes?: string;
+  openingBalance?: number;
   method?: PaymentMethod;
   sellingPrice?: number;
   purchasePrice?: number;
@@ -140,6 +144,7 @@ export type PlanPayload = {
   date?: string;
   dueDate?: string;
   name?: string;
+  companyName?: string;
   phone?: string;
   address?: string;
   openingBalance?: number;

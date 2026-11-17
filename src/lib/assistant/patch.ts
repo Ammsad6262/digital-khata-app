@@ -29,6 +29,7 @@ export const ALLOWED_PATCH_KEYS: Array<keyof PlanPayload> = [
   "date",
   "dueDate",
   "name",
+  "companyName",
   "phone",
   "address",
   "openingBalance",

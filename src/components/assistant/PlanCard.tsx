@@ -130,7 +130,11 @@ const DISPLAY_LABEL: Record<string, TranslationKey> = {
   Category: "plan.label.category",
   "Cost per unit": "plan.label.costPerUnit",
   Name: "plan.label.name",
+  Company: "plan.label.companyName",
   Phone: "plan.label.phone",
+  Address: "plan.label.address",
+  Notes: "plan.label.notes",
+  "Opening balance": "plan.label.openingBalance",
   "Selling price": "plan.label.sellingPrice",
   "Purchase price": "plan.label.purchasePrice",
   "Opening stock": "plan.label.openingStock",
@@ -150,7 +154,11 @@ const LABEL_TO_VALUE_KEY: Record<string, keyof PlanValues> = {
   Amount: "amount",
   Discount: "discountAmount",
   Name: "name",
+  Company: "companyName",
   Phone: "phone",
+  Address: "address",
+  Notes: "notes",
+  "Opening balance": "openingBalance",
   Expense: "expenseName",
   Category: "category",
   "Selling price": "sellingPrice",
@@ -196,7 +204,11 @@ const EDITABLE: Partial<Record<ActionKind, Spec[]>> = {
   ],
   CREATE_CUSTOMER: [
     { key: "name", label: "plan.label.name", type: "text" },
+    { key: "companyName", label: "plan.label.companyName", type: "text" },
     { key: "phone", label: "plan.label.phone", type: "text" },
+    { key: "address", label: "plan.label.address", type: "text" },
+    { key: "notes", label: "plan.label.notes", type: "text" },
+    { key: "openingBalance", label: "plan.label.openingBalance", type: "number" },
   ],
   CREATE_SUPPLIER: [
     { key: "name", label: "plan.label.name", type: "text" },
@@ -277,14 +289,29 @@ function PlanCardImpl({
       };
     });
 
-  const entityKinds = (["customer", "product", "supplier"] as EntityKind[]).filter(
-    (kind) =>
+  // "Add a customer Ali" must lead with the Name field, not with a
+  // "choose a saved record" dropdown. For the two people-creation actions the
+  // picker only earns its place when there is something to disambiguate: a real
+  // candidate, a resolved id, or a named-but-missing entity. (A name that
+  // matches an existing customer never reaches this card at all — the service
+  // answers with a "pick the existing one" clarification instead.)
+  const createsPeople = plan.action === "CREATE_CUSTOMER" || plan.action === "CREATE_SUPPLIER";
+  const entityKinds = (["customer", "product", "supplier"] as EntityKind[]).filter((kind) => {
+    if (createsPeople) {
+      return (
+        Boolean(plan.missing?.[kind]) ||
+        Boolean(plan.values?.[ENTITY_ID_KEY[kind]]) ||
+        (plan.candidates[ENTITY_GROUP[kind]]?.length ?? 0) > 0
+      );
+    }
+    return (
       ENTITY_ACTIONS[kind].includes(plan.action) ||
       needs.has(kind) ||
       Boolean(plan.values?.[ENTITY_ID_KEY[kind]]) ||
       Boolean(plan.missing?.[kind]) ||
-      (plan.candidates[ENTITY_GROUP[kind]]?.length ?? 0) > 0,
-  );
+      (plan.candidates[ENTITY_GROUP[kind]]?.length ?? 0) > 0
+    );
+  });
 
   const [options, setOptions] = useState<EntityOptions>(EMPTY_OPTIONS);
   const [optionsFailed, setOptionsFailed] = useState(false);
@@ -370,6 +397,12 @@ function PlanCardImpl({
   // After the owner edits quantity/price, "Full payment" must mean the new
   // total, not the one parsed before the edit.
   const fullPaymentAmount = liveTotal ?? plan.suggested?.paidAmount;
+  // Exactly one of the two shortcuts may look selected. "Full payment" only
+  // counts when there is a real amount to pay, so a zero-total sale cannot
+  // light both buttons at once — the "I can pick both" bug.
+  const isFullPayment =
+    fullPaymentAmount !== undefined && fullPaymentAmount > 0 && paidNow === fullPaymentAmount;
+  const isOnCredit = paidNow === 0;
   // Whatever "Paid now" shows is what the owner is confirming. Send it
   // explicitly so an untouched default (the full sale total) is not lost, and
   // so editing quantity/price cannot silently change the paid amount after the
@@ -722,20 +755,25 @@ function PlanCardImpl({
             {fullPaymentAmount !== undefined ? (
               <button
                 type="button"
-                aria-pressed={paidNow === fullPaymentAmount}
+                aria-pressed={isFullPayment}
                 onClick={() => setPatch((p) => ({ ...p, paidAmount: fullPaymentAmount }))}
-                className="rounded-full border border-brand-600 bg-brand-600 px-2.5 py-1 text-xs font-medium text-white"
+                className={cn(
+                  "rounded-full border px-2.5 py-1 text-xs font-medium",
+                  isFullPayment
+                    ? "border-brand-600 bg-brand-600 text-white"
+                    : "border-line-strong bg-surface",
+                )}
               >
                 {tParams("plan.fullPayment", { amount: money(fullPaymentAmount, symbol) })}
               </button>
             ) : null}
             <button
               type="button"
-              aria-pressed={paidNow === 0}
+              aria-pressed={isOnCredit}
               onClick={() => setPatch((p) => ({ ...p, paidAmount: 0 }))}
               className={cn(
                 "rounded-full border px-2.5 py-1 text-xs font-medium",
-                paidNow === 0 ? "border-brand-600 bg-brand-600 text-white" : "border-line-strong bg-surface",
+                isOnCredit ? "border-brand-600 bg-brand-600 text-white" : "border-line-strong bg-surface",
               )}
             >
               {t("plan.onCredit")}

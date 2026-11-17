@@ -683,12 +683,26 @@ async function buildPlanFor(
       }
       payload.name = name || undefined;
       if (!payload.name) requires.push("name");
+      // Mirror the manual "Add customer" form, in the same order, so the owner
+      // checks the same blanks here as on the full screen — name first.
+      if (f.companyName !== undefined) payload.companyName = f.companyName;
+      if (f.phone !== undefined) payload.phone = f.phone;
+      if (f.address !== undefined) payload.address = f.address;
+      if (f.notes !== undefined) payload.notes = f.notes;
+      if (f.openingBalance !== undefined) payload.openingBalance = f.openingBalance;
       return {
         payload,
         summary: `Add customer ${payload.name ?? "?"}`,
         fields: [
           { label: "Name", value: payload.name ?? "—" },
-          { label: "Phone", value: f.phone ?? "—" },
+          { label: "Company", value: payload.companyName ?? "—" },
+          { label: "Phone", value: payload.phone ?? "—" },
+          { label: "Address", value: payload.address ?? "—" },
+          { label: "Notes", value: payload.notes ?? "—" },
+          {
+            label: "Opening balance",
+            value: payload.openingBalance !== undefined ? String(payload.openingBalance) : "—",
+          },
         ],
         warnings,
         requires,

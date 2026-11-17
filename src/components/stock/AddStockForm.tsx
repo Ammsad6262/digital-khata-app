@@ -23,6 +23,7 @@ import { StockProductPicker } from "@/components/stock/StockProductPicker";
 import { StickyFormActions } from "@/components/ui/StickyFormActions";
 import { Money } from "@/components/shared/Money";
 import { useAddStockMove } from "@/hooks/use-stock";
+import { useUpdateProduct } from "@/hooks/use-products";
 import { useToast } from "@/providers/toast-provider";
 import { ApiError } from "@/lib/utils/api-client";
 import { Decimal } from "@/lib/utils/decimal";
@@ -48,9 +49,37 @@ export function AddStockForm({ initialProductId }: { initialProductId?: string }
   const [selected, setSelected] = useState<ProductSearchResult | null>(null);
   const [quantity, setQuantity] = useState<string>("");
   const [unitCost, setUnitCost] = useState<string>("");
+  const [sellingPrice, setSellingPrice] = useState<string>("");
   const [batchName, setBatchName] = useState<string>("");
   const [reason, setReason] = useState<string>("");
   const [date, setDate] = useState<string>(todayIsoLocal());
+
+  const updateProduct = useUpdateProduct(selected?.id ?? "");
+
+  /**
+   * Choosing a product fills BOTH prices from the catalogue, so the owner never
+   * retypes them and the two screens cannot disagree.
+   */
+  const selectProduct = (product: ProductSearchResult) => {
+    setSelected(product);
+    setUnitCost(product.purchasePrice ?? "");
+    setSellingPrice(product.sellingPrice ?? "");
+  };
+
+  /** Only the prices that actually changed, so an untouched save stays a no-op. */
+  const pricePatch = (): { purchasePrice?: number; sellingPrice?: number } => {
+    if (!selected) return {};
+    const patch: { purchasePrice?: number; sellingPrice?: number } = {};
+    const cost = Number(unitCost);
+    if (Number.isFinite(cost) && cost > 0 && cost !== Number(selected.purchasePrice)) {
+      patch.purchasePrice = cost;
+    }
+    const sell = Number(sellingPrice);
+    if (Number.isFinite(sell) && sell > 0 && sell !== Number(selected.sellingPrice)) {
+      patch.sellingPrice = sell;
+    }
+    return patch;
+  };
 
   // If initialProductId is provided (e.g. /stock/add?productId=X), we could
   // fetch the product. For V1 simplicity, we let the user search/select.
@@ -113,7 +142,18 @@ export function AddStockForm({ initialProductId }: { initialProductId?: string }
         date: isoDate,
       },
       {
-        onSuccess: (move) => {
+        onSuccess: async () => {
+          // Keep the product's own catalogue prices in step with what was just
+          // entered here. A failure at this point must not make the stock
+          // addition look like it failed — the stock is already saved.
+          const patch = pricePatch();
+          if (Object.keys(patch).length > 0) {
+            try {
+              await updateProduct.mutateAsync(patch);
+            } catch {
+              toast.error(t("stock.priceSyncFailed"));
+            }
+          }
           toast.success(t("stock.stockAdded"));
           router.push(`/more/products/${selected.id}`);
         },
@@ -168,10 +208,7 @@ export function AddStockForm({ initialProductId }: { initialProductId?: string }
             </div>
           </div>
         ) : (
-          <StockProductPicker
-            selectedId={null}
-            onSelect={(p) => setSelected(p)}
-          />
+          <StockProductPicker selectedId={null} onSelect={selectProduct} />
         )}
       </section>
 
@@ -229,7 +266,7 @@ export function AddStockForm({ initialProductId }: { initialProductId?: string }
             {/* Unit cost (REQUIRED for purchases — powers batch tracking) */}
             <div>
               <label className="mb-1 block text-xs font-medium text-ink-muted">
-                {t("stock.unitCost")} <span className="text-danger">*</span>
+                {t("stock.purchasePriceLabel")} <span className="text-danger">*</span>
               </label>
               <div className="relative">
                 <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-medium text-ink-subtle">
@@ -262,6 +299,29 @@ export function AddStockForm({ initialProductId }: { initialProductId?: string }
                   {validation.costWarning}
                 </p>
               ) : null}
+            </div>
+
+            {/* Selling price — mirrors the product's catalogue price. */}
+            <div>
+              <label className="mb-1 block text-xs font-medium text-ink-muted">
+                {t("stock.sellingPriceLabel")}
+              </label>
+              <div className="relative">
+                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-medium text-ink-subtle">
+                  {symbol}
+                </span>
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  step="any"
+                  min="0"
+                  value={sellingPrice}
+                  onChange={(e) => setSellingPrice(e.target.value)}
+                  placeholder="0"
+                  className="w-full rounded-lg border border-line-strong bg-surface py-2.5 pl-10 pr-3 text-sm tabular-nums text-ink placeholder:text-ink-faint focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+                />
+              </div>
+              <p className="mt-1 text-[11px] text-ink-subtle">{t("stock.priceSyncHint")}</p>
             </div>
 
             {/* Date */}

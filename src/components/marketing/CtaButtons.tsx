@@ -47,9 +47,6 @@ export function DownloadAppCta({ className }: { className?: string }) {
           <Download className="h-4 w-4" aria-hidden="true" />
           Download for Android
         </a>
-        <span className="pill border border-line bg-surface-2 text-ink-muted">
-          Free · Android 7+
-        </span>
       </div>
       <p className="text-xs leading-relaxed text-ink-subtle">
         Installs in seconds. Your phone may ask once to allow installing from this browser.

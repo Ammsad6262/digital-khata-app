@@ -10,15 +10,25 @@ import { z } from "zod";
 
 // Phone is OPTIONAL. When provided, it must be a valid phone-like string.
 // Empty string / whitespace → null (stored as NULL in Postgres).
-export const phoneSchema = z
+//
+// The empty string is normalised to null BEFORE validation. This matters: a
+// plain `.min(7)` runs on the string itself, so the form's default "" would
+// fail with "must be at least 7 digits" and the owner could never save a
+// customer without a phone number — even though the field is labelled
+// optional. `.optional()` only permits `undefined`, not `""`.
+const validPhone = z
   .string()
   .trim()
   .min(7, "Phone must be at least 7 digits.")
   .max(20, "Phone must be at most 20 characters.")
-  .regex(/^[0-9+\-\s]+$/, "Phone can only contain digits, +, -, and spaces.")
-  .optional()
-  .nullable()
-  .transform((v) => (v && v.trim().length > 0 ? v.trim() : null));
+  .regex(/^[0-9+\-\s]+$/, "Phone can only contain digits, +, -, and spaces.");
+
+export const phoneSchema = z
+  .preprocess(
+    (value) => (typeof value === "string" && value.trim().length === 0 ? null : value),
+    z.union([validPhone, z.null(), z.undefined()]),
+  )
+  .transform((value) => (value === undefined || value === null ? null : value));
 
 export const createCustomerSchema = z.object({
   name: z.string().trim().min(1, "Name is required.").max(100),

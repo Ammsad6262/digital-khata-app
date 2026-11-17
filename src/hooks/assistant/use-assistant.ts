@@ -8,7 +8,7 @@
  * so a spoken instruction and a tapped instruction behave identically.
  */
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import type { AssistantReply, PlanPayload } from "@/lib/assistant/types";
 import type { SpeechLanguage } from "@/lib/assistant/language";
@@ -49,6 +49,29 @@ async function blobToBase64(blob: Blob): Promise<string> {
   return btoa(binary);
 }
 
+/**
+ * The conversation must survive walking around the app: go and check something
+ * in the khata, come back, and the thread is still there.
+ *
+ * sessionStorage is deliberate — it is cleared when the app (or the browser
+ * tab) is closed, which is exactly "until I quit the app". It also survives a
+ * reload, unlike in-memory state.
+ */
+const TURNS_STORAGE_KEY = "dukhata.voice.turns.v1";
+const MAX_STORED_TURNS = 40;
+
+function loadStoredTurns(): AssistantTurn[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.sessionStorage.getItem(TURNS_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed: unknown = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as AssistantTurn[]).slice(-MAX_STORED_TURNS) : [];
+  } catch {
+    return [];
+  }
+}
+
 export function useAssistant() {
   const queryClient = useQueryClient();
   const [turns, setTurns] = useState<AssistantTurn[]>([]);
@@ -57,6 +80,28 @@ export function useAssistant() {
   const [lastError, setLastError] = useState<string | null>(null);
   const [status, setStatus] = useState<AssistantStatus | null>(null);
   const inFlight = useRef(false);
+
+  // Hydrate AFTER mount (never during render) so the server render and the
+  // first client render agree, then persist on every change.
+  const [turnsHydrated, setTurnsHydrated] = useState(false);
+  useEffect(() => {
+    const stored = loadStoredTurns();
+    if (stored.length > 0) setTurns(stored);
+    setTurnsHydrated(true);
+  }, []);
+
+  useEffect(() => {
+    if (!turnsHydrated) return;
+    try {
+      window.sessionStorage.setItem(
+        TURNS_STORAGE_KEY,
+        JSON.stringify(turns.slice(-MAX_STORED_TURNS)),
+      );
+    } catch {
+      // Storage unavailable or full (private mode): the assistant still works,
+      // the thread just will not survive a reload.
+    }
+  }, [turns, turnsHydrated]);
 
   const refreshStatus = useCallback(async () => {
     try {
@@ -237,6 +282,11 @@ export function useAssistant() {
   const reset = useCallback(() => {
     setTurns([]);
     setLastError(null);
+    try {
+      window.sessionStorage.removeItem(TURNS_STORAGE_KEY);
+    } catch {
+      // Nothing to clean up if storage is unavailable.
+    }
   }, []);
 
   return {

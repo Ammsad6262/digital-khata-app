@@ -44,7 +44,7 @@ import { EmailConfirmDialog } from "@/components/settings/EmailConfirmDialog";
 export function BackupPage() {
   const [uploadedFile, setUploadedFile] = useState<{ name: string; content: string; preview: BackupFile | null; error: string | null } | null>(null);
   const [confirmStep, setConfirmStep] = useState(false);
-  const [showExportConfirm, setShowExportConfirm] = useState(false);
+  const [pendingExport, setPendingExport] = useState<{ kind: "json" } | { kind: "csv"; table: string } | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -116,7 +116,7 @@ export function BackupPage() {
               disabled={exportBackup.isPending}
               onClick={() => {
                 setExportError(null);
-                setShowExportConfirm(true);
+                setPendingExport({ kind: "json" });
               }}
             >
               {exportBackup.isPending ? (
@@ -152,7 +152,10 @@ export function BackupPage() {
                   key={tbl.value}
                   type="button"
                   disabled={exportCsv.isPending}
-                  onClick={() => exportCsv.mutate(tbl.value)}
+                  onClick={() => {
+                    setExportError(null);
+                    setPendingExport({ kind: "csv", table: tbl.value });
+                  }}
                   className={cn(
                     "flex items-center gap-2 rounded-lg border border-line bg-surface px-3 py-2 text-left text-xs",
                     "hover:bg-app active:bg-surface-2",
@@ -241,22 +244,31 @@ export function BackupPage() {
 
       {/* Step-up email confirmation before handing over the whole khata. */}
       <EmailConfirmDialog
-        open={showExportConfirm}
+        open={pendingExport !== null}
         action="export_data"
-        busy={exportBackup.isPending}
+        busy={exportBackup.isPending || exportCsv.isPending}
         serverError={exportError}
         onCancel={() => {
-          if (exportBackup.isPending) return;
-          setShowExportConfirm(false);
+          if (exportBackup.isPending || exportCsv.isPending) return;
+          setPendingExport(null);
           setExportError(null);
         }}
         onConfirm={(input) => {
           setExportError(null);
-          exportBackup.mutate(input, {
-            onSuccess: () => setShowExportConfirm(false),
-            onError: (e) =>
-              setExportError(e instanceof Error ? e.message : t("common.failed")),
-          });
+          const fail = (e: unknown) =>
+            setExportError(e instanceof Error ? e.message : t("common.failed"));
+
+          if (pendingExport?.kind === "csv") {
+            exportCsv.mutate(
+              { table: pendingExport.table, ...input },
+              { onSuccess: () => setPendingExport(null), onError: fail },
+            );
+          } else {
+            exportBackup.mutate(input, {
+              onSuccess: () => setPendingExport(null),
+              onError: fail,
+            });
+          }
         }}
       />
     </div>

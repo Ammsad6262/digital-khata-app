@@ -21,9 +21,11 @@ import {
   type ExportableTable,
 } from "@/lib/services/backup";
 import { withCircuitBreaker } from "@/lib/utils/circuit-breaker";
-import { BadRequestError } from "@/lib/errors";
+import { BadRequestError, AppError } from "@/lib/errors";
 import { tServer } from "@/lib/i18n/server";
 import { requireUserId } from "@/lib/auth/get-current-user";
+import { requireActionConfirmation } from "@/lib/account/require-action-confirmation";
+import { fail } from "@/lib/utils/api";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
@@ -37,6 +39,16 @@ export async function GET(
   try {
     const { table } = await params;
     const userId = await requireUserId(req, { requireActiveSubscription: false });
+
+    // A per-table CSV is still an export of the owner's data, so it needs the
+    // same emailed-code confirmation as the full JSON backup. Headers again, so
+    // the code never lands in a URL or an access log.
+    requireActionConfirmation({
+      userId,
+      action: "export_data",
+      token: req.headers.get("x-confirm-token"),
+      code: req.headers.get("x-confirm-code"),
+    });
 
     if (!VALID_TABLES.has(table)) {
       throw new BadRequestError(
@@ -103,6 +115,9 @@ export async function GET(
       },
     });
   } catch (error) {
+    // A rejected confirmation or an unknown table keeps its real status (400 /
+    // 401) instead of being flattened into a 500.
+    if (error instanceof AppError) return fail(error);
     console.error("[backup/csv] Failed:", error);
     return NextResponse.json(
       { ok: false, error: { code: "INTERNAL", message: tServer("api.backup.csv.failed") } },

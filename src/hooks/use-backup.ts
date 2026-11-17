@@ -92,8 +92,16 @@ export function useExportCsv() {
   const toast = useToast();
 
   return useMutation({
-    mutationFn: async (table: string) => {
-      const res = await fetch(`/api/backup/csv/${table}`);
+    mutationFn: async (input: { table: string; confirmToken: string; confirmCode: string }) => {
+      const { table } = input;
+      const res = await fetch(`/api/backup/csv/${table}`, {
+        // Same emailed-code confirmation as the full backup; headers so the code
+        // never ends up in a URL, history or access log.
+        headers: {
+          "x-confirm-token": input.confirmToken,
+          "x-confirm-code": input.confirmCode,
+        },
+      });
       if (!res.ok) {
         const json = await res.json().catch(() => null);
         throw new ApiError(

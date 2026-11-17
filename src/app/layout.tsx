@@ -156,6 +156,17 @@ const initScript = `
       document.documentElement.setAttribute('lang', 'ur');
     }
   } catch (e) {}
+
+  // Installed Android app (Trusted Web Activity) offline fallback. Skipped on
+  // localhost so a service worker can never serve stale pages during next dev.
+  try {
+    var host = location.hostname;
+    if ('serviceWorker' in navigator && host !== 'localhost' && host !== '127.0.0.1') {
+      window.addEventListener('load', function () {
+        navigator.serviceWorker.register('/sw.js').catch(function () {});
+      });
+    }
+  } catch (e) {}
 })();
 `;
 

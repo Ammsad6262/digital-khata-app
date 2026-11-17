@@ -111,6 +111,16 @@ const nextConfig = {
       },
     ];
   },
+
+  // Android Trusted Web Activity (the Play Store app) proves that this site and
+  // the Android app belong together by fetching /.well-known/assetlinks.json.
+  // Serve it from a route so the signing fingerprint can come from the
+  // environment and be rotated without a code change.
+  async rewrites() {
+    return [
+      { source: "/.well-known/assetlinks.json", destination: "/api/assetlinks" },
+    ];
+  },
 };
 
 export default withSentryConfig(nextConfig, {

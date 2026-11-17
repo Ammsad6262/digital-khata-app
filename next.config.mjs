@@ -16,6 +16,12 @@
 //
 import * as fs from "fs";
 import * as path from "path";
+import { createRequire } from "node:module";
+
+// @sentry/nextjs ships CommonJS. This config is ESM under Next 16, where a named
+// import from a CJS package fails at load time, so require it explicitly.
+const require = createRequire(import.meta.url);
+const { withSentryConfig } = require("@sentry/nextjs/config");
 
 try {
   const projectRoot = process.cwd();
@@ -107,4 +113,16 @@ const nextConfig = {
   },
 };
 
-export default nextConfig;
+export default withSentryConfig(nextConfig, {
+  // Source-map upload needs SENTRY_AUTH_TOKEN. Without it the build still
+  // succeeds — traces are simply minified — and the SDK is inert without a DSN.
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+  authToken: process.env.SENTRY_AUTH_TOKEN,
+  silent: true,
+  widenClientFileUpload: true,
+  // Same-origin proxy for events. The CSP only allows connect-src 'self', so a
+  // direct call to sentry.io would be blocked; this also dodges ad-blockers.
+  tunnelRoute: "/monitoring",
+  sourcemaps: { disable: !process.env.SENTRY_AUTH_TOKEN },
+});

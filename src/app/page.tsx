@@ -43,7 +43,14 @@ export const metadata: Metadata = {
     title: "Dukhata — digital khata app for Pakistani shops",
     description:
       "Record sales, udhaar and payments in seconds. Speak in Urdu or Roman Urdu and Dukhata writes the entry for you. Free 14-day trial.",
-    images: [{ url: "/icon-512.png", width: 512, height: 512, alt: "Dukhata" }],
+    images: [
+      {
+        url: "/opengraph-image.png",
+        width: 1200,
+        height: 630,
+        alt: "Dukhata — digital khata app for Pakistani shops",
+      },
+    ],
   },
 };
 

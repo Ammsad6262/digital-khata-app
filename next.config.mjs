@@ -109,6 +109,17 @@ const nextConfig = {
           { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" },
         ],
       },
+      {
+        // The Android app download. Android only offers to install a package
+        // when it arrives with the APK MIME type, so set it explicitly rather
+        // than relying on the platform guessing from the extension.
+        source: "/app/dukhata.apk",
+        headers: [
+          { key: "Content-Type", value: "application/vnd.android.package-archive" },
+          { key: "Content-Disposition", value: 'attachment; filename="dukhata.apk"' },
+          { key: "Cache-Control", value: "public, max-age=300, must-revalidate" },
+        ],
+      },
     ];
   },
 

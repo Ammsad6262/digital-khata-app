@@ -26,7 +26,7 @@ if (!existsSync(keystore)) {
 }
 
 const keytoolDir =
-  keytoolDirArg ?? "C:\\Users\\user\\Documents\\Default Project\\android-tools\\jdk-17\\bin";
+  keytoolDirArg ?? "C:\\Users\\user\\android-tools\\jdk-17\\bin";
 const keytool = path.join(keytoolDir, process.platform === "win32" ? "keytool.exe" : "keytool");
 if (!existsSync(keytool)) {
   console.error(`keytool not found: ${keytool}`);

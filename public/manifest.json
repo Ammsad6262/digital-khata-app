@@ -5,7 +5,7 @@
   "description": "Digital khata & wholesale business management for Pakistani shops. Record sales, udhaar and payments.",
   "lang": "en",
   "dir": "ltr",
-  "start_url": "/dashboard",
+  "start_url": "/start",
   "scope": "/",
   "display": "standalone",
   "display_override": ["standalone", "minimal-ui"],

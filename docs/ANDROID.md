@@ -27,7 +27,7 @@ app immediately.
 | Web manifest | `https://dukhata.com/manifest.json` |
 
 Project files live **outside** the web repo, in `..\..\dukhata-android`
-(`C:\Users\user\Documents\Default Project\dukhata-android`), because a Gradle
+(`C:\Users\user\dukhata-android`), because a Gradle
 project and a signing keystore must never be committed to the web repository.
 
 ## Toolchain
@@ -36,11 +36,11 @@ Bubblewrap (`@bubblewrap/cli`) needs **JDK 17** and an **Android SDK**. On this
 machine:
 
 ```
-JDK 17        C:\Users\user\Documents\Default Project\android-tools\jdk-17
+JDK 17        C:\Users\user\android-tools\jdk-17
 Android SDK   C:\Users\user\AppData\Local\Android\Sdk
 Bubblewrap    npm i -g @bubblewrap/cli          (1.27.0)
 Config        C:\Users\user\.bubblewrap\config.json   (jdkPath + androidSdkPath)
-Project       C:\Users\user\Documents\Default Project\dukhata-android
+Project       C:\Users\user\dukhata-android
 ```
 
 Three quirks worth knowing, all already handled:
@@ -67,13 +67,13 @@ means you can never publish an update to the same Play listing under that key.
 # 1. put the signing fingerprint where the site can serve it
 cd "C:\Users\user\Documents\Default Project\digital-khata-app\digital-khata-app-main"
 node scripts/android-write-assetlinks.mjs `
-  "C:\Users\user\Documents\Default Project\dukhata-android\dukhata.keystore" `
+  "C:\Users\user\dukhata-android\dukhata.keystore" `
   dukhata "<storepass>"
 # then commit + push that change so /.well-known/assetlinks.json is live
 
 # 2. build the app
-cd "C:\Users\user\Documents\Default Project\dukhata-android"
-$env:JAVA_HOME="C:\Users\user\Documents\Default Project\android-tools\jdk-17"
+cd "C:\Users\user\dukhata-android"
+$env:JAVA_HOME="C:\Users\user\android-tools\jdk-17"
 $env:ANDROID_HOME="C:\Users\user\AppData\Local\Android\Sdk"
 $env:BUBBLEWRAP_KEYSTORE_PASSWORD="<storepass>"
 $env:BUBBLEWRAP_KEY_PASSWORD="<keypass>"
@@ -84,7 +84,7 @@ Because `twa-manifest.json` is the single source of truth, regenerating the
 whole Gradle project (after changing any setting in it) is:
 
 ```powershell
-cd "C:\Users\user\Documents\Default Project\dukhata-android"
+cd "C:\Users\user\dukhata-android"
 bubblewrap update --skipVersionUpgrade   # no prompts
 # then re-apply the buildToolsVersion pin in app/build.gradle
 ```
@@ -96,6 +96,41 @@ Outputs (in the project directory):
 
 Test on a device: `adb install -r app-release-signed.apk`
 (`adb` lives in `<AndroidSdk>\platform-tools`).
+
+## Distribution — the website's "Download for Android" button
+
+The app is distributed **directly from the website** today, so a user can
+download and install it without a store account:
+
+- The signed APK is committed at `public/app/dukhata.apk`, so it is served from
+  the stable URL `https://dukhata.com/app/dukhata.apk`.
+- `next.config.mjs` serves that path with
+  `Content-Type: application/vnd.android.package-archive`, which is what makes
+  Android offer to install it instead of saving an unknown file.
+- The marketing site's "Download for Android" button
+  (`src/components/marketing/CtaButtons.tsx`) links to that URL.
+
+To ship a new build:
+
+```powershell
+cd "C:\Users\user\dukhata-android"
+# bump appVersionCode/appVersionName in twa-manifest.json, then:
+bubblewrap update --skipVersionUpgrade   # re-apply the buildToolsVersion pin afterwards
+bubblewrap build --skipPwaValidation
+
+cd "C:\Users\user\Documents\Default Project\digital-khata-app\digital-khata-app-main"
+powershell -ExecutionPolicy Bypass -File scripts/android-publish-apk.ps1
+git add public/app/dukhata.apk && git commit -m "release(android): <version>" && git push
+```
+
+**Upgrading an installed app:** Android installs a new APK over an existing one
+only if both are signed with the same key and the new `versionCode` is higher.
+That is why the keystore must be preserved.
+
+> Direct downloads cannot auto-update. Once the Play Store listing exists, the
+> same AAB gives users automatic updates and a trust signal. Keep the direct
+> download as the "no store needed" path, or point the button at the Play
+> listing later.
 
 ## Digital Asset Links (the part that fails if you skip it)
 

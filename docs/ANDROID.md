@@ -97,6 +97,20 @@ Outputs (in the project directory):
 Test on a device: `adb install -r app-release-signed.apk`
 (`adb` lives in `<AndroidSdk>\platform-tools`).
 
+## App entry point — the marketing page is never shown in the app
+
+`/` is the marketing landing page and **stays that way** for search engines. The
+installed app must never open on it, so both the TWA (`startUrl`) and the web
+manifest (`start_url`) point at **`/start`**:
+
+- `src/app/start/route.ts` is a route handler, not a page, so the server answers
+  with a real **307**: a signed-in owner goes to `/dashboard`, everyone else to
+  `/login` (which links on to `/register`).
+- Deciding server-side means the first painted screen is already correct, with
+  no flash, and nothing depends on client JavaScript.
+- Verified live: `https://dukhata.com/start` → `307 → /login` for a signed-out
+  visitor.
+
 ## Distribution — the website's "Download for Android" button
 
 The app is distributed **directly from the website** today, so a user can

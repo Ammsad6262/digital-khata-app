@@ -34,15 +34,13 @@ export function AuthLayout({
       />
 
       <div className="relative w-full max-w-[22rem] animate-rise-in">
-        {/* Brand mark */}
+        {/* Brand mark — outline + soft fill, no tile behind it */}
         <div className="mb-6 text-center">
-          <div className="mx-auto mb-3.5 h-16 w-16 overflow-hidden rounded-[1.35rem] shadow-brand ring-1 ring-line">
-            <img
-              src="/icon.png"
-              alt={t("app.name")}
-              className="h-full w-full object-cover"
-            />
-          </div>
+          <img
+            src="/logo-mark-lg.png"
+            alt={t("app.name")}
+            className="mx-auto mb-3.5 h-20 w-20"
+          />
           <h1 className="text-[24px] font-extrabold tracking-[-0.035em] text-ink">
             {t("app.name")}
           </h1>

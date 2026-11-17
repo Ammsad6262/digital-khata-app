@@ -1,53 +1,47 @@
 #!/usr/bin/env python3
 """
-Dukhata brand generator.
+Dukhata brand generator — builds every asset from the owner's artwork.
 
-Builds the ENTIRE icon / logo / social system from the owner's logo
-(`public/logo.png`) and the app's real theme (warm graphite + cream + emerald,
-read from `src/app/globals.css`).
+Two treatments, by decision:
 
-Why this exists: the owner's artwork is a bright spring-green mark on a flat
-BLACK tile, and the mark only fills ~55% x 33% of that canvas. Dropped straight
-onto the site's cream background it read as a harsh black box with a neon band
-inside — the thing the owner called "bad". This rebuilds the mark properly:
+  1. ICONS (app icon, favicon, Apple icon, maskable, Android launcher, splash)
+     The owner's own logo, untouched: the lime mark centred on pure black.
+     No glow, no gradient, no rounding, no recolouring.
 
-  * trims the mark to its true bounds,
-  * re-colours it where needed so it works on light and dark,
-  * seats it in a rounded, gradient, softly-lit tile that matches the theme,
-  * and emits every size plus a matching 1200x630 social card.
+  2. EVERY OTHER PLACEMENT (site header, footer, sign-in screens, social card)
+     "Outline + soft fill": a contour stroke drawn ON the shape boundary, with a
+     whisper of the same ink inside it.
 
-Run from the repo root:   python scripts/generate_icons.py
-Optional preview sheet:   set BRAND_PREVIEW_DIR to a folder (default .brand-preview)
-Requires Pillow.
+Only Pillow is required (the contour is morphology via Min/MaxFilter).
+
+Run from the repo root:  python scripts/generate_icons.py
 """
 
 from __future__ import annotations
 
 import os
+
 from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageFont
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.normpath(os.path.join(HERE, ".."))
 OUT = os.path.join(ROOT, "public")
 SOURCE = os.path.join(OUT, "logo.png")
-PREVIEW_DIR = os.environ.get(
-    "BRAND_PREVIEW_DIR", os.path.join(ROOT, ".brand-preview")
-)
 
-SS = 4  # supersample factor — everything is drawn big, then downscaled once
+SS = 4  # supersample factor
 
-# --- theme, sampled from src/app/globals.css -------------------------------
-GRAPHITE_TOP = (54, 49, 45)  # warm graphite highlight
-GRAPHITE_BOT = (20, 17, 15)  # warm graphite shadow
-EMERALD_TOP = (16, 185, 129)  # #10B981  (theme success family)
-EMERALD_BOT = (4, 120, 87)  # #047857
-MARK_GREEN = (162, 252, 138)  # the owner mark's own green
-CREAM = (250, 248, 244)  # --bg
+# --- theme, from src/app/globals.css ---------------------------------------
+BG = (250, 248, 244)
 CREAM_2 = (243, 239, 232)
-INK = (28, 25, 23)  # --ink
-INK_MUTED = (120, 113, 105)  # --brand-500
+LINE = (235, 231, 225)
+INK = (28, 25, 23)
+INK_MUTED = (120, 113, 105)
 INK_SUBTLE = (150, 143, 134)
-ACCENT = (249, 115, 22)  # --accent-500
+ACCENT = (249, 115, 22)
+BLACK = (0, 0, 0)
+
+#: Fill opacity of the "soft fill" inside the contour (of 255).
+SOFT_FILL_ALPHA = 38
 
 FONTS = {
     "bold": ["C:/Windows/Fonts/segoeuib.ttf", "C:/Windows/Fonts/arialbd.ttf"],
@@ -58,265 +52,55 @@ FONTS = {
 GLYPH_THRESHOLD = 45
 
 
-# --------------------------------------------------------------------------
-# mark extraction
-# --------------------------------------------------------------------------
-def load_mark() -> Image.Image:
-    """Trim the owner's logo to the mark's real bounds, as an RGBA glyph.
-
-    Alpha comes from the green channel (the background is pure black, so 0),
-    which keeps the anti-aliased edges smooth. Colour is left as-is; use
-    `recolour` to paint it.
-    """
+# ─────────────────────────────────────────────────────────────────────────────
+# the owner's mark
+# ─────────────────────────────────────────────────────────────────────────────
+def mark_rgba() -> Image.Image:
+    """The mark as the owner drew it: original colour, alpha from the green
+    channel (the backing is pure black, so green is 0 there). Never recoloured."""
     logo = Image.open(SOURCE).convert("RGBA")
     lum = logo.convert("L")
     box = lum.point(lambda v: 255 if v > GLYPH_THRESHOLD else 0).getbbox()
     if not box:
         raise SystemExit("logo.png appears to be blank")
     glyph = logo.crop(box)
-    alpha = glyph.getchannel("G")  # 0 on black bg, up to 255 on the mark
-    glyph.putalpha(alpha)
+    glyph.putalpha(glyph.getchannel("G"))
     return glyph
 
 
-def recolour(glyph: Image.Image, colour: tuple[int, int, int]) -> Image.Image:
-    """Return a copy of the glyph painted a single colour (keeps its alpha)."""
-    out = Image.new("RGBA", glyph.size, colour + (0,))
-    out.putalpha(glyph.getchannel("A"))
-    return out
+def mark_alpha() -> Image.Image:
+    return mark_rgba().getchannel("A")
 
 
-# --------------------------------------------------------------------------
-# gradients / masks
-# --------------------------------------------------------------------------
-def vgrad(size: int, top: tuple, bottom: tuple) -> Image.Image:
-    base = Image.new("RGB", (1, size))
-    px = base.load()
-    for y in range(size):
-        t = y / max(1, size - 1)
-        px[0, y] = tuple(round(top[i] + (bottom[i] - top[i]) * t) for i in range(3))
-    return base.resize((size, size), Image.BILINEAR)
-
-
-def vgrad_a(size: int, a_top: int, a_bot: int, stop: float = 1.0) -> Image.Image:
-    """Vertical ALPHA ramp (L mode) from a_top at the top to a_bot at `stop`."""
-    base = Image.new("L", (1, size))
-    px = base.load()
-    for y in range(size):
-        t = min(1.0, (y / max(1, size - 1)) / stop)
-        px[0, y] = round(a_top + (a_bot - a_top) * t)
-    return base.resize((size, size), Image.BILINEAR)
-
-
-def radial(size: int, cx: float, cy: float, r: float, peak: float,
-           tight: float = 1.6) -> Image.Image:
-    """Soft radial falloff (L mode), drawn small then blurred and scaled up."""
-    small = 160
-    m = Image.new("L", (small, small), 0)
-    d = ImageDraw.Draw(m)
-    sx, sy, sr = cx / size * small, cy / size * small, r / size * small
-    steps = 40
-    for i in range(steps, 0, -1):
-        a = int(peak * (1 - i / steps) ** tight)
-        rr = sr * i / steps
-        d.ellipse([sx - rr, sy - rr, sx + rr, sy + rr], fill=a)
-    m = m.filter(ImageFilter.GaussianBlur(small * 0.05))
-    return m.resize((size, size), Image.LANCZOS)
-
-
-def squircle(size: int, radius: float) -> Image.Image:
-    m = Image.new("L", (size, size), 0)
-    d = ImageDraw.Draw(m)
-    d.rounded_rectangle(
-        [0, 0, size - 1, size - 1], radius=int(radius * size), fill=255
-    )
-    return m
-
-
-# --------------------------------------------------------------------------
-# the tile
-# --------------------------------------------------------------------------
-def build_tile(
-    S: int,
-    *,
-    bg_top: tuple,
-    bg_bot: tuple,
-    mark_colour: tuple,
-    glow_colour: tuple,
-    fill: float,
-    accent: bool = False,
-    rim: tuple | None = None,
-) -> Image.Image:
-    """A rounded, gradient, softly-lit tile with the mark centred.
-
-    `S` is the supersampled square size. Returns RGBA with the squircle baked
-    in (transparent outside), so it sits on any background.
-    """
-    glyph = load_mark()
-    mark = recolour(glyph, mark_colour)
-
-    tile = vgrad(S, bg_top, bg_bot).convert("RGBA")
-
-    # ambient glow behind the mark
-    layer = Image.new("RGBA", (S, S), glow_colour + (0,))
-    layer.putalpha(
-        radial(S, S * 0.5, S * 0.54, S * 0.60, 78 if accent else 60)
-    )
-    tile = Image.alpha_composite(tile, layer)
-
-    if accent:
-        # a warm ember low in the tile, for depth
-        ember = Image.new("RGBA", (S, S), ACCENT + (0,))
-        ember.putalpha(radial(S, S * 0.22, S * 0.92, S * 0.55, 60))
-        tile = Image.alpha_composite(tile, ember)
-
-    # fit the mark
+# ─────────────────────────────────────────────────────────────────────────────
+# treatment 1 — icons: the artwork exactly, lime on black
+# ─────────────────────────────────────────────────────────────────────────────
+def icon(size: int, fill: float = 0.62) -> Image.Image:
+    """Pure black square with the owner's mark centred. Nothing else."""
+    S = size * SS
+    base = Image.new("RGB", (S, S), BLACK)
+    mark = mark_rgba()
     tw = max(1, round(S * fill))
     th = max(1, round(mark.height * tw / mark.width))
-    if th > S * 0.72:
-        th = round(S * 0.72)
-        tw = round(mark.width * th / mark.height)
-    m2 = mark.resize((tw, th), Image.LANCZOS)
-    if tw > mark.width:
-        # The owner's artwork is 246px wide, so the 512px icon and the social
-        # card upscale it. A light unsharp pass restores edge definition that
-        # plain LANCZOS softens. Applied to colour only — sharpening the alpha
-        # band would ring around the glyph.
-        r, g, b, a = m2.split()
-        rgb = Image.merge("RGB", (r, g, b)).filter(
-            ImageFilter.UnsharpMask(radius=1.1, percent=60, threshold=3)
-        )
-        m2 = Image.merge("RGBA", (*rgb.split(), a))
-    canvas = Image.new("RGBA", (S, S), (0, 0, 0, 0))
-    ox, oy = (S - tw) // 2, (S - th) // 2
-    canvas.paste(m2, (ox, oy), m2)
-
-    # mark glow
-    ga = canvas.getchannel("A").filter(ImageFilter.GaussianBlur(S * 0.022))
-    gl = Image.new("RGBA", (S, S), glow_colour + (0,))
-    gl.putalpha(ga.point(lambda v: int(v * 0.8)))
-    tile = Image.alpha_composite(tile, gl)
-    tile = Image.alpha_composite(tile, canvas)
-
-    # top sheen + inner rim for the "3D" lift
-    sheen = Image.new("RGBA", (S, S), (255, 255, 255, 0))
-    sheen.putalpha(vgrad_a(S, 30, 0, stop=0.46))
-    tile = Image.alpha_composite(tile, sheen)
-
-    edge = Image.new("RGBA", (S, S), (0, 0, 0, 0))
-    rd = ImageDraw.Draw(edge)
-    if rim is not None:
-        # a visible hairline edge (used by the light "paper" tile so it still
-        # reads against a white browser tab)
-        rd.rounded_rectangle(
-            [1, 1, S - 2, S - 2],
-            radius=int(0.225 * S) - 2,
-            outline=rim,
-            width=max(2, int(S * 0.006)),
-        )
-    else:
-        rd.rounded_rectangle(
-            [1, 1, S - 2, S - 2],
-            radius=int(0.225 * S) - 2,
-            outline=(255, 255, 255, 26),
-            width=max(1, int(S * 0.005)),
-        )
-    tile = Image.alpha_composite(tile, edge)
-
-    # cut the squircle
-    mask = squircle(S, 0.225)
-    alpha = ImageChops.multiply(tile.getchannel("A"), mask)
-    tile.putalpha(alpha)
-    return tile
+    scaled = mark.resize((tw, th), Image.LANCZOS)
+    base.paste(scaled, ((S - tw) // 2, (S - th) // 2), scaled)
+    return base.resize((size, size), Image.LANCZOS)
 
 
-# --------------------------------------------------------------------------
-# variants
-# --------------------------------------------------------------------------
-#: Each variant is a small recipe; `variant_tile` renders it at any size.
-VARIANTS: dict[str, dict] = {
-    "graphite": dict(
-        bg_top=GRAPHITE_TOP,
-        bg_bot=GRAPHITE_BOT,
-        mark_colour=MARK_GREEN,
-        glow_colour=(150, 245, 130),
-    ),
-    "graphite-ember": dict(
-        bg_top=GRAPHITE_TOP,
-        bg_bot=GRAPHITE_BOT,
-        mark_colour=MARK_GREEN,
-        glow_colour=(150, 245, 130),
-        accent=True,
-    ),
-    "emerald": dict(
-        bg_top=EMERALD_TOP,
-        bg_bot=EMERALD_BOT,
-        mark_colour=(255, 255, 255),
-        glow_colour=(255, 255, 255),
-    ),
-    # The "paper" look — the first page's cream ledger paper, a deep-emerald
-    # mark, and a hairline warm edge so the tile still reads on a white tab.
-    "paper": dict(
-        bg_top=(255, 255, 255),
-        bg_bot=CREAM_2,
-        mark_colour=EMERALD_BOT,
-        glow_colour=(16, 185, 129),
-        rim=(150, 142, 132, 120),
-    ),
-}
-
-ALL_VARIANTS = list(VARIANTS)
-
-#: The look the owner asked for: the dark tile with their green mark (the
-#: original "black" logo), rebuilt crisply rather than the flat source file.
-DEFAULT_VARIANT = "graphite"
-
-
-def variant_tile(name: str, S: int, fill: float = 0.70) -> Image.Image:
-    if name not in VARIANTS:
-        raise SystemExit(f"unknown variant {name}")
-    return build_tile(S, fill=fill, **VARIANTS[name])
-
-
-def variant(name: str, S: int) -> Image.Image:
-    return variant_tile(name, S, 0.70)
-
-
-def icon_bytes(variant_name: str, size: int, fill: float = 0.70) -> bytes:
-    """Render one squircle icon at `size` and return PNG bytes."""
-    import io
-
-    S = size * SS
-    img = variant(variant_name, S)
-    img = img.resize((size, size), Image.LANCZOS)
-    buf = io.BytesIO()
-    img.save(buf, format="PNG", optimize=True)
-    return buf.getvalue()
-
-
-def save_icons(variant_name: str) -> None:
+def save_icons() -> None:
     for size in (48, 96, 144, 192, 512):
-        with open(os.path.join(OUT, f"icon-{size}.png"), "wb") as fh:
-            fh.write(icon_bytes(variant_name, size))
+        icon(size).save(os.path.join(OUT, f"icon-{size}.png"), optimize=True)
         print(f"icon-{size}.png")
 
-    with open(os.path.join(OUT, "icon.png"), "wb") as fh:
-        fh.write(icon_bytes(variant_name, 512))
-    with open(os.path.join(OUT, "favicon.png"), "wb") as fh:
-        fh.write(icon_bytes(variant_name, 64))
-    with open(os.path.join(OUT, "apple-icon.png"), "wb") as fh:
-        fh.write(icon_bytes(variant_name, 180))
-
-    # maskable: keep the mark inside Android's safe zone
-    mask_img = variant_tile(variant_name, 512 * SS, 0.46).resize(
-        (512, 512), Image.LANCZOS
-    )
-    mask_img.save(os.path.join(OUT, "icon-maskable-512.png"), optimize=True)
+    icon(512).save(os.path.join(OUT, "icon.png"), optimize=True)
+    icon(64).save(os.path.join(OUT, "favicon.png"), optimize=True)
+    icon(180).save(os.path.join(OUT, "apple-icon.png"), optimize=True)
+    # Maskable: the mark must sit inside Android's safe zone, so it is smaller
+    # here while the black still bleeds to every edge.
+    icon(512, fill=0.46).save(os.path.join(OUT, "icon-maskable-512.png"), optimize=True)
     print("icon.png, favicon.png, apple-icon.png, icon-maskable-512.png")
 
-    # multi-size .ico
-    ico = variant(variant_name, 48 * SS).resize((48, 48), Image.LANCZOS)
-    ico.save(
+    icon(48).save(
         os.path.join(OUT, "favicon.ico"),
         format="ICO",
         sizes=[(16, 16), (32, 32), (48, 48)],
@@ -324,16 +108,65 @@ def save_icons(variant_name: str) -> None:
     print("favicon.ico")
 
 
-def save_header_mark(variant_name: str) -> None:
-    """The header/footer lockup tile — same squircle as the favicon."""
-    img = variant(variant_name, 256 * SS).resize((256, 256), Image.LANCZOS)
-    img.save(os.path.join(OUT, "logo-mark.png"), optimize=True)
-    print("logo-mark.png (header/footer tile)")
+# ─────────────────────────────────────────────────────────────────────────────
+# treatment 2 — outline + soft fill
+# ─────────────────────────────────────────────────────────────────────────────
+def outline_fill(stroke_px: int, colour=INK, fill_alpha: int = SOFT_FILL_ALPHA) -> Image.Image:
+    """A contour stroke centred on the boundary, over a soft wash of the same ink.
+
+    Centred (dilate minus erode) rather than inside-only, so the line is the same
+    width everywhere and always closes. The artboard is the glyph's exact bounds,
+    so the canvas is padded first — otherwise the outer half of the stroke is
+    clipped at the edge and the contour breaks.
+    """
+    radius = max(1, int(round(stroke_px / 2)))
+    pad = radius + 8
+    alpha = mark_alpha()
+
+    canvas = Image.new("L", (alpha.width + pad * 2, alpha.height + pad * 2), 0)
+    canvas.paste(alpha, (pad, pad))
+
+    outer = canvas.filter(ImageFilter.MaxFilter(2 * radius + 1))
+    inner = canvas.filter(ImageFilter.MinFilter(2 * radius + 1))
+    band = ImageChops.subtract(outer, inner)
+
+    wash = Image.new("RGBA", canvas.size, colour + (0,))
+    wash.putalpha(inner.point(lambda v: fill_alpha if v > 110 else 0))
+
+    line = Image.new("RGBA", canvas.size, colour + (0,))
+    line.putalpha(band)
+
+    out = Image.alpha_composite(wash, line)
+    keep = pad - (radius + 2)
+    return out.crop((keep, keep, out.width - keep, out.height - keep))
 
 
-# --------------------------------------------------------------------------
+def square(mark: Image.Image, canvas: int, fill: float = 0.86) -> Image.Image:
+    """Centre a wide mark on a square transparent canvas."""
+    tw = round(canvas * fill)
+    th = round(mark.height * tw / mark.width)
+    scaled = mark.resize((tw, th), Image.LANCZOS)
+    out = Image.new("RGBA", (canvas, canvas), (0, 0, 0, 0))
+    out.paste(scaled, ((canvas - tw) // 2, (canvas - th) // 2), scaled)
+    return out
+
+
+def save_marks() -> None:
+    # Small placements (header 28px, dashboard 40px): a lighter stroke, because at
+    # these sizes a heavier one would close the gaps between the strokes.
+    square(outline_fill(6), 256).save(os.path.join(OUT, "logo-mark.png"), optimize=True)
+    # Larger placements (sign-in screens ~64px): a slightly heavier stroke.
+    square(outline_fill(5), 256).save(os.path.join(OUT, "logo-mark-lg.png"), optimize=True)
+    # The PIN screen sits on a dark brand gradient, so it needs the light ink.
+    square(outline_fill(5, colour=(247, 245, 241)), 256).save(
+        os.path.join(OUT, "logo-mark-light.png"), optimize=True
+    )
+    print("logo-mark.png (header/footer), logo-mark-lg.png (sign-in), logo-mark-light.png (dark)")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # social card
-# --------------------------------------------------------------------------
+# ─────────────────────────────────────────────────────────────────────────────
 def font(kind: str, size: int) -> ImageFont.FreeTypeFont:
     for path in FONTS[kind]:
         if os.path.exists(path):
@@ -341,100 +174,58 @@ def font(kind: str, size: int) -> ImageFont.FreeTypeFont:
     return ImageFont.load_default()
 
 
-def social_card(variant_name: str) -> None:
+def social_card() -> None:
     W, H = 1200, 630
-    # a touch deeper than the tile's white so the paper tile reads against it
-    card = Image.new("RGB", (W, H), CREAM_2)
-    d = ImageDraw.Draw(card)
-
-    # soft warm wash + a cool emerald breath, both very low contrast
     side = max(W, H)
-    wash = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-    wash.putalpha(
-        radial(side, W * 0.78, H * 0.10, W * 0.72, 46).resize((W, H), Image.LANCZOS)
-    )
-    card_rgba = Image.alpha_composite(card.convert("RGBA"), wash)
-    breath = Image.new("RGBA", (W, H), (16, 185, 129, 0))
-    breath.putalpha(radial(max(W, H), W * 0.08, H * 1.05, W * 0.5, 40).resize((W, H), Image.LANCZOS))
-    card_rgba = Image.alpha_composite(card_rgba, breath)
-    card = card_rgba.convert("RGB")
-    d = ImageDraw.Draw(card)
+    card = Image.new("RGBA", (W, H), CREAM_2 + (255,))
 
-    # floating tile with a soft, grounded shadow
-    tile_size = 268
-    tx, ty = 118, (H - tile_size) // 2
-    tile = variant(variant_name, tile_size * 2).resize((tile_size, tile_size), Image.LANCZOS)
+    # soft warm wash, very low contrast
+    small = 160
+    glow = Image.new("L", (small, small), 0)
+    gd = ImageDraw.Draw(glow)
+    for i in range(40, 0, -1):
+        a = int(46 * (1 - i / 40) ** 1.5)
+        rr = (W * 0.72 / side) * small * i / 40
+        cx, cy = (W * 0.78 / side) * small, (H * 0.10 / side) * small
+        gd.ellipse([cx - rr, cy - rr, cx + rr, cy + rr], fill=a)
+    glow = glow.filter(ImageFilter.GaussianBlur(small * 0.05)).resize((W, H), Image.LANCZOS)
+    wash = Image.new("RGBA", (W, H), (255, 255, 255, 0))
+    wash.putalpha(glow)
+    card = Image.alpha_composite(card, wash)
 
+    # the outline + soft fill mark, floating
+    mark = square(outline_fill(5), 340, fill=0.9)
+    mx, my = 110, (H - 340) // 2
     shadow = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-    sd = ImageDraw.Draw(shadow)
-    sd.rounded_rectangle(
-        [tx + 6, ty + 22, tx + tile_size - 6, ty + tile_size + 22],
-        radius=int(tile_size * 0.225),
-        fill=(28, 25, 23, 70),
+    ImageDraw.Draw(shadow).ellipse(
+        [mx + 40, my + 250, mx + 300, my + 300], fill=(28, 25, 23, 46)
     )
-    shadow = shadow.filter(ImageFilter.GaussianBlur(26))
-    card = Image.alpha_composite(card.convert("RGBA"), shadow)
-    card.paste(tile, (tx, ty), tile)
+    card = Image.alpha_composite(card, shadow.filter(ImageFilter.GaussianBlur(26)))
+    card.paste(mark, (mx, my), mark)
 
-    x = tx + tile_size + 74
     d = ImageDraw.Draw(card)
-    d.text((x, 150), "Dukhata", font=font("bold", 104), fill=INK)
-    d.text((x, 292), "The digital khata for Pakistani shops", font=font("semi", 37), fill=INK_MUTED)
-    d.text((x, 348), "Record a sale by speaking. Udhaar and balances stay correct.",
-           font=font("reg", 27), fill=INK_SUBTLE)
-    d.rounded_rectangle([x, 430, x + 104, 438], radius=4, fill=ACCENT)
-    d.text((x, 462), "Free 14-day trial  ·  dukhata.com", font=font("semi", 31), fill=INK)
+    x = mx + 340 + 60
+    d.text((x, 168), "Dukhata", font=font("bold", 104), fill=INK)
+    d.text((x, 306), "The digital khata for Pakistani shops", font=font("semi", 37), fill=INK_MUTED)
+    d.text(
+        (x, 360),
+        "Record a sale by speaking. Udhaar and balances stay correct.",
+        font=font("reg", 27),
+        fill=INK_SUBTLE,
+    )
+    d.rounded_rectangle([x, 438, x + 104, 446], radius=4, fill=ACCENT)
+    d.text((x, 470), "Free 14-day trial  ·  dukhata.com", font=font("semi", 31), fill=INK)
 
     card.convert("RGB").save(os.path.join(OUT, "opengraph-image.png"), optimize=True)
     print("opengraph-image.png (1200x630)")
 
 
-# --------------------------------------------------------------------------
-# contact sheet for human review
-# --------------------------------------------------------------------------
-def contact_sheet() -> None:
-    os.makedirs(PREVIEW_DIR, exist_ok=True)
-    pad, cell = 40, 300
-    W = pad + len(ALL_VARIANTS) * (cell + pad)
-    H = 520
-    sheet = Image.new("RGB", (W, H), (238, 234, 227))
-    d = ImageDraw.Draw(sheet)
-    d.text((pad, 32), "Dukhata icon variants — pick one",
-           font=font("bold", 30), fill=INK)
-    for i, name in enumerate(ALL_VARIANTS):
-        cx = pad + i * (cell + pad)
-        cy = 110
-        img = variant(name, cell * 2).resize((cell, cell), Image.LANCZOS)
-        sheet.paste(img, (cx, cy), img)
-        d.text((cx, cy + cell + 18), name, font=font("semi", 26), fill=INK)
-    sheet.save(os.path.join(PREVIEW_DIR, "icon-variants.png"), optimize=True)
-    print(f"preview: {os.path.join(PREVIEW_DIR, 'icon-variants.png')}")
-
-    # header lockup simulation on the site's cream, at real size (28px) and 2x
-    sim = Image.new("RGB", (760, 260), CREAM)
-    ds = ImageDraw.Draw(sim)
-    ds.text((28, 20), "Header lockup, on the site's cream background",
-            font=font("semi", 22), fill=INK_MUTED)
-    for i, name in enumerate(ALL_VARIANTS):
-        bx = 28
-        by = 70 + i * 46
-        small = variant(name, 28 * 4).resize((28, 28), Image.LANCZOS)
-        sim.paste(small, (bx, by), small)
-        big = variant(name, 56 * 2).resize((56, 56), Image.LANCZOS)
-        sim.paste(big, (bx + 46, by - 14), big)
-        ds.text((bx + 118, by + 4), f"{name}  (28px and 56px)",
-                font=font("reg", 22), fill=INK)
-    sim.save(os.path.join(PREVIEW_DIR, "header-lockup.png"), optimize=True)
-    print(f"preview: {os.path.join(PREVIEW_DIR, 'header-lockup.png')}")
-
-
 def main() -> None:
-    print(f"source mark: {Image.open(SOURCE).size}")
-    save_icons(DEFAULT_VARIANT)
-    save_header_mark(DEFAULT_VARIANT)
-    social_card(DEFAULT_VARIANT)
-    contact_sheet()
-    print(f"\ndone. live variant = {DEFAULT_VARIANT}")
+    print("source mark:", Image.open(SOURCE).size)
+    save_icons()
+    save_marks()
+    social_card()
+    print("\ndone — icons are the artwork on black; every other mark is outline + soft fill")
 
 
 if __name__ == "__main__":

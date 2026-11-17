@@ -94,9 +94,9 @@ export function ResetPasswordForm({ initialEmail = "" }: { initialEmail?: string
       <div className="w-full max-w-sm">
         <div className="mb-6 text-center">
           <img
-            src="/icon.png"
+            src="/logo-mark-lg.png"
             alt={t("app.name")}
-            className="mx-auto mb-3 h-14 w-14 rounded-2xl shadow-lg"
+            className="mx-auto mb-3 h-16 w-16"
           />
           <h1 className="text-xl font-bold text-ink">{t("reset.title")}</h1>
           <p className="mt-1 text-sm text-ink-subtle">{t("reset.subtitle")}</p>

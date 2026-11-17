@@ -43,8 +43,8 @@ const DATA_HELD = [
 ];
 
 const PROCESSORS = [
-  { name: "Vercel", role: "Application hosting and cookieless page-view analytics (Mumbai region)." },
-  { name: "Supabase", role: "The PostgreSQL database, hosted in the Mumbai region." },
+  { name: "Vercel", role: "Application hosting and cookieless page-view analytics." },
+  { name: "Supabase", role: "The PostgreSQL database that stores your records." },
   { name: "Google (Gemini API)", role: "AI transcription and interpretation for the assistant." },
 ];
 

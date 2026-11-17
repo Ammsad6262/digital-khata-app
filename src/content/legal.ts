@@ -89,14 +89,14 @@ export const PRIVACY_POLICY: LegalDocument = {
 
     { kind: "h", text: "5. Who else processes your data" },
     { kind: "ul", items: [
-      "**Vercel** - application hosting, run from data centres including Mumbai, and cookieless page-view analytics.",
-      "**Supabase** - the PostgreSQL database, hosted in the Mumbai region.",
+      "**Vercel** - application hosting and cookieless page-view analytics.",
+      "**Supabase** - the PostgreSQL database that stores your records.",
       "**Google (Gemini API)** - AI transcription and interpretation for the assistant features.",
     ] },
     { kind: "p", text: "We do not sell your data and we do not share it with advertisers. We share it only with the providers above, or where the law requires it." },
 
     { kind: "h", text: "6. Where your data is stored" },
-    { kind: "p", text: "Your data is stored on servers in the Mumbai region, with copies for backup. Requests are served from the data centre closest to you." },
+    { kind: "p", text: "Your data is stored on secure cloud servers, with copies for backup. Requests are served from the data centre closest to you." },
 
     { kind: "h", text: "7. How long we keep it" },
     { kind: "ul", items: [

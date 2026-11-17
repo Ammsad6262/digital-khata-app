@@ -51,6 +51,14 @@ const STATUS_FILTERS: Array<{
   { value: "overdue", labelKey: "sale.filterOverdue" },
 ];
 
+/** Empty-state title per status, so "no results" says which filter was empty. */
+const STATUS_EMPTY_TITLE: Partial<Record<SaleStatusFilter, TranslationKey>> = {
+  unpaid: "sale.emptyUnpaid",
+  partial: "sale.emptyPartial",
+  paid: "sale.emptyPaid",
+  overdue: "sale.emptyOverdue",
+};
+
 export function SalesList() {
   const [filter, setFilter] = useState<SaleFilter>("today");
   const [status, setStatus] = useState<SaleStatusFilter>("all");
@@ -208,20 +216,37 @@ export function SalesList() {
         <EmptySalesState filter={filter} />
       ) : filtered.length === 0 ? (
         <EmptyState
-          title={t("sale.noMatches")}
-          description={t("sale.noMatchesDesc")}
+          title={t(STATUS_EMPTY_TITLE[status] ?? "sale.noMatches")}
+          description={
+            status === "overdue"
+              ? t("sale.overdueHint")
+              : status === "partial"
+                ? t("sale.partialHint")
+                : t("sale.noMatchesDesc")
+          }
           icon={<Search className="h-6 w-6" />}
           action={
-            <Button
-              onClick={() => {
-                setSearch("");
-                setStatus("all");
-              }}
-              variant="outline"
-              size="sm"
-            >
-              {t("sale.clearFilters")}
-            </Button>
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              {/* The status filters apply inside the selected date range, so a
+                  "Partial" click with "This Week" selected used to look broken
+                  when the only partial sales were older. Offer the all-time
+                  search explicitly instead of leaving a dead end. */}
+              {filter !== "all" ? (
+                <Button onClick={() => setFilter("all")} variant="outline" size="sm">
+                  {t("sale.searchAllTime")}
+                </Button>
+              ) : null}
+              <Button
+                onClick={() => {
+                  setSearch("");
+                  setStatus("all");
+                }}
+                variant="outline"
+                size="sm"
+              >
+                {t("sale.clearFilters")}
+              </Button>
+            </div>
           }
         />
       ) : (

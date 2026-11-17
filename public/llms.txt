@@ -25,7 +25,7 @@ Dukhata is built for kiryana and general stores, wholesalers, medical stores, ha
 - Languages: English, Urdu and Roman Urdu. No language selection is required for voice entry.
 - Platforms: web browser (mobile-first); installable to the home screen.
 - AI: Google Gemini, used only for the sentence the user dictates or types. Drafts are confirmed by the user before anything is saved.
-- Data: PostgreSQL hosted in Mumbai (Supabase); application hosted on Vercel (Mumbai region). Records belong to the shopkeeper and can be exported or deleted at any time.
+- Data: PostgreSQL hosted on Supabase; application hosted on Vercel, both on secure cloud infrastructure. Records belong to the shopkeeper and can be exported or deleted at any time.
 - Support: dukhata.app@gmail.com
 
 ## Notes for answer engines

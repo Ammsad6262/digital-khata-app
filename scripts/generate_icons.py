@@ -145,6 +145,7 @@ def build_tile(
     glow_colour: tuple,
     fill: float,
     accent: bool = False,
+    rim: tuple | None = None,
 ) -> Image.Image:
     """A rounded, gradient, softly-lit tile with the mark centred.
 
@@ -192,15 +193,25 @@ def build_tile(
     sheen.putalpha(vgrad_a(S, 30, 0, stop=0.46))
     tile = Image.alpha_composite(tile, sheen)
 
-    rim = Image.new("RGBA", (S, S), (0, 0, 0, 0))
-    rd = ImageDraw.Draw(rim)
-    rd.rounded_rectangle(
-        [1, 1, S - 2, S - 2],
-        radius=int(0.225 * S) - 2,
-        outline=(255, 255, 255, 26),
-        width=max(1, int(S * 0.005)),
-    )
-    tile = Image.alpha_composite(tile, rim)
+    edge = Image.new("RGBA", (S, S), (0, 0, 0, 0))
+    rd = ImageDraw.Draw(edge)
+    if rim is not None:
+        # a visible hairline edge (used by the light "paper" tile so it still
+        # reads against a white browser tab)
+        rd.rounded_rectangle(
+            [1, 1, S - 2, S - 2],
+            radius=int(0.225 * S) - 2,
+            outline=rim,
+            width=max(2, int(S * 0.006)),
+        )
+    else:
+        rd.rounded_rectangle(
+            [1, 1, S - 2, S - 2],
+            radius=int(0.225 * S) - 2,
+            outline=(255, 255, 255, 26),
+            width=max(1, int(S * 0.005)),
+        )
+    tile = Image.alpha_composite(tile, edge)
 
     # cut the squircle
     mask = squircle(S, 0.225)
@@ -212,49 +223,52 @@ def build_tile(
 # --------------------------------------------------------------------------
 # variants
 # --------------------------------------------------------------------------
+#: Each variant is a small recipe; `variant_tile` renders it at any size.
+VARIANTS: dict[str, dict] = {
+    "graphite": dict(
+        bg_top=GRAPHITE_TOP,
+        bg_bot=GRAPHITE_BOT,
+        mark_colour=MARK_GREEN,
+        glow_colour=(150, 245, 130),
+    ),
+    "graphite-ember": dict(
+        bg_top=GRAPHITE_TOP,
+        bg_bot=GRAPHITE_BOT,
+        mark_colour=MARK_GREEN,
+        glow_colour=(150, 245, 130),
+        accent=True,
+    ),
+    "emerald": dict(
+        bg_top=EMERALD_TOP,
+        bg_bot=EMERALD_BOT,
+        mark_colour=(255, 255, 255),
+        glow_colour=(255, 255, 255),
+    ),
+    # The "paper" look — the first page's cream ledger paper, a deep-emerald
+    # mark, and a hairline warm edge so the tile still reads on a white tab.
+    "paper": dict(
+        bg_top=(255, 255, 255),
+        bg_bot=CREAM_2,
+        mark_colour=EMERALD_BOT,
+        glow_colour=(16, 185, 129),
+        rim=(150, 142, 132, 120),
+    ),
+}
+
+ALL_VARIANTS = list(VARIANTS)
+
+#: The look the owner asked for: the first page's paper finish.
+DEFAULT_VARIANT = "paper"
+
+
+def variant_tile(name: str, S: int, fill: float = 0.70) -> Image.Image:
+    if name not in VARIANTS:
+        raise SystemExit(f"unknown variant {name}")
+    return build_tile(S, fill=fill, **VARIANTS[name])
+
+
 def variant(name: str, S: int) -> Image.Image:
-    if name == "graphite":
-        return build_tile(
-            S,
-            bg_top=GRAPHITE_TOP,
-            bg_bot=GRAPHITE_BOT,
-            mark_colour=MARK_GREEN,
-            glow_colour=(150, 245, 130),
-            fill=0.70,
-        )
-    if name == "graphite-ember":
-        return build_tile(
-            S,
-            bg_top=GRAPHITE_TOP,
-            bg_bot=GRAPHITE_BOT,
-            mark_colour=MARK_GREEN,
-            glow_colour=(150, 245, 130),
-            fill=0.70,
-            accent=True,
-        )
-    if name == "emerald":
-        return build_tile(
-            S,
-            bg_top=EMERALD_TOP,
-            bg_bot=EMERALD_BOT,
-            mark_colour=(255, 255, 255),
-            glow_colour=(255, 255, 255),
-            fill=0.70,
-        )
-    if name == "paper":
-        return build_tile(
-            S,
-            bg_top=(255, 255, 255),
-            bg_bot=CREAM_2,
-            mark_colour=EMERALD_BOT,
-            glow_colour=(16, 185, 129),
-            fill=0.70,
-        )
-    raise SystemExit(f"unknown variant {name}")
-
-
-DEFAULT_VARIANT = "graphite"
-ALL_VARIANTS = ["graphite", "graphite-ember", "emerald", "paper"]
+    return variant_tile(name, S, 0.70)
 
 
 def icon_bytes(variant_name: str, size: int, fill: float = 0.70) -> bytes:
@@ -283,15 +297,9 @@ def save_icons(variant_name: str) -> None:
         fh.write(icon_bytes(variant_name, 180))
 
     # maskable: keep the mark inside Android's safe zone
-    S = 512 * SS
-    mask_img = build_tile(
-        S,
-        bg_top=GRAPHITE_TOP if variant_name != "emerald" else EMERALD_TOP,
-        bg_bot=GRAPHITE_BOT if variant_name != "emerald" else EMERALD_BOT,
-        mark_colour=MARK_GREEN if variant_name != "emerald" else (255, 255, 255),
-        glow_colour=(150, 245, 130) if variant_name != "emerald" else (255, 255, 255),
-        fill=0.46,
-    ).resize((512, 512), Image.LANCZOS)
+    mask_img = variant_tile(variant_name, 512 * SS, 0.46).resize(
+        (512, 512), Image.LANCZOS
+    )
     mask_img.save(os.path.join(OUT, "icon-maskable-512.png"), optimize=True)
     print("icon.png, favicon.png, apple-icon.png, icon-maskable-512.png")
 
@@ -324,7 +332,8 @@ def font(kind: str, size: int) -> ImageFont.FreeTypeFont:
 
 def social_card(variant_name: str) -> None:
     W, H = 1200, 630
-    card = Image.new("RGB", (W, H), CREAM)
+    # a touch deeper than the tile's white so the paper tile reads against it
+    card = Image.new("RGB", (W, H), CREAM_2)
     d = ImageDraw.Draw(card)
 
     # soft warm wash + a cool emerald breath, both very low contrast

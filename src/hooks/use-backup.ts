@@ -42,8 +42,15 @@ export function useExportBackup() {
   const toast = useToast();
 
   return useMutation({
-    mutationFn: async () => {
-      const res = await fetch("/api/backup/export");
+    mutationFn: async (input: { confirmToken: string; confirmCode: string }) => {
+      const res = await fetch("/api/backup/export", {
+        // The code goes in headers, not the URL: this is a download, and a code
+        // in a query string would end up in history and access logs.
+        headers: {
+          "x-confirm-token": input.confirmToken,
+          "x-confirm-code": input.confirmCode,
+        },
+      });
       if (!res.ok) {
         const json = await res.json().catch(() => null);
         throw new ApiError(

@@ -52,6 +52,7 @@ import type { SettingView } from "@/lib/services/settings";
 import { useToast } from "@/providers/toast-provider";
 import { ApiError } from "@/lib/utils/api-client";
 import { cn } from "@/lib/utils/cn";
+import { EmailConfirmDialog } from "@/components/settings/EmailConfirmDialog";
 
 const CURRENCIES = [
   { code: "PKR", symbol: "Rs.", label: "Pakistani Rupee" },
@@ -173,6 +174,11 @@ function AccountSection() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deletePassword, setDeletePassword] = useState("");
+  // Which destructive action is currently waiting for its emailed code.
+  const [emailConfirm, setEmailConfirm] = useState<"change_password" | "delete_account" | null>(
+    null,
+  );
+  const [emailError, setEmailError] = useState<string | null>(null);
 
   if (isLoading) {
     return (
@@ -219,34 +225,39 @@ function AccountSection() {
     });
   };
 
-  const handleChangePassword = () => {
+  const handleChangePassword = (confirm: { confirmToken: string; confirmCode: string }) => {
     if (newPassword !== confirmPassword) {
       toast.error("settings.passwordsDontMatch");
       return;
     }
+    setEmailError(null);
     changePassword.mutate(
-      { currentPassword, newPassword },
+      { currentPassword, newPassword, ...confirm },
       {
         onSuccess: () => {
           toast.success("settings.passwordChanged");
+          setEmailConfirm(null);
           setShowChangePassword(false);
           setCurrentPassword("");
           setNewPassword("");
           setConfirmPassword("");
         },
         onError: (e) => {
-          const msg = e instanceof Error ? e.message : t("settings.passwordChangeFailed");
-          toast.error(msg);
+          // Keep the dialog open: "wrong code" should be correctable in place.
+          setEmailError(e instanceof Error ? e.message : t("settings.passwordChangeFailed"));
         },
       },
     );
   };
 
-  const handleDeleteAccount = () => {
+  const handleDeleteAccount = (confirm: { confirmToken: string; confirmCode: string }) => {
+    setEmailError(null);
     deleteAccount.mutate(
-      { password: deletePassword },
+      { password: deletePassword, ...confirm },
       {
-        onError: () => toast.error("settings.accountDeleteFailed"),
+        onError: (e) => {
+          setEmailError(e instanceof Error ? e.message : t("settings.accountDeleteFailed"));
+        },
       },
     );
   };
@@ -323,7 +334,7 @@ function AccountSection() {
             <button type="button" onClick={() => { setShowChangePassword(false); setCurrentPassword(""); setNewPassword(""); setConfirmPassword(""); }} className="flex-1 rounded-lg border border-line-strong py-2 text-xs font-medium text-ink-muted hover:bg-app">
               {t("common.cancel")}
             </button>
-            <button type="button" onClick={handleChangePassword} disabled={changePassword.isPending || !currentPassword || !newPassword} className="flex-1 rounded-lg bg-brand-600 py-2 text-xs font-medium text-white hover:bg-brand-700 disabled:bg-brand-300">
+            <button type="button" onClick={() => { setEmailError(null); setEmailConfirm("change_password"); }} disabled={changePassword.isPending || !currentPassword || !newPassword} className="flex-1 rounded-lg bg-brand-600 py-2 text-xs font-medium text-white hover:bg-brand-700 disabled:bg-brand-300">
               {changePassword.isPending ? t("settings.changingPassword") : t("settings.change")}
             </button>
           </div>
@@ -350,12 +361,29 @@ function AccountSection() {
             <button type="button" onClick={() => { setShowDeleteConfirm(false); setDeletePassword(""); }} className="flex-1 rounded-lg border border-line-strong py-2 text-xs font-medium text-ink-muted hover:bg-app">
               {t("common.cancel")}
             </button>
-            <button type="button" onClick={handleDeleteAccount} disabled={deleteAccount.isPending || !deletePassword} className="flex-1 rounded-lg bg-danger py-2 text-xs font-medium text-white hover:bg-danger/90 disabled:bg-danger/40">
+            <button type="button" onClick={() => { setEmailError(null); setEmailConfirm("delete_account"); }} disabled={deleteAccount.isPending || !deletePassword} className="flex-1 rounded-lg bg-danger py-2 text-xs font-medium text-white hover:bg-danger/90 disabled:bg-danger/40">
               {deleteAccount.isPending ? t("common.deleting") : t("settings.deleteForever")}
             </button>
           </div>
         </div>
       )}
+
+      {/* Step-up email confirmation for whichever destructive action is pending. */}
+      <EmailConfirmDialog
+        open={emailConfirm !== null}
+        action={emailConfirm ?? "delete_account"}
+        busy={changePassword.isPending || deleteAccount.isPending}
+        serverError={emailError}
+        onCancel={() => {
+          if (changePassword.isPending || deleteAccount.isPending) return;
+          setEmailConfirm(null);
+          setEmailError(null);
+        }}
+        onConfirm={(input) => {
+          if (emailConfirm === "change_password") handleChangePassword(input);
+          else if (emailConfirm === "delete_account") handleDeleteAccount(input);
+        }}
+      />
     </section>
   );
 }
@@ -833,179 +861,217 @@ function SecuritySection({ hasPin }: { hasPin: boolean }) {
   const removePin = useRemovePin();
   const { t } = useLanguage();
 
-  const [showPinForm, setShowPinForm] = useState(false);
-  const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
+  // The switch always shows the REAL state, so it can never lie about whether
+  // the app is locked. Flipping it opens the small panel that performs the
+  // change: enable (new PIN + confirm), change (current + new), or disable
+  // (current PIN only).
+  const [panel, setPanel] = useState<null | "enable" | "change" | "disable">(null);
   const [newPin, setNewPin] = useState("");
+  const [confirmPin, setConfirmPin] = useState("");
   const [currentPin, setCurrentPin] = useState("");
-  const [removePinInput, setRemovePinInput] = useState("");
+  const [error, setError] = useState<string | null>(null);
 
-  const handleSetPin = () => {
-    if (newPin.length < 4 || newPin.length > 6 || !/^\d+$/.test(newPin)) {
-      toast.error("settings.pinInvalid");
+  const busy = setPin.isPending || removePin.isPending;
+  const digitsOnly = (value: string) => value.replace(/\D/g, "").slice(0, 6);
+
+  const closePanel = () => {
+    if (busy) return;
+    setPanel(null);
+    setNewPin("");
+    setConfirmPin("");
+    setCurrentPin("");
+    setError(null);
+  };
+
+  const handleEnable = () => {
+    setError(null);
+    if (newPin.length < 4) {
+      setError(t("settings.pinDigits"));
+      return;
+    }
+    if (newPin !== confirmPin) {
+      setError(t("settings.pinMismatch"));
       return;
     }
 
     setPin.mutate(
-      { pin: newPin, currentPin: hasPin ? currentPin : undefined },
+      { pin: newPin, currentPin: panel === "change" ? currentPin : undefined },
       {
         onSuccess: () => {
-          toast.success(hasPin ? t("settings.pinChanged") : t("settings.pinSet"));
-          setShowPinForm(false);
-          setNewPin("");
-          setCurrentPin("");
+          toast.success(
+            panel === "change" ? t("settings.pinChanged") : t("settings.pinEnabled"),
+          );
+          closePanel();
         },
-        onError: (e) => {
-          const msg = e instanceof ApiError ? e.message : t("common.failed");
-          toast.error(msg);
-        },
+        onError: (e) => setError(e instanceof ApiError ? e.message : t("common.failed")),
       },
     );
   };
 
-  const handleRemovePin = () => {
+  const handleDisable = () => {
+    setError(null);
     removePin.mutate(
-      { currentPin: removePinInput },
+      { currentPin },
       {
         onSuccess: () => {
           toast.success(t("settings.pinRemoved"));
-          setShowRemoveConfirm(false);
-          setRemovePinInput("");
+          closePanel();
         },
-        onError: (e) => {
-          const msg = e instanceof ApiError ? e.message : t("common.failed");
-          toast.error(msg);
-        },
+        onError: (e) => setError(e instanceof ApiError ? e.message : t("common.failed")),
       },
     );
   };
 
   return (
     <section className="rounded-card border border-line bg-surface shadow-card p-4">
-      <div className="flex items-center gap-2 mb-3">
+      <div className="mb-3 flex items-center gap-2">
         <Lock className="h-4 w-4 text-ink-subtle" />
         <h2 className="text-sm font-semibold text-ink">{t("settings.security")}</h2>
       </div>
 
-      <div className="flex items-center justify-between">
-        <div>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
           <p className="text-sm font-medium text-ink">
-            {t("settings.pinEnabled")} {hasPin ? "✓" : ""}
+            {hasPin ? t("settings.pinOnTitle") : t("settings.pinOffTitle")}
           </p>
-          <p className="text-xs text-ink-subtle">
-            {hasPin ? t("settings.pinDesc") : t("settings.pinDescOff")}
+          <p className="mt-0.5 text-xs leading-relaxed text-ink-subtle">
+            {hasPin ? t("settings.pinOnBody") : t("settings.pinOffBody")}
           </p>
         </div>
-        {!showPinForm ? (
-          <Button
-            variant={hasPin ? "outline" : "primary"}
-            size="sm"
-            onClick={() => setShowPinForm(true)}
-          >
-            {hasPin ? t("settings.changePin") : t("settings.setPin")}
-          </Button>
-        ) : null}
+
+        <button
+          type="button"
+          role="switch"
+          aria-checked={hasPin}
+          aria-label={t("settings.pinToggleLabel")}
+          disabled={busy}
+          onClick={() => {
+            setError(null);
+            setPanel(hasPin ? "disable" : "enable");
+          }}
+          className={cn(
+            "relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition-colors duration-200",
+            "focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40 focus-visible:ring-offset-2 focus-visible:ring-offset-surface",
+            hasPin ? "bg-brand-600" : "bg-surface-3 ring-1 ring-inset ring-line-strong",
+            busy && "opacity-60",
+          )}
+        >
+          <span
+            className={cn(
+              "absolute top-1 h-5 w-5 rounded-full bg-white shadow-sm transition-all duration-200",
+              hasPin ? "start-6" : "start-1",
+            )}
+          />
+        </button>
       </div>
 
-      {showPinForm ? (
-        <div className="mt-3 space-y-3 border-t border-line pt-3">
-          {hasPin ? (
-            <TextField
-              label={t("settings.currentPin")}
-              type="password"
-              inputMode="numeric"
-              value={currentPin}
-              onChange={(e) => setCurrentPin(e.target.value)}
-              placeholder="••••"
-              maxLength={6}
-              autoComplete="off"
-            />
-          ) : null}
-          <TextField
-            label={hasPin ? t("settings.newPin") : t("settings.setPinLabel")}
-            type="password"
-            inputMode="numeric"
-            value={newPin}
-            onChange={(e) => setNewPin(e.target.value)}
-            placeholder="••••"
-            maxLength={6}
-            autoComplete="off"
-            autoFocus
-            hint={t("settings.pinHint")}
-          />
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              className="flex-1"
-              onClick={() => {
-                setShowPinForm(false);
-                setNewPin("");
-                setCurrentPin("");
-              }}
-              disabled={setPin.isPending}
-            >
-              {t("common.cancel")}
-            </Button>
-            <Button
-              size="sm"
-              className="flex-1"
-              onClick={handleSetPin}
-              disabled={setPin.isPending || newPin.length < 4}
-            >
-              {setPin.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : t("settings.savePin")}
-            </Button>
-          </div>
-        </div>
+      {hasPin && panel === null ? (
+        <button
+          type="button"
+          onClick={() => {
+            setError(null);
+            setPanel("change");
+          }}
+          className="mt-3 text-xs font-semibold text-brand-700 underline underline-offset-2 hover:text-brand-800"
+        >
+          {t("settings.changePin")}
+        </button>
       ) : null}
 
-      {hasPin && !showPinForm ? (
-        <div className="mt-3 border-t border-line pt-3">
-          {!showRemoveConfirm ? (
-            <button
-              type="button"
-              onClick={() => setShowRemoveConfirm(true)}
-              className="text-xs font-medium text-danger-ink hover:text-danger-ink"
-            >
-              {t("settings.removePin")}
-            </button>
-          ) : (
-            <div className="space-y-2">
+      {panel !== null ? (
+        <div className="mt-3 space-y-3 border-t border-line pt-3">
+          {panel === "disable" ? (
+            <>
+              <p className="text-xs leading-relaxed text-ink-muted">
+                {t("settings.pinDisableHint")}
+              </p>
               <TextField
-                label={t("settings.removePinConfirm")}
+                label={t("settings.currentPin")}
                 type="password"
                 inputMode="numeric"
-                value={removePinInput}
-                onChange={(e) => setRemovePinInput(e.target.value)}
+                value={currentPin}
+                onChange={(e) => setCurrentPin(digitsOnly(e.target.value))}
                 placeholder="••••"
                 maxLength={6}
                 autoComplete="off"
                 autoFocus
               />
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="flex-1"
-                  onClick={() => {
-                    setShowRemoveConfirm(false);
-                    setRemovePinInput("");
-                  }}
-                  disabled={removePin.isPending}
-                >
-                  {t("common.cancel")}
-                </Button>
-                <Button
-                  variant="danger"
-                  size="sm"
-                  className="flex-1"
-                  onClick={handleRemovePin}
-                  disabled={removePin.isPending || removePinInput.length < 4}
-                >
-                  {removePin.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : t("settings.remove")}
-                </Button>
-              </div>
-            </div>
+            </>
+          ) : (
+            <>
+              {panel === "change" ? (
+                <TextField
+                  label={t("settings.currentPin")}
+                  type="password"
+                  inputMode="numeric"
+                  value={currentPin}
+                  onChange={(e) => setCurrentPin(digitsOnly(e.target.value))}
+                  placeholder="••••"
+                  maxLength={6}
+                  autoComplete="off"
+                  autoFocus
+                />
+              ) : null}
+              <TextField
+                label={t("settings.newPin")}
+                type="password"
+                inputMode="numeric"
+                value={newPin}
+                onChange={(e) => setNewPin(digitsOnly(e.target.value))}
+                placeholder="••••"
+                maxLength={6}
+                autoComplete="off"
+                autoFocus={panel === "enable"}
+                hint={t("settings.pinHint")}
+              />
+              <TextField
+                label={t("settings.pinConfirmLabel")}
+                type="password"
+                inputMode="numeric"
+                value={confirmPin}
+                onChange={(e) => setConfirmPin(digitsOnly(e.target.value))}
+                placeholder="••••"
+                maxLength={6}
+                autoComplete="off"
+              />
+            </>
           )}
+
+          {error ? (
+            <p className="rounded-lg bg-danger-soft px-2.5 py-2 text-xs text-danger-ink">{error}</p>
+          ) : null}
+
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex-1"
+              onClick={closePanel}
+              disabled={busy}
+            >
+              {t("common.cancel")}
+            </Button>
+            {panel === "disable" ? (
+              <Button
+                variant="danger"
+                size="sm"
+                className="flex-1"
+                onClick={handleDisable}
+                disabled={busy || currentPin.length < 4}
+              >
+                {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : t("settings.pinTurnOff")}
+              </Button>
+            ) : (
+              <Button
+                size="sm"
+                className="flex-1"
+                onClick={handleEnable}
+                disabled={busy || newPin.length < 4 || confirmPin.length < 4}
+              >
+                {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : t("settings.pinTurnOn")}
+              </Button>
+            )}
+          </div>
         </div>
       ) : null}
     </section>
@@ -1022,21 +1088,30 @@ function DataManagementSection({ hasPin }: { hasPin: boolean }) {
   const { t } = useLanguage();
   const [showConfirm, setShowConfirm] = useState(false);
   const [confirmPin, setConfirmPin] = useState("");
+  // The email step is separate from the PIN step: the PIN proves the device is
+  // yours, the emailed code proves the account is yours.
+  const [showEmailConfirm, setShowEmailConfirm] = useState(false);
+  const [emailError, setEmailError] = useState<string | null>(null);
 
-  const handleClearAll = () => {
+  const handleClearAll = (confirm: { confirmToken: string; confirmCode: string }) => {
+    setEmailError(null);
     clearAllData.mutate(
-      { confirm: true, currentPin: hasPin ? confirmPin : undefined },
+      {
+        confirm: true,
+        currentPin: hasPin ? confirmPin : undefined,
+        ...confirm,
+      },
       {
         onSuccess: (data) => {
           const d = data.deleted;
           const total = Object.values(d).reduce((s, n) => s + n, 0);
           toast.success(`${total} ${t("settings.cleared")}`);
+          setShowEmailConfirm(false);
           setShowConfirm(false);
           setConfirmPin("");
         },
         onError: (e) => {
-          const msg = e instanceof ApiError ? e.message : t("common.failed");
-          toast.error(msg);
+          setEmailError(e instanceof ApiError ? e.message : t("common.failed"));
         },
       },
     );
@@ -1102,7 +1177,10 @@ function DataManagementSection({ hasPin }: { hasPin: boolean }) {
               variant="danger"
               size="sm"
               className="flex-1"
-              onClick={handleClearAll}
+              onClick={() => {
+                setEmailError(null);
+                setShowEmailConfirm(true);
+              }}
               disabled={clearAllData.isPending || (hasPin && confirmPin.length < 4)}
             >
               {clearAllData.isPending ? (
@@ -1120,6 +1198,20 @@ function DataManagementSection({ hasPin }: { hasPin: boolean }) {
           </div>
         </div>
       )}
+
+      {/* Step-up email confirmation before the wipe. */}
+      <EmailConfirmDialog
+        open={showEmailConfirm}
+        action="clear_data"
+        busy={clearAllData.isPending}
+        serverError={emailError}
+        onCancel={() => {
+          if (clearAllData.isPending) return;
+          setShowEmailConfirm(false);
+          setEmailError(null);
+        }}
+        onConfirm={handleClearAll}
+      />
     </section>
   );
 }

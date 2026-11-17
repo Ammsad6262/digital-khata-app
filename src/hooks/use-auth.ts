@@ -50,21 +50,28 @@ export function useUpdateProfile() {
   });
 }
 
-/** Change password. */
+/** Change password. Requires the code emailed for this action. */
 export function useChangePassword() {
   return useMutation({
-    mutationFn: (input: { currentPassword: string; newPassword: string }) =>
-      apiPatch<{ changed: boolean }>("/api/account/password", input),
+    mutationFn: (input: {
+      currentPassword: string;
+      newPassword: string;
+      confirmToken: string;
+      confirmCode: string;
+    }) => apiPatch<{ changed: boolean }>("/api/account/password", input),
   });
 }
 
-/** Delete account + all data. Requires password confirmation. */
+/** Delete account + all data. Requires password AND the emailed code. */
 export function useDeleteAccount() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (input: { password: string }) =>
-      apiDelete<{ deleted: boolean }>("/api/account", input),
+    mutationFn: (input: {
+      password: string;
+      confirmToken: string;
+      confirmCode: string;
+    }) => apiDelete<{ deleted: boolean }>("/api/account", input),
     onSuccess: () => {
       queryClient.clear();
       clearStoredTheme();

@@ -14,6 +14,7 @@ import { prisma } from "@/lib/db/prisma";
 import { getCurrentUserId } from "@/lib/auth/get-current-user";
 import { ok, fail, parseJsonBody } from "@/lib/utils/api";
 import { UnauthorizedError, BadRequestError, ConflictError } from "@/lib/errors";
+import { requireActionConfirmation } from "@/lib/account/require-action-confirmation";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 
@@ -97,6 +98,8 @@ export async function PATCH(req: NextRequest) {
 
 const deleteAccountSchema = z.object({
   password: z.string().min(1, "api.account.passwordRequired"),
+  confirmToken: z.string().min(1, "api.account.confirmRequired"),
+  confirmCode: z.string().min(1, "api.account.confirmRequired"),
 });
 
 export async function DELETE(req: NextRequest) {
@@ -108,6 +111,16 @@ export async function DELETE(req: NextRequest) {
     if (error) return fail(new Error(error));
 
     const parsed = deleteAccountSchema.parse(data);
+
+    // Step-up confirmation: the owner must have typed the code emailed for THIS
+    // action. Checked before the password so a stolen password alone is not
+    // enough to destroy the account.
+    requireActionConfirmation({
+      userId,
+      action: "delete_account",
+      token: parsed.confirmToken,
+      code: parsed.confirmCode,
+    });
 
     // Verify password before deletion
     const user = await prisma.user.findUniqueOrThrow({

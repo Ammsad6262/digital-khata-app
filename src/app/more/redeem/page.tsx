@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
+  ArrowLeft,
   KeyRound,
   Loader2,
   CheckCircle2,
@@ -24,6 +26,7 @@ import {
 } from "@/lib/utils/whatsapp";
 import { formatDate } from "@/lib/utils/date";
 import { Button } from "@/components/ui/Button";
+import { MoreButton } from "@/components/layout/MoreButton";
 import { useLanguage } from "@/providers/language-provider";
 import { resolveApiError } from "@/lib/i18n/client";
 import { cn } from "@/lib/utils/cn";
@@ -33,11 +36,28 @@ export default function RedeemPage() {
   const { t } = useLanguage();
   return (
     <>
-<div className="sticky top-0 z-20 border-b border-line bg-surface px-4 py-3">
-        <h1 className="text-base font-semibold text-ink">
-          {t("subscription.redeemCode")}
-        </h1>
-      </div>
+<header className="sticky top-0 z-20 border-b border-line/70 bg-surface/80 px-4 py-3 backdrop-blur-xl">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <Link
+              href="/more"
+              aria-label={t("common.back")}
+              className="rounded-lg p-1.5 text-ink-subtle transition-colors hover:bg-surface-2"
+            >
+              <ArrowLeft className="h-5 w-5 rtl-flip" />
+            </Link>
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[0.85rem] bg-brand-50 text-brand-700 ring-1 ring-inset ring-brand/10">
+              <KeyRound className="h-[18px] w-[18px]" strokeWidth={2.1} />
+            </span>
+            <h1 className="truncate text-[15px] font-bold tracking-[-0.02em] text-ink">
+              {t("subscription.redeemCode")}
+            </h1>
+          </div>
+          <div className="flex shrink-0 items-center gap-1.5">
+            <MoreButton />
+          </div>
+        </div>
+      </header>
       <main className="flex-1 px-4 pb-24 pt-4 min-h-[calc(100dvh-4rem)]">
         <div className="space-y-4">
           <AccessCard />

@@ -9,6 +9,7 @@ import { prisma } from "@/lib/db/prisma";
 import { getCurrentUserId } from "@/lib/auth/get-current-user";
 import { ok, fail, parseJsonBody } from "@/lib/utils/api";
 import { UnauthorizedError, BadRequestError } from "@/lib/errors";
+import { requireActionConfirmation } from "@/lib/account/require-action-confirmation";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 
@@ -17,6 +18,8 @@ export const dynamic = "force-dynamic";
 const changePasswordSchema = z.object({
   currentPassword: z.string().min(1, "api.password.currentRequired"),
   newPassword: z.string().min(8, "api.password.tooShort"),
+  confirmToken: z.string().min(1, "api.account.confirmRequired"),
+  confirmCode: z.string().min(1, "api.account.confirmRequired"),
 });
 
 export async function PATCH(req: NextRequest) {
@@ -28,6 +31,14 @@ export async function PATCH(req: NextRequest) {
     if (error) return fail(new Error(error));
 
     const parsed = changePasswordSchema.parse(data);
+
+    // Step-up confirmation, checked before anything is changed.
+    requireActionConfirmation({
+      userId,
+      action: "change_password",
+      token: parsed.confirmToken,
+      code: parsed.confirmCode,
+    });
 
     // Verify current password
     const user = await prisma.user.findUniqueOrThrow({

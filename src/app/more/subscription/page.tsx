@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { Crown, Check, ChevronRight, AlertCircle, RefreshCw, CheckCircle2, MessageCircle, KeyRound } from "lucide-react";
+import { Crown, Check, ChevronRight, ArrowLeft, AlertCircle, RefreshCw, CheckCircle2, MessageCircle, KeyRound } from "lucide-react";
 import { useSubscription, useRedemptionHistory } from "@/hooks/use-subscription";
 import type { Entitlement } from "@/lib/services/entitlement";
 import { Button } from "@/components/ui/Button";
@@ -9,6 +9,7 @@ import { getWhatsAppLink, getDefaultWhatsAppMessage, getPlanWhatsAppMessage, WHA
 import { formatDate } from "@/lib/utils/date";
 import { cn } from "@/lib/utils/cn";
 import { useLanguage } from "@/providers/language-provider";
+import { MoreButton } from "@/components/layout/MoreButton";
 
 const INCLUDED_FEATURES = [
   "subscription.feature.customers",
@@ -23,15 +24,27 @@ export default function SubscriptionPage() {
   const { t } = useLanguage();
   return (
     <>
-      <div className="sticky top-0 z-20 flex items-center gap-3 border-b border-line bg-surface px-4 py-3">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-warning-soft text-warning-ink">
-          <Crown className="h-5 w-5" />
+      <header className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-line bg-surface px-4 py-3">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <Link
+            href="/more"
+            aria-label={t("common.back")}
+            className="rounded-lg p-1.5 text-ink-subtle transition-colors hover:bg-surface-2"
+          >
+            <ArrowLeft className="h-5 w-5 rtl-flip" />
+          </Link>
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-warning-soft text-warning-ink">
+            <Crown className="h-5 w-5" />
+          </div>
+          <div className="min-w-0">
+            <h1 className="truncate text-base font-semibold text-ink">{t("subscription.title")}</h1>
+            <p className="truncate text-xs text-ink-subtle">{t("subscription.subtitle")}</p>
+          </div>
         </div>
-        <div className="min-w-0">
-          <h1 className="truncate text-base font-semibold text-ink">{t("subscription.title")}</h1>
-          <p className="truncate text-xs text-ink-subtle">{t("subscription.subtitle")}</p>
+        <div className="flex shrink-0 items-center gap-1.5">
+          <MoreButton />
         </div>
-      </div>
+      </header>
       <main className="flex-1 px-4 pb-24 pt-4 min-h-[calc(100dvh-4rem)]">
         <SubscriptionContent />
       </main>

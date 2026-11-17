@@ -19,6 +19,7 @@ import { useState, useEffect } from "react";
 import { Delete, Lock, Loader2, AlertCircle } from "lucide-react";
 import { useLanguage } from "@/providers/language-provider";
 import { resolveApiError } from "@/lib/i18n/client";
+import { EmailConfirmDialog } from "@/components/settings/EmailConfirmDialog";
 
 export function PinUnlockScreen({
   hasPin,
@@ -34,6 +35,9 @@ export function PinUnlockScreen({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [retryAfter, setRetryAfter] = useState(0);
   const { t } = useLanguage();
+  const [showReset, setShowReset] = useState(false);
+  const [resetError, setResetError] = useState<string | null>(null);
+  const [resetting, setResetting] = useState(false);
 
   // Lockout countdown
   useEffect(() => {
@@ -99,6 +103,29 @@ export function PinUnlockScreen({
   const handleDelete = () => {
     setPin((prev) => prev.slice(0, -1));
     setError(null);
+  };
+
+  const handleResetPin = async (input: { confirmToken: string; confirmCode: string }) => {
+    setResetError(null);
+    setResetting(true);
+    try {
+      const res = await fetch("/api/auth/reset-pin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(input),
+      });
+      const json = await res.json().catch(() => null);
+      if (!res.ok) {
+        throw new Error(json?.error?.message ?? t("common.failed"));
+      }
+      setShowReset(false);
+      // The PIN is gone now, so the gate should let us straight in.
+      onUnlocked();
+    } catch (error) {
+      setResetError(error instanceof Error ? error.message : t("common.failed"));
+    } finally {
+      setResetting(false);
+    }
   };
 
   return (
@@ -175,6 +202,31 @@ export function PinUnlockScreen({
           <Delete className="h-5 w-5" />
         </button>
       </div>
+
+      {/* Escape hatch: a forgotten PIN must never lock the owner out for good. */}
+      <button
+        type="button"
+        onClick={() => {
+          setResetError(null);
+          setShowReset(true);
+        }}
+        className="mt-6 text-xs font-medium text-white/80 underline underline-offset-2 transition-colors hover:text-white"
+      >
+        {t("pin.forgot")}
+      </button>
+
+      <EmailConfirmDialog
+        open={showReset}
+        action="reset_pin"
+        busy={resetting}
+        serverError={resetError}
+        onCancel={() => {
+          if (resetting) return;
+          setShowReset(false);
+          setResetError(null);
+        }}
+        onConfirm={handleResetPin}
+      />
     </div>
   );
 }

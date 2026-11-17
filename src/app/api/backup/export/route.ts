@@ -19,6 +19,8 @@ import { exportBackup } from "@/lib/services/backup";
 import { withCircuitBreaker } from "@/lib/utils/circuit-breaker";
 import { tServer } from "@/lib/i18n/server";
 import { requireUserId } from "@/lib/auth/get-current-user";
+import { requireActionConfirmation } from "@/lib/account/require-action-confirmation";
+import { fail } from "@/lib/utils/api";
 
 export const dynamic = "force-dynamic";
 
@@ -26,8 +28,25 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 export async function GET(req: NextRequest) {
+  // Auth + step-up confirmation first: a failure here is an ordinary JSON error
+  // with a real status, not the generic 500 the streaming block would produce.
+  let userId: string;
   try {
-    const userId = await requireUserId(req, { requireActiveSubscription: false });
+    userId = await requireUserId(req, { requireActiveSubscription: false });
+
+    // The code travels in headers, so it never lands in a URL, browser history
+    // or an access log — this endpoint is a download, not a form post.
+    requireActionConfirmation({
+      userId,
+      action: "export_data",
+      token: req.headers.get("x-confirm-token"),
+      code: req.headers.get("x-confirm-code"),
+    });
+  } catch (error) {
+    return fail(error);
+  }
+
+  try {
     const dateStr = new Date().toISOString().slice(0, 10);
     const filename = `digital-khata-backup-${dateStr}.json`;
 

@@ -75,10 +75,22 @@ export function useClearAllData() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ confirm, currentPin }: { confirm: boolean; currentPin?: string }) =>
+    mutationFn: ({
+      confirm,
+      currentPin,
+      confirmToken,
+      confirmCode,
+    }: {
+      confirm: boolean;
+      currentPin?: string;
+      confirmToken: string;
+      confirmCode: string;
+    }) =>
       apiDelete<{ deleted: Record<string, number> }>("/api/settings/clear-all", {
         confirm,
         currentPin,
+        confirmToken,
+        confirmCode,
       }),
     onSuccess: () => {
       // Invalidate everything — all data is gone

@@ -18,6 +18,7 @@ import { verifyPin } from "@/lib/auth/pin";
 import { BadRequestError, UnauthorizedError } from "@/lib/errors";
 import { ok, fail, parseJsonBody } from "@/lib/utils/api";
 import { requireUserId } from "@/lib/auth/get-current-user";
+import { requireActionConfirmation } from "@/lib/account/require-action-confirmation";
 import { checkRateLimit, recordFailure, recordSuccess, getClientIp } from "@/lib/auth/rate-limiter";
 import { tServer } from "@/lib/i18n/server";
 
@@ -28,6 +29,8 @@ const clearSchema = z.object({
     message: "api.clearAll.confirmRequired",
   }),
   currentPin: z.string().optional(),
+  confirmToken: z.string().min(1, "api.account.confirmRequired"),
+  confirmCode: z.string().min(1, "api.account.confirmRequired"),
 });
 
 export async function DELETE(req: NextRequest) {
@@ -57,6 +60,15 @@ export async function DELETE(req: NextRequest) {
     if (error) return fail(new Error(error));
 
     const parsed = clearSchema.parse(data);
+
+    // Step-up confirmation by email, checked before the PIN so that someone
+    // holding an unlocked phone still cannot wipe the shop's records.
+    requireActionConfirmation({
+      userId,
+      action: "clear_data",
+      token: parsed.confirmToken,
+      code: parsed.confirmCode,
+    });
 
     // If a PIN is set, require it for this destructive action
     const existingHash = await getOwnerPinHash(userId);

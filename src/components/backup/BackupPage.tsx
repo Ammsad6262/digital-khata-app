@@ -39,10 +39,13 @@ import {
 } from "@/lib/services/backup";
 import { cn } from "@/lib/utils/cn";
 import { useLanguage } from "@/providers/language-provider";
+import { EmailConfirmDialog } from "@/components/settings/EmailConfirmDialog";
 
 export function BackupPage() {
   const [uploadedFile, setUploadedFile] = useState<{ name: string; content: string; preview: BackupFile | null; error: string | null } | null>(null);
   const [confirmStep, setConfirmStep] = useState(false);
+  const [showExportConfirm, setShowExportConfirm] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const exportBackup = useExportBackup();
@@ -111,7 +114,10 @@ export function BackupPage() {
               size="md"
               className="mt-3"
               disabled={exportBackup.isPending}
-              onClick={() => exportBackup.mutate()}
+              onClick={() => {
+                setExportError(null);
+                setShowExportConfirm(true);
+              }}
             >
               {exportBackup.isPending ? (
                 <>
@@ -232,6 +238,27 @@ export function BackupPage() {
           <li>• {t("backup.tip4")}</li>
         </ul>
       </div>
+
+      {/* Step-up email confirmation before handing over the whole khata. */}
+      <EmailConfirmDialog
+        open={showExportConfirm}
+        action="export_data"
+        busy={exportBackup.isPending}
+        serverError={exportError}
+        onCancel={() => {
+          if (exportBackup.isPending) return;
+          setShowExportConfirm(false);
+          setExportError(null);
+        }}
+        onConfirm={(input) => {
+          setExportError(null);
+          exportBackup.mutate(input, {
+            onSuccess: () => setShowExportConfirm(false),
+            onError: (e) =>
+              setExportError(e instanceof Error ? e.message : t("common.failed")),
+          });
+        }}
+      />
     </div>
   );
 }

@@ -1,19 +1,96 @@
-# Android app (Trusted Web Activity)
+# Android app
 
-Dukhata ships to Android as a **Trusted Web Activity (TWA)**: a thin native
+## What ships now: a Capacitor shell (no Chrome)
+
+The app is a **Capacitor 8 WebView shell**. It is a normal Android app: its own
+icon, its own black launch screen, its own status bar, and it renders
+`https://dukhata.com` inside Android's system **WebView** — **not** Chrome.
+
+It replaced a Trusted Web Activity for one reason: a TWA runs inside Chrome and
+makes Chrome show a "you'll see your site data in Chrome" disclosure that Google
+does not allow developers to remove. The owner did not want his app to involve
+Chrome at all, and accepted losing the instant-update property that came with it.
+
+| | Capacitor shell (this) | TWA (retired) |
+| --- | --- | --- |
+| Renders with | Android system WebView | Chrome |
+| Chrome disclosure | none | yes, once per app, cannot be disabled |
+| Chrome cookies shared | no — users sign in inside the app | yes |
+| Website changes reach the app | instantly (it loads the live site) | instantly |
+
+The old TWA project is still on disk at `C:\Users\user\dukhata-android`, and
+`/.well-known/assetlinks.json` is still served, which is harmless: it only means
+the retired TWA would keep working if ever reinstalled.
+
+### Known limitation
+
+**Browser "blob" downloads do not work in a WebView.** The full-backup (JSON) and
+per-table (CSV) export buttons build a file in the browser and click a download
+link; Android's WebView does not hand those to the download manager, so on the
+phone those two buttons do nothing. Everything else works, because it happens
+inside the page. The fix is to save the file with the device's own storage and
+share sheet (`@capacitor/filesystem` + `@capacitor/share`) — not yet done.
+
+## Building the shell
+
+Project: `C:\Users\user\dukhata-capacitor` (outside the web repo, so its Gradle
+output and keystore are never committed).
+
+```powershell
+# JDK 21 is REQUIRED: Capacitor 8 compiles for Java 21 (JDK 17 fails with
+# "invalid source release: 21").
+$env:JAVA_HOME        = "C:\Users\user\android-tools\jdk-21.0.13+9"
+$env:ANDROID_HOME     = "C:\Users\user\AppData\Local\Android\Sdk"
+$env:ANDROID_SDK_ROOT = $env:ANDROID_HOME
+$env:DUKHATA_KEYSTORE_PASSWORD = "<storepass>"
+$env:DUKHATA_KEY_PASSWORD      = "<keypass>"
+
+cd C:\Users\user\dukhata-capacitor
+npx cap sync android            # after changing capacitor.config.json or plugins
+cd android
+.\gradlew.bat assembleRelease --no-daemon
+# -> android\app\build\outputs\apk\release\app-release.apk
+```
+
+Then publish it (from the web repo):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\android-publish-apk.ps1 `
+  -ApkPath "C:\Users\user\dukhata-capacitor\android\app\build\outputs\apk\release\app-release.apk"
+git add public/app/dukhata.apk && git commit -m "release(android): ..." && git push
+```
+
+### Key settings
+
+- `capacitor.config.json`: `server.url = https://dukhata.com/start` — the app
+  entry that decides login vs dashboard. `webDir` holds only a fallback page.
+- `versionCode` / `versionName` live in `android/app/build.gradle`. Bump BOTH;
+  Android only installs an update whose `versionCode` is higher.
+- Signed with the **same keystore** as the retired TWA
+  (`C:\Users\user\dukhata-android\dukhata.keystore`), so this build installs
+  straight over the old app rather than sitting beside it.
+- `minSdkVersion 24` (Android 7.0), `targetSdkVersion 36`.
+- External links (WhatsApp, `tel:`, `mailto:`) open in the matching app
+  automatically: Capacitor's `Bridge.launchIntent` sends any host that is not
+  dukhata.com to the system browser.
+
+## The retired TWA (kept for reference)
+
+Dukhata previously shipped as a **Trusted Web Activity (TWA)**: a thin native
 Android shell that opens `https://dukhata.com` full-screen using the device's
-own Chrome rendering engine. There is no second codebase — the Android app and
-the website are the same product, so a change deployed to `main` is live in the
-app immediately.
+own Chrome rendering engine.
 
 ## Why a TWA rather than a native rewrite
 
 | Concern | How a TWA answers it |
 | --- | --- |
-| "Fast and good on Android" | Rendering runs in the system Chrome/WebView the phone already has and keeps updated — no bundled engine, tiny download (~1 MB). |
 | "Nearly all Android versions" | `minSdkVersion 24` = Android 7.0 (2016) upward. This floor is set by `com.google.androidbrowserhelper` itself (the TWA library declares minSdk 24); it still covers ~99% of active Android devices. Devices without a TWA-capable browser fall back to a Chrome Custom Tab. |
 | One codebase | The site *is* the app. No duplicated logic, no drift between web and mobile. |
 | Login | The app shares Chrome's cookies, so a signed-in user stays signed in. |
+
+**Why it was retired:** the Chrome disclosure. Google's own documentation and the
+`android-browser-helper` maintainers confirm it cannot be suppressed — every TWA
+shows it once per app.
 
 ## Configuration
 

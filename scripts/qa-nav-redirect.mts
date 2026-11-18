@@ -10,6 +10,7 @@
 import { readFileSync, existsSync } from "node:fs";
 import path from "node:path";
 import { PrismaClient } from "@prisma/client";
+import { hashTrialEmail } from "../src/lib/services/trial-claim-hash";
 
 const BASE = "https://dukhata.com";
 
@@ -96,6 +97,10 @@ const prisma = new PrismaClient();
 const user = await prisma.user.findUnique({ where: { email }, select: { id: true } });
 if (user) await prisma.user.delete({ where: { id: user.id } });
 check("qa account deleted", await prisma.user.count({ where: { email } }), 0);
+// The trial claim outlives the account by design; a test must not leave one.
+await prisma.trialClaim.deleteMany({
+  where: { emailHash: hashTrialEmail(email) },
+});
 await prisma.$disconnect();
 
 console.log();

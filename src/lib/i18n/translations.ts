@@ -1196,6 +1196,7 @@ export const translations = {
   "auth.loginSubtitle": { en: "Log in to your account", ur: "اپنے اکاؤنٹ میں لاگ ان کریں" },
   "auth.createAccountSubtitle": { en: "Create your account", ur: "اپنا اکاؤنٹ بنائیں" },
   "auth.welcomeBack": { en: "Welcome back!", ur: "خوش آمدید!" },
+  "auth.trialAlreadyUsed": { en: "This email has already used its free trial. Enter a code to continue.", ur: "اس ای میل نے مفت ٹرائل پہلے ہی استعمال کر لیا ہے۔ جاری رکھنے کے لیے کوڈ درج کریں۔" },
   "auth.accountCreated": { en: "Account created! Welcome to Dukhata.", ur: "اکاؤنٹ بنا! دکھاتہ میں خوش آمدید۔" },
   "auth.loginFailed": { en: "Login failed.", ur: "لاگ ان ناکام۔" },
   "auth.registerFailed": { en: "Registration failed.", ur: "رجسٹریشن ناکام۔" },

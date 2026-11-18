@@ -114,6 +114,9 @@ export async function POST(req: NextRequest) {
 
     const res = ok({
       user: result.user,
+      // False when this mailbox already used its trial; the client sends the
+      // owner to /more/redeem instead of the dashboard.
+      trialGranted: result.trialGranted,
       emailVerificationEnforced: isEmailVerificationEnforced(),
       verificationSent,
     });

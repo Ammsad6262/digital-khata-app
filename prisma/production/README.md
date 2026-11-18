@@ -12,12 +12,12 @@ foreign keys). None of them delete or rewrite rows.
 
 ## Automated application (Vercel)
 
-The two deltas the current release requires are applied **automatically by the
-Vercel build** — `scripts/apply-production-ddl.mjs`, invoked from the `build`
-script (pinned by `vercel.json`):
-
-- `20261102_ai_assistant_tables.sql`
-- `20261102_transaction_voided_at.sql`
+The additive deltas the current release requires are applied **automatically by
+the Vercel build** — `scripts/apply-production-ddl.mjs`, invoked from the `build`
+script (pinned by `vercel.json`). The authoritative list is the `FILES` array in
+that script; today it covers the assistant tables, the soft-void column,
+commercial licensing, the integrity repair, email verification and trial
+claims.
 
 If the SQL fails, the build fails and Vercel keeps the previous deployment
 live, so production is never left running code against a schema it does not
@@ -56,6 +56,7 @@ If `20261020_stage2_3_delta.sql` was already applied, re-running it is harmless
 | 9 | `20261102_ai_assistant_tables.sql` |
 | 10 | `20261102_transaction_voided_at.sql` |
 | 11 | `20261116_integrity_repair.sql` |
+| 12 | `20261118_trial_claims.sql` |
 
 `20261116_integrity_repair.sql` restores the six foreign keys and five indexes
 that exist in the baseline migration but were never created by the hand-rolled
@@ -79,7 +80,9 @@ psql "$DIRECT_URL" -v ON_ERROR_STOP=1 \
   -f prisma/production/20261025_purchase_due_date.sql \
   -f prisma/production/20261102_ai_assistant_tables.sql \
   -f prisma/production/20261102_transaction_voided_at.sql \
-  -f prisma/production/20261116_integrity_repair.sql
+  -f prisma/production/20261116_integrity_repair.sql \
+  -f prisma/production/20261117_email_verification.sql \
+  -f prisma/production/20261118_trial_claims.sql
 ```
 
 ### Option B — Supabase SQL editor

@@ -11,6 +11,7 @@
 import { prisma } from "@/lib/db/prisma";
 import { NotFoundError, BadRequestError, UnauthorizedError } from "@/lib/errors";
 import { trialExpiry } from "@/lib/services/entitlement";
+import { claimTrialSlot } from "@/lib/services/trial-claim";
 
 const BCRYPT_ROUNDS = 10;
 const TOKEN_TTL_SECONDS = 7 * 24 * 60 * 60; // 7 days
@@ -133,6 +134,13 @@ export type AuthUser = {
 export type AuthResult = {
   user: AuthUser;
   token: string;
+  /**
+   * False when this address had already used a free trial — possibly on an
+   * account that has since been deleted. The account is still created, but
+   * without a trial, so it must redeem a code before the app will open.
+   * Always true for `loginUser` (logging in never grants anything).
+   */
+  trialGranted: boolean;
 };
 
 export async function registerUser(input: {
@@ -159,8 +167,19 @@ export async function registerUser(input: {
 
   const passwordHash = await hashPassword(password);
 
-  // Create user + trial subscription atomically
-  const user = await prisma.$transaction(async (tx) => {
+  // Create user + subscription atomically. The trial decision is part of the
+  // same transaction: if anything below fails, the claim is rolled back too, so
+  // a failed sign-up can never burn a mailbox's only trial.
+  const { user, trialGranted } = await prisma.$transaction(async (tx) => {
+    const now = new Date();
+
+    // A returning address (account deleted, or a different spelling of the same
+    // Gmail mailbox) gets an unactivated account instead of a second trial.
+    const wantsTrial = input.plan !== "paid";
+    const granted = wantsTrial
+      ? (await claimTrialSlot(tx, email, now)).granted
+      : false;
+
     const newUser = await tx.user.create({
       data: { name, email, passwordHash },
     });
@@ -168,8 +187,7 @@ export async function registerUser(input: {
     // Start the account either on the free trial or as an unactivated paid
     // account (no trial). Both are stored as a core-only subscription; a
     // product code later clears coreExpiresAt and makes core access permanent.
-    const now = new Date();
-    if (input.plan === "paid") {
+    if (!granted) {
       await tx.userSubscription.create({
         data: {
           userId: newUser.id,
@@ -194,7 +212,7 @@ export async function registerUser(input: {
       });
     }
 
-    return newUser;
+    return { user: newUser, trialGranted: granted };
   });
 
   const token = await signToken({ userId: user.id });
@@ -208,6 +226,7 @@ export async function registerUser(input: {
       createdAt: user.createdAt,
     },
     token,
+    trialGranted,
   };
 }
 
@@ -242,6 +261,8 @@ export async function loginUser(input: {
       createdAt: user.createdAt,
     },
     token,
+    // Logging in never grants a trial; the flag only describes registration.
+    trialGranted: true,
   };
 }
 

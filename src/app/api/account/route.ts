@@ -15,6 +15,7 @@ import { getCurrentUserId } from "@/lib/auth/get-current-user";
 import { ok, fail, parseJsonBody } from "@/lib/utils/api";
 import { UnauthorizedError, BadRequestError, ConflictError } from "@/lib/errors";
 import { requireActionConfirmation } from "@/lib/account/require-action-confirmation";
+import { hashTrialEmail } from "@/lib/services/trial-claim";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 
@@ -73,19 +74,42 @@ export async function PATCH(req: NextRequest) {
       }
     }
 
-    const updated = await prisma.user.update({
-      where: { id: userId },
-      data: {
-        ...(parsed.name !== undefined && { name: parsed.name }),
-        ...(parsed.email !== undefined && { email: parsed.email }),
-      },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        createdAt: true,
-        updatedAt: true,
-      },
+    const updated = await prisma.$transaction(async (tx) => {
+      const user = await tx.user.update({
+        where: { id: userId },
+        data: {
+          ...(parsed.name !== undefined && { name: parsed.name }),
+          ...(parsed.email !== undefined && { email: parsed.email }),
+        },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      });
+
+      // An account that has used a trial passes that fact on to the new
+      // address. Otherwise changing the email and then deleting the account
+      // would buy a second trial. Paid customers never had a trial, so their
+      // new address is left alone.
+      if (parsed.email !== undefined) {
+        const subscription = await tx.userSubscription.findUnique({
+          where: { userId },
+          select: { coreExpiresAt: true },
+        });
+        if (subscription?.coreExpiresAt) {
+          const emailHash = hashTrialEmail(parsed.email);
+          await tx.trialClaim.upsert({
+            where: { emailHash },
+            create: { emailHash, trialGrantedAt: new Date() },
+            update: {},
+          });
+        }
+      }
+
+      return user;
     });
 
     return ok(updated);

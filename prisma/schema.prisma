@@ -730,6 +730,30 @@ model RedeemCodeRedemption {
 }
 
 // ────────────────────────────────────────────────────────────────────────────
+// TRIAL CLAIM — one free trial per mailbox, even across account deletion.
+//
+// `UserSubscription` is deleted with its user, so the trial record used to
+// disappear along with the account and the same email could start a fresh
+// 14-day trial indefinitely. This table is NOT owned by a user: it outlives
+// account deletion and records that an address has already had a trial.
+//
+// Only a SHA-256 of the normalised address is stored (see
+// src/lib/services/trial-claim.ts). Server-only: RLS is enabled with no
+// policies, so PostgREST's anon/authenticated roles cannot read it, while the
+// Prisma role (the table owner) is unaffected.
+// ────────────────────────────────────────────────────────────────────────────
+
+model TrialClaim {
+  id             String   @id @default(cuid())
+  emailHash      String   @unique
+  trialGrantedAt DateTime @default(now())
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([trialGrantedAt])
+}
+
+// ────────────────────────────────────────────────────────────────────────────
 // SUPPLIER  (who the business buys stock from — mirror of Customer)
 // ────────────────────────────────────────────────────────────────────────────
 //

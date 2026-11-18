@@ -128,6 +128,8 @@ Key files:
 | `src/lib/db/prisma.ts` | Prisma singleton + `withUserRls()` (transaction-local `SET LOCAL ROLE` + `app.user_id` for enforced RLS) |
 | `src/lib/services/subscription.ts` | Existing service; delegates `redeemCode`, `hasActiveAccess`; preserves the trial as core-only; fixes legacy code duration; adds `licensing`/`licensingEnforced` to the legacy status view |
 | `src/lib/services/auth.ts` | Minimal change: registration creates the 14-day trial with the core-trial fields |
+| `src/lib/services/trial-claim.ts` | One trial per mailbox: `claimTrialSlot()` (called inside the registration transaction) and `hasUsedTrial()`; survives account deletion |
+| `src/lib/services/trial-claim-hash.ts` | Pure address normalisation + hashing, shared by the service, the backfill script and the test |
 | `src/lib/services/audit.ts` | Added `licensing.affiliate_revoke` and `licensing.core_revoke` actions |
 | `src/app/api/licensing/route.ts` | `GET` the signed-in customer's entitlement |
 | `src/app/api/subscription/redeem/route.ts` | Existing redeem endpoint (now category-aware via the service) |
@@ -233,6 +235,29 @@ revoke (admin) ──► only unused codes; redeemed codes are not silently undo
 3. After expiry the category becomes `UNACTIVATED`; data is retained and the UI
    shows that the trial ended.
 4. A product code upgrades the trial to permanent core.
+
+**One trial per mailbox.** A trial used to live only on `UserSubscription`,
+which is deleted with the user — so deleting an account and signing up again
+with the same email produced another 14 days, indefinitely. `TrialClaim` (see
+`src/lib/services/trial-claim.ts`) records the trial against a hash of the
+*normalised* address and is deliberately not owned by a user, so it survives
+account deletion.
+
+- Before granting a trial, registration asks `claimTrialSlot()` inside the same
+  transaction that creates the user. If a claim exists, the account is created
+  **UNACTIVATED** instead: the owner can sign in, but must redeem a code before
+  the app opens. The register screen says so and sends them to `/more/redeem`.
+- Normalisation folds Gmail's ignored dots and `+tags`
+  (`a.b+trial2@gmail.com` → `ab@gmail.com`) and treats `googlemail.com` as
+  `gmail.com`. Other providers are untouched. Without this the trial could be
+  farmed without deleting anything.
+- A paid sign-up (`plan: "paid"`) never consumes or checks a claim.
+- The hash is unsalted so it stays stable forever. Rotating a pepper would
+  silently hand every deleted address a fresh trial.
+- Existing trials were backfilled with `scripts/db-backfill-trial-claims.ts`.
+- Residual risk: someone can still use a *different* mailbox they control. The
+  real fix for that is email verification before the trial starts (the system
+  exists but ships behind a flag).
 
 ### Premium (PKR 3,000 / 30 days)
 1. Customer must already have a **paid** core product (a trial is not enough).

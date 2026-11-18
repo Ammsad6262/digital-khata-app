@@ -22,14 +22,28 @@ The old TWA project is still on disk at `C:\Users\user\dukhata-android`, and
 `/.well-known/assetlinks.json` is still served, which is harmless: it only means
 the retired TWA would keep working if ever reinstalled.
 
-### Known limitation
+### Known limitations (all share one cause)
 
-**Browser "blob" downloads do not work in a WebView.** The full-backup (JSON) and
-per-table (CSV) export buttons build a file in the browser and click a download
-link; Android's WebView does not hand those to the download manager, so on the
-phone those two buttons do nothing. Everything else works, because it happens
-inside the page. The fix is to save the file with the device's own storage and
-share sheet (`@capacitor/filesystem` + `@capacitor/share`) — not yet done.
+A WebView does not hand file downloads or printing over to Android, so these do
+nothing on the phone:
+
+| Control | Where | Why |
+| --- | --- | --- |
+| Full backup (JSON) | `/more/backup` | builds a blob, then clicks a download link |
+| Per-table CSV export | `/more/backup` | same |
+| Reports CSV export | `/more/reports` | same, generated in the page |
+| Receipt **Print** | `/sales/[id]/receipt` | `window.print()` has no handler in a WebView |
+
+Everything else works, because it happens inside the page. One fix covers all
+four: save through the device's own storage and share sheet
+(`@capacitor/filesystem` + `@capacitor/share`), and print through Android's
+PrintManager with a small native bridge. Not yet done.
+
+**Microphone:** the manifest declares `RECORD_AUDIO` and
+`MODIFY_AUDIO_SETTINGS`. Capacitor's `WebChromeClient.onPermissionRequest`
+requests the runtime permission when the page calls `getUserMedia`. Without the
+manifest entry the voice assistant fails silently — which is exactly what would
+have happened before v2.0.1.
 
 ## Building the shell
 

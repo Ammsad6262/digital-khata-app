@@ -136,7 +136,8 @@ async function main() {
     check("protected route works", (await req("GET", "/api/customers", undefined, first.cookie)).status, 200);
 
     console.log("\n3. deleting the account must NOT delete the claim");
-    await prisma.user.delete({ where: { email } });
+    const removed = await prisma.user.deleteMany({ where: { email } });
+    check("user deleted", removed.count, 1);
     check("user gone", await prisma.user.count({ where: { email } }), 0);
     check("claim survives deletion", await prisma.trialClaim.count({ where: { emailHash: hashTrialEmail(email) } }), 1);
 

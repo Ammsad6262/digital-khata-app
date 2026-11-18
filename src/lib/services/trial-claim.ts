@@ -40,8 +40,10 @@ export async function claimTrialSlot(
 
   // `ab@gmail.com` and `a.b@gmail.com` are different `User.email` values, so
   // the unique index on User does not serialise them. This does.
-  await tx.$queryRawUnsafe(
-    "SELECT pg_advisory_xact_lock(hashtext($1))",
+  // `$executeRawUnsafe`, not `$queryRawUnsafe`: the lock function returns
+  // `void`, which a raw query cannot deserialise.
+  await tx.$executeRawUnsafe(
+    "SELECT pg_advisory_xact_lock(hashtext($1::text))",
     emailHash,
   );
 

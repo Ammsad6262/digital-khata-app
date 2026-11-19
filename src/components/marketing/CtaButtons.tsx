@@ -7,8 +7,9 @@ import { cn } from "@/lib/utils/cn";
  *
  *   1. "Use in browser"   → a real link to /register.
  *   2. "Download the app" → a real download of the signed Android APK served
- *      from /app/dukhata.apk. The file is the Trusted Web Activity built from
- *      this same site, so the app and the browser version are one product.
+ *      from /app/dukhata.apk. Since 3.0.0 that file is the native React Native
+ *      app (Expo SDK 58) built from D:\dukhata-mobile, not the old WebView
+ *      shell; it uses the same account and the same API as the browser app.
  *
  * The APK is served with `Content-Type: application/vnd.android.package-archive`
  * (see next.config.mjs) so Android recognises it and offers to install it

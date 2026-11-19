@@ -1,31 +1,44 @@
 # Android app
 
-## What ships now: a Capacitor shell (no Chrome)
+## What ships now: a native app (3.0.0)
 
-The app is a **Capacitor 8 WebView shell**. It is a normal Android app: its own
-icon, its own black launch screen, its own status bar, and it renders
-`https://dukhata.com` inside Android's system **WebView** — **not** Chrome.
+The APK at `/app/dukhata.apk` is a **React Native app** (Expo SDK 58). Its
+screens are native views, not a website in a frame. It talks to this same
+Next.js API and shows the same data.
 
-It replaced a Trusted Web Activity for one reason: a TWA runs inside Chrome and
-makes Chrome show a "you'll see your site data in Chrome" disclosure that Google
-does not allow developers to remove. The owner did not want his app to involve
-Chrome at all, and accepted losing the instant-update property that came with it.
+- Source: `D:\dukhata-mobile` (its `README.md` and `docs/PLAN.md`).
+- Package `com.dukhata.app`, versionCode 8, signed with the owner's existing
+  key — it upgrades the old WebView app in place.
+- What is built so far: sign-in, registration (trial / paid), redeem, Home,
+  the customer khata (list, search, add, detail, record payment, history),
+  the sales list, the full report screen, and More (licence, English / اردو,
+  logout).
+- Still on the website only: creating a sale on the phone, products/stock,
+  expenses, backup/export, receipts and printing, PIN lock, notifications.
 
-| | Capacitor shell (this) | TWA (retired) |
+### Previous shell (superseded)
+
+Before 3.0.0 the app was a **Capacitor 8 WebView shell** (2.0.1). It is kept
+on disk as a fallback at `C:\Users\user\dukhata-capacitor`; it is no longer
+published. It replaced a Trusted Web Activity because a TWA runs inside Chrome
+and shows a "you'll see your site data in Chrome" disclosure that Google does
+not let developers remove.
+
+| | Native app (3.0.0) | Capacitor shell (2.0.1) |
 | --- | --- | --- |
-| Renders with | Android system WebView | Chrome |
-| Chrome disclosure | none | yes, once per app, cannot be disabled |
-| Chrome cookies shared | no — users sign in inside the app | yes |
-| Website changes reach the app | instantly (it loads the live site) | instantly |
+| Renders with | native views | Android system WebView |
+| Chrome involved | no | no |
+| Website changes reach the app | via release / OTA | instantly |
+| Downloads, printing | native share/print available | broken (see below) |
 
 The old TWA project is still on disk at `C:\Users\user\dukhata-android`, and
 `/.well-known/assetlinks.json` is still served, which is harmless: it only means
 the retired TWA would keep working if ever reinstalled.
 
-### Known limitations (all share one cause)
+### Known limitations of the retired WebView shell
 
-A WebView does not hand file downloads or printing over to Android, so these do
-nothing on the phone:
+A WebView does not hand file downloads or printing over to Android, so these
+did nothing on the phone:
 
 | Control | Where | Why |
 | --- | --- | --- |
@@ -34,10 +47,9 @@ nothing on the phone:
 | Reports CSV export | `/more/reports` | same, generated in the page |
 | Receipt **Print** | `/sales/[id]/receipt` | `window.print()` has no handler in a WebView |
 
-Everything else works, because it happens inside the page. One fix covers all
-four: save through the device's own storage and share sheet
-(`@capacitor/filesystem` + `@capacitor/share`), and print through Android's
-PrintManager with a small native bridge. Not yet done.
+Those screens are not in the native app yet; until they are, exports stay on
+the website. When they are ported they will use the device share sheet and
+Android's print service rather than a download link.
 
 **Microphone:** the manifest declares `RECORD_AUDIO` and
 `MODIFY_AUDIO_SETTINGS`. Capacitor's `WebChromeClient.onPermissionRequest`

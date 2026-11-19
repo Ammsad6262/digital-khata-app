@@ -173,7 +173,7 @@ async function main() {
       headers: { Authorization: `Bearer ${token}` },
     });
     check("me status", me.status, 200);
-    check("me identifies the right user", me.json?.data?.user?.email ?? me.json?.data?.email, email);
+    check("me rehydrates the session from the Bearer token", me.json?.data?.user?.email, email);
   } finally {
     console.log("\n6. cleanup");
     await prisma.user.deleteMany({ where: { email } });

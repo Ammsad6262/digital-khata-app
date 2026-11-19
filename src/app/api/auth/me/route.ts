@@ -9,7 +9,8 @@
  */
 
 import { NextRequest } from "next/server";
-import { verifyToken, getUserById, AUTH_COOKIE_NAME } from "@/lib/services/auth";
+import { verifyToken, getUserById } from "@/lib/services/auth";
+import { getRequestToken } from "@/lib/auth/get-current-user";
 import { isEmailVerificationEnforced } from "@/lib/services/email-verification";
 import { ok } from "@/lib/utils/api";
 
@@ -18,7 +19,9 @@ export const dynamic = "force-dynamic";
 export async function GET(req: NextRequest) {
   let user = null;
   try {
-    const token = req.cookies.get(AUTH_COOKIE_NAME)?.value;
+    // Cookie for the web app, `Authorization: Bearer` for the native app —
+    // this route is how either client rehydrates a session on launch.
+    const token = getRequestToken(req);
     if (token) {
       const payload = await verifyToken(token);
       if (payload) user = await getUserById(payload.userId);

@@ -15,6 +15,7 @@ import {
   recordSuccess,
 } from "@/lib/auth/rate-limiter";
 import { BadRequestError } from "@/lib/errors";
+import { isMobileClient } from "@/lib/auth/client-kind";
 
 export const dynamic = "force-dynamic";
 
@@ -48,7 +49,13 @@ export async function POST(req: NextRequest) {
 
     recordSuccess(rateKey);
 
-    const res = ok({ user: result.user });
+    const res = ok({
+      user: result.user,
+      // The native app stores this in secure storage and sends it back as
+      // `Authorization: Bearer …`. Browsers keep using the httpOnly cookie and
+      // must not receive the token in JS.
+      ...(isMobileClient(req) ? { token: result.token } : {}),
+    });
     res.cookies.set(AUTH_COOKIE_NAME, result.token, {
       httpOnly: true,
       sameSite: "lax",

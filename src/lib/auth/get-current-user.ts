@@ -36,7 +36,7 @@ import { setUserContext } from "@/lib/db/prisma";
  */
 export async function getCurrentUserId(req: NextRequest): Promise<string | null> {
   try {
-    const token = req.cookies.get(AUTH_COOKIE_NAME)?.value;
+    const token = getRequestToken(req);
     if (!token) return null;
 
     const payload = await verifyToken(token);
@@ -46,6 +46,21 @@ export async function getCurrentUserId(req: NextRequest): Promise<string | null>
   } catch {
     return null;
   }
+}
+
+/**
+ * The bearer of the session: the httpOnly cookie for the web app, or the same
+ * signed JWT in `Authorization: Bearer <token>` for the native app, which has
+ * no cookie jar. Anything that is not a Bearer value is ignored, so a stray
+ * `Authorization` header cannot change the outcome.
+ */
+export function getRequestToken(req: NextRequest): string | null {
+  const authorization = req.headers.get("authorization") ?? "";
+  if (authorization.toLowerCase().startsWith("bearer ")) {
+    const value = authorization.slice(7).trim();
+    if (value) return value;
+  }
+  return req.cookies.get(AUTH_COOKIE_NAME)?.value ?? null;
 }
 
 // ── Subscription check cache ──────────────────────────────────────────────────

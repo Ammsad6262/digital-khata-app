@@ -21,6 +21,7 @@ import {
 } from "@/lib/services/email-verification";
 import { buildVerificationEmail } from "@/lib/email/templates";
 import { sendEmail } from "@/lib/email/send-email";
+import { isMobileClient } from "@/lib/auth/client-kind";
 
 export const dynamic = "force-dynamic";
 
@@ -119,6 +120,8 @@ export async function POST(req: NextRequest) {
       trialGranted: result.trialGranted,
       emailVerificationEnforced: isEmailVerificationEnforced(),
       verificationSent,
+      // See login/route.ts: only the app gets the token in the body.
+      ...(isMobileClient(req) ? { token: result.token } : {}),
     });
     // Set httpOnly cookie with the JWT token
     res.cookies.set(AUTH_COOKIE_NAME, result.token, {

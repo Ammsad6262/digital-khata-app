@@ -45,8 +45,17 @@ export async function proxy(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // Check for the auth token cookie
-  const token = req.cookies.get("dk_auth_token")?.value;
+  // The web app authenticates with the httpOnly `dk_auth_token` cookie. The
+  // native app has no cookie jar, so it sends the same signed JWT as
+  // `Authorization: Bearer <token>`. Both are verified identically below; the
+  // Bearer form is only honoured when it is actually present, so a browser
+  // request is unaffected.
+  const authorization = req.headers.get("authorization") ?? "";
+  const bearer = authorization.toLowerCase().startsWith("bearer ")
+    ? authorization.slice(7).trim()
+    : "";
+  const cookieToken = req.cookies.get("dk_auth_token")?.value;
+  const token = bearer || cookieToken;
 
   if (!token) {
     return NextResponse.json(
@@ -59,12 +68,13 @@ export async function proxy(req: NextRequest) {
   try {
     const payload = await verifyJwt(token);
     if (!payload) {
-      // Clear the invalid cookie and reject
+      // Clear the invalid cookie and reject. A native client has no cookie to
+      // clear; it simply receives the 401 and signs in again.
       const res = NextResponse.json(
         { ok: false, error: { code: "UNAUTHORIZED", message: "Session expired. Please log in again." } },
         { status: 401 },
       );
-      res.cookies.delete("dk_auth_token");
+      if (cookieToken) res.cookies.delete("dk_auth_token");
       return res;
     }
 

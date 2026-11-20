@@ -37,11 +37,11 @@ const dryRun = process.argv.includes("--dry-run");
 
 async function main() {
   const users = await prisma.user.findMany({
-    where: { email: { startsWith: "qa.mobile.", endsWith: "@dukhata-qa.test" } },
+    where: { email: { startsWith: "qa.", endsWith: "@dukhata-qa.test" } },
     select: { id: true, email: true },
   });
 
-  console.log(`qa.mobile.* accounts: ${users.length}`);
+  console.log(`qa.* accounts: ${users.length}`);
   for (const user of users) {
     console.log(`  ${user.email}`);
     if (!dryRun) {

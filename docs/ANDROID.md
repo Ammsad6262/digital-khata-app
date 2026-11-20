@@ -7,14 +7,16 @@ screens are native views, not a website in a frame. It talks to this same
 Next.js API and shows the same data.
 
 - Source: `D:\dukhata-mobile` (its `README.md` and `docs/PLAN.md`).
-- Package `com.dukhata.app`, versionCode 8, signed with the owner's existing
-  key — it upgrades the old WebView app in place.
+- Package `com.dukhata.app`, versionCode 9 (3.0.1), signed with the owner's
+  existing key — it upgrades the old WebView app in place.
 - What is built so far: sign-in, registration (trial / paid), redeem, Home,
   the customer khata (list, search, add, detail, record payment, history),
-  the sales list, the full report screen, and More (licence, English / اردو,
-  logout).
-- Still on the website only: creating a sale on the phone, products/stock,
-  expenses, backup/export, receipts and printing, PIN lock, notifications.
+  creating a **sale** on the phone, **products** with live stock, **stock
+  adjustments** (add a purchase batch, or write stock off), **expenses** by
+  category, the sales list, the full report screen, and More (licence,
+  English / اردو, logout).
+- Still on the website only: suppliers and purchases, backup/export, receipts
+  and printing, PIN lock, notifications.
 
 ### Previous shell (superseded)
 

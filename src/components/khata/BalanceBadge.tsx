@@ -19,10 +19,14 @@ export function BalanceBadge({
   balance,
   className,
   size = "sm",
+  showLabel = true,
 }: {
   balance: string | number;
   className?: string;
   size?: "sm" | "md" | "lg";
+  /** List rows hide the word ("owes"/"settled") so a long name keeps its room;
+   *  the colour and the `title` still carry the meaning. */
+  showLabel?: boolean;
 }) {
   const { t } = useLanguage();
   const d = new Decimal(balance);
@@ -64,7 +68,7 @@ export function BalanceBadge({
       title={title}
     >
       {formatMoney(d.abs())}
-      {size !== "lg" ? <span className="font-normal">· {label}</span> : null}
+      {showLabel && size !== "lg" ? <span className="font-normal">· {label}</span> : null}
     </span>
   );
 }

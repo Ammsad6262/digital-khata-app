@@ -40,7 +40,7 @@ export function CustomerRow({ customer }: { customer: CustomerSearchResult }) {
         </div>
 
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-medium text-ink">
+          <p className="truncate text-sm font-medium text-ink" title={customer.name}>
             {customer.name}
           </p>
           {customer.companyName ? (
@@ -49,9 +49,9 @@ export function CustomerRow({ customer }: { customer: CustomerSearchResult }) {
             </p>
           ) : null}
           {customer.phone ? (
-            <p className="flex items-center gap-1 text-xs text-ink-subtle">
+            <p className="flex min-w-0 items-center gap-1 text-xs text-ink-subtle">
               <Phone className="h-3 w-3 shrink-0" />
-              <span className="truncate">{customer.phone}</span>
+              <span className="min-w-0 truncate">{customer.phone}</span>
             </p>
           ) : (
             <p className="text-xs text-ink-faint">{t("common.noPhone")}</p>
@@ -63,7 +63,11 @@ export function CustomerRow({ customer }: { customer: CustomerSearchResult }) {
           can never sit on top of the phone number, and the name keeps the full
           width of the text column on narrow screens. */}
       <div className="flex shrink-0 flex-col items-end gap-1.5">
-        <BalanceBadge balance={customer.balance} className="whitespace-nowrap" />
+        <BalanceBadge
+          balance={customer.balance}
+          className="whitespace-nowrap"
+          showLabel={false}
+        />
         {owesMoney ? (
           <ContactActions
             phone={customer.phone}
